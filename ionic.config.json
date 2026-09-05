@@ -1,0 +1,7 @@
+{
+  "name": "GAM-Frontend",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
