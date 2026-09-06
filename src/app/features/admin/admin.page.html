@@ -1,0 +1,125 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Administración</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <main class="admin-shell">
+    <ion-button fill="clear" routerLink="/home">Volver al inicio</ion-button>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Confirmación sensible</ion-card-title>
+        <ion-card-subtitle>Se solicita antes de crear usuarios, PIN, códigos o revocar dispositivos.</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Tu contraseña</ion-label>
+          <ion-input type="password" autocomplete="current-password" [formControl]="passwordForm.controls.password"></ion-input>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Crear usuario</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="userForm" (ngSubmit)="createUser()">
+          <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="name"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Contraseña inicial</ion-label><ion-input type="password" formControlName="password"></ion-input></ion-item>
+          <ion-item>
+            <ion-label>Rol</ion-label>
+            <ion-select formControlName="role">
+              <ion-select-option value="employee">Empleado</ion-select-option>
+              <ion-select-option value="delivery">Repartidor</ion-select-option>
+              <ion-select-option value="admin">Administrador</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-button type="submit" expand="block" [disabled]="busy()">Crear usuario</ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Usuarios</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list>
+          @for (user of users(); track user.id) {
+            <ion-item>
+              <ion-label>
+                <h2>{{ user.nombre }}</h2>
+                <p>{{ user.correo_electronico }} · {{ user.roles.join(', ') }}</p>
+                <p>{{ user.deleted_at ? 'Deshabilitado' : 'Habilitado' }}</p>
+              </ion-label>
+              @if (!user.roles.includes('admin') && !user.deleted_at) {
+                <ion-button slot="end" fill="outline" (click)="selectPinTarget(user)">PIN</ion-button>
+                <ion-button slot="end" fill="clear" (click)="unlockPin(user)">Desbloquear</ion-button>
+              }
+              <ion-button slot="end" fill="clear" (click)="selectPasswordTarget(user)">Contraseña</ion-button>
+              <ion-button slot="end" fill="clear" color="warning" (click)="revokeSessions(user)">Sesiones</ion-button>
+              <ion-button slot="end" fill="clear" color="medium" (click)="toggleUser(user)">
+                {{ user.deleted_at ? 'Activar' : 'Deshabilitar' }}
+              </ion-button>
+            </ion-item>
+          }
+        </ion-list>
+        @if (pinTarget(); as target) {
+          <form [formGroup]="pinForm" (ngSubmit)="setPin()">
+            <ion-item>
+              <ion-label position="stacked">PIN para {{ target.nombre }}</ion-label>
+              <ion-input type="password" inputmode="numeric" maxlength="4" formControlName="pin"></ion-input>
+            </ion-item>
+            <ion-button type="submit" expand="block">Guardar PIN</ion-button>
+          </form>
+        }
+        @if (passwordTarget(); as target) {
+          <form [formGroup]="resetPasswordForm" (ngSubmit)="resetPassword()">
+            <ion-item>
+              <ion-label position="stacked">Nueva contraseña para {{ target.nombre }}</ion-label>
+              <ion-input type="password" autocomplete="new-password" formControlName="password"></ion-input>
+            </ion-item>
+            <ion-button type="submit" expand="block">Restablecer contraseña</ion-button>
+          </form>
+        }
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Dispositivos compartidos</ion-card-title>
+        <ion-card-subtitle>El código se muestra solo en esta vista y no se persiste.</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="deviceForm" (ngSubmit)="generateCode()">
+          <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="name"></ion-input></ion-item>
+          <ion-button type="submit" expand="block">Generar código</ion-button>
+        </form>
+        @if (pairingCode(); as code) {
+          <ion-text color="primary"><p class="pairing-code" aria-live="polite">{{ code }}</p></ion-text>
+        }
+        <ion-list>
+          @for (device of devices(); track device.id) {
+            <ion-item>
+              <ion-label>
+                <h2>{{ device.nombre }}</h2>
+                <p>{{ device.revoked_at ? 'Revocado' : 'Activo' }}</p>
+              </ion-label>
+              @if (!device.revoked_at) {
+                <ion-button slot="end" color="danger" fill="outline" (click)="revokeDevice(device)">Revocar</ion-button>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    @if (message(); as value) {
+      <ion-text color="primary" aria-live="polite">{{ value }}</ion-text>
+    }
+  </main>
+</ion-content>

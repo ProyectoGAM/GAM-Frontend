@@ -108,3 +108,7 @@ Before implementing business modules:
 10. commit baseline
 
 Only then begin business features.
+
+## Authentication milestone
+
+The current app includes the auth route, cookie/Bearer selection, shared pairing, PIN selector, activity heartbeat and administrative identity screens. Run the browser baseline and cap sync after changing auth or native storage.

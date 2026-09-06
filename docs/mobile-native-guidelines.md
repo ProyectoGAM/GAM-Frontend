@@ -132,3 +132,7 @@ Compilation/signing requires macOS/Xcode.
 ## Native folders
 
 Keep manual Android/iOS modifications minimal, documented and reproducible.
+
+## Authentication storage
+
+The app uses Preferences for the non-secret deviceMode marker and the secure-storage plugin for native personal PAT/device credentials. Keychain synchronization is disabled by the wrapper. Employee PATs are memory-only, and shared startup returns to PIN after process restart or resume. iOS compilation still requires macOS/Xcode; Android signing/build tooling must be verified separately.

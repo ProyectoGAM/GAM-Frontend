@@ -1,20 +1,27 @@
-<ion-header [translucent]="true">
+<ion-header>
   <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
+    <ion-title>GAM</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-  </div>
+  <main id="container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Bienvenido, {{ auth.user()?.nombre }}</ion-card-title>
+        <ion-card-subtitle>
+          {{ auth.isShared() ? 'Sesión operativa compartida' : 'Sesión personal' }}
+        </ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <p>El acceso y los permisos se verifican en el servidor en cada operación.</p>
+        @if (auth.isAdmin()) {
+          <ion-button routerLink="/administracion" expand="block">Administración</ion-button>
+        }
+        <ion-button color="medium" fill="outline" expand="block" (click)="auth.logout()">
+          Cerrar sesión
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </main>
 </ion-content>

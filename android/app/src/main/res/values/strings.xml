@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GAM</string>
+    <string name="title_activity_main">GAM</string>
+    <string name="package_name">dev.huevossanjose.gam</string>
+    <string name="custom_url_scheme">dev.huevossanjose.gam</string>
+</resources>

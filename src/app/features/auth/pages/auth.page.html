@@ -1,0 +1,161 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ heading() }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <main class="auth-shell">
+    @if (auth.status() === 'initializing' || auth.status() === 'shared_verifying') {
+      <section class="status-card" aria-live="polite">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Verificando el acceso…</p>
+      </section>
+    } @else if (auth.status() === 'shared_selector') {
+      <section aria-labelledby="employee-title">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title id="employee-title">¿Quién va a trabajar?</ion-card-title>
+            <ion-card-subtitle>Selecciona tu nombre para ingresar el PIN.</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            @if (auth.sharedUsers().length === 0) {
+              <p class="empty-state">No hay empleados habilitados para este dispositivo.</p>
+            } @else {
+              <ion-list lines="full">
+                @for (user of auth.sharedUsers(); track user.id) {
+                  <ion-item button detail (click)="chooseUser(user)">
+                    <ion-label>{{ user.nombre }}</ion-label>
+                  </ion-item>
+                }
+              </ion-list>
+            }
+            <ion-button fill="clear" expand="block" (click)="reloadUsers()">
+              Actualizar lista
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </section>
+    } @else if (auth.status() === 'shared_authenticated') {
+      <section class="status-card" aria-live="polite">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Sesión activa</ion-card-title>
+            <ion-card-subtitle>{{ auth.user()?.nombre }}</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-button routerLink="/home" expand="block">Continuar</ion-button>
+            <ion-button fill="outline" color="medium" expand="block" (click)="auth.finishSharedSession()">
+              Terminar sesión
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </section>
+    } @else {
+      <section aria-labelledby="login-title">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title id="login-title">Acceso personal</ion-card-title>
+            <ion-card-subtitle>Usa el correo autorizado por la administración.</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <form [formGroup]="loginForm" (ngSubmit)="submitLogin()">
+              <ion-item>
+                <ion-label position="stacked">Correo electrónico</ion-label>
+                <ion-input
+                  type="email"
+                  autocomplete="username"
+                  inputmode="email"
+                  formControlName="email"
+                ></ion-input>
+              </ion-item>
+              @if (loginForm.controls.email.touched && loginForm.controls.email.invalid) {
+                <ion-text color="danger"><small>Ingresa un correo válido.</small></ion-text>
+              }
+              <ion-item>
+                <ion-label position="stacked">Contraseña</ion-label>
+                <ion-input
+                  [type]="showPassword() ? 'text' : 'password'"
+                  autocomplete="current-password"
+                  formControlName="password"
+                ></ion-input>
+                <ion-button
+                  slot="end"
+                  fill="clear"
+                  type="button"
+                  [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="showPassword.set(!showPassword())"
+                >
+                  {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
+                </ion-button>
+              </ion-item>
+              <ion-button type="submit" expand="block" [disabled]="submitting()">
+                @if (submitting()) { <ion-spinner name="crescent"></ion-spinner> } @else { Ingresar }
+              </ion-button>
+            </form>
+          </ion-card-content>
+        </ion-card>
+      </section>
+
+      <ion-button fill="outline" expand="block" (click)="showPairing.set(!showPairing())">
+        Configurar como dispositivo compartido
+      </ion-button>
+
+      @if (showPairing()) {
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Vincular dispositivo</ion-card-title>
+            <ion-card-subtitle>El código vence en 10 minutos y solo se puede usar una vez.</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <form [formGroup]="pairingForm" (ngSubmit)="submitPairing()">
+              <ion-item>
+                <ion-label position="stacked">Código de vinculación</ion-label>
+                <ion-input
+                  formControlName="code"
+                  maxlength="10"
+                  autocomplete="one-time-code"
+                  autocapitalize="characters"
+                ></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-label position="stacked">Nombre del dispositivo</ion-label>
+                <ion-input formControlName="name"></ion-input>
+              </ion-item>
+              <ion-button type="submit" expand="block" [disabled]="submitting()">Vincular</ion-button>
+            </form>
+          </ion-card-content>
+        </ion-card>
+      }
+    }
+
+    @if (selectedUser(); as user) {
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>PIN de {{ user.nombre }}</ion-card-title>
+          <ion-card-subtitle>El PIN se envía como texto para conservar ceros iniciales.</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <form [formGroup]="pinForm" (ngSubmit)="submitPin()">
+            <ion-item>
+              <ion-label position="stacked">PIN de 4 dígitos</ion-label>
+              <ion-input
+                type="password"
+                inputmode="numeric"
+                maxlength="4"
+                autocomplete="off"
+                formControlName="pin"
+              ></ion-input>
+            </ion-item>
+            <ion-button type="submit" expand="block" [disabled]="submitting()">Ingresar</ion-button>
+            <ion-button type="button" fill="clear" expand="block" (click)="clearUser()">Elegir otra persona</ion-button>
+          </form>
+        </ion-card-content>
+      </ion-card>
+    }
+
+    @if (auth.errorMessage(); as error) {
+      <ion-text color="danger" class="error-message" aria-live="assertive">{{ error }}</ion-text>
+    }
+  </main>
+</ion-content>

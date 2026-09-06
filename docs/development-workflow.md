@@ -101,3 +101,5 @@ refactor(api): centralize request options
 ```
 
 Avoid mixing unrelated concerns in one commit.
+
+For multi-login changes, run npm run lint, npm run test:ci, npm run build, npm audit --omit=dev and npx cap sync. Start the backend with docker compose -f compose.dev.yaml up -d --build and run API checks through docker compose exec so PostgreSQL/Redis behavior is exercised.

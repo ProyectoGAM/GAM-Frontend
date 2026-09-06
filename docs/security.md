@@ -60,3 +60,11 @@ Do not log:
 ## Native permissions
 
 Request only permissions actually required by product functionality.
+
+## Multi-login rules
+
+- Never log passwords, PINs, PATs, device tokens or authorization headers.
+- The four-digit PIN is always a string, so 0007 is preserved. Client validation is only UX; Laravel enforces eligibility and rate limits.
+- Browser secrets are HttpOnly cookies. The secure-storage plugin is never used as a browser localStorage fallback.
+- Shared mode is not trusted: every list, PIN login and operation is checked by the backend with the device credential and session context.
+- Pairing codes and generated secrets are held only in memory in the relevant UI and are not persisted.

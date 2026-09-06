@@ -360,3 +360,11 @@ A task is complete only when:
 - documentation/ADR is updated if architecture changed
 
 If a required validation command cannot run, report it explicitly.
+
+## Authentication and local mode
+
+- Authentication infrastructure lives in core/auth, core/guards, core/interceptors and core/native.
+- The browser uses HttpOnly cookies and CSRF; it never stores a PAT or shared-device secret in localStorage.
+- Native PAT and device credentials use the secure-storage wrapper. Preferences/localStorage only stores the non-secret mode marker.
+- personal/shared is a startup preference, not authorization evidence. The server must validate device, user, PIN session and permissions.
+- On app resume or shared-session finish, clear employee identity and return to the selector without requiring a new pairing code.

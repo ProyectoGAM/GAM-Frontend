@@ -546,3 +546,9 @@ types
 ```
 
 Add complexity only after the current structure demonstrates a real limitation.
+
+## Authentication flows
+
+The application-wide AuthStore is the single signal source for session state. AuthApi owns transport calls, CredentialStorage owns platform persistence, the interceptor owns headers/cookies and guards only decide navigation.
+
+The web starts with a normal personal login. A successful pairing changes only the non-secret local mode after the HttpOnly device cookie has been accepted. Native pairing persists its one-time device secret in secure storage. Shared startup always verifies the device and shows the employee selector; it never restores the previous employee automatically.

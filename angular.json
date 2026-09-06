@@ -90,6 +90,7 @@
               "buildTarget": "app:build:production"
             },
             "development": {
+              "proxyConfig": "proxy.conf.json",
               "buildTarget": "app:build:development"
             },
             "ci": {
