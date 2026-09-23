@@ -23,6 +23,19 @@ When native integration changes:
 npx cap sync
 ```
 
+The same frontend checks can run in the pinned Docker toolchain:
+
+```bash
+docker build --target verification -t gam-frontend:verification .
+```
+
+Validate both Compose definitions without starting services:
+
+```bash
+docker compose -f compose.dev.yaml config --quiet
+docker compose config --quiet
+```
+
 ## Test priorities
 
 1. feature service behavior

@@ -1,0 +1,35 @@
+name: gam-frontend
+
+services:
+  web:
+    image: gam-frontend:local
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.15.0}
+    ports:
+      - "127.0.0.1:${FRONTEND_WEB_PORT:-8081}:8080"
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-http://gateway:8080}
+      NGINX_ENVSUBST_FILTER: API_UPSTREAM
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:rw,noexec,nosuid,size=1m,uid=101,gid=101
+      - /tmp:rw,noexec,nosuid,size=16m,uid=101,gid=101
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m,uid=101,gid=101
+      - /var/run:rw,noexec,nosuid,size=1m,uid=101,gid=101
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 10s
+
+networks:
+  backend:
+    external: true
+    name: ${GAM_BACKEND_NETWORK:-gam-dev_gam-dev}

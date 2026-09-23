@@ -531,7 +531,26 @@ Create an ADR when introducing:
 - a major API-client strategy change
 - architectural layers beyond the default simple feature model
 
-## 26. Guiding principle
+## 26. Container boundary
+
+Docker covers the Angular web development and delivery surfaces only.
+
+The frontend repository owns:
+
+- its Node-based development image
+- its Angular production build
+- its unprivileged static web server
+- the same-origin proxy for `/api` and `/sanctum`
+
+The Laravel backend remains in the sibling `GAM-Backend` repository. Local
+frontend containers join the external network created by the backend Compose
+project and address its gateway by service name.
+
+Android and iOS builds remain native delivery workflows. They are not produced
+by the web image; Android still requires its SDK/JDK and iOS requires macOS and
+Xcode.
+
+## 27. Guiding principle
 
 Start simple.
 
