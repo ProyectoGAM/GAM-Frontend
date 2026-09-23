@@ -1,0 +1,48 @@
+name: gam-frontend-dev
+
+services:
+  frontend:
+    image: gam-frontend:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.15.0}
+    init: true
+    ports:
+      - "127.0.0.1:${FRONTEND_DEV_PORT:-4200}:4200"
+    environment:
+      WATCH_POLL_INTERVAL: ${WATCH_POLL_INTERVAL:-2000}
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - angular-cache:/app/.angular/cache
+    networks:
+      - backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4200').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 10s
+
+volumes:
+  node-modules:
+  angular-cache:
+
+networks:
+  backend:
+    external: true
+    name: ${GAM_BACKEND_NETWORK:-gam-dev_gam-dev}
