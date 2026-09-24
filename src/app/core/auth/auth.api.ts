@@ -24,26 +24,26 @@ export class AuthApi {
 
   personalLogin(email: string, password: string) {
     return this.api.post<PersonalLoginResponse>(
-      'autenticacion/inicio-sesion',
-      { correo_electronico: email, password },
+      'auth/login',
+      { email, password },
     );
   }
 
   webLogin(email: string, password: string) {
     return this.api.post<PersonalLoginResponse>(
-      'autenticacion/web/inicio-sesion',
-      { correo_electronico: email, password },
+      'auth/web/login',
+      { email, password },
       { withCredentials: true },
     );
   }
 
   me() {
-    return this.api.get<MeResponse>('mi-perfil', { withCredentials: true });
+    return this.api.get<MeResponse>('me', { withCredentials: true });
   }
 
   personalLogout() {
     return this.api.post<{ message: string }>(
-      'autenticacion/cerrar-sesion',
+      'auth/logout',
       {},
       { withCredentials: true },
     );
@@ -51,36 +51,34 @@ export class AuthApi {
 
   webLogout() {
     return this.api.post<{ message: string }>(
-      'autenticacion/web/cerrar-sesion',
+      'auth/web/logout',
       {},
       { withCredentials: true },
     );
   }
 
-  confirmPassword(password: string) {
+  confirmPassword(password: string, web: boolean) {
     return this.api.post<{ message: string }>(
-      'autenticacion/confirmar-password',
+      web ? 'auth/web/confirm-password' : 'auth/confirm-password',
       { password },
       { withCredentials: true },
     );
   }
 
   pair(code: string, deviceName: string, web: boolean) {
-    const path = web
-      ? 'autenticacion/web/vinculacion'
-      : 'dispositivos-compartidos/vinculacion';
+    const path = web ? 'auth/web/pairing' : 'shared-devices/pairing';
 
     return this.api.post<SharedPairingResponse>(
       path,
-      { codigo: code, device_name: deviceName },
+      { code, device_name: deviceName },
       { withCredentials: web },
     );
   }
 
   sharedStatus(web: boolean) {
     const path = web
-      ? 'dispositivo-compartido/web'
-      : 'dispositivo-compartido';
+      ? 'shared-device/web'
+      : 'shared-device';
 
     return this.api.get<SharedDeviceStatusResponse>(path, {
       withCredentials: web,
@@ -89,8 +87,8 @@ export class AuthApi {
 
   sharedUsers(web: boolean) {
     const path = web
-      ? 'dispositivo-compartido/web/usuarios'
-      : 'dispositivo-compartido/usuarios';
+      ? 'shared-device/web/users'
+      : 'shared-device/users';
 
     return this.api.get<SharedUsersResponse>(path, {
       withCredentials: web,
@@ -99,20 +97,20 @@ export class AuthApi {
 
   pinLogin(userId: number, pin: string, web: boolean) {
     const path = web
-      ? 'dispositivo-compartido/web/inicio-sesion-pin'
-      : 'dispositivo-compartido/inicio-sesion-pin';
+      ? 'shared-device/web/login-pin'
+      : 'shared-device/login-pin';
 
     return this.api.post<PersonalLoginResponse>(
       path,
-      { usuario_id: userId, pin },
+      { user_id: userId, pin },
       { withCredentials: web },
     );
   }
 
   activity(web: boolean) {
     const path = web
-      ? 'dispositivo-compartido/web/actividad'
-      : 'dispositivo-compartido/actividad';
+      ? 'shared-device/web/activity'
+      : 'shared-device/activity';
 
     return this.api.post<{ expires_at: string | null }>(
       path,
@@ -123,12 +121,12 @@ export class AuthApi {
 
   finalize(sessionId: string, web: boolean) {
     const path = web
-      ? 'dispositivo-compartido/web/finalizar-sesion'
-      : 'dispositivo-compartido/finalizar-sesion';
+      ? 'shared-device/web/finalize'
+      : 'shared-device/finalize';
 
     return this.api.post<{ message: string }>(
       path,
-      { sesion_id: sessionId },
+      { session_id: sessionId },
       { withCredentials: web },
     );
   }

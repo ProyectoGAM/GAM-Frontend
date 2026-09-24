@@ -1,0 +1,36 @@
+<ion-header class="mobile-header">
+  <ion-toolbar>
+    <ion-title>GAM · Administración</ion-title>
+    <ion-button slot="end" fill="clear" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <a class="brand" [routerLink]="firstVisibleRoute()" aria-label="GAM, inicio administrativo">
+        <span class="brand-mark">G</span><span><strong>GAM</strong><small>Gestión avícola</small></span>
+      </a>
+      <div class="context"><small>{{ auth.isShared() ? 'Sesión operativa compartida' : 'Sesión personal' }}</small><b>{{ auth.user()?.name }}</b><span>{{ auth.user()?.roles?.join(', ') }}</span></div>
+      <button class="mobile-menu-toggle" type="button" [attr.aria-expanded]="mobileMenuOpen()" (click)="mobileMenuOpen.set(!mobileMenuOpen())">{{ mobileMenuOpen() ? 'Cerrar menú' : 'Menú' }}<span aria-hidden="true">{{ mobileMenuOpen() ? '×' : '☰' }}</span></button>
+      <nav aria-label="Navegación administrativa" [class.mobile-open]="mobileMenuOpen()">
+        @for (group of groups(); track group.id) {
+            <details class="nav-group" open>
+              <summary>{{ group.label }}</summary>
+              @for (item of group.items; track item.slug) {
+                <a [routerLink]="['/administracion', group.id, item.slug]" routerLinkActive="active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" (click)="mobileMenuOpen.set(false)">
+                  {{ item.label }}
+                </a>
+              }
+            </details>
+        }
+      </nav>
+      <button class="logout" type="button" (click)="logout()"><span aria-hidden="true">↪</span>Cerrar sesión</button>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar"><div><small>GAM · Gestión avícola</small><strong>Panel administrativo</strong></div><div class="user-badge"><span>{{ auth.user()?.name?.slice(0, 1) ?? 'G' }}</span>{{ auth.user()?.name }}</div></header>
+      <section class="page-content"><router-outlet /></section>
+    </main>
+  </div>
+</ion-content>

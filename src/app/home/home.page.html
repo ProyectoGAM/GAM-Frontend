@@ -8,7 +8,7 @@
   <main id="container">
     <ion-card>
       <ion-card-header>
-        <ion-card-title>Bienvenido, {{ auth.user()?.nombre }}</ion-card-title>
+          <ion-card-title>Bienvenido, {{ auth.user()?.name }}</ion-card-title>
         <ion-card-subtitle>
           {{ auth.isShared() ? 'Sesión operativa compartida' : 'Sesión personal' }}
         </ion-card-subtitle>
@@ -16,9 +16,10 @@
       <ion-card-content>
         <p>El acceso y los permisos se verifican en el servidor en cada operación.</p>
         @if (auth.isAdmin()) {
-          <ion-button routerLink="/administracion" expand="block">Administración</ion-button>
+          <ion-button routerLink="/administracion" expand="block">Panel administrativo</ion-button>
+          <ion-button routerLink="/gestion-accesos" fill="outline" expand="block">Gestión de usuarios y dispositivos</ion-button>
         }
-        <ion-button color="medium" fill="outline" expand="block" (click)="auth.logout()">
+        <ion-button color="medium" fill="outline" expand="block" (click)="logout()">
           Cerrar sesión
         </ion-button>
       </ion-card-content>

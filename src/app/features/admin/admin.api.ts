@@ -4,7 +4,7 @@ import { ApiClient } from '../../core/api/api-client';
 import { AuthUser, SharedDevice } from '../../core/auth/auth.types';
 
 interface UserListResponse {
-  data: AuthUser[];
+  data: AuthUser[] | { data: AuthUser[] };
 }
 
 interface DeviceListResponse {
@@ -21,66 +21,66 @@ export class AdminApi {
   private readonly api = inject(ApiClient);
 
   users() {
-    return this.api.get<UserListResponse>('usuarios');
+    return this.api.get<UserListResponse>('users');
   }
 
   createUser(data: {
-    nombre: string;
-    correo_electronico: string;
+    name: string;
+    email: string;
     password: string;
     password_confirmation: string;
-    rol: string;
+    role: string;
   }) {
-    return this.api.post<{ data: AuthUser }>('usuarios', data);
+    return this.api.post<{ data: AuthUser }>('users', data);
   }
 
   changeStatus(id: number, enabled: boolean) {
-    return this.api.patch<{ data: AuthUser }, { habilitado: boolean }>(
-      'usuarios/' + id + '/estado',
-      { habilitado: enabled },
+    return this.api.patch<{ data: AuthUser }, { enabled: boolean }>(
+      'users/' + id + '/status',
+      { enabled },
     );
   }
 
   setPin(id: number, pin: string) {
     return this.api.put<{ data: AuthUser }, { pin: string; pin_confirmation: string }>(
-      'usuarios/' + id + '/pin',
+      'users/' + id + '/pin',
       { pin, pin_confirmation: pin },
     );
   }
 
   deletePin(id: number) {
-    return this.api.delete<{ message: string }>('usuarios/' + id + '/pin');
+    return this.api.delete<{ message: string }>('users/' + id + '/pin');
   }
 
   unlockPin(id: number) {
-    return this.api.post<{ message: string }>('usuarios/' + id + '/pin/desbloqueo', {});
+    return this.api.post<{ message: string }>('users/' + id + '/pin/unlock', {});
   }
 
   resetPassword(id: number, password: string) {
     return this.api.put<{ message: string }, { password: string; password_confirmation: string }>(
-      'usuarios/' + id + '/password',
+      'users/' + id + '/password',
       { password, password_confirmation: password },
     );
   }
 
   revokeSessions(id: number) {
-    return this.api.delete<{ message: string }>('usuarios/' + id + '/sesiones');
+    return this.api.delete<{ message: string }>('users/' + id + '/sessions');
   }
 
   devices() {
-    return this.api.get<DeviceListResponse>('dispositivos-compartidos');
+    return this.api.get<DeviceListResponse>('shared-devices');
   }
 
   generateCode(name: string) {
-    return this.api.post<CreatedCodeResponse, { nombre: string }>(
-      'dispositivos-compartidos/codigos',
-      { nombre: name },
+    return this.api.post<CreatedCodeResponse, { name: string }>(
+      'shared-devices/codes',
+      { name },
     );
   }
 
   revokeDevice(id: string) {
     return this.api.delete<{ message: string }>(
-      'dispositivos-compartidos/' + id + '/vinculacion',
+      'shared-devices/' + id + '/pairing',
     );
   }
 }

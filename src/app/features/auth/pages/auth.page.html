@@ -1,11 +1,14 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>{{ heading() }}</ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content [fullscreen]="true">
-  <main class="auth-shell">
+  <main class="auth-layout">
+    <section class="auth-scene" aria-label="GAM, Gestión avícola">
+      <a class="auth-brand" routerLink="/auth"><span>G</span><strong>GAM<small>Gestión avícola</small></strong></a>
+      <div class="auth-scene-copy"><p>CONTROL DE CAMPO Y ADMINISTRACIÓN</p><h1>La operación empieza con un acceso simple.</h1><span>Acceso personal seguro y una experiencia rápida con PIN para el personal en dispositivos compartidos.</span></div>
+    </section>
+    <section class="auth-panel-wrap">
+      <div class="auth-panel">
+        <p class="mobile-label">ACCESO AL SISTEMA</p>
+        <h2>{{ heading() }}</h2>
+        <p class="auth-subtitle">{{ auth.isShared() ? 'Selecciona tu nombre e ingresa el PIN.' : 'Ingresa con el correo autorizado por la administración.' }}</p>
     @if (auth.status() === 'initializing' || auth.status() === 'shared_verifying') {
       <section class="status-card" aria-live="polite">
         <ion-spinner name="crescent"></ion-spinner>
@@ -25,7 +28,7 @@
               <ion-list lines="full">
                 @for (user of auth.sharedUsers(); track user.id) {
                   <ion-item button detail (click)="chooseUser(user)">
-                    <ion-label>{{ user.nombre }}</ion-label>
+                  <ion-label>{{ user.name }}</ion-label>
                   </ion-item>
                 }
               </ion-list>
@@ -41,7 +44,7 @@
         <ion-card>
           <ion-card-header>
             <ion-card-title>Sesión activa</ion-card-title>
-            <ion-card-subtitle>{{ auth.user()?.nombre }}</ion-card-subtitle>
+            <ion-card-subtitle>{{ auth.user()?.name }}</ion-card-subtitle>
           </ion-card-header>
           <ion-card-content>
             <ion-button routerLink="/home" expand="block">Continuar</ion-button>
@@ -132,7 +135,7 @@
     @if (selectedUser(); as user) {
       <ion-card>
         <ion-card-header>
-          <ion-card-title>PIN de {{ user.nombre }}</ion-card-title>
+          <ion-card-title>PIN de {{ user.name }}</ion-card-title>
           <ion-card-subtitle>El PIN se envía como texto para conservar ceros iniciales.</ion-card-subtitle>
         </ion-card-header>
         <ion-card-content>
@@ -157,5 +160,7 @@
     @if (auth.errorMessage(); as error) {
       <ion-text color="danger" class="error-message" aria-live="assertive">{{ error }}</ion-text>
     }
+      </div>
+    </section>
   </main>
 </ion-content>

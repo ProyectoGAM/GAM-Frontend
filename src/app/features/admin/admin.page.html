@@ -52,11 +52,11 @@
           @for (user of users(); track user.id) {
             <ion-item>
               <ion-label>
-                <h2>{{ user.nombre }}</h2>
-                <p>{{ user.correo_electronico }} · {{ user.roles.join(', ') }}</p>
+                <h2>{{ user.name }}</h2>
+                <p>{{ user.email }} · {{ user.roles.join(', ') }}</p>
                 <p>{{ user.deleted_at ? 'Deshabilitado' : 'Habilitado' }}</p>
               </ion-label>
-              @if (!user.roles.includes('admin') && !user.deleted_at) {
+              @if (!auth.isAdminUser(user) && !user.deleted_at) {
                 <ion-button slot="end" fill="outline" (click)="selectPinTarget(user)">PIN</ion-button>
                 <ion-button slot="end" fill="clear" (click)="unlockPin(user)">Desbloquear</ion-button>
               }
@@ -71,7 +71,7 @@
         @if (pinTarget(); as target) {
           <form [formGroup]="pinForm" (ngSubmit)="setPin()">
             <ion-item>
-              <ion-label position="stacked">PIN para {{ target.nombre }}</ion-label>
+              <ion-label position="stacked">PIN para {{ target.name }}</ion-label>
               <ion-input type="password" inputmode="numeric" maxlength="4" formControlName="pin"></ion-input>
             </ion-item>
             <ion-button type="submit" expand="block">Guardar PIN</ion-button>
@@ -80,7 +80,7 @@
         @if (passwordTarget(); as target) {
           <form [formGroup]="resetPasswordForm" (ngSubmit)="resetPassword()">
             <ion-item>
-              <ion-label position="stacked">Nueva contraseña para {{ target.nombre }}</ion-label>
+              <ion-label position="stacked">Nueva contraseña para {{ target.name }}</ion-label>
               <ion-input type="password" autocomplete="new-password" formControlName="password"></ion-input>
             </ion-item>
             <ion-button type="submit" expand="block">Restablecer contraseña</ion-button>
@@ -106,7 +106,7 @@
           @for (device of devices(); track device.id) {
             <ion-item>
               <ion-label>
-                <h2>{{ device.nombre }}</h2>
+                <h2>{{ device.name }}</h2>
                 <p>{{ device.revoked_at ? 'Revocado' : 'Activo' }}</p>
               </ion-label>
               @if (!device.revoked_at) {
