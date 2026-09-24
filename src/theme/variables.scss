@@ -1,2 +1,63 @@
-// For information on how to create your own theme, please refer to:
-// https://ionicframework.com/docs/theming/
+// GAM semantic color tokens. Usage and contrast rules: docs/design-colors.md.
+// Light is the default; the dark palette follows the operating system.
+:root {
+  --gam-color-canvas: #eef2f6;
+  --gam-color-surface: #ffffff;
+  --gam-color-surface-alt: #f7f9fc;
+  --gam-color-heading: #17365d;
+  --gam-color-text: #334255;
+  --gam-color-text-muted: #5d6e80;
+  --gam-color-border: #dce3ea;
+  --gam-color-control-border: #8091a2;
+
+  --gam-color-primary: #17365d;
+  --gam-color-on-primary: #ffffff;
+  --gam-color-primary-soft: #dce8f4;
+  --gam-color-focus: #3375b3;
+
+  --gam-color-nav: #17365d;
+  --gam-color-nav-hover: #23476d;
+  --gam-color-nav-active: #2c5279;
+  --gam-color-nav-text: #e5eef7;
+  --gam-color-nav-muted: #b8cce0;
+  --gam-color-nav-focus: #91b7dc;
+
+  --gam-color-success: #176b45;
+  --gam-color-success-soft: #e6f5ec;
+  --gam-color-warning: #8a5a00;
+  --gam-color-warning-soft: #fff2d6;
+  --gam-color-danger: #a93239;
+  --gam-color-danger-soft: #fdebed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gam-color-canvas: #121d29;
+    --gam-color-surface: #1d2b3b;
+    --gam-color-surface-alt: #1a2939;
+    --gam-color-heading: #e5eef7;
+    --gam-color-text: #d4e1ec;
+    --gam-color-text-muted: #a9bfd2;
+    --gam-color-border: #405367;
+    --gam-color-control-border: #68839d;
+
+    --gam-color-primary: #aecded;
+    --gam-color-on-primary: #122436;
+    --gam-color-primary-soft: #29445f;
+    --gam-color-focus: #91b7dc;
+
+    --gam-color-nav: #10253e;
+    --gam-color-nav-hover: #1f3b57;
+    --gam-color-nav-active: #2a4b69;
+    --gam-color-nav-text: #e5eef7;
+    --gam-color-nav-muted: #b8cce0;
+    --gam-color-nav-focus: #91b7dc;
+
+    --gam-color-success: #9be5bd;
+    --gam-color-success-soft: #183a2c;
+    --gam-color-warning: #f4cc7a;
+    --gam-color-warning-soft: #44351d;
+    --gam-color-danger: #ffb3b8;
+    --gam-color-danger-soft: #4c2930;
+  }
+}

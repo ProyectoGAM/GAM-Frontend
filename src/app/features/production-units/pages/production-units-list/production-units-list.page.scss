@@ -1,0 +1,153 @@
+:host {
+  display: block;
+  color: var(--gam-color-text);
+}
+
+.units-page {
+  max-width: 1800px;
+  margin-inline: auto;
+}
+
+.page-heading {
+  margin-bottom: 22px;
+}
+
+.create-unit-button,
+.state-panel ion-button {
+  --background: var(--gam-color-primary);
+  --color: var(--gam-color-on-primary);
+  --border-radius: 8px;
+  min-height: 44px;
+}
+
+.create-unit-button { width: 100%; margin: 18px 0 0; }
+
+.breadcrumb {
+  margin: 0 0 8px;
+  color: var(--gam-color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.breadcrumb span {
+  padding-inline: 4px;
+}
+
+h1 {
+  margin: 0;
+  color: var(--gam-color-heading);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  line-height: 1.2;
+}
+
+.intro {
+  margin: 9px 0 0;
+  color: var(--gam-color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.unit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.unit-card {
+  min-width: 0;
+  margin: 0;
+  --background: var(--gam-color-surface);
+  box-shadow: none;
+}
+
+.unit-card,
+.state-panel { border: 1px solid var(--gam-color-border); border-radius: 12px; }
+
+.unit-card ion-card-content {
+  padding: 18px;
+}
+
+.unit-card h2,
+.state-panel h2 {
+  margin: 0;
+  color: var(--gam-color-heading);
+  font-size: 1.125rem;
+}
+
+.unit-card h2 {
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.location {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 11px 0 0;
+  color: var(--gam-color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.location ion-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--gam-color-primary);
+  font-size: 1rem;
+}
+
+.state-panel {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 36px 20px;
+  background: var(--gam-color-surface);
+  text-align: center;
+}
+
+.state-panel ion-spinner {
+  color: var(--gam-color-primary);
+}
+
+.state-panel p {
+  margin: 0;
+}
+
+.state-panel p {
+  color: var(--gam-color-text-muted);
+  line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  .unit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  .page-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .create-unit-button {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0 0 2px;
+  }
+}
+
+@media (min-width: 960px) {
+  .unit-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .unit-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

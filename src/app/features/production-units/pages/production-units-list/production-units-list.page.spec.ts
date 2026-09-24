@@ -1,0 +1,75 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { Router, RouterLink, provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
+
+import { ProductionUnitsService } from '../../services/production-units.service';
+import { ProductionUnitsListPage } from './production-units-list.page';
+
+describe('ProductionUnitsListPage', () => {
+  let fixture: ComponentFixture<ProductionUnitsListPage>;
+  let listAll: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    listAll = vi.fn();
+    TestBed.configureTestingModule({
+      imports: [ProductionUnitsListPage],
+      providers: [provideRouter([]), { provide: ProductionUnitsService, useValue: { listAll } }],
+    });
+  });
+
+  function render(): void {
+    fixture = TestBed.createComponent(ProductionUnitsListPage);
+    fixture.detectChanges();
+  }
+
+  it('renders unit name and locality with its department', () => {
+    listAll.mockReturnValue(of([{
+      id: 7,
+      name: 'Granja Norte',
+      locality: { name: 'San José', department: { name: 'San José' } },
+    }]));
+
+    render();
+
+    expect(fixture.nativeElement.textContent).toContain('Granja Norte');
+    expect(fixture.nativeElement.textContent).toContain('San José, San José');
+  });
+
+  it('shows the create action and links to the existing creation route', () => {
+    listAll.mockReturnValue(of([]));
+
+    render();
+
+    const button = fixture.debugElement.query(By.directive(RouterLink));
+    const router = TestBed.inject(Router);
+
+    expect(button.nativeElement.textContent).toContain('Crear unidad productiva');
+    expect(router.serializeUrl(button.injector.get(RouterLink).urlTree!))
+      .toBe('/administracion/ubicaciones/nueva-unidad-productiva');
+  });
+
+  it('shows the empty state when the API returns no units', () => {
+    listAll.mockReturnValue(of([]));
+
+    render();
+
+    expect(fixture.nativeElement.textContent).toContain('No hay unidades productivas');
+  });
+
+  it('shows an error and retries the request when requested', () => {
+    listAll.mockReturnValueOnce(throwError(() => new Error('failed')))
+      .mockReturnValueOnce(of([]));
+
+    render();
+    expect(fixture.nativeElement.textContent).toContain('No se pudo cargar el listado');
+
+    const retryButton = fixture.nativeElement.querySelector('.state-panel ion-button');
+    retryButton.click();
+    fixture.detectChanges();
+
+    expect(listAll).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).toContain('No hay unidades productivas');
+  });
+});
