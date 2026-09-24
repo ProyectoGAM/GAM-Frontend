@@ -2,7 +2,7 @@ import { AuthUser } from './auth.types';
 
 export const ADMIN_GROUP_IDS = [
   'usuarios', 'ubicaciones', 'lotes', 'manejo-lotes', 'proveedores',
-  'clientes', 'ventas-repartos', 'inventario', 'alertas-notificaciones', 'reportes',
+  'clientes', 'repartos', 'inventario', 'alertas-notificaciones', 'reportes',
 ] as const;
 
 export type AdminGroup = typeof ADMIN_GROUP_IDS[number];
@@ -15,7 +15,7 @@ export const GROUP_ROLE_GRANTS: Readonly<Record<AdminGroup, readonly string[]>> 
   'manejo-lotes': [],
   proveedores: [],
   clientes: [],
-  'ventas-repartos': [],
+  'repartos': [],
   inventario: [],
   'alertas-notificaciones': [],
   reportes: [],

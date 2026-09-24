@@ -6,7 +6,7 @@ const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
 describe('admin access policy', () => {
   it('normalizes the existing ADMIN role and grants all ten groups', () => {
     expect(isAdminUser(user([' ADMIN ']))).toBe(true);
-    for (const group of ['usuarios', 'ubicaciones', 'lotes', 'manejo-lotes', 'proveedores', 'clientes', 'ventas-repartos', 'inventario', 'alertas-notificaciones', 'reportes'] as const) {
+    for (const group of ['usuarios', 'ubicaciones', 'lotes', 'manejo-lotes', 'proveedores', 'clientes', 'repartos', 'inventario', 'alertas-notificaciones', 'reportes'] as const) {
       expect(canAccessGroup(user(['admin']), group)).toBe(true);
     }
   });
