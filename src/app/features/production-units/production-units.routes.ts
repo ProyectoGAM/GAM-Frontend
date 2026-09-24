@@ -7,3 +7,11 @@ export const productionUnitsRoutes: Routes = [
       .then((module) => module.ProductionUnitsListPage),
   },
 ];
+
+export const productionUnitCreateRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./pages/production-unit-create/production-unit-create.page')
+      .then((module) => module.ProductionUnitCreatePage),
+  },
+];

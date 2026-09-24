@@ -35,4 +35,39 @@ describe('ProductionUnitsService', () => {
 
     expect(result).toEqual([{ id: 1, name: 'Norte' }, { id: 2, name: 'Sur' }]);
   });
+
+  it('loads every page of departments and localities from their documented paths', () => {
+    let departments: unknown;
+    service.departments().subscribe((result) => (departments = result));
+    http.expectOne('/api/v1/departments?page=1&per_page=100')
+      .flush({ data: [{ id: 1, name: 'Canelones' }], meta: { current_page: 1, last_page: 1 } });
+    expect(departments).toEqual([{ id: 1, name: 'Canelones' }]);
+
+    let localities: unknown;
+    service.localities(1).subscribe((result) => (localities = result));
+    http.expectOne('/api/v1/departments/1/localities?page=1&per_page=100')
+      .flush({ data: [{ id: 8, department_id: 1, name: 'Las Piedras' }], meta: { current_page: 1, last_page: 2 } });
+    http.expectOne('/api/v1/departments/1/localities?page=2&per_page=100')
+      .flush({ data: [{ id: 9, department_id: 1, name: 'Progreso' }], meta: { current_page: 2, last_page: 2 } });
+    expect(localities).toEqual([
+      { id: 8, department_id: 1, name: 'Las Piedras' },
+      { id: 9, department_id: 1, name: 'Progreso' },
+    ]);
+  });
+
+  it('posts only the backend production-unit fields', () => {
+    const request = {
+      locality_id: 8,
+      name: 'Granja Norte',
+      latitude: -34.9,
+      longitude: -56.2,
+      status: 'active' as const,
+    };
+
+    service.create(request).subscribe();
+    const create = http.expectOne('/api/v1/production-units');
+    expect(create.request.method).toBe('POST');
+    expect(create.request.body).toEqual(request);
+    create.flush({ data: { id: 5, name: request.name } });
+  });
 });

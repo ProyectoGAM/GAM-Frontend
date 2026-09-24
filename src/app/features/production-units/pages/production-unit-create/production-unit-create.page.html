@@ -1,0 +1,180 @@
+<main class="create-unit-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+    <h1 id="page-title">Crear unidad productiva</h1>
+    <p class="intro">Completa los datos de la nueva unidad productiva.</p>
+  </header>
+
+  @if (accessDenied(); as denied) {
+    <ion-card class="state-card" role="alert">
+      <ion-card-header><ion-card-title>Acceso no disponible</ion-card-title></ion-card-header>
+      <ion-card-content>
+        @if (denied === 'geography') {
+          <p>No tienes permiso para consultar departamentos y localidades. Se requiere acceso de lectura a geografía para indicar la ubicación.</p>
+        } @else {
+          <p>No tienes permiso para crear unidades productivas.</p>
+        }
+        <ion-button fill="outline" routerLink="/administracion/ubicaciones/unidades-productivas">Volver al listado</ion-button>
+      </ion-card-content>
+    </ion-card>
+  } @else if (createdUnitName(); as name) {
+    <ion-card class="state-card success-card" role="status" aria-live="polite">
+      <ion-card-header><ion-card-title>Unidad productiva creada</ion-card-title></ion-card-header>
+      <ion-card-content>
+        <p>“{{ name }}” se creó correctamente.</p>
+        <ion-button routerLink="/administracion/ubicaciones/unidades-productivas">Volver al listado</ion-button>
+      </ion-card-content>
+    </ion-card>
+  } @else if (departmentsState() === 'loading') {
+    <div class="state-card loading-state" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando departamentos…</span>
+    </div>
+  } @else if (departmentsState() === 'offline' || departmentsState() === 'error') {
+    <ion-card class="state-card" role="alert">
+      <ion-card-header><ion-card-title>{{ departmentsState() === 'offline' ? 'Sin conexión' : 'No se pudieron cargar los departamentos' }}</ion-card-title></ion-card-header>
+      <ion-card-content>
+        <p>{{ departmentsState() === 'offline' ? 'Revisá tu conexión para volver a intentarlo.' : 'Ocurrió un error al consultar las opciones geográficas.' }}</p>
+        <ion-button type="button" (click)="loadDepartments()">Reintentar</ion-button>
+      </ion-card-content>
+    </ion-card>
+  } @else if (departmentsState() === 'empty') {
+    <ion-card class="state-card">
+      <ion-card-header><ion-card-title>No hay departamentos disponibles</ion-card-title></ion-card-header>
+      <ion-card-content><p>No hay departamentos para seleccionar en este momento.</p></ion-card-content>
+    </ion-card>
+  } @else {
+    <ion-card class="form-card">
+      <ion-card-header>
+        <ion-card-title>Datos de la unidad</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="form-grid">
+            <div class="form-field field-wide">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Nombre <span aria-hidden="true">*</span></ion-label>
+                <ion-input required formControlName="name" maxlength="120" autocomplete="organization" placeholder="Ej. Granja Nueva Esperanza" aria-describedby="name-error"
+                  (ionInput)="clearFieldError('name')" />
+              </ion-item>
+              @if (formErrors().name) {
+                <ion-text class="field-error" id="name-error">{{ formErrors().name }}</ion-text>
+              } @else if ((form.controls.name.touched || hasAttemptedSubmit()) && form.controls.name.hasError('required')) {
+                <ion-text class="field-error" id="name-error">Ingresa el nombre de la unidad.</ion-text>
+              } @else if ((form.controls.name.touched || hasAttemptedSubmit()) && form.controls.name.hasError('maxlength')) {
+                <ion-text class="field-error" id="name-error">El nombre no puede superar 120 caracteres.</ion-text>
+              } @else if ((form.controls.name.touched || hasAttemptedSubmit()) && form.controls.name.hasError('pattern')) {
+                <ion-text class="field-error" id="name-error">El nombre no puede contener solo espacios.</ion-text>
+              }
+            </div>
+
+            <div class="form-field">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Departamento <span aria-hidden="true">*</span></ion-label>
+                <ion-select required formControlName="departmentId" interface="popover" placeholder="Selecciona un departamento"
+                  aria-describedby="department-error" (ionChange)="onDepartmentChanged($event.detail.value)">
+                  @for (department of departments(); track department.id) {
+                    <ion-select-option [value]="department.id">{{ department.name }}</ion-select-option>
+                  }
+                </ion-select>
+              </ion-item>
+              @if ((form.controls.departmentId.touched || hasAttemptedSubmit()) && form.controls.departmentId.invalid) {
+                <ion-text class="field-error" id="department-error">Selecciona un departamento.</ion-text>
+              }
+            </div>
+
+            <div class="form-field">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Localidad <span aria-hidden="true">*</span></ion-label>
+                <ion-select required formControlName="localityId" interface="popover" placeholder="Selecciona una localidad"
+                  aria-describedby="locality-help locality-error" (ionChange)="clearFieldError('localityId')">
+                  @for (locality of localities(); track locality.id) {
+                    <ion-select-option [value]="locality.id">{{ locality.name }}</ion-select-option>
+                  }
+                </ion-select>
+              </ion-item>
+              @if (localitiesState() === 'loading') {
+                <p class="field-hint" id="locality-help">Cargando localidades…</p>
+              } @else if (localitiesState() === 'empty') {
+                <p class="field-hint" id="locality-help">Este departamento no tiene localidades disponibles.</p>
+              } @else if (localitiesState() === 'offline' || localitiesState() === 'error') {
+                <div class="field-hint locality-retry" id="locality-help">
+                  <span>{{ localitiesState() === 'offline' ? 'Sin conexión para cargar localidades.' : 'No se pudieron cargar las localidades.' }}</span>
+                  <ion-button type="button" fill="clear" size="small" (click)="retryLocalities()">Reintentar</ion-button>
+                </div>
+              } @else if (localitiesState() === 'success') {
+                <p class="field-hint" id="locality-help">Selecciona la localidad de la unidad.</p>
+              } @else {
+                <p class="field-hint" id="locality-help">Selecciona primero un departamento.</p>
+              }
+              @if (formErrors().localityId) {
+                <ion-text class="field-error" id="locality-error">{{ formErrors().localityId }}</ion-text>
+              } @else if ((form.controls.localityId.touched || hasAttemptedSubmit()) && form.controls.localityId.invalid) {
+                <ion-text class="field-error" id="locality-error">Selecciona una localidad.</ion-text>
+              }
+            </div>
+
+            <aside class="geo-warning field-wide" role="note">
+              <ion-icon name="information-circle-outline" aria-hidden="true" />
+              <p>La latitud y longitud se ingresan manualmente. En el futuro, Mapbox ayudará a determinar la ubicación geográfica.</p>
+            </aside>
+
+            <div class="form-field">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Latitud <span aria-hidden="true">*</span></ion-label>
+                <ion-input required type="number" inputmode="decimal" step="any" min="-90" max="90" placeholder="-34.901123" formControlName="latitude"
+                  aria-describedby="latitude-error" (ionInput)="clearFieldError('latitude')" />
+              </ion-item>
+              @if (formErrors().latitude) {
+                <ion-text class="field-error" id="latitude-error">{{ formErrors().latitude }}</ion-text>
+              } @else if ((form.controls.latitude.touched || hasAttemptedSubmit()) && form.controls.latitude.hasError('required')) {
+                <ion-text class="field-error" id="latitude-error">Ingresa la latitud.</ion-text>
+              } @else if ((form.controls.latitude.touched || hasAttemptedSubmit()) && form.controls.latitude.invalid) {
+                <ion-text class="field-error" id="latitude-error">Usa un valor entre -90 y 90.</ion-text>
+              }
+            </div>
+
+            <div class="form-field">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Longitud <span aria-hidden="true">*</span></ion-label>
+                <ion-input required type="number" inputmode="decimal" step="any" min="-180" max="180" placeholder="-56.164567" formControlName="longitude"
+                  aria-describedby="longitude-error" (ionInput)="clearFieldError('longitude')" />
+              </ion-item>
+              @if (formErrors().longitude) {
+                <ion-text class="field-error" id="longitude-error">{{ formErrors().longitude }}</ion-text>
+              } @else if ((form.controls.longitude.touched || hasAttemptedSubmit()) && form.controls.longitude.hasError('required')) {
+                <ion-text class="field-error" id="longitude-error">Ingresa la longitud.</ion-text>
+              } @else if ((form.controls.longitude.touched || hasAttemptedSubmit()) && form.controls.longitude.invalid) {
+                <ion-text class="field-error" id="longitude-error">Usa un valor entre -180 y 180.</ion-text>
+              }
+            </div>
+
+            <div class="form-field field-wide">
+              <ion-item class="control-item">
+                <ion-label position="stacked">Estado inicial</ion-label>
+                <ion-select formControlName="status" interface="popover" (ionChange)="clearFieldError('status')">
+                  <ion-select-option value="active">Activa</ion-select-option>
+                  <ion-select-option value="inactive">Inactiva</ion-select-option>
+                </ion-select>
+              </ion-item>
+              @if (formErrors().status) {
+                <ion-text class="field-error">{{ formErrors().status }}</ion-text>
+              }
+            </div>
+          </div>
+
+          @if (submitError()) {
+            <ion-text class="submit-error" role="alert">{{ submitError() }}</ion-text>
+          }
+
+          <div class="form-actions">
+            <ion-button type="button" fill="outline" class="cancel-button" routerLink="/administracion/ubicaciones/unidades-productivas">Cancelar</ion-button>
+            <ion-button type="submit" class="submit-button" [disabled]="isSubmitting()">
+              @if (isSubmitting()) { <ion-spinner name="crescent" aria-hidden="true" /> Creando… } @else { Crear unidad productiva }
+            </ion-button>
+          </div>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  }
+</main>

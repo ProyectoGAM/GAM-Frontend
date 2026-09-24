@@ -1,15 +1,41 @@
 import { Injectable, inject } from '@angular/core';
-import { concatMap, map, of, toArray } from 'rxjs';
+import { concatMap, from, map, of, toArray } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
-import { ProductionUnit, ProductionUnitPage } from '../interfaces/production-unit.interface';
+import {
+  CreateProductionUnitRequest,
+  CreateProductionUnitResponse,
+  GeographyDepartment,
+  GeographyLocality,
+  PaginatedResponse,
+  ProductionUnit,
+} from '../interfaces/production-unit.interface';
 
 @Injectable({ providedIn: 'root' })
 export class ProductionUnitsService {
   private readonly api = inject(ApiClient);
 
+  departments() {
+    return this.allPages<GeographyDepartment>('departments');
+  }
+
+  localities(departmentId: number) {
+    return this.allPages<GeographyLocality>(`departments/${departmentId}/localities`);
+  }
+
+  create(request: CreateProductionUnitRequest) {
+    return this.api.post<CreateProductionUnitResponse, CreateProductionUnitRequest>(
+      'production-units',
+      request,
+    );
+  }
+
   listAll() {
-    return this.api.get<ProductionUnitPage>('production-units', {
+    return this.allPages<ProductionUnit>('production-units');
+  }
+
+  private allPages<T>(path: string) {
+    return this.api.get<PaginatedResponse<T>>(path, {
       params: { page: 1, per_page: 100 },
     }).pipe(
       concatMap((firstPage) => {
@@ -20,8 +46,8 @@ export class ProductionUnitsService {
           (_, index) => index + 2,
         );
 
-        return of(...remainingPages).pipe(
-          concatMap((page) => this.api.get<ProductionUnitPage>('production-units', {
+        return from(remainingPages).pipe(
+          concatMap((page) => this.api.get<PaginatedResponse<T>>(path, {
             params: { page, per_page: 100 },
           })),
           map((response) => response.data),
@@ -29,7 +55,6 @@ export class ProductionUnitsService {
           map((pages) => [firstPage.data, ...pages].flat()),
         );
       }),
-      map((units): ProductionUnit[] => units),
     );
   }
 }
