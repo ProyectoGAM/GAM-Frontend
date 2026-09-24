@@ -37,6 +37,21 @@ describe('ProductionUnitsListPage', () => {
     expect(fixture.nativeElement.textContent).toContain('San José, San José');
   });
 
+  it('makes the whole production-unit card a keyboard and touch navigation link', () => {
+    listAll.mockReturnValue(of([{
+      id: 12,
+      name: 'Granja Sur',
+      locality: { name: 'Pando', department: { name: 'Canelones' } },
+    }]));
+
+    render();
+
+    const cardLink = fixture.nativeElement.querySelector('a.unit-card');
+    expect(cardLink).not.toBeNull();
+    expect(cardLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/12');
+    expect(cardLink.getAttribute('aria-label')).toBe('Ver unidad productiva Granja Sur');
+  });
+
   it('shows the create action and links to the existing creation route', () => {
     listAll.mockReturnValue(of([]));
 

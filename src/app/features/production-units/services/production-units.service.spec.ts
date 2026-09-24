@@ -70,4 +70,40 @@ describe('ProductionUnitsService', () => {
     expect(create.request.body).toEqual(request);
     create.flush({ data: { id: 5, name: request.name } });
   });
+
+  it('loads unit detail and every paginated poultry-house page', () => {
+    let unit: unknown;
+    service.getById(17).subscribe((result) => (unit = result));
+    const detail = http.expectOne('/api/v1/production-units/17');
+    expect(detail.request.method).toBe('GET');
+    detail.flush({ data: { id: 17, name: 'Granja Este' } });
+    expect(unit).toEqual({ data: { id: 17, name: 'Granja Este' } });
+
+    let houses: unknown;
+    service.poultryHouses(17).subscribe((result) => (houses = result));
+    http.expectOne('/api/v1/production-units/17/poultry-houses?page=1&per_page=100')
+      .flush({ data: [{ id: 4, name: 'Galpón 4', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 }], meta: { current_page: 1, last_page: 1 } });
+    expect(houses).toEqual([{ id: 4, name: 'Galpón 4', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 }]);
+  });
+
+  it('updates editable unit fields and archives through the status contract', () => {
+    const fields = { name: 'Granja Actualizada', locality_id: 8, latitude: -34.9, longitude: -56.2 };
+    service.update(17, fields).subscribe();
+    const update = http.expectOne('/api/v1/production-units/17');
+    expect(update.request.method).toBe('PATCH');
+    expect(update.request.body).toEqual(fields);
+    update.flush({ data: { id: 17, name: fields.name } });
+
+    service.updateStatus(17, 'inactive').subscribe();
+    const updateStatus = http.expectOne('/api/v1/production-units/17/status');
+    expect(updateStatus.request.method).toBe('PATCH');
+    expect(updateStatus.request.body).toEqual({ status: 'inactive' });
+    updateStatus.flush({ data: { id: 17, name: fields.name, status: 'inactive' } });
+
+    service.archive(17).subscribe();
+    const archive = http.expectOne('/api/v1/production-units/17/status');
+    expect(archive.request.method).toBe('PATCH');
+    expect(archive.request.body).toEqual({ status: 'archived' });
+    archive.flush({ data: { id: 17, name: fields.name, status: 'archived' } });
+  });
 });

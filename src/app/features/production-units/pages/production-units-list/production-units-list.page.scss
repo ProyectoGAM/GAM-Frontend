@@ -52,16 +52,28 @@ h1 {
 }
 
 .unit-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 12px;
+}
+
+.unit-card:focus-visible {
+  outline: 3px solid var(--gam-color-focus);
+  outline-offset: 3px;
+}
+
+.unit-card-surface {
   min-width: 0;
   margin: 0;
   --background: var(--gam-color-surface);
   box-shadow: none;
 }
 
-.unit-card,
+.unit-card-surface,
 .state-panel { border: 1px solid var(--gam-color-border); border-radius: 12px; }
 
-.unit-card ion-card-content {
+.unit-card-surface ion-card-content {
   padding: 18px;
 }
 

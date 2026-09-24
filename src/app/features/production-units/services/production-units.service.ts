@@ -8,6 +8,7 @@ import {
   GeographyDepartment,
   GeographyLocality,
   PaginatedResponse,
+  PoultryHouse,
   ProductionUnit,
 } from '../interfaces/production-unit.interface';
 
@@ -32,6 +33,35 @@ export class ProductionUnitsService {
 
   listAll() {
     return this.allPages<ProductionUnit>('production-units');
+  }
+
+  getById(id: number) {
+    return this.api.get<{ data: ProductionUnit }>(`production-units/${id}`);
+  }
+
+  poultryHouses(productionUnitId: number) {
+    return this.allPages<PoultryHouse>(`production-units/${productionUnitId}/poultry-houses`);
+  }
+
+  update(id: number, request: Partial<Omit<CreateProductionUnitRequest, 'status'>>) {
+    return this.api.patch<{ data: ProductionUnit }, Partial<Omit<CreateProductionUnitRequest, 'status'>>>(
+      `production-units/${id}`,
+      request,
+    );
+  }
+
+  updateStatus(id: number, status: 'active' | 'inactive') {
+    return this.api.patch<{ data: ProductionUnit }, { status: 'active' | 'inactive' }>(
+      `production-units/${id}/status`,
+      { status },
+    );
+  }
+
+  archive(id: number) {
+    return this.api.patch<{ data: ProductionUnit }, { status: 'archived' }>(
+      `production-units/${id}/status`,
+      { status: 'archived' },
+    );
   }
 
   private allPages<T>(path: string) {
