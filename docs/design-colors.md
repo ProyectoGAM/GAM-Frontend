@@ -4,7 +4,7 @@
 
 Esta especificación es obligatoria para toda interfaz nueva o modificada en web, Android e iOS. `src/theme/variables.scss` es la fuente ejecutable de los valores; este documento define su significado y reglas de uso. Si cambia un valor o se agrega un token, se actualizan ambos archivos en el mismo cambio.
 
-El tema claro es el predeterminado. El tema oscuro responde a `prefers-color-scheme: dark`, en línea con la paleta Ionic `dark.system.css` importada en `src/global.scss`. No existe todavía un selector manual de tema. Incorporarlo requiere sincronizar también los componentes Ionic; cambiar solo los tokens GAM produciría una interfaz mezclada.
+El tema inicial sigue `prefers-color-scheme` del sistema hasta que la persona elige un tema en el panel administrativo. La elección se guarda como preferencia no secreta en `localStorage` con la clave versionada `gam.theme.preference.v1`. El cambio aplica o quita `ion-palette-dark` en `<html>`; `src/global.scss` usa Ionic `dark.class.css` y los tokens GAM comparten el mismo selector. El servicio define `color-scheme` para los controles nativos. Sin una preferencia guardada, los cambios posteriores del sistema se reflejan mientras la aplicación está abierta.
 
 ## Comparación con el panel actual
 

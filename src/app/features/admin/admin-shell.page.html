@@ -1,6 +1,9 @@
 <ion-header class="mobile-header">
   <ion-toolbar>
     <ion-title>GAM · Administración</ion-title>
+    <ion-button slot="end" fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
+      <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
+    </ion-button>
     <ion-button slot="end" fill="clear" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
   </ion-toolbar>
 </ion-header>
@@ -17,7 +20,12 @@
     <main class="workspace">
       <header class="topbar">
         <div><small>GAM · Gestión avícola</small><strong>Panel administrativo</strong></div>
-        <div class="user-badge"><span>{{ auth.user()?.name?.slice(0, 1) ?? 'G' }}</span>{{ auth.user()?.name }}</div>
+        <div class="topbar-actions">
+          <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
+            <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
+          </ion-button>
+          <div class="user-badge"><span>{{ auth.user()?.name?.slice(0, 1) ?? 'G' }}</span>{{ auth.user()?.name }}</div>
+        </div>
       </header>
       <section class="page-content"><router-outlet /></section>
     </main>

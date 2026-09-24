@@ -1,6 +1,7 @@
 // GAM semantic color tokens. Usage and contrast rules: docs/design-colors.md.
-// Light is the default; the dark palette follows the operating system.
+// ThemeService selects light or dark; dark tokens share Ionic's .ion-palette-dark class.
 :root {
+  color-scheme: light;
   --gam-color-canvas: #eef2f6;
   --gam-color-surface: #ffffff;
   --gam-color-surface-alt: #f7f9fc;
@@ -30,8 +31,8 @@
   --gam-color-danger-soft: #fdebed;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root.ion-palette-dark {
+    color-scheme: dark;
     --gam-color-canvas: #121d29;
     --gam-color-surface: #1d2b3b;
     --gam-color-surface-alt: #1a2939;
@@ -59,5 +60,4 @@
     --gam-color-warning-soft: #44351d;
     --gam-color-danger: #ffb3b8;
     --gam-color-danger-soft: #4c2930;
-  }
 }
