@@ -1,12 +1,30 @@
 import { Routes } from '@angular/router';
 
-import { adminGuard } from '../../core/guards/admin.guard';
 import { authGuard } from '../../core/guards/auth.guard';
+import { adminGroupGuard } from '../../core/guards/admin-group.guard';
+import { adminPanelGuard } from '../../core/guards/admin-panel.guard';
+import { ADMIN_NAVIGATION } from './admin-navigation';
+import { adminIndexRedirect } from './admin-index.redirect';
+
+const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
+  path: group.id,
+  canActivate: [authGuard, adminGroupGuard],
+  data: { group: group.id },
+  children: group.items.map((item) => ({
+    path: item.slug,
+    data: { title: item.label, groupLabel: group.label },
+    loadComponent: () => import('./admin-placeholder.page').then((m) => m.AdminPlaceholderPage),
+  })),
+}));
 
 export const adminRoutes: Routes = [
   {
     path: '',
-    canActivate: [authGuard, adminGuard],
-    loadComponent: () => import('./admin.page').then((m) => m.AdminPage),
+    canActivate: [authGuard, adminPanelGuard],
+    loadComponent: () => import('./admin-shell.page').then((m) => m.AdminShellPage),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: adminIndexRedirect },
+      ...moduleRoutes,
+    ],
   },
 ];

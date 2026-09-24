@@ -54,11 +54,11 @@ describe('authInterceptor', () => {
 
   it('forwards an API error to the session store without hiding it', () => {
     const handleHttpError = vi.spyOn(store, 'handleHttpError');
-    client.get('/api/v1/mi-perfil').subscribe({
+    client.get('/api/v1/me').subscribe({
       error: (error: HttpErrorResponse) => expect(error.status).toBe(401),
     });
 
-    const request = http.expectOne('/api/v1/mi-perfil');
+    const request = http.expectOne('/api/v1/me');
     request.flush({ code: 'SESSION_EXPIRED' }, { status: 401, statusText: 'Unauthorized' });
     expect(handleHttpError).toHaveBeenCalled();
   });

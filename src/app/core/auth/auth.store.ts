@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { CredentialStorage } from '../native/credential-storage.service';
 import { AuthApi } from './auth.api';
+import { isAdminUser } from './access-policy';
 import {
   ApiProblem,
   AuthSession,
@@ -45,7 +46,11 @@ export class AuthStore {
     || this.statusState() === 'shared_authenticated',
   );
   readonly isShared = computed(() => this.modeState() === 'shared');
-  readonly isAdmin = computed(() => this.userState()?.roles.includes('admin') ?? false);
+  readonly isAdmin = computed(() => isAdminUser(this.userState()));
+
+  isAdminUser(user: AuthUser | null): boolean {
+    return isAdminUser(user);
+  }
 
   bootstrap(): Promise<void> {
     this.bootstrapPromise ??= this.restore();
@@ -107,7 +112,7 @@ export class AuthStore {
 
   async confirmPassword(password: string): Promise<boolean> {
     try {
-      await firstValueFrom(this.api.confirmPassword(password));
+      await firstValueFrom(this.api.confirmPassword(password, !this.storage.isNative()));
       return true;
     } catch (error) {
       this.errorState.set(this.messageFor(error, 'No se pudo confirmar la contraseña.'));
@@ -119,6 +124,9 @@ export class AuthStore {
     this.errorState.set(null);
 
     try {
+      if (!this.storage.isNative()) {
+        await this.api.csrf();
+      }
       const response = await firstValueFrom(
         this.api.pair(code, deviceName, !this.storage.isNative()),
       );
@@ -232,7 +240,7 @@ export class AuthStore {
       return;
     }
 
-    if (!requestUrl.includes('inicio-sesion')) {
+    if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/web/login')) {
       void this.clearPersonal();
       this.statusState.set('personal_guest');
     }

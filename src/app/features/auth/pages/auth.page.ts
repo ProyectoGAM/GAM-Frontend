@@ -5,7 +5,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   IonButton,
   IonCard,
@@ -14,15 +14,12 @@ import {
   IonCardSubtitle,
   IonCardTitle,
   IonContent,
-  IonHeader,
   IonInput,
   IonItem,
   IonLabel,
   IonList,
   IonSpinner,
   IonText,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular';
 
 import { AuthStore } from '../../../core/auth/auth.store';
@@ -40,21 +37,19 @@ import { SharedUser } from '../../../core/auth/auth.types';
     IonCardSubtitle,
     IonCardTitle,
     IonContent,
-    IonHeader,
     IonInput,
     IonItem,
     IonLabel,
     IonList,
     IonSpinner,
     IonText,
-    IonTitle,
-    IonToolbar,
     ReactiveFormsModule,
     RouterLink,
   ],
 })
 export class AuthPage {
   readonly auth = inject(AuthStore);
+  private readonly router = inject(Router);
   readonly selectedUser = signal<SharedUser | null>(null);
   readonly submitting = signal(false);
   readonly showPassword = signal(false);
@@ -101,8 +96,9 @@ export class AuthPage {
 
     this.submitting.set(true);
     const { email, password } = this.loginForm.getRawValue();
-    await this.auth.login(email, password);
+    const success = await this.auth.login(email, password);
     this.submitting.set(false);
+    if (success) await this.router.navigateByUrl(this.auth.isAdmin() ? '/administracion' : '/home');
   }
 
   async submitPairing(): Promise<void> {
@@ -136,8 +132,9 @@ export class AuthPage {
 
     this.submitting.set(true);
     const { pin } = this.pinForm.getRawValue();
-    await this.auth.loginWithPin(user.id, pin);
+    const success = await this.auth.loginWithPin(user.id, pin);
     this.submitting.set(false);
+    if (success) await this.router.navigateByUrl(this.auth.isAdmin() ? '/administracion' : '/home');
   }
 
   async reloadUsers(): Promise<void> {

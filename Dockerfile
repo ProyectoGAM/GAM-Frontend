@@ -28,6 +28,9 @@ FROM source AS development
 
 ENV WATCH_POLL_INTERVAL=2000
 
+# Docker copies this directory's ownership into a new named cache volume.
+RUN mkdir -p /app/.angular/cache
+
 EXPOSE 4200
 
 CMD ["sh", "/app/docker/dev-entrypoint.sh"]

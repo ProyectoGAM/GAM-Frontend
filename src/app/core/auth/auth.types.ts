@@ -11,8 +11,8 @@ export type AuthStatus =
 
 export interface AuthUser {
   id: number;
-  nombre: string;
-  correo_electronico: string;
+  name: string;
+  email: string;
   deleted_at: string | null;
   roles: string[];
   permissions: string[];
@@ -42,7 +42,7 @@ export interface MeResponse {
 
 export interface SharedDevice {
   id: string;
-  nombre: string;
+  name: string;
   expires_at: string | null;
   revoked_at: string | null;
   active_session_id?: string | null;
@@ -55,7 +55,7 @@ export interface SharedDeviceStatusResponse {
 export interface SharedPairingResponse {
   device: {
     id: string;
-    nombre: string;
+    name: string;
     expires_at: string | null;
   };
   device_token?: string;
@@ -63,7 +63,7 @@ export interface SharedPairingResponse {
 
 export interface SharedUser {
   id: number;
-  nombre: string;
+  name: string;
 }
 
 export interface SharedUsersResponse {

@@ -97,7 +97,7 @@ export class AdminPage {
         firstValueFrom(this.api.users()),
         firstValueFrom(this.api.devices()),
       ]);
-      this.users.set(users.data);
+      this.users.set(Array.isArray(users.data) ? users.data : users.data.data);
       this.devices.set(devices.data);
     } catch {
       this.message.set('No se pudo cargar la administración.');
@@ -124,11 +124,11 @@ export class AdminPage {
     try {
       const value = this.userForm.getRawValue();
       await firstValueFrom(this.api.createUser({
-        nombre: value.name,
-        correo_electronico: value.email,
+        name: value.name,
+        email: value.email,
         password: value.password,
         password_confirmation: value.password,
-        rol: value.role,
+        role: value.role,
       }));
       this.userForm.reset({ role: 'employee', name: '', email: '', password: '' });
       this.message.set('Usuario creado.');

@@ -11,7 +11,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { AuthStore } from '../core/auth/auth.store';
 
@@ -35,4 +35,10 @@ import { AuthStore } from '../core/auth/auth.store';
 })
 export class HomePage {
   readonly auth = inject(AuthStore);
+  private readonly router = inject(Router);
+
+  async logout(): Promise<void> {
+    await this.auth.logout();
+    await this.router.navigateByUrl('/auth');
+  }
 }
