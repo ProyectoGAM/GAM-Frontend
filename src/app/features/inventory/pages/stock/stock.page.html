@@ -1,0 +1,29 @@
+<section class="inventory-page">
+  <div class="page-heading">
+    <div><p class="eyebrow">Panel administrativo / Inventario</p><h1>Existencias</h1><p class="lead">Stock físico por producto y ubicación, con precisión decimal del backend.</p></div>
+    <div class="heading-actions"><a class="button secondary" routerLink="/administracion/inventario/existencias/ubicaciones">Gestionar ubicaciones</a><a class="button secondary" routerLink="/administracion/inventario/existencias/huevos">Ver huevos</a></div>
+  </div>
+
+  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+    <label>Producto<select formControlName="product_id"><option value="">Todos</option>@for (item of options()?.products ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Ubicación<select formControlName="stock_location_id"><option value="">Todas</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label class="checkbox"><input type="checkbox" formControlName="below_minimum"> Solo bajo mínimo</label>
+    <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
+  </form>
+
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="load()">Reintentar</button></div> }
+  @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando existencias…</div> }
+  @if (state() === 'empty') { <div class="state card"><strong>No hay existencias para estos filtros.</strong><p>Los saldos se crean cuando el backend registra un movimiento válido.</p></div> }
+  @if (state() === 'success') {
+    <div class="table-card card">
+      <table><caption class="sr-only">Existencias de inventario</caption><thead><tr><th>Producto</th><th>Ubicación</th><th>Disponible</th><th>Mínimo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+        @for (balance of balances(); track balance.id) {
+          <tr><td data-label="Producto"><strong>{{ balance.product.name }}</strong><small>{{ balance.product.sku }} · {{ balance.product.kind }}</small></td><td data-label="Ubicación">{{ balance.stock_location.name }}@if (balance.stock_location.production_unit; as unit) { <small>{{ unit.name }}</small> }</td><td data-label="Disponible" class="quantity">{{ format(balance.available_quantity, balance.product.base_unit) }}</td><td data-label="Mínimo" class="quantity">{{ format(balance.minimum_quantity, balance.product.base_unit) }}</td><td data-label="Estado"><span class="status" [class]="statusClass(balance)">{{ status(balance) }}</span></td><td data-label="Acción">
+            @if (canManage()) { @if (minimumEditId() === balance.id) { <form class="inline-form" [formGroup]="minimumForm" (ngSubmit)="saveMinimum(balance)"><input aria-label="Stock mínimo" inputmode="decimal" formControlName="minimum_quantity"><button class="button small primary" type="submit">Guardar</button><button class="button small text" type="button" (click)="cancelMinimum()">Cancelar</button></form> } @else { <button class="button small text" type="button" (click)="editMinimum(balance)">Editar mínimo</button> } } @else { <span class="muted">Solo lectura</span> }
+          </td></tr>
+        }
+      </tbody></table>
+    </div>
+    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} saldos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+  }
+</section>

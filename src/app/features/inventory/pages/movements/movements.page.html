@@ -1,0 +1,21 @@
+<section class="inventory-page">
+  <div class="page-heading"><div><p class="eyebrow">Panel administrativo / Inventario</p><h1>Movimientos</h1><p class="lead">Historial paginado y trazable del inventario general.</p></div><a class="button primary" routerLink="/administracion/inventario/ajustes-y-perdidas">Registrar movimiento</a></div>
+  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+    <label>Tipo<select formControlName="type"><option value="">Todos</option>@for (item of options()?.types?.movements ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Producto<select formControlName="product_id"><option value="">Todos</option>@for (item of options()?.products ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Ubicación<select formControlName="stock_location_id"><option value="">Todas</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Proveedor<select formControlName="supplier_id"><option value="">Todos</option>@for (item of options()?.suppliers ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Desde<input type="date" formControlName="from"></label><label>Hasta<input type="date" formControlName="to"></label>
+    <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
+  </form>
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="load()">Reintentar</button></div> }
+  @if (state() === 'loading') { <div class="state card">Cargando movimientos…</div> }
+  @if (state() === 'empty') { <div class="state card"><strong>No hay movimientos para estos filtros.</strong></div> }
+  @if (state() === 'success') {
+    <div class="table-card card"><table><caption class="sr-only">Movimientos de inventario</caption><thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Proveedor</th><th>Referencia</th><th>Detalle</th></tr></thead><tbody>
+      @for (movement of movements(); track movement.id) { <tr><td data-label="Fecha">{{ date(movement.occurred_at) }}</td><td data-label="Tipo"><span class="movement-type" [class]="typeClass(movement.type)">{{ typeLabel(movement.type) }}</span></td><td data-label="Motivo">{{ movement.reason || '—' }}</td><td data-label="Proveedor">{{ movement.supplier?.name || '—' }}</td><td data-label="Referencia">{{ movement.reference_type ? movement.reference_type + ' / ' + movement.reference_id : '—' }}</td><td data-label="Detalle"><a class="button small secondary" [routerLink]="['/administracion/inventario/movimientos', movement.id]">Ver movimiento</a></td></tr> }
+    </tbody></table></div>
+    <p class="backend-note">El listado respeta los filtros server-side. Las líneas, productos y ubicaciones se cargan en el detalle porque el endpoint de listado no las incluye.</p>
+    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+  }
+</section>

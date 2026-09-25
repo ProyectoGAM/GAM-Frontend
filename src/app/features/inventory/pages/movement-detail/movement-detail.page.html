@@ -1,0 +1,12 @@
+<section class="detail-page">
+  <a class="back" routerLink="/administracion/inventario/movimientos">← Volver a movimientos</a>
+  @if (state() === 'loading') { <div class="card state">Cargando detalle…</div> }
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="load()">Reintentar</button></div> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (movement(); as item) {
+    <div class="page-heading"><div><p class="eyebrow">Inventario / Movimiento #{{ item.id }}</p><h1>{{ typeLabel(item.type) }}</h1><p class="lead">Fecha efectiva: {{ date(item.occurred_at) }}</p></div><span class="movement-id">{{ item.operation_id }}</span></div>
+    <div class="summary-grid"><div class="card summary"><span>Motivo</span><strong>{{ item.reason || 'Sin motivo' }}</strong></div><div class="card summary"><span>Proveedor</span><strong>{{ item.supplier?.name || 'No corresponde' }}</strong></div><div class="card summary"><span>Actor</span><strong>Usuario #{{ item.created_by }}</strong></div><div class="card summary"><span>Referencia</span><strong>{{ item.reference_type ? item.reference_type + ' / ' + item.reference_id : 'Sin referencia' }}</strong></div></div>
+    <div class="card lines"><h2>Líneas</h2><div class="line-list">@for (line of item.lines ?? []; track line.id) { <div class="line"><div><strong>{{ line.product?.name || 'Producto #' + line.product_id }}</strong><small>Ubicación #{{ line.stock_location_id }} · unidad {{ unit(line.unit) }}</small></div><b [class.negative]="line.physical_delta.startsWith('-')">{{ delta(line.physical_delta, line.unit) }}</b></div> } @empty { <p class="muted">El backend no devolvió líneas para este movimiento.</p> }</div></div>
+    @if (canReverse()) { <div class="card reversal"><h2>Revertir movimiento</h2><p>La reversión no elimina el registro original; crea un movimiento compensatorio y solo puede completarse una vez según el backend.</p><form [formGroup]="reverseForm" (ngSubmit)="reverse()"><label>Motivo de la reversión<textarea rows="3" formControlName="reason"></textarea></label><button class="button danger" type="submit" [disabled]="mutation() === 'submitting'">{{ mutation() === 'submitting' ? 'Registrando…' : 'Confirmar reversión' }}</button></form></div> }
+  }
+</section>
