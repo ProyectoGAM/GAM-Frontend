@@ -17,12 +17,14 @@ export interface ProductionUnit {
 }
 
 export type PoultryHouseStatus = 'operational' | 'maintenance' | 'out_of_service' | 'inactive';
+export type PoultryHouseType = 'poultry' | 'feed';
 
 export interface PoultryHouse {
   id: number;
   name: string;
+  type: PoultryHouseType;
   status: PoultryHouseStatus;
-  bird_capacity: number;
+  bird_capacity: number | null;
   current_occupancy?: number | null;
 }
 

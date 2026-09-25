@@ -3,7 +3,7 @@ import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
+import { arrowBackOutline, eggOutline, informationCircleOutline, leafOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
 import { AlertController, IonButton, IonCard, IonCardContent, IonIcon, IonSpinner } from '@ionic/angular';
 
 import { PoultryHouse, ProductionUnit } from '../../interfaces/production-unit.interface';
@@ -26,6 +26,10 @@ export class ProductionUnitDetailPage implements OnInit {
   readonly unit = signal<ProductionUnit | null>(null);
   readonly houses = signal<PoultryHouse[]>([]);
   readonly housesState = signal<'loading' | 'success' | 'empty' | 'error'>('loading');
+  readonly houseGroups = computed(() => [
+    { id: 'active', title: 'Activos', houses: this.houses().filter((house) => house.status !== 'inactive') },
+    { id: 'inactive', title: 'Inactivos', houses: this.houses().filter((house) => house.status === 'inactive') },
+  ]);
   readonly isChangingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
   readonly isTooltipOpen = signal(false);
@@ -36,14 +40,14 @@ export class ProductionUnitDetailPage implements OnInit {
       || (['success', 'empty'].includes(this.housesState()) && this.houses().every((house) => house.status === 'inactive'));
   });
   readonly statusBlockReason = computed(() => {
-    if (this.housesState() === 'loading') return 'Esperá a que se carguen los galpones para inhabilitar la unidad.';
-    if (this.housesState() === 'error') return 'No se pudo comprobar el estado de los galpones.';
-    return 'Para inhabilitar la unidad, todos sus galpones deben estar inactivos.';
+    if (this.housesState() === 'loading') return 'Esperá a que se carguen los galpones y plantas para inhabilitar la unidad.';
+    if (this.housesState() === 'error') return 'No se pudo comprobar el estado de los galpones y plantas.';
+    return 'Para inhabilitar la unidad, todos sus galpones y plantas deben estar inactivos.';
   });
   readonly unitId = computed(() => Number(this.route.snapshot.paramMap.get('id')));
 
   constructor() {
-    addIcons({ arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline });
+    addIcons({ arrowBackOutline, eggOutline, informationCircleOutline, leafOutline, locationOutline, pencilOutline, powerOutline });
   }
 
   ngOnInit(): void {
@@ -96,7 +100,7 @@ export class ProductionUnitDetailPage implements OnInit {
       error: (error: unknown) => {
         this.isChangingStatus.set(false);
         if (error instanceof HttpErrorResponse && error.status === 409) {
-          this.statusError.set('El estado de la unidad o de sus galpones cambió. Revisá los datos e intentá nuevamente.');
+          this.statusError.set('El estado de la unidad o de sus instalaciones cambió. Revisá los datos e intentá nuevamente.');
           this.load();
         } else {
           this.statusError.set('No se pudo cambiar el estado. Intentá nuevamente.');
