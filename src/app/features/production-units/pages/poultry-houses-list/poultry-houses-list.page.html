@@ -1,0 +1,70 @@
+<section class="houses-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+      <h1 id="page-title">Galpones</h1>
+      <p class="intro">Capacidad, ocupación y estado operativo de los galpones avícolas.</p>
+    </div>
+  </header>
+
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando galpones…</span>
+    </div>
+  } @else if (state() === 'success') {
+    <div class="house-groups" aria-label="Galpones">
+      <section class="house-group" aria-labelledby="active-houses-title">
+        <h2 id="active-houses-title">Activos <span>{{ activeHouses().length }}</span></h2>
+        @if (activeHouses().length) {
+          <div class="house-grid">
+            @for (house of activeHouses(); track house.id) {
+              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle del galpón ' + house.name">
+                <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">No hay galpones activos.</p>
+        }
+      </section>
+
+      <section class="house-group inactive-group" aria-labelledby="inactive-houses-title">
+        <h2 id="inactive-houses-title">Inactivos <span>{{ inactiveHouses().length }}</span></h2>
+        @if (inactiveHouses().length) {
+          <div class="house-grid">
+            @for (house of inactiveHouses(); track house.id) {
+              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle del galpón ' + house.name + ', inactivo'">
+                <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">No hay galpones inactivos.</p>
+        }
+      </section>
+    </div>
+  } @else if (state() === 'empty') {
+    <div class="state-panel">
+      <h2>No hay galpones avícolas</h2>
+      <p>Todavía no se registraron galpones en las unidades productivas.</p>
+    </div>
+  } @else if (state() === 'offline') {
+    <div class="state-panel" role="alert">
+      <h2>Sin conexión</h2>
+      <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else if (state() === 'forbidden') {
+    <div class="state-panel" role="alert">
+      <h2>Acceso no disponible</h2>
+      <p>No tenés permiso para consultar los galpones.</p>
+    </div>
+  } @else {
+    <div class="state-panel" role="alert">
+      <h2>No se pudo cargar el listado</h2>
+      <p>Ocurrió un error al consultar los galpones.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  }
+</section>

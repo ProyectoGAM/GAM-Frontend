@@ -29,7 +29,7 @@
     </section>
 
     <section class="houses-section" aria-labelledby="houses-title">
-      <div class="section-heading"><div><h2 id="houses-title">Galpones y plantas de ración</h2><p>Estado, tipo y ocupación avícola</p></div></div>
+      <div class="section-heading"><div><h2 id="houses-title">Galpones y plantas de ración</h2><p>Capacidad y ocupación avícola, junto con el estado de cada instalación.</p></div></div>
       @if (housesState() === 'loading') { <div class="state-panel" role="status"><ion-spinner name="crescent" /><span>Cargando instalaciones…</span></div> }
       @else if (housesState() === 'success') {
         @for (group of houseGroups(); track group.id) {
@@ -39,13 +39,7 @@
               <div class="house-list">
                 @for (house of group.houses; track house.id) {
                   <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', selectedUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver ' + (house.type === 'feed' ? 'planta de ración ' : 'galpón avícola ') + house.name">
-                    <ion-card class="house-card"><ion-card-content>
-                      <div class="house-heading">
-                        <span class="house-type-icon"><ion-icon [name]="house.type === 'feed' ? 'leaf-outline' : 'egg-outline'" aria-hidden="true" /></span>
-                        <div class="house-name"><h4>{{ house.name }}</h4><small>{{ house.type === 'feed' ? 'Planta de ración' : 'Galpón avícola' }}</small><span class="status" [attr.data-status]="house.status">{{ houseStatus(house.status) }}</span></div>
-                        @if (house.type === 'poultry') { <span class="capacity">{{ house.current_occupancy ?? '—' }} / {{ house.bird_capacity }} <small>aves</small></span> }
-                      </div>
-                    </ion-card-content></ion-card>
+                    <app-production-unit-house-card [house]="house" />
                   </a>
                 }
               </div>

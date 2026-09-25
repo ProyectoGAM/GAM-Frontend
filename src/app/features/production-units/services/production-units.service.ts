@@ -9,6 +9,9 @@ import {
   GeographyLocality,
   PaginatedResponse,
   PoultryHouse,
+  PoultryHouseDetail,
+  PoultryHouseListItem,
+  PoultryHouseType,
   ProductionUnit,
 } from '../interfaces/production-unit.interface';
 
@@ -39,8 +42,29 @@ export class ProductionUnitsService {
     return this.api.get<{ data: ProductionUnit }>(`production-units/${id}`);
   }
 
-  poultryHouses(productionUnitId: number) {
-    return this.allPages<PoultryHouse>(`production-units/${productionUnitId}/poultry-houses`);
+  poultryHouses(productionUnitId: number, type?: PoultryHouseType) {
+    return this.allPages<PoultryHouse>(
+      `production-units/${productionUnitId}/poultry-houses`,
+      type ? { type } : {},
+    );
+  }
+
+  getPoultryHouseById(id: number) {
+    return this.api.get<{ data: PoultryHouseDetail }>(`poultry-houses/${id}`);
+  }
+
+  listAllPoultryHouses() {
+    return this.listAll().pipe(
+      concatMap((units) => from(units).pipe(
+        concatMap((productionUnit) => this.poultryHouses(productionUnit.id, 'poultry').pipe(
+          map((houses) => houses
+            .filter((house) => house.type === 'poultry')
+            .map((house): PoultryHouseListItem => ({ ...house, productionUnit }))),
+        )),
+        toArray(),
+        map((houseGroups) => houseGroups.flat()),
+      )),
+    );
   }
 
   update(id: number, request: Partial<Omit<CreateProductionUnitRequest, 'status'>>) {
@@ -57,9 +81,9 @@ export class ProductionUnitsService {
     );
   }
 
-  private allPages<T>(path: string) {
+  private allPages<T>(path: string, filters: Record<string, string | number | boolean> = {}) {
     return this.api.get<PaginatedResponse<T>>(path, {
-      params: { page: 1, per_page: 100 },
+      params: { ...filters, page: 1, per_page: 100 },
     }).pipe(
       concatMap((firstPage) => {
         if (firstPage.meta.last_page <= 1) return of(firstPage.data);
@@ -71,7 +95,7 @@ export class ProductionUnitsService {
 
         return from(remainingPages).pipe(
           concatMap((page) => this.api.get<PaginatedResponse<T>>(path, {
-            params: { page, per_page: 100 },
+            params: { ...filters, page, per_page: 100 },
           })),
           map((response) => response.data),
           toArray(),

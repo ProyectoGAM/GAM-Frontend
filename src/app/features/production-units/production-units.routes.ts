@@ -8,8 +8,8 @@ export const productionUnitsRoutes: Routes = [
   },
   {
     path: ':id/galpon/:houseId',
-    loadComponent: () => import('./pages/poultry-house-future/poultry-house-future.page')
-      .then((module) => module.PoultryHouseFuturePage),
+    loadComponent: () => import('./pages/poultry-house-detail/poultry-house-detail.page')
+      .then((module) => module.PoultryHouseDetailPage),
   },
   {
     path: ':id',
@@ -28,5 +28,13 @@ export const productionUnitCreateRoutes: Routes = [
     path: '',
     loadComponent: () => import('./pages/production-unit-create/production-unit-create.page')
       .then((module) => module.ProductionUnitCreatePage),
+  },
+];
+
+export const poultryHousesListRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./pages/poultry-houses-list/poultry-houses-list.page')
+      .then((module) => module.PoultryHousesListPage),
   },
 ];

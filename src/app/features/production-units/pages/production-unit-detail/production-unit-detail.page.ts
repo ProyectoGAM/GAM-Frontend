@@ -3,9 +3,10 @@ import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, eggOutline, informationCircleOutline, leafOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
-import { AlertController, IonButton, IonCard, IonCardContent, IonIcon, IonSpinner } from '@ionic/angular';
+import { arrowBackOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
+import { AlertController, IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 
+import { ProductionUnitHouseCardComponent } from '../../components/production-unit-house-card/production-unit-house-card.component';
 import { PoultryHouse, ProductionUnit } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 
@@ -15,7 +16,7 @@ type PageState = 'loading' | 'success' | 'offline' | 'forbidden' | 'error';
   selector: 'app-production-unit-detail-page',
   templateUrl: './production-unit-detail.page.html',
   styleUrl: './production-unit-detail.page.scss',
-  imports: [IonButton, IonCard, IonCardContent, IonIcon, IonSpinner, RouterLink],
+  imports: [IonButton, IonIcon, IonSpinner, ProductionUnitHouseCardComponent, RouterLink],
 })
 export class ProductionUnitDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
@@ -47,7 +48,7 @@ export class ProductionUnitDetailPage implements OnInit {
   readonly unitId = computed(() => Number(this.route.snapshot.paramMap.get('id')));
 
   constructor() {
-    addIcons({ arrowBackOutline, eggOutline, informationCircleOutline, leafOutline, locationOutline, pencilOutline, powerOutline });
+    addIcons({ arrowBackOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline });
   }
 
   ngOnInit(): void {
@@ -66,10 +67,6 @@ export class ProductionUnitDetailPage implements OnInit {
       },
       error: (error: unknown) => this.state.set(this.errorState(error)),
     });
-  }
-
-  houseStatus(status: PoultryHouse['status']): string {
-    return ({ operational: 'Operativo', maintenance: 'En mantenimiento', out_of_service: 'Fuera de servicio', inactive: 'Inactivo' })[status];
   }
 
   async changeStatus(): Promise<void> {
