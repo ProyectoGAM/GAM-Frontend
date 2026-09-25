@@ -29,20 +29,31 @@
     </section>
 
     <section class="houses-section" aria-labelledby="houses-title">
-      <div class="section-heading"><div><h2 id="houses-title">Galpones</h2><p>Estado y capacidad registrada</p></div></div>
-      @if (housesState() === 'loading') { <div class="state-panel" role="status"><ion-spinner name="crescent" /><span>Cargando galpones…</span></div> }
+      <div class="section-heading"><div><h2 id="houses-title">Galpones y plantas de ración</h2><p>Estado, tipo y ocupación avícola</p></div></div>
+      @if (housesState() === 'loading') { <div class="state-panel" role="status"><ion-spinner name="crescent" /><span>Cargando instalaciones…</span></div> }
       @else if (housesState() === 'success') {
-        <div class="house-list">
-          @for (house of houses(); track house.id) {
-            <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', selectedUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver galpón ' + house.name">
-              <ion-card class="house-card"><ion-card-content>
-                <div class="house-heading"><span class="house-type-icon" aria-label="Galpón de gallinas"><ion-icon name="egg-outline" aria-hidden="true" /><small>Gallinas</small></span><div class="house-name"><h3>{{ house.name }}</h3><span class="status" [attr.data-status]="house.status">{{ houseStatus(house.status) }}</span></div><span class="capacity">{{ house.current_occupancy ?? '—' }} / {{ house.bird_capacity }} <small>aves</small></span></div>
-              </ion-card-content></ion-card>
-            </a>
-          }
-        </div>
-      } @else if (housesState() === 'empty') { <div class="state-panel"><h3>Sin galpones registrados</h3><p>Esta unidad productiva todavía no tiene galpones.</p></div> }
-      @else { <div class="state-panel" role="alert"><h3>No se pudieron cargar los galpones</h3><p>La información de la unidad sí está disponible. Volvé a cargar la página para reintentar.</p></div> }
+        @for (group of houseGroups(); track group.id) {
+          <section class="house-group" [class.inactive-houses]="group.id === 'inactive'" [attr.aria-labelledby]="group.id + '-houses-title'">
+            <h3 [id]="group.id + '-houses-title'">{{ group.title }} <span>({{ group.houses.length }})</span></h3>
+            @if (group.houses.length) {
+              <div class="house-list">
+                @for (house of group.houses; track house.id) {
+                  <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', selectedUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver ' + (house.type === 'feed' ? 'planta de ración ' : 'galpón avícola ') + house.name">
+                    <ion-card class="house-card"><ion-card-content>
+                      <div class="house-heading">
+                        <span class="house-type-icon"><ion-icon [name]="house.type === 'feed' ? 'leaf-outline' : 'egg-outline'" aria-hidden="true" /></span>
+                        <div class="house-name"><h4>{{ house.name }}</h4><small>{{ house.type === 'feed' ? 'Planta de ración' : 'Galpón avícola' }}</small><span class="status" [attr.data-status]="house.status">{{ houseStatus(house.status) }}</span></div>
+                        @if (house.type === 'poultry') { <span class="capacity">{{ house.current_occupancy ?? '—' }} / {{ house.bird_capacity }} <small>aves</small></span> }
+                      </div>
+                    </ion-card-content></ion-card>
+                  </a>
+                }
+              </div>
+            } @else { <p class="group-empty">No hay instalaciones {{ group.id === 'active' ? 'activas' : 'inactivas' }}.</p> }
+          </section>
+        }
+      } @else if (housesState() === 'empty') { <div class="state-panel"><h3>Sin instalaciones registradas</h3><p>Esta unidad productiva todavía no tiene galpones ni plantas de ración.</p></div> }
+      @else { <div class="state-panel" role="alert"><h3>No se pudieron cargar las instalaciones</h3><p>La información de la unidad sí está disponible. Volvé a cargar la página para reintentar.</p></div> }
     </section>
   } @else {
     <div class="state-panel" role="alert"><h2>{{ state() === 'forbidden' ? 'Acceso no disponible' : state() === 'offline' ? 'Sin conexión' : 'No se pudo cargar la unidad' }}</h2><p>{{ state() === 'forbidden' ? 'No tenés permiso para consultar esta unidad productiva.' : state() === 'offline' ? 'Revisá tu conexión e intentá nuevamente.' : 'Ocurrió un error al consultar la unidad productiva.' }}</p><ion-button (click)="load()">Reintentar</ion-button></div>

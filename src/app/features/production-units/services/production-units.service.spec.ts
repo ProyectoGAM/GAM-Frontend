@@ -81,9 +81,13 @@ describe('ProductionUnitsService', () => {
 
     let houses: unknown;
     service.poultryHouses(17).subscribe((result) => (houses = result));
+    const expectedHouses = [
+      { id: 4, name: 'Galpón 4', type: 'poultry', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 },
+      { id: 5, name: 'Planta norte', type: 'feed', status: 'operational', bird_capacity: null, current_occupancy: null },
+    ];
     http.expectOne('/api/v1/production-units/17/poultry-houses?page=1&per_page=100')
-      .flush({ data: [{ id: 4, name: 'Galpón 4', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 }], meta: { current_page: 1, last_page: 1 } });
-    expect(houses).toEqual([{ id: 4, name: 'Galpón 4', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 }]);
+      .flush({ data: expectedHouses, meta: { current_page: 1, last_page: 1 } });
+    expect(houses).toEqual(expectedHouses);
   });
 
   it('updates editable fields and switches between the two supported states', () => {
