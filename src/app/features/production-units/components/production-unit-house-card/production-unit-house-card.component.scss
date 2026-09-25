@@ -1,0 +1,31 @@
+:host { display: block; min-width: 0; height: 100%; }
+.house-card { height: 100%; margin: 0; border: 1px solid var(--gam-color-border); border-radius: 12px; --background: var(--gam-color-surface); box-shadow: none; }
+.house-card ion-card-content { display: flex; height: 100%; flex-direction: column; padding: 16px; }
+.card-heading { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.house-icon { display: grid; flex: 0 0 48px; place-items: center; height: 48px; border-radius: 10px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: 1.45rem; }
+.heading-details { flex: 1; min-width: 0; }
+.title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; }
+.house-name { flex: 1; min-width: 0; color: var(--gam-color-heading); font-size: 1.0625rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.house-status { flex: 0 0 auto; max-width: 50%; padding: 4px 8px; border-radius: 999px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: .75rem; font-weight: 600; line-height: 1.2; white-space: nowrap; text-align: center; }
+.house-status[data-status="operational"] { background: var(--gam-color-success-soft); color: var(--gam-color-success); }
+.house-status[data-status="maintenance"], .house-status[data-status="out_of_service"] { background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
+.house-status[data-status="inactive"] { background: var(--gam-color-surface-alt); color: var(--gam-color-text-muted); }
+.context-label { margin: 6px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.35; overflow-wrap: anywhere; }
+.house-metrics { margin-top: 16px; }
+.capacity { margin: 0; color: var(--gam-color-heading); font-size: .875rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.occupancy-bar { height: 7px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: var(--gam-color-surface-alt); }
+.occupancy-bar span { display: block; height: 100%; border-radius: inherit; background: var(--gam-color-success); }
+.occupancy-bar[data-status="maintenance"] span, .occupancy-bar[data-status="out_of_service"] span { background: var(--gam-color-warning); }
+.inactive-card { border-color: var(--gam-color-control-border); --background: var(--gam-color-surface-alt); }
+.inactive-card .house-icon { background: var(--gam-color-surface); color: var(--gam-color-text-muted); }
+.inactive-card .occupancy-bar span { background: var(--gam-color-text-muted); }
+.location { display: flex; align-items: flex-start; gap: 8px; margin: auto 0 0; padding-top: 14px; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.45; }
+.location span { min-width: 0; overflow-wrap: anywhere; }
+.location ion-icon { flex: 0 0 auto; margin-top: 2px; color: var(--gam-color-primary); font-size: 1rem; }
+.inactive-card .location ion-icon { color: var(--gam-color-text-muted); }
+
+@media (max-width: 420px) {
+  .house-icon { flex-basis: 40px; height: 40px; font-size: 1.25rem; }
+  .title-row { flex-wrap: wrap; }
+  .house-status { max-width: 100%; }
+}

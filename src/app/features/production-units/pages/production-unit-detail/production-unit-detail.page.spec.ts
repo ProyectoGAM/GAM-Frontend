@@ -58,15 +58,37 @@ describe('ProductionUnitDetailPage', () => {
 
     const poultryLink = active.querySelector('a[aria-label="Ver galpón avícola Galpón Este"]');
     expect(poultryLink.textContent).toContain('Galpón avícola');
-    expect(poultryLink.textContent).toContain('10 / 2000 aves');
+    expect(poultryLink.textContent).toContain('10 aves de 2.000 plazas');
+    expect((poultryLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
+      .toBe('egg-outline');
+    expect(Number(poultryLink.querySelector('.occupancy-bar')?.getAttribute('aria-valuenow'))).toBe(0.5);
 
     const feedLink = active.querySelector('a[aria-label="Ver planta de ración Planta Norte"]');
     expect(feedLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/7/galpon/2');
     expect(feedLink.textContent).toContain('Planta de ración');
-    expect(feedLink.textContent).toContain('En mantenimiento');
+    expect(feedLink.textContent).toContain('Mantenimiento');
+    expect((feedLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
+      .toBe('leaf-outline');
     expect(feedLink.querySelector('.capacity')).toBeNull();
+    expect(feedLink.querySelector('.occupancy-bar')).toBeNull();
     expect(inactive.textContent).toContain('Galpón Sur');
     expect(inactive.textContent).toContain('Planta Sur');
+  });
+
+  it('shows capacity without occupancy or a bar when current occupancy is absent', () => {
+    poultryHouses.mockReturnValue(of([{
+      id: 5,
+      name: 'Galpón sin ocupación informada',
+      type: 'poultry',
+      status: 'operational',
+      bird_capacity: 900,
+    }]));
+
+    render();
+
+    const houseLink = fixture.nativeElement.querySelector('a.house-link');
+    expect(houseLink.querySelector('.capacity')?.textContent).toContain('Capacidad: 900 aves');
+    expect(houseLink.querySelector('.occupancy-bar')).toBeNull();
   });
 
   it('requires plants as well as poultry houses to be inactive before disabling the unit', () => {

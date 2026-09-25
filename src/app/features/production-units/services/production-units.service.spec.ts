@@ -90,6 +90,99 @@ describe('ProductionUnitsService', () => {
     expect(houses).toEqual(expectedHouses);
   });
 
+  it('loads one poultry-house detail by ID with its parent production unit', () => {
+    let result: unknown;
+    service.getPoultryHouseById(22).subscribe((response) => (result = response));
+
+    const detail = http.expectOne('/api/v1/poultry-houses/22');
+    expect(detail.request.method).toBe('GET');
+    const response = {
+      data: {
+        id: 22,
+        production_unit_id: 7,
+        name: 'Galpón Norte',
+        type: 'poultry',
+        bird_capacity: 1000,
+        current_occupancy: 35,
+        status: 'operational',
+        production_unit: { id: 7, name: 'Granja Norte' },
+      },
+    };
+    detail.flush(response);
+
+    expect(result).toEqual(response);
+  });
+
+  it('loads all poultry houses for every production unit and keeps their parent unit', () => {
+    let houses: unknown;
+    service.listAllPoultryHouses().subscribe((result) => (houses = result));
+
+    http.expectOne('/api/v1/production-units?page=1&per_page=100')
+      .flush({
+        data: [
+          { id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+        ],
+        meta: { current_page: 1, last_page: 2 },
+      });
+    http.expectOne('/api/v1/production-units?page=2&per_page=100')
+      .flush({
+        data: [
+          { id: 2, name: 'Granja Sur', locality: { name: 'Libertad', department: { name: 'San José' } } },
+        ],
+        meta: { current_page: 2, last_page: 2 },
+      });
+
+    http.expectOne('/api/v1/production-units/1/poultry-houses?type=poultry&page=1&per_page=100')
+      .flush({
+        data: [
+          { id: 11, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000 },
+          { id: 12, name: 'Planta Norte', type: 'feed', status: 'operational', bird_capacity: null },
+        ],
+        meta: { current_page: 1, last_page: 2 },
+      });
+    http.expectOne('/api/v1/production-units/1/poultry-houses?type=poultry&page=2&per_page=100')
+      .flush({
+        data: [
+          { id: 13, name: 'Galpón Cuarentena', type: 'poultry', status: 'inactive', bird_capacity: 800 },
+        ],
+        meta: { current_page: 2, last_page: 2 },
+      });
+    http.expectOne('/api/v1/production-units/2/poultry-houses?type=poultry&page=1&per_page=100')
+      .flush({
+        data: [
+          { id: 21, name: 'Galpón Sur', type: 'poultry', status: 'maintenance', bird_capacity: 1200 },
+        ],
+        meta: { current_page: 1, last_page: 1 },
+      });
+
+    expect(houses).toEqual([
+      {
+        id: 11,
+        name: 'Galpón Norte',
+        type: 'poultry',
+        status: 'operational',
+        bird_capacity: 1000,
+        productionUnit: { id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+      },
+      {
+        id: 13,
+        name: 'Galpón Cuarentena',
+        type: 'poultry',
+        status: 'inactive',
+        bird_capacity: 800,
+        productionUnit: { id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+      },
+      {
+        id: 21,
+        name: 'Galpón Sur',
+        type: 'poultry',
+        status: 'maintenance',
+        bird_capacity: 1200,
+        productionUnit: { id: 2, name: 'Granja Sur', locality: { name: 'Libertad', department: { name: 'San José' } } },
+      },
+    ]);
+  });
+
   it('updates editable fields and switches between the two supported states', () => {
     const fields = { name: 'Granja Actualizada', locality_id: 8, latitude: -34.9, longitude: -56.2 };
     service.update(17, fields).subscribe();

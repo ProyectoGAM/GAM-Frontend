@@ -1,0 +1,26 @@
+:host { display: block; color: var(--gam-color-text); }
+.houses-page { max-width: 1600px; margin-inline: auto; }
+.page-heading { margin-bottom: 22px; }
+.breadcrumb { margin: 0 0 8px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+.breadcrumb span { padding-inline: 4px; }
+h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; }
+.intro { margin: 9px 0 0; color: var(--gam-color-text-muted); font-size: .9375rem; }
+.house-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.house-group + .house-group { margin-top: 28px; }
+.house-group > h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--gam-color-heading); font-size: 1.125rem; }
+.house-group > h2 span { display: inline-grid; place-items: center; min-width: 25px; min-height: 25px; padding: 0 6px; border-radius: 999px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: .75rem; }
+.group-empty { margin: 0; padding: 14px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); color: var(--gam-color-text-muted); }
+.house-link { display: block; min-width: 0; border-radius: 12px; color: inherit; text-decoration: none; }
+.house-link:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+.state-panel { display: grid; justify-items: center; gap: 10px; padding: 36px 20px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); text-align: center; }
+.state-panel h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.0625rem; }
+.state-panel ion-spinner { color: var(--gam-color-primary); }
+.state-panel p { margin: 0; color: var(--gam-color-text-muted); line-height: 1.5; }
+.state-panel ion-button { min-height: 44px; --background: var(--gam-color-primary); --border-radius: 8px; --color: var(--gam-color-on-primary); }
+
+@media (min-width: 640px) {
+  .house-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+@media (min-width: 960px) {
+  .house-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+}

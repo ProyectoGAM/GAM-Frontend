@@ -1,0 +1,81 @@
+<main class="detail-page" aria-labelledby="page-title">
+  @if (house(); as currentHouse) {
+    @if (currentHouse.type === 'poultry') {
+      <a class="back-link" routerLink="/administracion/ubicaciones/galpones">
+        <ion-icon name="arrow-back-outline" aria-hidden="true" />
+        Volver a galpones
+      </a>
+    } @else {
+      <a class="back-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit_id]">
+        <ion-icon name="arrow-back-outline" aria-hidden="true" />
+        Volver a la unidad productiva
+      </a>
+    }
+  } @else if (unitId > 0) {
+    <a class="back-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', unitId]">
+      <ion-icon name="arrow-back-outline" aria-hidden="true" />
+      Volver a la unidad productiva
+    </a>
+  } @else {
+    <a class="back-link" routerLink="/administracion/ubicaciones/galpones">
+      <ion-icon name="arrow-back-outline" aria-hidden="true" />
+      Volver a galpones
+    </a>
+  }
+
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando instalación…</span>
+    </div>
+  } @else if (state() === 'success' && house(); as currentHouse) {
+    <header class="page-heading">
+      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
+      <h1 id="page-title">{{ currentHouse.name }}</h1>
+      <p class="house-type">{{ currentHouse.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</p>
+    </header>
+
+    <section class="detail-card" aria-label="Datos de la instalación">
+      <dl>
+        <div>
+          <dt>Estado</dt>
+          <dd><span class="status" [attr.data-status]="currentHouse.status">{{ houseStatus(currentHouse.status) }}</span></dd>
+        </div>
+        <div>
+          <dt>Capacidad máxima</dt>
+          <dd>{{ capacityLabel() }}</dd>
+        </div>
+        <div>
+          <dt>Unidad productiva</dt>
+          <dd><a [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit.id]">{{ currentHouse.production_unit.name }}</a></dd>
+        </div>
+        <div>
+          <dt>Ubicación</dt>
+          <dd>{{ currentHouse.production_unit.locality.name }}, {{ currentHouse.production_unit.locality.department.name }}</dd>
+        </div>
+      </dl>
+    </section>
+  } @else if (state() === 'notFound') {
+    <div class="state-panel" role="alert">
+      <h1 id="page-title">No se encontró la instalación</h1>
+      <p>La instalación solicitada no existe o no pertenece a esa unidad productiva.</p>
+    </div>
+  } @else if (state() === 'forbidden') {
+    <div class="state-panel" role="alert">
+      <h1 id="page-title">Acceso no disponible</h1>
+      <p>No tenés permiso para consultar esta instalación.</p>
+    </div>
+  } @else if (state() === 'offline') {
+    <div class="state-panel" role="alert">
+      <h1 id="page-title">Sin conexión</h1>
+      <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else {
+    <div class="state-panel" role="alert">
+      <h1 id="page-title">No se pudo cargar la instalación</h1>
+      <p>Ocurrió un error al consultar la instalación.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  }
+</main>

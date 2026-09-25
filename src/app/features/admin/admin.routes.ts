@@ -29,6 +29,15 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
       };
     }
 
+    if (group.id === 'ubicaciones' && item.slug === 'galpones') {
+      return {
+        path: item.slug,
+        data: { title: item.label, groupLabel: group.label },
+        loadChildren: () => import('../production-units/production-units.routes')
+          .then((module) => module.poultryHousesListRoutes),
+      };
+    }
+
     return {
       path: item.slug,
       data: { title: item.label, groupLabel: group.label },

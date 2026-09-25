@@ -28,6 +28,15 @@ export interface PoultryHouse {
   current_occupancy?: number | null;
 }
 
+export interface PoultryHouseListItem extends PoultryHouse {
+  productionUnit: ProductionUnit;
+}
+
+export interface PoultryHouseDetail extends PoultryHouse {
+  production_unit_id: number;
+  production_unit: ProductionUnit;
+}
+
 export interface GeographyDepartment {
   id: number;
   name: string;
