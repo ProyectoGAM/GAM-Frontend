@@ -1,7 +1,7 @@
 export interface ProductionUnit {
   id: number;
   name: string;
-  status?: 'active' | 'inactive' | 'archived';
+  status: 'active' | 'inactive';
   locality_id?: number;
   latitude?: number | string | null;
   longitude?: number | string | null;

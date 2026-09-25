@@ -86,7 +86,7 @@ describe('ProductionUnitsService', () => {
     expect(houses).toEqual([{ id: 4, name: 'Galpón 4', status: 'inactive', bird_capacity: 2000, current_occupancy: 0 }]);
   });
 
-  it('updates editable unit fields and archives through the status contract', () => {
+  it('updates editable fields and switches between the two supported states', () => {
     const fields = { name: 'Granja Actualizada', locality_id: 8, latitude: -34.9, longitude: -56.2 };
     service.update(17, fields).subscribe();
     const update = http.expectOne('/api/v1/production-units/17');
@@ -100,10 +100,10 @@ describe('ProductionUnitsService', () => {
     expect(updateStatus.request.body).toEqual({ status: 'inactive' });
     updateStatus.flush({ data: { id: 17, name: fields.name, status: 'inactive' } });
 
-    service.archive(17).subscribe();
-    const archive = http.expectOne('/api/v1/production-units/17/status');
-    expect(archive.request.method).toBe('PATCH');
-    expect(archive.request.body).toEqual({ status: 'archived' });
-    archive.flush({ data: { id: 17, name: fields.name, status: 'archived' } });
+    service.updateStatus(17, 'active').subscribe();
+    const reactivate = http.expectOne('/api/v1/production-units/17/status');
+    expect(reactivate.request.method).toBe('PATCH');
+    expect(reactivate.request.body).toEqual({ status: 'active' });
+    reactivate.flush({ data: { id: 17, name: fields.name, status: 'active' } });
   });
 });

@@ -28,6 +28,7 @@ describe('ProductionUnitsListPage', () => {
     listAll.mockReturnValue(of([{
       id: 7,
       name: 'Granja Norte',
+      status: 'active',
       locality: { name: 'San José', department: { name: 'San José' } },
     }]));
 
@@ -41,6 +42,7 @@ describe('ProductionUnitsListPage', () => {
     listAll.mockReturnValue(of([{
       id: 12,
       name: 'Granja Sur',
+      status: 'active',
       locality: { name: 'Pando', department: { name: 'Canelones' } },
     }]));
 
@@ -49,7 +51,40 @@ describe('ProductionUnitsListPage', () => {
     const cardLink = fixture.nativeElement.querySelector('a.unit-card');
     expect(cardLink).not.toBeNull();
     expect(cardLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/12');
-    expect(cardLink.getAttribute('aria-label')).toBe('Ver unidad productiva Granja Sur');
+    expect(cardLink.getAttribute('aria-label')).toBe('Ver unidad productiva activa Granja Sur');
+  });
+
+  it('separates active and inactive units into accessible grids', () => {
+    listAll.mockReturnValue(of([
+      { id: 1, name: 'Granja Activa', status: 'active', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+      { id: 2, name: 'Granja Inactiva', status: 'inactive', locality: { name: 'Libertad', department: { name: 'San José' } } },
+    ]));
+
+    render();
+
+    const activeGroup = fixture.nativeElement.querySelector('[aria-labelledby="active-units-title"]');
+    const inactiveGroup = fixture.nativeElement.querySelector('[aria-labelledby="inactive-units-title"]');
+    expect(activeGroup.querySelectorAll('a.unit-card')).toHaveLength(1);
+    expect(inactiveGroup.querySelectorAll('a.unit-card')).toHaveLength(1);
+    expect(activeGroup.textContent).toContain('Granja Activa');
+    expect(inactiveGroup.textContent).toContain('Granja Inactiva');
+    expect(inactiveGroup.querySelector('.inactive-label')?.textContent).toBe('Inactiva');
+    expect(inactiveGroup.querySelector('a.unit-card')?.getAttribute('href'))
+      .toBe('/administracion/ubicaciones/unidades-productivas/2');
+  });
+
+  it('keeps an inactive grid visible when all units are active', () => {
+    listAll.mockReturnValue(of([{
+      id: 1,
+      name: 'Granja Activa',
+      status: 'active',
+      locality: { name: 'Pando', department: { name: 'Canelones' } },
+    }]));
+
+    render();
+
+    const inactiveGroup = fixture.nativeElement.querySelector('[aria-labelledby="inactive-units-title"]');
+    expect(inactiveGroup.textContent).toContain('No hay unidades inactivas.');
   });
 
   it('shows the create action and links to the existing creation route', () => {

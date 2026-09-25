@@ -10,12 +10,12 @@ h1{margin:0;color:var(--gam-color-heading);font-size:clamp(1.5rem,5vw,2rem);line
 .actions{display:flex;align-items:center;gap:9px}
 .actions ion-button{min-height:44px;margin:0;--border-radius:8px}
 .edit-button,.state-panel ion-button{--background:var(--gam-color-primary);--color:var(--gam-color-on-primary)}
-.delete-button{--background:var(--gam-color-danger-soft);--color:var(--gam-color-danger);--border-color:var(--gam-color-danger);opacity:.68}
-.delete-button:not([disabled]){opacity:1}
-.delete-action{position:relative;display:inline-flex;align-items:center;gap:1px}
+.status-button{--background:var(--gam-color-warning-soft);--color:var(--gam-color-warning);opacity:.68}
+.status-button:not([disabled]){opacity:1}
+.status-action{position:relative;display:inline-flex;align-items:center;gap:1px}
 .reason-trigger{display:grid;place-items:center;width:40px;height:44px;border:0;border-radius:8px;background:transparent;color:var(--gam-color-text-muted);font-size:1.25rem;cursor:help}
 .tooltip{position:absolute;z-index:5;right:0;bottom:calc(100% + 7px);width:min(270px,calc(100vw - 40px));padding:10px 12px;border:1px solid var(--gam-color-control-border);border-radius:8px;background:var(--gam-color-surface);color:var(--gam-color-text);font-size:.8125rem;line-height:1.4;opacity:0;visibility:hidden;pointer-events:none}
-.delete-action:hover .tooltip,.reason-trigger:focus-visible+.tooltip,.delete-action.tooltip-open .tooltip{opacity:1;visibility:visible}
+.status-action:hover .tooltip,.reason-trigger:focus-visible+.tooltip,.status-action.tooltip-open .tooltip{opacity:1;visibility:visible}
 .coordinates{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:.875rem}
 .houses-section{margin-top:26px}
 .section-heading{margin-bottom:13px}

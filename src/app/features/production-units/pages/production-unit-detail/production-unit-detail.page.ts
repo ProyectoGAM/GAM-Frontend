@@ -1,9 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, trashOutline } from 'ionicons/icons';
+import { arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
 import { AlertController, IonButton, IonCard, IonCardContent, IonIcon, IonSpinner } from '@ionic/angular';
 
 import { PoultryHouse, ProductionUnit } from '../../interfaces/production-unit.interface';
@@ -20,24 +20,30 @@ type PageState = 'loading' | 'success' | 'offline' | 'forbidden' | 'error';
 export class ProductionUnitDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly alertController = inject(AlertController);
   private readonly destroyRef = inject(DestroyRef);
   readonly state = signal<PageState>('loading');
   readonly unit = signal<ProductionUnit | null>(null);
   readonly houses = signal<PoultryHouse[]>([]);
   readonly housesState = signal<'loading' | 'success' | 'empty' | 'error'>('loading');
-  readonly isArchiving = signal(false);
-  readonly archiveError = signal(false);
+  readonly isChangingStatus = signal(false);
+  readonly statusError = signal<string | null>(null);
   readonly isTooltipOpen = signal(false);
-  readonly canArchive = computed(() => ['success', 'empty'].includes(this.housesState()) && this.houses().every((house) => house.status === 'inactive'));
-  readonly archiveReason = computed(() => this.housesState() === 'success'
-    ? 'Para eliminar la unidad, todos sus galpones deben estar inactivos.'
-    : 'No se pudo comprobar que todos los galpones estén inactivos.');
+  readonly canChangeStatus = computed(() => {
+    const unit = this.unit();
+    if (!unit) return false;
+    return unit.status === 'inactive'
+      || (['success', 'empty'].includes(this.housesState()) && this.houses().every((house) => house.status === 'inactive'));
+  });
+  readonly statusBlockReason = computed(() => {
+    if (this.housesState() === 'loading') return 'Esperá a que se carguen los galpones para inhabilitar la unidad.';
+    if (this.housesState() === 'error') return 'No se pudo comprobar el estado de los galpones.';
+    return 'Para inhabilitar la unidad, todos sus galpones deben estar inactivos.';
+  });
   readonly unitId = computed(() => Number(this.route.snapshot.paramMap.get('id')));
 
   constructor() {
-    addIcons({ arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, trashOutline });
+    addIcons({ arrowBackOutline, eggOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline });
   }
 
   ngOnInit(): void {
@@ -62,21 +68,40 @@ export class ProductionUnitDetailPage implements OnInit {
     return ({ operational: 'Operativo', maintenance: 'En mantenimiento', out_of_service: 'Fuera de servicio', inactive: 'Inactivo' })[status];
   }
 
-  async archive(): Promise<void> {
-    if (!this.canArchive() || this.isArchiving()) return;
-    const alert = await this.alertController.create({
-      header: 'Eliminar unidad productiva',
-      message: `La unidad “${this.unit()?.name ?? ''}” se archivará y dejará de aparecer en el listado.` ,
-      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Eliminar', role: 'confirm' }],
-    });
-    await alert.present();
-    const { role } = await alert.onDidDismiss();
-    if (role !== 'confirm') return;
-    this.isArchiving.set(true);
-    this.archiveError.set(false);
-    this.service.archive(this.unitId()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.isArchiving.set(false); void this.router.navigateByUrl('/administracion/ubicaciones/unidades-productivas'); },
-      error: () => { this.isArchiving.set(false); this.archiveError.set(true); },
+  async changeStatus(): Promise<void> {
+    const currentUnit = this.unit();
+    if (!currentUnit || this.isChangingStatus()) return;
+    const nextStatus = currentUnit.status === 'active' ? 'inactive' : 'active';
+    if (nextStatus === 'inactive' && !this.canChangeStatus()) return;
+
+    if (nextStatus === 'inactive') {
+      const alert = await this.alertController.create({
+        header: 'Inhabilitar unidad productiva',
+        message: `“${currentUnit.name}” pasará al grupo de unidades inactivas. Podrás habilitarla nuevamente desde su ficha.`,
+        buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Inhabilitar', role: 'confirm' }],
+      });
+      await alert.present();
+      const { role } = await alert.onDidDismiss();
+      if (role !== 'confirm') return;
+    }
+
+    this.isChangingStatus.set(true);
+    this.statusError.set(null);
+    this.service.updateStatus(currentUnit.id, nextStatus).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ data }) => {
+        this.unit.set({ ...currentUnit, ...data, status: nextStatus });
+        this.isChangingStatus.set(false);
+        this.isTooltipOpen.set(false);
+      },
+      error: (error: unknown) => {
+        this.isChangingStatus.set(false);
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.statusError.set('El estado de la unidad o de sus galpones cambió. Revisá los datos e intentá nuevamente.');
+          this.load();
+        } else {
+          this.statusError.set('No se pudo cambiar el estado. Intentá nuevamente.');
+        }
+      },
     });
   }
 

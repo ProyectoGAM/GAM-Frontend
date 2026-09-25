@@ -6,18 +6,22 @@
     <header class="page-heading">
       <div><p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p><h1 id="page-title">{{ selectedUnit.name }}</h1>
         <p class="location"><ion-icon name="location-outline" aria-hidden="true" /> {{ selectedUnit.locality.name }}, {{ selectedUnit.locality.department.name }}</p>
-        @if (selectedUnit.status) { <span class="status unit-status" [attr.data-status]="selectedUnit.status === 'active' ? 'operational' : 'inactive'">{{ selectedUnit.status === 'active' ? 'Activa' : 'Inactiva' }}</span> }
+        <span class="status unit-status" [attr.data-status]="selectedUnit.status === 'active' ? 'operational' : 'inactive'">{{ selectedUnit.status === 'active' ? 'Activa' : 'Inactiva' }}</span>
       </div>
       <div class="actions">
         <ion-button class="edit-button" [routerLink]="['/administracion/ubicaciones/unidades-productivas', selectedUnit.id, 'editar']"><ion-icon slot="start" name="pencil-outline" />Editar</ion-button>
-        <div class="delete-action" [class.tooltip-open]="isTooltipOpen()">
-        <ion-button class="delete-button" [disabled]="!canArchive() || isArchiving()" (click)="archive()" aria-describedby="delete-reason"><ion-icon slot="start" name="trash-outline" />{{ isArchiving() ? 'Eliminando…' : 'Eliminar' }}</ion-button>
-          <button type="button" class="reason-trigger" aria-label="Información sobre eliminar" aria-describedby="delete-reason" [attr.aria-expanded]="isTooltipOpen()" aria-controls="delete-reason" (click)="toggleTooltip()"><ion-icon name="information-circle-outline" aria-hidden="true" /></button>
-          <span class="tooltip" id="delete-reason" role="tooltip">{{ canArchive() ? 'La unidad se archivará y dejará de aparecer en el listado.' : archiveReason() }}</span>
-        </div>
+        @if (selectedUnit.status === 'active' && !canChangeStatus()) {
+          <div class="status-action" [class.tooltip-open]="isTooltipOpen()">
+            <ion-button class="status-button" disabled><ion-icon slot="start" name="power-outline" />Inhabilitar</ion-button>
+            <button type="button" class="reason-trigger" aria-label="Por qué no se puede inhabilitar" aria-describedby="status-reason" [attr.aria-expanded]="isTooltipOpen()" aria-controls="status-reason" (click)="toggleTooltip()"><ion-icon name="information-circle-outline" aria-hidden="true" /></button>
+            <span class="tooltip" id="status-reason" role="tooltip">{{ statusBlockReason() }}</span>
+          </div>
+        } @else {
+          <ion-button [class.status-button]="selectedUnit.status === 'active'" [class.edit-button]="selectedUnit.status === 'inactive'" [disabled]="isChangingStatus()" (click)="changeStatus()"><ion-icon slot="start" name="power-outline" />{{ isChangingStatus() ? (selectedUnit.status === 'active' ? 'Inhabilitando…' : 'Habilitando…') : (selectedUnit.status === 'active' ? 'Inhabilitar' : 'Habilitar') }}</ion-button>
+        }
       </div>
     </header>
-    @if (archiveError()) { <p class="archive-error" role="alert">No se pudo eliminar la unidad. Revisá que todos sus galpones estén inactivos e intentá nuevamente.</p> }
+    @if (statusError()) { <p class="status-error" role="alert">{{ statusError() }}</p> }
 
     <section class="unit-information" aria-label="Ubicación de la unidad productiva">
       <div class="coordinates"><span>Latitud</span><strong>{{ selectedUnit.latitude ?? 'No disponible' }}</strong><span>Longitud</span><strong>{{ selectedUnit.longitude ?? 'No disponible' }}</strong></div>

@@ -57,13 +57,6 @@ export class ProductionUnitsService {
     );
   }
 
-  archive(id: number) {
-    return this.api.patch<{ data: ProductionUnit }, { status: 'archived' }>(
-      `production-units/${id}/status`,
-      { status: 'archived' },
-    );
-  }
-
   private allPages<T>(path: string) {
     return this.api.get<PaginatedResponse<T>>(path, {
       params: { page: 1, per_page: 100 },
