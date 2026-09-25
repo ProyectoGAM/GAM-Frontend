@@ -1,4 +1,4 @@
-import { firstVisibleAdminPath, visibleAdminNavigation } from './admin-navigation';
+import { activeAdminGroup, firstVisibleAdminPath, visibleAdminNavigation } from './admin-navigation';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, provideRouter, Router } from '@angular/router';
 import { AuthStore } from '../../core/auth/auth.store';
@@ -15,7 +15,7 @@ describe('admin navigation visibility', () => {
     const navigation = visibleAdminNavigation({ roles: ['admin'] });
     expect(navigation.map((group) => group.label)).toEqual([
       'Usuarios', 'Ubicaciones', 'Lotes', 'Manejo de Lotes', 'Proveedores',
-      'Clientes', 'Ventas y repartos', 'Inventario', 'Alertas y notificaciones', 'Reportes',
+      'Clientes', 'Repartos', 'Inventario', 'Alertas y notificaciones', 'Reportes',
     ]);
     expect(navigation.reduce((count, group) => count + group.items.length, 0)).toBe(25);
   });
@@ -23,6 +23,13 @@ describe('admin navigation visibility', () => {
   it('routes the panel entry to the first group and item the user can see', () => {
     expect(firstVisibleAdminPath({ roles: ['admin'] })).toBe('/administracion/usuarios/usuarios');
     expect(firstVisibleAdminPath({ roles: ['employee'] })).toBeNull();
+  });
+
+  it('finds the group for a direct route after reload, including query parameters', () => {
+    expect(activeAdminGroup('/administracion/ubicaciones/unidades-productivas')).toBe('ubicaciones');
+    expect(activeAdminGroup('/administracion/repartos/repartos')).toBe('repartos');
+    expect(activeAdminGroup('/administracion/inventario/existencias?page=2')).toBe('inventario');
+    expect(activeAdminGroup('/auth')).toBeNull();
   });
 
   it('redirects the empty panel URL to the first visible route', () => {

@@ -1,0 +1,21 @@
+:host { display: block; color: var(--gam-color-text); }
+.edit-page { width: min(100%, 760px); margin-inline: auto; padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+.back-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; color: var(--gam-color-primary); text-decoration: none; }
+header { margin: 12px 0 20px; }
+.breadcrumb { margin: 0 0 7px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+.breadcrumb span { padding-inline: 4px; }
+h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); }
+.intro, .location { color: var(--gam-color-text-muted); line-height: 1.5; }
+.coordinate-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.map-hint { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--gam-color-warning-soft); color: var(--gam-color-warning); font-size: .8125rem; }
+.form-card, .state-card { margin: 0; border: 1px solid var(--gam-color-border); border-radius: 12px; --background: var(--gam-color-surface); box-shadow: none; }
+.form-card ion-card-title, .state-card ion-card-title { color: var(--gam-color-heading); }
+.field { min-height: 72px; margin-bottom: 14px; border: 1px solid var(--gam-color-control-border); border-radius: 9px; --background: var(--gam-color-surface); --color: var(--gam-color-text); --border-width: 0; --inner-border-width: 0; }
+.field ion-label { color: var(--gam-color-heading); font-weight: 600; }
+.field ion-input, .field ion-select { --color: var(--gam-color-text); }
+.error-text { color: var(--gam-color-danger); font-size: .8125rem; }
+.actions { display: flex; flex-direction: column-reverse; gap: 10px; margin-top: 20px; }
+.actions ion-button, .state-card ion-button { min-height: 44px; --border-radius: 8px; }
+.actions ion-button[type="submit"], .state-card ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); }
+.state-card ion-button[fill="outline"], .actions ion-button[fill="outline"] { --background: transparent; --color: var(--gam-color-primary); --border-color: var(--gam-color-primary); }
+@media (min-width: 680px) { .form-card ion-card-content { padding: 28px; } .actions { flex-direction: row; justify-content: flex-end; } .actions ion-button { min-width: 150px; } .coordinate-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -1,0 +1,83 @@
+<section class="units-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+      <h1 id="page-title">Unidades productivas</h1>
+      <p class="intro">Unidades productivas registradas en la empresa.</p>
+    </div>
+    <ion-button class="create-unit-button" routerLink="/administracion/ubicaciones/nueva-unidad-productiva">
+      Crear unidad productiva
+    </ion-button>
+  </header>
+
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando unidades productivas…</span>
+    </div>
+  } @else if (state() === 'success') {
+    <div class="unit-groups" aria-label="Unidades productivas">
+      <section class="unit-group" aria-labelledby="active-units-title">
+        <h2 id="active-units-title">Activas <span>{{ activeUnits().length }}</span></h2>
+        @if (activeUnits().length) {
+          <div class="unit-grid">
+            @for (unit of activeUnits(); track unit.id) {
+              <a class="unit-card" [routerLink]="['/administracion/ubicaciones/unidades-productivas', unit.id]" [attr.aria-label]="'Ver unidad productiva activa ' + unit.name">
+                <ion-card class="unit-card-surface">
+                  <ion-card-content>
+                    <h3>{{ unit.name }}</h3>
+                    <p class="location"><ion-icon name="location-outline" aria-hidden="true" /><span>{{ unit.locality.name }}, {{ unit.locality.department.name }}</span></p>
+                  </ion-card-content>
+                </ion-card>
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">No hay unidades activas.</p>
+        }
+      </section>
+      <section class="unit-group inactive-group" aria-labelledby="inactive-units-title">
+        <h2 id="inactive-units-title">Inactivas <span>{{ inactiveUnits().length }}</span></h2>
+        @if (inactiveUnits().length) {
+          <div class="unit-grid">
+            @for (unit of inactiveUnits(); track unit.id) {
+              <a class="unit-card" [routerLink]="['/administracion/ubicaciones/unidades-productivas', unit.id]" [attr.aria-label]="'Ver unidad productiva inactiva ' + unit.name">
+                <ion-card class="unit-card-surface inactive-card">
+                  <ion-card-content>
+                    <h3>{{ unit.name }}</h3>
+                    <span class="inactive-label">Inactiva</span>
+                    <p class="location"><ion-icon name="location-outline" aria-hidden="true" /><span>{{ unit.locality.name }}, {{ unit.locality.department.name }}</span></p>
+                  </ion-card-content>
+                </ion-card>
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">No hay unidades inactivas.</p>
+        }
+      </section>
+    </div>
+  } @else if (state() === 'empty') {
+    <div class="state-panel">
+      <h2>No hay unidades productivas</h2>
+      <p>Todavía no se registraron unidades productivas.</p>
+    </div>
+  } @else if (state() === 'offline') {
+    <div class="state-panel" role="alert">
+      <h2>Sin conexión</h2>
+      <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else if (state() === 'forbidden') {
+    <div class="state-panel" role="alert">
+      <h2>Acceso no disponible</h2>
+      <p>No tenés permiso para consultar las unidades productivas.</p>
+    </div>
+  } @else {
+    <div class="state-panel" role="alert">
+      <h2>No se pudo cargar el listado</h2>
+      <p>Ocurrió un error al consultar las unidades productivas.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  }
+</section>

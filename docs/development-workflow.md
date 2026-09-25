@@ -63,9 +63,10 @@ The web image does not build Android or iOS applications.
 
 1. Read `AGENTS.md`.
 2. Read relevant architecture docs.
-3. Inspect the existing feature.
-4. Keep the change inside the owning feature when possible.
-5. Reuse existing services/components/types before creating new abstractions.
+3. Read `docs/design-colors.md` before UI work and use the central light/dark tokens.
+4. Inspect the existing feature.
+5. Keep the change inside the owning feature when possible.
+6. Reuse existing services/components/types before creating new abstractions.
 
 ## During coding
 

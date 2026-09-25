@@ -1,0 +1,42 @@
+<aside class="sidebar">
+  <a class="brand" [routerLink]="firstVisibleRoute()" aria-label="GAM, inicio administrativo">
+    <span class="brand-mark" aria-hidden="true">G</span>
+    <span><strong>GAM</strong><small>Gestión avícola</small></span>
+  </a>
+
+  <div class="context">
+    <small>{{ isShared() ? 'Sesión operativa compartida' : 'Sesión personal' }}</small>
+    <b>{{ userName() }}</b><span>{{ roleLabel() }}</span>
+  </div>
+
+  <button class="mobile-menu-toggle" type="button" [attr.aria-expanded]="mobileMenuOpen()"
+    aria-controls="admin-navigation" (click)="mobileMenuOpen.update((open) => !open)">
+    <span>{{ mobileMenuOpen() ? 'Cerrar navegación' : 'Navegación' }}</span>
+    <ion-icon [name]="mobileMenuOpen() ? 'close-outline' : 'menu-outline'" aria-hidden="true" />
+  </button>
+
+  <nav id="admin-navigation" aria-label="Navegación administrativa" [class.mobile-open]="mobileMenuOpen()">
+    @for (group of groups(); track group.id) {
+      <section class="nav-group">
+        <button class="group-toggle" type="button" [attr.aria-expanded]="isGroupExpanded(group.id)"
+          [attr.aria-controls]="'nav-items-' + group.id" (click)="toggleGroup(group.id)">
+          <ion-icon class="group-icon" [name]="group.icon" aria-hidden="true" />
+          <span>{{ group.label }}</span>
+          <ion-icon class="chevron" name="chevron-down-outline" aria-hidden="true" />
+        </button>
+        <div class="nav-items" [id]="'nav-items-' + group.id" [hidden]="!isGroupExpanded(group.id)">
+          @for (item of group.items; track item.slug) {
+            <a [routerLink]="['/administracion', group.id, item.slug]" routerLinkActive="active"
+              ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">
+              {{ item.label }}
+            </a>
+          }
+        </div>
+      </section>
+    }
+  </nav>
+
+  <button class="logout" type="button" (click)="logoutRequested.emit()">
+    <span aria-hidden="true">↪</span>Cerrar sesión
+  </button>
+</aside>

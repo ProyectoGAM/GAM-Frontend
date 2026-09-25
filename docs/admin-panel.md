@@ -16,7 +16,7 @@ La navegación solo expresa visibilidad. `adminPanelGuard`, `adminGroupGuard` y 
 
 ## Convertir un placeholder en un módulo
 
-Las 25 entradas cargan `AdminPlaceholderPage`, que muestra literalmente “Módulo pendiente de implementación”. Para implementar una:
+De las 25 entradas, `ubicaciones/unidades-productivas` y `ubicaciones/nueva-unidad-productiva` cargan de forma lazy el feature `production-units` desde `src/app/features/production-units/`; las otras 23 cargan `AdminPlaceholderPage`, que muestra literalmente “Módulo pendiente de implementación”. Para implementar una de las entradas pendientes:
 
 1. Crear el feature dueño bajo `src/app/features/<feature>/` con su `<feature>.routes.ts`, páginas y servicios; mantener lazy loading.
 2. `admin.routes.ts` usa `map` para generar una ruta padre por grupo y una lista de rutas hijas por entrada. Para convertir `usuarios/usuarios`, cambia únicamente el item con slug `usuarios` dentro de `group.items.map(...)` para emitir `{ path: item.slug, loadChildren: () => import('../users/users.routes').then((m) => m.userRoutes) }`; los demás hijos del mismo padre continúan usando `AdminPlaceholderPage`. Otra opción es declarar una ruta hija específica antes de las rutas placeholder de ese padre. El feature sigue cargándose lazy.

@@ -10,11 +10,31 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   path: group.id,
   canActivate: [authGuard, adminGroupGuard],
   data: { group: group.id },
-  children: group.items.map((item) => ({
-    path: item.slug,
-    data: { title: item.label, groupLabel: group.label },
-    loadComponent: () => import('./admin-placeholder.page').then((m) => m.AdminPlaceholderPage),
-  })),
+  children: group.items.map((item) => {
+    if (group.id === 'ubicaciones' && item.slug === 'unidades-productivas') {
+      return {
+        path: item.slug,
+        data: { title: item.label, groupLabel: group.label },
+        loadChildren: () => import('../production-units/production-units.routes')
+          .then((module) => module.productionUnitsRoutes),
+      };
+    }
+
+    if (group.id === 'ubicaciones' && item.slug === 'nueva-unidad-productiva') {
+      return {
+        path: item.slug,
+        data: { title: item.label, groupLabel: group.label },
+        loadChildren: () => import('../production-units/production-units.routes')
+          .then((module) => module.productionUnitCreateRoutes),
+      };
+    }
+
+    return {
+      path: item.slug,
+      data: { title: item.label, groupLabel: group.label },
+      loadComponent: () => import('./admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
+    };
+  }),
 }));
 
 export const adminRoutes: Routes = [
