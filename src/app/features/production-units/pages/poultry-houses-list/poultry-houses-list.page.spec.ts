@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -9,14 +9,16 @@ import { PoultryHousesListPage } from './poultry-houses-list.page';
 describe('PoultryHousesListPage', () => {
   let fixture: ComponentFixture<PoultryHousesListPage>;
   let listAllPoultryHouses: ReturnType<typeof vi.fn>;
+  let listAllFeedPlants: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     listAllPoultryHouses = vi.fn();
+    listAllFeedPlants = vi.fn();
     TestBed.configureTestingModule({
       imports: [PoultryHousesListPage],
       providers: [
         provideRouter([]),
-        { provide: ProductionUnitsService, useValue: { listAllPoultryHouses } },
+        { provide: ProductionUnitsService, useValue: { listAllPoultryHouses, listAllFeedPlants } },
       ],
     });
   });
@@ -133,6 +135,37 @@ describe('PoultryHousesListPage', () => {
     render();
 
     expect(fixture.nativeElement.textContent).toContain('No hay galpones avícolas');
+  });
+
+  it('reuses the list for feed plants with a leaf icon and no capacity', () => {
+    TestBed.inject(ActivatedRoute).snapshot.data['houseType'] = 'feed';
+    listAllFeedPlants.mockReturnValue(of([{
+      id: 30,
+      name: 'Planta Norte',
+      type: 'feed',
+      status: 'operational',
+      bird_capacity: null,
+      productionUnit: {
+        id: 7,
+        name: 'Granja Norte',
+        locality: { name: 'Pando', department: { name: 'Canelones' } },
+      },
+    }]));
+
+    render();
+
+    const link = fixture.nativeElement.querySelector('a.house-link');
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Plantas de ración');
+    expect(listAllFeedPlants).toHaveBeenCalledOnce();
+    expect(listAllPoultryHouses).not.toHaveBeenCalled();
+    expect(link.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/7/galpon/30');
+    expect(link.getAttribute('aria-label')).toBe('Abrir el detalle de la planta de ración Planta Norte');
+    expect((link.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
+      .toBe('leaf-outline');
+    expect(link.querySelector('.capacity')).toBeNull();
+    expect(link.querySelector('.occupancy-bar')).toBeNull();
+    expect(link.textContent).toContain('Granja Norte');
+    expect(link.textContent).toContain('Pando, Canelones');
   });
 
   it('shows an error and retries the request when requested', () => {

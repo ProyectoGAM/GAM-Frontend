@@ -64,6 +64,24 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
             };
           }
 
+          if (group.id === 'ubicaciones' && item.slug === 'plantas-de-racion') {
+            return {
+              path: item.slug,
+              data: { title: item.label, groupLabel: group.label },
+              loadChildren: () => import('../production-units/production-units.routes')
+                .then((module) => module.feedPlantsListRoutes),
+            };
+          }
+
+          if (group.id === 'ubicaciones' && item.slug === 'nuevo-galpon') {
+            return {
+              path: item.slug,
+              data: { title: item.label, groupLabel: group.label },
+              loadChildren: () => import('../production-units/production-units.routes')
+                .then((module) => module.poultryHouseCreateRoutes),
+            };
+          }
+
           return {
             path: item.slug,
             data: { title: item.label, groupLabel: group.label },

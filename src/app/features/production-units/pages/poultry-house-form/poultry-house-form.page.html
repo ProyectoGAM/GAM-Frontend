@@ -1,0 +1,114 @@
+<main class="house-form-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+    <h1 id="page-title">{{ isEdit ? 'Editar instalación' : 'Crear instalación' }}</h1>
+    <p class="intro">{{ isEdit ? (form.controls.type.value === 'feed' ? 'Actualizá el nombre de la planta de ración.' : 'Actualizá el nombre o la capacidad del galpón.') : 'Elegí el tipo y completá sus datos.' }}</p>
+  </header>
+
+  @if (message()) { <p class="submit-message" role="alert">{{ message() }}</p> }
+
+  @if (state() === 'loading') {
+    <div class="state-card loading-state" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando datos…</span>
+    </div>
+  } @else if (state() !== 'ready') {
+    <ion-card class="state-card" role="alert">
+      <ion-card-content>
+        <h2>{{ state() === 'empty' ? 'No hay unidades productivas activas' : state() === 'forbidden' ? 'Acceso no disponible' : state() === 'notFound' ? 'No se encontró la instalación' : state() === 'offline' ? 'Sin conexión' : 'No se pudieron cargar los datos' }}</h2>
+        <p>{{ state() === 'empty' ? 'Creá o activá una unidad productiva para registrar una instalación.' : state() === 'forbidden' ? 'No tenés permiso para consultar los datos necesarios.' : state() === 'notFound' ? 'La instalación solicitada no existe o no pertenece a esta unidad.' : state() === 'offline' ? 'Revisá tu conexión e intentá nuevamente.' : 'Ocurrió un error al consultar la instalación.' }}</p>
+        @if (state() === 'error' || state() === 'offline') { <ion-button type="button" (click)="retry()">Reintentar</ion-button> }
+        <ion-button fill="outline" [routerLink]="cancelPath()">Volver</ion-button>
+      </ion-card-content>
+    </ion-card>
+  } @else {
+    <ion-card class="form-card">
+      <ion-card-content>
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <section class="form-section" aria-labelledby="type-title">
+            <h2 id="type-title">Tipo de instalación</h2>
+            @if (isEdit) {
+              <div class="read-only-type">
+                <ion-icon [name]="form.controls.type.value === 'poultry' ? 'egg-outline' : 'leaf-outline'" aria-hidden="true" />
+                <span>{{ form.controls.type.value === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</span>
+                <small>El tipo no se puede modificar</small>
+              </div>
+            } @else {
+              <div class="type-options" role="group" aria-label="Tipo de instalación">
+                <button type="button" class="type-option" [class.selected]="form.controls.type.value === 'poultry'" [attr.aria-pressed]="form.controls.type.value === 'poultry'" (click)="setType('poultry')">
+                  <ion-icon name="egg-outline" aria-hidden="true" />
+                  <span>Galpón avícola</span>
+                </button>
+                <button type="button" class="type-option" [class.selected]="form.controls.type.value === 'feed'" [attr.aria-pressed]="form.controls.type.value === 'feed'" (click)="setType('feed')">
+                  <ion-icon name="leaf-outline" aria-hidden="true" />
+                  <span>Planta de ración</span>
+                </button>
+              </div>
+              @if (fieldErrors().type) { <p class="field-error" role="alert">{{ fieldErrors().type }}</p> }
+            }
+          </section>
+
+          <section class="form-section" aria-labelledby="data-title">
+            <h2 id="data-title">Datos de la instalación</h2>
+            <div class="fields">
+              @if (isEdit) {
+                @if (selectedUnit(); as unit) {
+                  <div class="unit-summary">
+                    <ion-icon name="business-outline" aria-hidden="true" />
+                    <div><strong>{{ unit.name }}</strong><span>{{ unit.locality.name }}, {{ unit.locality.department.name }}</span></div>
+                  </div>
+                }
+              } @else {
+                <div class="form-field">
+                  <ion-item class="control-item">
+                    <ion-label position="stacked">Unidad productiva <span aria-hidden="true">*</span></ion-label>
+                    <ion-select formControlName="unitId" interface="popover" placeholder="Seleccioná una unidad activa" aria-describedby="unit-error" (ionChange)="onUnitChanged($event.detail.value)">
+                      @for (unit of units(); track unit.id) {
+                        <ion-select-option [value]="unit.id">{{ unit.name }} · {{ unit.locality.name }}, {{ unit.locality.department.name }}</ion-select-option>
+                      }
+                    </ion-select>
+                  </ion-item>
+                  @if (selectedUnit(); as unit) { <p class="field-hint">{{ unit.locality.name }}, {{ unit.locality.department.name }}</p> }
+                  @if (fieldErrors().unitId) { <p class="field-error" id="unit-error" role="alert">{{ fieldErrors().unitId }}</p> }
+                  @else if ((form.controls.unitId.touched || attempted()) && form.controls.unitId.invalid) { <p class="field-error" id="unit-error">Seleccioná una unidad productiva activa.</p> }
+                </div>
+              }
+
+              <div class="form-field">
+                <ion-item class="control-item">
+                  <ion-label position="stacked">Nombre <span aria-hidden="true">*</span></ion-label>
+                  <ion-input formControlName="name" required maxlength="120" [placeholder]="form.controls.type.value === 'feed' ? 'Ej. Planta de ración Norte' : 'Ej. Galpón Norte'" aria-describedby="name-error" (ionInput)="clearFieldError('name')" />
+                </ion-item>
+                @if (fieldErrors().name) { <p class="field-error" id="name-error" role="alert">{{ fieldErrors().name }}</p> }
+                @else if ((form.controls.name.touched || attempted()) && form.controls.name.invalid) { <p class="field-error" id="name-error">Ingresá un nombre de hasta 120 caracteres.</p> }
+              </div>
+
+              @if (form.controls.type.value === 'poultry') {
+                <div class="form-field">
+                  <ion-item class="control-item">
+                    <ion-label position="stacked">Capacidad de aves <span aria-hidden="true">*</span></ion-label>
+                    <ion-input formControlName="capacity" required type="number" inputmode="numeric" min="1" step="1" placeholder="Ej. 6000" aria-describedby="capacity-hint capacity-error" (ionInput)="clearFieldError('capacity')" />
+                  </ion-item>
+                  @if (isEdit && house()?.current_occupancy !== null && house()?.current_occupancy !== undefined) { <p class="field-hint" id="capacity-hint">Ocupación actual: {{ house()?.current_occupancy }} aves. La capacidad no puede ser menor.</p> }
+                  @else { <p class="field-hint" id="capacity-hint">Capacidad física máxima del galpón.</p> }
+                  @if (fieldErrors().capacity) { <p class="field-error" id="capacity-error" role="alert">{{ fieldErrors().capacity }}</p> }
+                  @else if ((form.controls.capacity.touched || attempted()) && form.controls.capacity.invalid) { <p class="field-error" id="capacity-error">Ingresá un número entero mayor que cero.</p> }
+                </div>
+              }
+            </div>
+            @if (!isEdit) { <p class="initial-status"><span aria-hidden="true"></span>Se creará como Operativo</p> }
+          </section>
+
+          <div class="form-actions">
+            <ion-button type="button" fill="outline" class="cancel-button" [routerLink]="cancelPath()">Cancelar</ion-button>
+            <ion-button type="submit" class="submit-button" [disabled]="saving()">
+              @if (saving()) { <ion-spinner name="crescent" aria-hidden="true" /> Guardando… }
+              @else if (isEdit) { Guardar cambios }
+              @else { {{ form.controls.type.value === 'feed' ? 'Crear planta de ración' : 'Crear galpón' }} }
+            </ion-button>
+          </div>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  }
+</main>

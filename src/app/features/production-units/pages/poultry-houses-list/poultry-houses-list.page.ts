@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonButton, IonSpinner } from '@ionic/angular';
 
 import { PoultryHouseListItem } from '../../interfaces/production-unit.interface';
@@ -18,7 +18,9 @@ type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbid
 })
 export class PoultryHousesListPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  readonly isFeedList = this.route.snapshot.data['houseType'] === 'feed';
   readonly state = signal<ListState>('loading');
   readonly houses = signal<PoultryHouseListItem[]>([]);
   readonly activeHouses = computed(() => this.houses().filter((house) => house.status !== 'inactive'));
@@ -34,7 +36,8 @@ export class PoultryHousesListPage implements OnInit {
 
   private load(): void {
     this.state.set('loading');
-    this.service.listAllPoultryHouses().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    const request = this.isFeedList ? this.service.listAllFeedPlants() : this.service.listAllPoultryHouses();
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (houses) => {
         this.houses.set(houses);
         this.state.set(houses.length ? 'success' : 'empty');

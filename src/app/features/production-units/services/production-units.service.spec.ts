@@ -113,6 +113,79 @@ describe('ProductionUnitsService', () => {
     expect(result).toEqual(response);
   });
 
+  it('creates either installation type and edits only mutable fields', () => {
+    service.createPoultryHouse(7, { name: 'Galpón Norte', type: 'poultry', bird_capacity: 12000 }).subscribe();
+    const poultry = http.expectOne('/api/v1/production-units/7/poultry-houses');
+    expect(poultry.request.method).toBe('POST');
+    expect(poultry.request.body).toEqual({ name: 'Galpón Norte', type: 'poultry', bird_capacity: 12000 });
+    poultry.flush({ data: { id: 31 } });
+
+    service.createPoultryHouse(7, { name: 'Planta Norte', type: 'feed' }).subscribe();
+    const feed = http.expectOne('/api/v1/production-units/7/poultry-houses');
+    expect(feed.request.method).toBe('POST');
+    expect(feed.request.body).toEqual({ name: 'Planta Norte', type: 'feed' });
+    expect(feed.request.body).not.toHaveProperty('bird_capacity');
+    feed.flush({ data: { id: 32 } });
+
+    service.updatePoultryHouse(31, { name: 'Galpón Actualizado', bird_capacity: 13000 }).subscribe();
+    const update = http.expectOne('/api/v1/poultry-houses/31');
+    expect(update.request.method).toBe('PATCH');
+    expect(update.request.body).toEqual({ name: 'Galpón Actualizado', bird_capacity: 13000 });
+    update.flush({ data: { id: 31 } });
+  });
+
+  it('loads the house flock list and plant stock from their documented endpoints', () => {
+    let flocks: unknown;
+    service.houseFlocks(22).subscribe((result) => (flocks = result));
+    http.expectOne('/api/v1/poultry-houses/22/flocks?page=1&per_page=100')
+      .flush({ data: [{ id: '01J00000000000000000000000', code: 'LOTE-1' }], meta: { current_page: 1, last_page: 1 } });
+    expect(flocks).toEqual([{ id: '01J00000000000000000000000', code: 'LOTE-1' }]);
+
+    let stock: unknown;
+    service.feedStock(23).subscribe((result) => (stock = result));
+    const stockRequest = http.expectOne('/api/v1/plantas-racion/23/stock');
+    expect(stockRequest.request.method).toBe('GET');
+    const response = { data: { scope: 'plant', scope_id: 23, items: [] } };
+    stockRequest.flush(response);
+    expect(stock).toEqual(response);
+  });
+
+  it('lists only active stock-tracked raw materials in grams for the ingredient selector', () => {
+    let ingredients: unknown;
+    service.inventoryIngredients().subscribe((result) => (ingredients = result));
+
+    const request = http.expectOne('/api/v1/products?kind=raw_material&status=active&page=1&per_page=100');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      data: [
+        { id: 1, sku: 'MAIZ-1', name: 'Maíz', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+        { id: 2, sku: 'SOJA-1', name: 'Soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: false },
+        { id: 3, sku: 'OTRO-1', name: 'Otro', kind: 'other', base_unit: 'g', status: 'active', stock_tracked: true },
+      ],
+      meta: { current_page: 1, last_page: 1 },
+    });
+
+    expect(ingredients).toEqual([
+      { id: 1, sku: 'MAIZ-1', name: 'Maíz', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+    ]);
+  });
+
+  it('creates an ingredient with the contract idempotency header and logical house status update', () => {
+    const request = { sku: 'MAIZ-01', nombre: 'Maíz', cantidad: '50', unidad: 'kg' as const };
+    service.createFeedIngredient(23, request, 'e7b36df0-e3e0-4e3b-b0da-c229fc2ad32d').subscribe();
+    const create = http.expectOne('/api/v1/plantas-racion/23/ingredientes');
+    expect(create.request.method).toBe('POST');
+    expect(create.request.body).toEqual(request);
+    expect(create.request.headers.get('Idempotency-Key')).toBe('e7b36df0-e3e0-4e3b-b0da-c229fc2ad32d');
+    create.flush({ data: {} });
+
+    service.updatePoultryHouseStatus(22, 'inactive').subscribe();
+    const deactivate = http.expectOne('/api/v1/poultry-houses/22/status');
+    expect(deactivate.request.method).toBe('PATCH');
+    expect(deactivate.request.body).toEqual({ status: 'inactive' });
+    deactivate.flush({ data: { id: 22, status: 'inactive' } });
+  });
+
   it('loads all poultry houses for every production unit and keeps their parent unit', () => {
     let houses: unknown;
     service.listAllPoultryHouses().subscribe((result) => (houses = result));
@@ -181,6 +254,34 @@ describe('ProductionUnitsService', () => {
         productionUnit: { id: 2, name: 'Granja Sur', locality: { name: 'Libertad', department: { name: 'San José' } } },
       },
     ]);
+  });
+
+  it('loads only feed plants across production units and keeps their parent unit', () => {
+    let plants: unknown;
+    service.listAllFeedPlants().subscribe((result) => (plants = result));
+
+    http.expectOne('/api/v1/production-units?page=1&per_page=100')
+      .flush({
+        data: [{ id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } }],
+        meta: { current_page: 1, last_page: 1 },
+      });
+    http.expectOne('/api/v1/production-units/1/poultry-houses?type=feed&page=1&per_page=100')
+      .flush({
+        data: [
+          { id: 30, name: 'Planta Norte', type: 'feed', status: 'operational', bird_capacity: null },
+          { id: 31, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000 },
+        ],
+        meta: { current_page: 1, last_page: 1 },
+      });
+
+    expect(plants).toEqual([{
+      id: 30,
+      name: 'Planta Norte',
+      type: 'feed',
+      status: 'operational',
+      bird_capacity: null,
+      productionUnit: { id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+    }]);
   });
 
   it('updates editable fields and switches between the two supported states', () => {

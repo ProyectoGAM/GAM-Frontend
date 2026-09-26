@@ -1,0 +1,56 @@
+<section class="section" aria-labelledby="stock-title">
+  <div class="section-heading"><div><h2 id="stock-title">Stock de ingredientes</h2><p>Existencias registradas en esta planta de ración.</p></div></div>
+  @if (message()) { <p class="feedback" role="status">{{ message() }}</p> }
+  <div class="stock-layout">
+    <div class="stock-content">
+      @if (state() === 'loading') {
+        <div class="inline-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /><span>Cargando stock…</span></div>
+      } @else if (state() === 'error') {
+        <div class="inline-state error-state" role="alert"><span>No se pudo cargar el stock de ingredientes.</span><ion-button class="action" fill="outline" (click)="retry.emit()">Reintentar</ion-button></div>
+      } @else if (rows().length) {
+        <div class="stock-list">
+          @for (row of rows(); track row.id) {
+            <article class="stock-row"><div class="stock-name"><h3>{{ row.name }}</h3><span>SKU {{ row.sku }}</span></div>
+              <div class="stock-quantity"><strong>{{ row.quantity }} {{ row.unit }}</strong>@if (row.negative) { <span class="negative-stock">Saldo negativo</span> }</div>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="empty-card"><h3>Sin ingredientes</h3><p>Agregá el primer ingrediente para registrar el stock de esta planta.</p></div>
+      }
+    </div>
+
+    <div class="add-content">
+      <div class="add-section"><h3>Agregar ingrediente</h3>
+        <ion-button class="action" fill="outline" [disabled]="state() !== 'success' || saving()" (click)="toggleForm.emit()">{{ formOpen() ? 'Cancelar' : 'Agregar ingrediente' }}</ion-button>
+      </div>
+      @if (formOpen()) {
+        <form class="ingredient-form" [formGroup]="form()" (ngSubmit)="saveIngredient.emit()" aria-label="Agregar ingrediente">
+          @if (catalogState() === 'loading') {
+            <div class="catalog-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /><span>Cargando ingredientes…</span></div>
+          } @else if (catalogState() === 'error') {
+            <div class="catalog-state" role="alert"><span>No se pudo cargar la lista de ingredientes.</span><ion-button class="action" type="button" fill="outline" (click)="retryCatalog.emit()">Reintentar</ion-button></div>
+          } @else if (catalogState() === 'success') {
+            @if (ingredients().length) {
+              <ion-select fill="outline" label="Ingrediente" labelPlacement="stacked" placeholder="Seleccioná un ingrediente" formControlName="productId" interface="popover">
+                @for (ingredient of ingredients(); track ingredient.id) {
+                  <ion-select-option [value]="ingredient.id">{{ ingredient.name }}</ion-select-option>
+                }
+              </ion-select>
+              <div class="quantity-fields">
+                <ion-input fill="outline" label="Cantidad inicial" labelPlacement="stacked" type="number" min="0.000001" step="any" formControlName="quantity" />
+                <ion-select fill="outline" label="Unidad" labelPlacement="stacked" formControlName="unit" interface="popover">
+                  <ion-select-option value="kg">kg</ion-select-option><ion-select-option value="g">g</ion-select-option>
+                </ion-select>
+              </div>
+              <p class="form-hint">Se registrará el saldo inicial con la cantidad y unidad indicadas.</p>
+              <ion-button class="action" type="submit" fill="outline" [disabled]="saving()">{{ saving() ? 'Agregando…' : 'Guardar ingrediente' }}</ion-button>
+            } @else {
+              <p class="form-hint">No hay ingredientes disponibles para esta planta.</p>
+            }
+          }
+        </form>
+      }
+    </div>
+  </div>
+</section>
