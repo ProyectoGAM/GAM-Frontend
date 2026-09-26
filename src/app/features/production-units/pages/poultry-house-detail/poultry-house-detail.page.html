@@ -30,31 +30,73 @@
     </div>
   } @else if (state() === 'success' && house(); as currentHouse) {
     <header class="page-heading">
-      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
-      <h1 id="page-title">{{ currentHouse.name }}</h1>
-      <p class="house-type">{{ currentHouse.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</p>
+      <div class="heading-copy">
+        <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
+        <h1 id="page-title">{{ currentHouse.name }}</h1>
+        <div class="heading-meta">
+          <p class="house-type">{{ currentHouse.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</p>
+          <span class="status" [attr.data-status]="currentHouse.status">{{ houseStatus(currentHouse.status) }}</span>
+        </div>
+      </div>
+      <div class="actions" aria-label="Acciones de instalación">
+        <ion-button class="house-action" fill="outline" (click)="showUnavailableFlow('edit')">
+          <ion-icon slot="start" name="pencil-outline" aria-hidden="true" />Editar
+        </ion-button>
+        @if (!canDelete()) {
+          <div class="delete-action" [class.tooltip-open]="isInfoOpen()">
+            <ion-button class="house-action" fill="outline" [disabled]="true" aria-describedby="delete-reason">
+              <ion-icon slot="start" name="trash-outline" aria-hidden="true" />Eliminar
+            </ion-button>
+            <button type="button" class="reason-trigger" aria-label="Por qué no se puede eliminar" aria-describedby="delete-reason" [attr.aria-expanded]="isInfoOpen()" aria-controls="delete-reason" (click)="toggleInfo()">
+              <ion-icon name="information-circle-outline" aria-hidden="true" />
+            </button>
+            <span class="tooltip" id="delete-reason" role="tooltip">{{ deleteBlockReason() }}</span>
+          </div>
+        } @else {
+          <ion-button class="house-action" fill="outline" [disabled]="isDeleting()" (click)="deactivate()">
+            <ion-icon slot="start" name="trash-outline" aria-hidden="true" />{{ isDeleting() ? 'Eliminando…' : 'Eliminar' }}
+          </ion-button>
+        }
+      </div>
     </header>
 
-    <section class="detail-card" aria-label="Datos de la instalación">
-      <dl>
-        <div>
-          <dt>Estado</dt>
-          <dd><span class="status" [attr.data-status]="currentHouse.status">{{ houseStatus(currentHouse.status) }}</span></dd>
-        </div>
-        <div>
-          <dt>Capacidad máxima</dt>
-          <dd>{{ capacityLabel() }}</dd>
-        </div>
-        <div>
-          <dt>Unidad productiva</dt>
-          <dd><a [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit.id]">{{ currentHouse.production_unit.name }}</a></dd>
-        </div>
-        <div>
-          <dt>Ubicación</dt>
-          <dd>{{ currentHouse.production_unit.locality.name }}, {{ currentHouse.production_unit.locality.department.name }}</dd>
-        </div>
-      </dl>
+    @if (deleteError()) { <p class="feedback error" role="alert">{{ deleteError() }}</p> }
+
+    <section class="unit-card" aria-label="Unidad productiva donde está alojada">
+      <span class="unit-symbol" aria-hidden="true"><ion-icon name="business-outline" /></span>
+      <div class="unit-copy">
+        <h2>{{ currentHouse.production_unit.name }}</h2>
+        <p>{{ currentHouse.production_unit.locality.name }}, {{ currentHouse.production_unit.locality.department.name }}</p>
+      </div>
+      <a class="unit-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit.id]">
+        Ver unidad productiva <span aria-hidden="true">→</span>
+      </a>
     </section>
+
+    @if (currentHouse.type === 'poultry') {
+      <app-poultry-house-detail-content
+        [capacity]="capacityLabel()"
+        [occupancy]="occupancyLabel()"
+        [available]="availableCapacityLabel()"
+        [occupancyPercent]="occupancyPercent()"
+        [flocks]="currentFlocks()"
+        [state]="flocksState()"
+        (addLot)="showUnavailableFlow('flock')"
+        (retry)="retryRelated()"
+      />
+    } @else {
+      <app-feed-stock-detail
+        [rows]="stockRows()"
+        [state]="feedStockState()"
+        [formOpen]="ingredientFormOpen()"
+        [form]="ingredientForm"
+        [saving]="isAddingIngredient()"
+        [message]="ingredientMessage()"
+        (toggleForm)="toggleIngredientForm()"
+        (saveIngredient)="addIngredient()"
+        (retry)="retryRelated()"
+      />
+    }
   } @else if (state() === 'notFound') {
     <div class="state-panel" role="alert">
       <h1 id="page-title">No se encontró la instalación</h1>
@@ -69,13 +111,13 @@
     <div class="state-panel" role="alert">
       <h1 id="page-title">Sin conexión</h1>
       <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
-      <ion-button (click)="retry()">Reintentar</ion-button>
+      <ion-button class="secondary-action" fill="outline" (click)="retry()">Reintentar</ion-button>
     </div>
   } @else {
     <div class="state-panel" role="alert">
       <h1 id="page-title">No se pudo cargar la instalación</h1>
       <p>Ocurrió un error al consultar la instalación.</p>
-      <ion-button (click)="retry()">Reintentar</ion-button>
+      <ion-button class="secondary-action" fill="outline" (click)="retry()">Reintentar</ion-button>
     </div>
   }
 </main>

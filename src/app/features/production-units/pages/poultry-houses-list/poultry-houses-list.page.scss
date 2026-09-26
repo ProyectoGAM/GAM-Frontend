@@ -1,5 +1,5 @@
 :host { display: block; color: var(--gam-color-text); }
-.houses-page { max-width: 1600px; margin-inline: auto; }
+.houses-page { max-width: 1600px; margin-inline: auto; container: houses-list / inline-size; }
 .page-heading { margin-bottom: 22px; }
 .breadcrumb { margin: 0 0 8px; color: var(--gam-color-text-muted); font-size: .8125rem; }
 .breadcrumb span { padding-inline: 4px; }
@@ -21,6 +21,6 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 @media (min-width: 640px) {
   .house-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
-@media (min-width: 960px) {
+@container houses-list (min-width: 1020px) {
   .house-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 }

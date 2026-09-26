@@ -1,0 +1,39 @@
+<section class="section" aria-labelledby="capacity-title">
+  <h2 id="capacity-title">Capacidad y ocupación</h2>
+  <div class="metrics">
+    <article class="metric"><span>Capacidad</span><strong>{{ capacity() }}</strong></article>
+    <article class="metric"><span>Aves alojadas</span><strong>{{ occupancy() }}</strong></article>
+    <article class="metric"><span>Plazas libres</span><strong>{{ available() }}</strong></article>
+  </div>
+  @if (occupancyPercent() !== null) {
+    <div class="occupancy-card">
+      <div class="occupancy-copy"><strong>Uso de la capacidad</strong><span>{{ occupancyPercent() | number:'1.0-0' }} %</span></div>
+      <div class="progress" role="progressbar" [attr.aria-valuenow]="occupancyPercent()" aria-valuemin="0" aria-valuemax="100" aria-label="Porcentaje de ocupación">
+        <span [style.width.%]="occupancyPercent()"></span>
+      </div>
+    </div>
+  }
+</section>
+
+<section class="section" aria-labelledby="flock-title">
+  <div class="section-heading"><div><h2 id="flock-title">Lote alojado</h2><p>Los lotes que actualmente ocupan este galpón.</p></div></div>
+  @if (state() === 'loading') {
+    <div class="inline-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /><span>Cargando lotes…</span></div>
+  } @else if (state() === 'error') {
+    <div class="inline-state error-state" role="alert"><span>No se pudieron cargar los lotes.</span><ion-button class="action" fill="outline" (click)="retry.emit()">Reintentar</ion-button></div>
+  } @else if (flocks().length) {
+    <div class="flock-list">
+      @for (flock of flocks(); track flock.id) {
+        <article class="flock-card">
+          <div><span class="eyebrow">Código de lote</span><h3>{{ flock.code }}</h3><span class="flock-status">{{ flock.status === 'quarantined' ? 'En cuarentena' : 'Activo' }}</span></div>
+          <div class="flock-metric"><span>Aves actuales</span><strong>{{ formatCount(flock.current_quantity) }}</strong></div>
+          <div class="flock-metric"><span>Semana actual</span><strong>{{ flock.current_week }}</strong></div>
+        </article>
+      }
+    </div>
+  } @else {
+    <div class="empty-card"><div><h3>Galpón vacío</h3><p>No hay lotes activos alojados actualmente.</p></div>
+      <ion-button class="action" fill="outline" (click)="addLot.emit()">Agregar lote</ion-button>
+    </div>
+  }
+</section>

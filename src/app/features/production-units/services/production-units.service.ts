@@ -5,8 +5,11 @@ import { ApiClient } from '../../../core/api/api-client';
 import {
   CreateProductionUnitRequest,
   CreateProductionUnitResponse,
+  CreateFeedIngredientRequest,
+  FeedStock,
   GeographyDepartment,
   GeographyLocality,
+  HouseFlock,
   PaginatedResponse,
   PoultryHouse,
   PoultryHouseDetail,
@@ -51,6 +54,29 @@ export class ProductionUnitsService {
 
   getPoultryHouseById(id: number) {
     return this.api.get<{ data: PoultryHouseDetail }>(`poultry-houses/${id}`);
+  }
+
+  houseFlocks(houseId: number) {
+    return this.allPages<HouseFlock>(`poultry-houses/${houseId}/flocks`);
+  }
+
+  feedStock(houseId: number) {
+    return this.api.get<{ data: FeedStock }>(`plantas-racion/${houseId}/stock`);
+  }
+
+  createFeedIngredient(houseId: number, request: CreateFeedIngredientRequest, idempotencyKey: string) {
+    return this.api.post<unknown, CreateFeedIngredientRequest>(
+      `plantas-racion/${houseId}/ingredientes`,
+      request,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    );
+  }
+
+  updatePoultryHouseStatus(id: number, status: PoultryHouse['status']) {
+    return this.api.patch<{ data: PoultryHouseDetail }, { status: PoultryHouse['status'] }>(
+      `poultry-houses/${id}/status`,
+      { status },
+    );
   }
 
   listAllPoultryHouses() {
