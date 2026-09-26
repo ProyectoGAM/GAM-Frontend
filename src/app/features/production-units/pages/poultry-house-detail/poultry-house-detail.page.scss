@@ -31,8 +31,9 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .state-panel ion-button { min-height: 44px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-primary); }
 @media (max-width: 700px) {
   .page-heading { display: grid; gap: 12px; }
-  .actions { width: 100%; }
+  .actions { width: 100%; flex-wrap: wrap; }
   .actions > ion-button, .delete-action { flex: 1; }
+  .actions > ion-button:nth-child(2) { flex-basis: 100%; order: 3; }
   .actions ion-button { width: 100%; }
   .delete-action { gap: 2px; }
   .delete-action > ion-button { flex: 1; }

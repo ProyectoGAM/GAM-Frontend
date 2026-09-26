@@ -2,30 +2,33 @@
   <header class="page-heading">
     <div class="heading-copy">
       <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
-      <h1 id="page-title">Galpones</h1>
-      <p class="intro">Capacidad, ocupación y estado operativo de los galpones avícolas.</p>
+      <h1 id="page-title">{{ isFeedList ? 'Plantas de ración' : 'Galpones' }}</h1>
+      <p class="intro">{{ isFeedList ? 'Estado operativo y ubicación de las plantas de ración.' : 'Capacidad, ocupación y estado operativo de los galpones avícolas.' }}</p>
     </div>
+    <a class="create-link" routerLink="/administracion/ubicaciones/nuevo-galpon" [queryParams]="{ type: isFeedList ? 'feed' : 'poultry' }">
+      {{ isFeedList ? 'Crear planta de ración' : 'Crear galpón' }}
+    </a>
   </header>
 
   @if (state() === 'loading') {
     <div class="state-panel" role="status" aria-live="polite">
       <ion-spinner name="crescent" aria-hidden="true" />
-      <span>Cargando galpones…</span>
+      <span>{{ isFeedList ? 'Cargando plantas de ración…' : 'Cargando galpones…' }}</span>
     </div>
   } @else if (state() === 'success') {
-    <div class="house-groups" aria-label="Galpones">
+    <div class="house-groups" [attr.aria-label]="isFeedList ? 'Plantas de ración' : 'Galpones'">
       <section class="house-group" aria-labelledby="active-houses-title">
         <h2 id="active-houses-title">Activos <span>{{ activeHouses().length }}</span></h2>
         @if (activeHouses().length) {
           <div class="house-grid">
             @for (house of activeHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle del galpón ' + house.name">
+              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name">
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
               </a>
             }
           </div>
         } @else {
-          <p class="group-empty">No hay galpones activos.</p>
+          <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración activas.' : 'No hay galpones activos.' }}</p>
         }
       </section>
 
@@ -34,20 +37,20 @@
         @if (inactiveHouses().length) {
           <div class="house-grid">
             @for (house of inactiveHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle del galpón ' + house.name + ', inactivo'">
+              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'">
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
               </a>
             }
           </div>
         } @else {
-          <p class="group-empty">No hay galpones inactivos.</p>
+          <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración inactivas.' : 'No hay galpones inactivos.' }}</p>
         }
       </section>
     </div>
   } @else if (state() === 'empty') {
     <div class="state-panel">
-      <h2>No hay galpones avícolas</h2>
-      <p>Todavía no se registraron galpones en las unidades productivas.</p>
+      <h2>{{ isFeedList ? 'No hay plantas de ración' : 'No hay galpones avícolas' }}</h2>
+      <p>{{ isFeedList ? 'Todavía no se registraron plantas de ración en las unidades productivas.' : 'Todavía no se registraron galpones en las unidades productivas.' }}</p>
     </div>
   } @else if (state() === 'offline') {
     <div class="state-panel" role="alert">
@@ -58,12 +61,12 @@
   } @else if (state() === 'forbidden') {
     <div class="state-panel" role="alert">
       <h2>Acceso no disponible</h2>
-      <p>No tenés permiso para consultar los galpones.</p>
+      <p>{{ isFeedList ? 'No tenés permiso para consultar las plantas de ración.' : 'No tenés permiso para consultar los galpones.' }}</p>
     </div>
   } @else {
     <div class="state-panel" role="alert">
       <h2>No se pudo cargar el listado</h2>
-      <p>Ocurrió un error al consultar los galpones.</p>
+      <p>{{ isFeedList ? 'Ocurrió un error al consultar las plantas de ración.' : 'Ocurrió un error al consultar los galpones.' }}</p>
       <ion-button (click)="retry()">Reintentar</ion-button>
     </div>
   }

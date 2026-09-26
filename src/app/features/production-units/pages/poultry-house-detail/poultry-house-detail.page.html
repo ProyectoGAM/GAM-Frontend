@@ -39,8 +39,11 @@
         </div>
       </div>
       <div class="actions" aria-label="Acciones de instalación">
-        <ion-button class="house-action" fill="outline" (click)="showUnavailableFlow('edit')">
+        <ion-button class="house-action" fill="outline" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'editar']">
           <ion-icon slot="start" name="pencil-outline" aria-hidden="true" />Editar
+        </ion-button>
+        <ion-button class="house-action" fill="outline" [disabled]="isChangingStatus()" (click)="changeStatus()">
+          {{ currentHouse.status === 'inactive' ? 'Reactivar' : 'Cambiar estado' }}
         </ion-button>
         @if (!canDelete()) {
           <div class="delete-action" [class.tooltip-open]="isInfoOpen()">
@@ -61,6 +64,7 @@
     </header>
 
     @if (deleteError()) { <p class="feedback error" role="alert">{{ deleteError() }}</p> }
+    @if (statusError()) { <p class="feedback error" role="alert">{{ statusError() }}</p> }
 
     <section class="unit-card" aria-label="Unidad productiva donde está alojada">
       <span class="unit-symbol" aria-hidden="true"><ion-icon name="business-outline" /></span>
@@ -81,7 +85,7 @@
         [occupancyPercent]="occupancyPercent()"
         [flocks]="currentFlocks()"
         [state]="flocksState()"
-        (addLot)="showUnavailableFlow('flock')"
+        (addLot)="showUnavailableFlow()"
         (retry)="retryRelated()"
       />
     } @else {

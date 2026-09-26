@@ -5,6 +5,7 @@ import { ApiClient } from '../../../core/api/api-client';
 import {
   CreateProductionUnitRequest,
   CreateProductionUnitResponse,
+  CreatePoultryHouseRequest,
   CreateFeedIngredientRequest,
   FeedStock,
   GeographyDepartment,
@@ -17,6 +18,7 @@ import {
   PoultryHouseListItem,
   PoultryHouseType,
   ProductionUnit,
+  UpdatePoultryHouseRequest,
 } from '../interfaces/production-unit.interface';
 
 @Injectable({ providedIn: 'root' })
@@ -57,6 +59,18 @@ export class ProductionUnitsService {
     return this.api.get<{ data: PoultryHouseDetail }>(`poultry-houses/${id}`);
   }
 
+  createPoultryHouse(productionUnitId: number, request: CreatePoultryHouseRequest) {
+    return this.api.post<{ data: PoultryHouseDetail }, CreatePoultryHouseRequest>(
+      `production-units/${productionUnitId}/poultry-houses`, request,
+    );
+  }
+
+  updatePoultryHouse(id: number, request: UpdatePoultryHouseRequest) {
+    return this.api.patch<{ data: PoultryHouseDetail }, UpdatePoultryHouseRequest>(
+      `poultry-houses/${id}`, request,
+    );
+  }
+
   houseFlocks(houseId: number) {
     return this.allPages<HouseFlock>(`poultry-houses/${houseId}/flocks`);
   }
@@ -88,11 +102,19 @@ export class ProductionUnitsService {
   }
 
   listAllPoultryHouses() {
+    return this.listAllHouses('poultry');
+  }
+
+  listAllFeedPlants() {
+    return this.listAllHouses('feed');
+  }
+
+  private listAllHouses(type: PoultryHouseType) {
     return this.listAll().pipe(
       concatMap((units) => from(units).pipe(
-        concatMap((productionUnit) => this.poultryHouses(productionUnit.id, 'poultry').pipe(
+        concatMap((productionUnit) => this.poultryHouses(productionUnit.id, type).pipe(
           map((houses) => houses
-            .filter((house) => house.type === 'poultry')
+            .filter((house) => house.type === type)
             .map((house): PoultryHouseListItem => ({ ...house, productionUnit }))),
         )),
         toArray(),

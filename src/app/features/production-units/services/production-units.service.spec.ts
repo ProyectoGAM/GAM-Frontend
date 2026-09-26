@@ -113,6 +113,27 @@ describe('ProductionUnitsService', () => {
     expect(result).toEqual(response);
   });
 
+  it('creates either installation type and edits only mutable fields', () => {
+    service.createPoultryHouse(7, { name: 'Galpón Norte', type: 'poultry', bird_capacity: 12000 }).subscribe();
+    const poultry = http.expectOne('/api/v1/production-units/7/poultry-houses');
+    expect(poultry.request.method).toBe('POST');
+    expect(poultry.request.body).toEqual({ name: 'Galpón Norte', type: 'poultry', bird_capacity: 12000 });
+    poultry.flush({ data: { id: 31 } });
+
+    service.createPoultryHouse(7, { name: 'Planta Norte', type: 'feed' }).subscribe();
+    const feed = http.expectOne('/api/v1/production-units/7/poultry-houses');
+    expect(feed.request.method).toBe('POST');
+    expect(feed.request.body).toEqual({ name: 'Planta Norte', type: 'feed' });
+    expect(feed.request.body).not.toHaveProperty('bird_capacity');
+    feed.flush({ data: { id: 32 } });
+
+    service.updatePoultryHouse(31, { name: 'Galpón Actualizado', bird_capacity: 13000 }).subscribe();
+    const update = http.expectOne('/api/v1/poultry-houses/31');
+    expect(update.request.method).toBe('PATCH');
+    expect(update.request.body).toEqual({ name: 'Galpón Actualizado', bird_capacity: 13000 });
+    update.flush({ data: { id: 31 } });
+  });
+
   it('loads the house flock list and plant stock from their documented endpoints', () => {
     let flocks: unknown;
     service.houseFlocks(22).subscribe((result) => (flocks = result));
@@ -233,6 +254,34 @@ describe('ProductionUnitsService', () => {
         productionUnit: { id: 2, name: 'Granja Sur', locality: { name: 'Libertad', department: { name: 'San José' } } },
       },
     ]);
+  });
+
+  it('loads only feed plants across production units and keeps their parent unit', () => {
+    let plants: unknown;
+    service.listAllFeedPlants().subscribe((result) => (plants = result));
+
+    http.expectOne('/api/v1/production-units?page=1&per_page=100')
+      .flush({
+        data: [{ id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } }],
+        meta: { current_page: 1, last_page: 1 },
+      });
+    http.expectOne('/api/v1/production-units/1/poultry-houses?type=feed&page=1&per_page=100')
+      .flush({
+        data: [
+          { id: 30, name: 'Planta Norte', type: 'feed', status: 'operational', bird_capacity: null },
+          { id: 31, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000 },
+        ],
+        meta: { current_page: 1, last_page: 1 },
+      });
+
+    expect(plants).toEqual([{
+      id: 30,
+      name: 'Planta Norte',
+      type: 'feed',
+      status: 'operational',
+      bird_capacity: null,
+      productionUnit: { id: 1, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+    }]);
   });
 
   it('updates editable fields and switches between the two supported states', () => {

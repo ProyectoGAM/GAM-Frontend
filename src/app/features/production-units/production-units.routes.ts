@@ -7,6 +7,11 @@ export const productionUnitsRoutes: Routes = [
       .then((module) => module.ProductionUnitEditPage),
   },
   {
+    path: ':id/galpon/:houseId/editar',
+    loadComponent: () => import('./pages/poultry-house-form/poultry-house-form.page')
+      .then((module) => module.PoultryHouseFormPage),
+  },
+  {
     path: ':id/galpon/:houseId',
     loadComponent: () => import('./pages/poultry-house-detail/poultry-house-detail.page')
       .then((module) => module.PoultryHouseDetailPage),
@@ -34,6 +39,24 @@ export const productionUnitCreateRoutes: Routes = [
 export const poultryHousesListRoutes: Routes = [
   {
     path: '',
+    data: { houseType: 'poultry' },
+    loadComponent: () => import('./pages/poultry-houses-list/poultry-houses-list.page')
+      .then((module) => module.PoultryHousesListPage),
+  },
+];
+
+export const poultryHouseCreateRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./pages/poultry-house-form/poultry-house-form.page')
+      .then((module) => module.PoultryHouseFormPage),
+  },
+];
+
+export const feedPlantsListRoutes: Routes = [
+  {
+    path: '',
+    data: { houseType: 'feed' },
     loadComponent: () => import('./pages/poultry-houses-list/poultry-houses-list.page')
       .then((module) => module.PoultryHousesListPage),
   },

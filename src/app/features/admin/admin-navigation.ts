@@ -10,7 +10,7 @@ export interface AdminNavigationGroup {
 
 export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
   { id: 'usuarios', label: 'Usuarios', icon: 'people-outline', items: [{ label: 'Usuarios', slug: 'usuarios' }, { label: 'Nuevo usuario', slug: 'nuevo-usuario' }] },
-  { id: 'ubicaciones', label: 'Ubicaciones', icon: 'location-outline', items: [{ label: 'Unidades productivas', slug: 'unidades-productivas' }, { label: 'Crear unidad productiva', slug: 'nueva-unidad-productiva' }, { label: 'Galpones', slug: 'galpones' }, { label: 'Plantas de ración', slug: 'plantas-de-racion' }, { label: 'Crear galpón', slug: 'nuevo-galpon' }] },
+  { id: 'ubicaciones', label: 'Ubicaciones', icon: 'location-outline', items: [{ label: 'Unidades productivas', slug: 'unidades-productivas' }, { label: 'Crear unidad productiva', slug: 'nueva-unidad-productiva' }, { label: 'Galpones', slug: 'galpones' }, { label: 'Plantas de ración', slug: 'plantas-de-racion' }, { label: 'Crear instalación', slug: 'nuevo-galpon' }] },
   { id: 'lotes', label: 'Lotes', icon: 'egg-outline', items: [{ label: 'Lotes', slug: 'lotes' }] },
   { id: 'manejo-lotes', label: 'Manejo de Lotes', icon: 'clipboard-outline', items: [{ label: 'Planes', slug: 'planes' }, { label: 'Vacunación', slug: 'vacunacion' }, { label: 'Medicación', slug: 'medicacion' }, { label: 'Raciones', slug: 'raciones' }] },
   { id: 'proveedores', label: 'Proveedores', icon: 'business-outline', items: [{ label: 'Proveedores', slug: 'proveedores' }, { label: 'Nuevo proveedor', slug: 'nuevo-proveedor' }] },

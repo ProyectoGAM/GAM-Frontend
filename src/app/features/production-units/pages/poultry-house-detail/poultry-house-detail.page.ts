@@ -64,6 +64,8 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly isInfoOpen = signal(false);
   readonly isDeleting = signal(false);
   readonly deleteError = signal<string | null>(null);
+  readonly isChangingStatus = signal(false);
+  readonly statusError = signal<string | null>(null);
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -165,15 +167,53 @@ export class PoultryHouseDetailPage implements OnInit {
     })[status];
   }
 
-  async showUnavailableFlow(flow: 'edit' | 'flock'): Promise<void> {
+  async showUnavailableFlow(): Promise<void> {
     const alert = await this.alertController.create({
-      header: flow === 'edit' ? 'Edición pendiente' : 'Alta de lotes pendiente',
-      message: flow === 'edit'
-        ? 'La pantalla para editar instalaciones todavía no está disponible.'
-        : 'El alta de lotes requiere seleccionar un plan publicado. Ese flujo todavía no está disponible en esta aplicación.',
+      header: 'Alta de lotes pendiente',
+      message: 'El alta de lotes requiere seleccionar un plan publicado. Ese flujo todavía no está disponible en esta aplicación.',
       buttons: ['Entendido'],
     });
     await alert.present();
+  }
+
+  async changeStatus(): Promise<void> {
+    const house = this.house();
+    if (!house || this.isChangingStatus()) return;
+    const options: PoultryHouse['status'][] = house.status === 'inactive'
+      ? ['operational']
+      : (['operational', 'maintenance', 'out_of_service'] as PoultryHouse['status'][])
+        .filter((status) => status !== house.status);
+    const alert = await this.alertController.create({
+      header: house.status === 'inactive' ? 'Reactivar instalación' : 'Cambiar estado',
+      message: house.status === 'inactive'
+        ? 'La instalación volverá a estar operativa si su unidad productiva está activa.'
+        : 'Seleccioná el nuevo estado de la instalación.',
+      inputs: options.map((status) => ({ type: 'radio' as const, label: this.houseStatus(status), value: status })),
+      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Confirmar', role: 'confirm' }],
+    });
+    await alert.present();
+    const result = await alert.onDidDismiss();
+    const selected: unknown = result.data?.values;
+    if (result.role !== 'confirm' || !options.some((status) => status === selected)) return;
+    const status = selected as PoultryHouse['status'];
+    this.isChangingStatus.set(true);
+    this.statusError.set(null);
+    this.service.updatePoultryHouseStatus(house.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.isChangingStatus.set(false); this.load(); },
+      error: (error: unknown) => {
+        this.isChangingStatus.set(false);
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.statusError.set(this.problemMessage(error.error) ?? 'El estado o la unidad productiva cambió. Revisá los datos actuales.');
+          this.load();
+        } else if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.load();
+        } else if (error instanceof HttpErrorResponse && error.status === 403) {
+          this.statusError.set('No tenés permiso para cambiar el estado de esta instalación.');
+        } else {
+          this.statusError.set('No se pudo cambiar el estado. Intentá nuevamente.');
+        }
+      },
+    });
   }
 
   toggleInfo(): void {
@@ -203,7 +243,7 @@ export class PoultryHouseDetailPage implements OnInit {
       error: (error: unknown) => {
         this.isDeleting.set(false);
         this.deleteError.set(error instanceof HttpErrorResponse && error.status === 409
-          ? 'La ocupación o el estado cambió. Revisá los datos e intentá nuevamente.'
+          ? this.problemMessage(error.error) ?? 'La ocupación o el estado cambió. Revisá los datos e intentá nuevamente.'
           : 'No se pudo eliminar la instalación. Intentá nuevamente.');
         if (error instanceof HttpErrorResponse && error.status === 409) this.load();
       },
@@ -324,5 +364,10 @@ export class PoultryHouseDetailPage implements OnInit {
     }
 
     return 'error';
+  }
+
+  private problemMessage(body: unknown): string | null {
+    return typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string'
+      ? body.message : null;
   }
 }

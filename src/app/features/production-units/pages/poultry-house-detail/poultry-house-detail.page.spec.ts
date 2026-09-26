@@ -198,4 +198,17 @@ describe('PoultryHouseDetailPage', () => {
     expect(alertCreate).not.toHaveBeenCalled();
     expect(updatePoultryHouseStatus).not.toHaveBeenCalled();
   });
+
+  it('changes the operational state through the dedicated status action', async () => {
+    alertCreate.mockResolvedValue({
+      present: vi.fn(),
+      onDidDismiss: vi.fn().mockResolvedValue({ role: 'confirm', data: { values: 'operational' } }),
+    });
+    render();
+
+    await fixture.componentInstance.changeStatus();
+
+    expect(updatePoultryHouseStatus).toHaveBeenCalledWith(22, 'operational');
+    expect(getPoultryHouseById).toHaveBeenCalledTimes(2);
+  });
 });

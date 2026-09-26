@@ -1,6 +1,8 @@
 :host { display: block; color: var(--gam-color-text); }
 .houses-page { max-width: 1600px; margin-inline: auto; container: houses-list / inline-size; }
-.page-heading { margin-bottom: 22px; }
+.page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.create-link { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; min-height: 44px; padding: 8px 14px; border-radius: 8px; background: var(--gam-color-primary); color: var(--gam-color-on-primary); font-size: .875rem; font-weight: 700; text-decoration: none; }
+.create-link:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
 .breadcrumb { margin: 0 0 8px; color: var(--gam-color-text-muted); font-size: .8125rem; }
 .breadcrumb span { padding-inline: 4px; }
 h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; }
@@ -23,4 +25,8 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 }
 @container houses-list (min-width: 1020px) {
   .house-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+}
+@media (max-width: 639px) {
+  .page-heading { flex-direction: column; }
+  .create-link { width: 100%; }
 }

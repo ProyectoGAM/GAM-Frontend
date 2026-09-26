@@ -37,6 +37,15 @@ export interface PoultryHouseDetail extends PoultryHouse {
   production_unit: ProductionUnit;
 }
 
+export type CreatePoultryHouseRequest =
+  | { name: string; type: 'poultry'; bird_capacity: number }
+  | { name: string; type: 'feed' };
+
+export interface UpdatePoultryHouseRequest {
+  name?: string;
+  bird_capacity?: number;
+}
+
 export interface HouseFlock {
   id: string;
   code: string;
