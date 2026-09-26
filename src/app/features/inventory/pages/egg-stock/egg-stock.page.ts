@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { ProductionUnit } from '../../../production-units/interfaces/production-unit.interface';
+import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { EggStockApi } from '../../services/egg-stock.api';
-import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { createIdempotencyKey, formatQuantity } from '../../services/inventory-format';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
-import { EggStockFilters, EggStockStatus, EggStockTransaction, EggStockMovementType, PaginatedResponse, ReferenceOptions } from '../../interfaces/inventory';
+import { EggStockFilters, EggStockStatus, EggStockTransaction, EggStockMovementType, PaginatedResponse } from '../../interfaces/inventory';
 import { LoadState, MutationState } from '../../types/inventory-state.type';
 
 @Component({
@@ -20,9 +21,11 @@ import { LoadState, MutationState } from '../../types/inventory-state.type';
 export class EggStockPage {
   readonly auth = inject(AuthStore);
   private readonly api = inject(EggStockApi);
-  private readonly references = inject(InventoryReferenceApi);
+  private readonly productionUnitsApi = inject(ProductionUnitsService);
   readonly selectedUnit = signal<number | null>(null);
-  readonly options = signal<ReferenceOptions | null>(null);
+  readonly productionUnits = signal<ProductionUnit[]>([]);
+  readonly productionUnitsState = signal<LoadState>('idle');
+  readonly productionUnitsError = signal<string | null>(null);
   readonly balance = signal<number | null>(null);
   readonly transactions = signal<EggStockTransaction[]>([]);
   readonly meta = signal<PaginatedResponse<EggStockTransaction>['meta'] | null>(null);
@@ -32,26 +35,31 @@ export class EggStockPage {
   readonly success = signal<string | null>(null);
   readonly canMove = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.move') === true);
   readonly canAdjust = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.adjust') === true);
+  readonly activeOperation = signal<'receipt' | 'issue'>('receipt');
   readonly receiptForm = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/)] }), occurred_at: new FormControl('', { nonNullable: true }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
   readonly issueForm = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/)] }), type: new FormControl<'distribution_preparation' | 'loss'>('distribution_preparation', { nonNullable: true }), occurred_at: new FormControl('', { nonNullable: true }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
   readonly filters = new FormGroup({ status: new FormControl('', { nonNullable: true }), type: new FormControl('', { nonNullable: true }), date_from: new FormControl('', { nonNullable: true }), date_to: new FormControl('', { nonNullable: true }) });
   private commandKey: string | null = null;
   private commandKind: 'receipt' | 'issue' | null = null;
 
-  constructor() { void this.loadReferences(); }
+  constructor() { void this.loadProductionUnits(); }
 
-  async loadReferences(): Promise<void> {
+  async loadProductionUnits(): Promise<void> {
+    this.productionUnitsState.set('loading');
+    this.productionUnitsError.set(null);
     try {
-      const options = (await firstValueFrom(this.references.options())).data;
-      this.options.set(options);
-      const first = options.production_units[0]?.value;
+      const units = await firstValueFrom(this.productionUnitsApi.listAll());
+      this.productionUnits.set(units);
+      this.productionUnitsState.set(units.length ? 'success' : 'empty');
+      const first = units[0]?.id;
       if (this.selectedUnit() === null && first !== undefined) {
-        this.selectedUnit.set(Number(first));
+        this.selectedUnit.set(first);
         await this.load();
       }
-    } catch (error) {
-      this.state.set('error');
-      this.error.set(inventoryErrorMessage(error, 'No se pudieron cargar las Unidades Productivas.'));
+    } catch {
+      // Keep any already loaded balance/history usable when refreshing the selector fails.
+      this.productionUnitsState.set('error');
+      this.productionUnitsError.set('No se pudieron cargar las unidades productivas. Intentá nuevamente.');
     }
   }
 
@@ -103,7 +111,8 @@ export class EggStockPage {
     await this.submitCommand('issue', () => this.api.issue(this.selectedUnit()!, { quantity: Number(value.quantity), type: value.type, occurred_at: value.occurred_at || undefined, reason: value.reason, notes: value.notes || undefined }, this.key('issue')));
   }
 
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida' } satisfies Record<EggStockMovementType, string>)[type]; }
+  selectOperation(operation: 'receipt' | 'issue'): void { this.activeOperation.set(operation); this.error.set(null); this.success.set(null); }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso de producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida' } satisfies Record<EggStockMovementType, string>)[type]; }
   statusLabel(status: EggStockStatus): string { return status === 'recorded' ? 'Registrado' : 'Cancelado'; }
   date(value: string): string { return new Intl.DateTimeFormat('es-UY', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
   quantity(value: number): string { return `${formatQuantity(String(value))} huevos`; }
@@ -123,7 +132,7 @@ export class EggStockPage {
       await this.load(this.meta()?.current_page ?? 1);
     } catch (error) {
       this.mutation.set('error');
-      this.error.set(inventoryErrorMessage(error, 'No se pudo registrar el movimiento de huevos. Puedes reintentar con la misma clave.'));
+      this.error.set(inventoryErrorMessage(error, 'No se pudo registrar el movimiento de huevos. Intentá nuevamente.'));
     }
   }
 

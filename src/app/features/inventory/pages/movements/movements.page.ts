@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
@@ -21,13 +22,18 @@ const TYPE_LABELS: Record<InventoryMovementType, string> = {
   imports: [ReactiveFormsModule, RouterLink],
 })
 export class MovementsPage {
+  readonly auth = inject(AuthStore);
   private readonly api = inject(InventoryApi);
   private readonly references = inject(InventoryReferenceApi);
   readonly state = signal<LoadState>('idle');
   readonly movements = signal<InventoryMovement[]>([]);
   readonly meta = signal<PaginatedResponse<InventoryMovement>['meta'] | null>(null);
   readonly options = signal<ReferenceOptions | null>(null);
+  readonly referencesState = signal<LoadState>('idle');
+  readonly referencesError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
+  readonly canRegisterMovement = computed(() => this.auth.isAdmin()
+    || this.auth.user()?.permissions.some((permission) => permission === 'inventory.move' || permission === 'inventory.adjust') === true);
   readonly filters = new FormGroup({
     type: new FormControl('', { nonNullable: true }),
     product_id: new FormControl('', { nonNullable: true }),
@@ -57,11 +63,21 @@ export class MovementsPage {
   }
 
   async loadReferences(): Promise<void> {
+    this.referencesState.set('loading');
+    this.referencesError.set(null);
     try {
-      this.options.set((await firstValueFrom(this.references.options())).data);
-    } catch {
-      // Los filtros de tipo siguen disponibles aunque el catálogo no responda.
+      const options = (await firstValueFrom(this.references.options())).data;
+      this.options.set(options);
+      this.referencesState.set(options.products.length && options.stock_locations.length ? 'success' : 'empty');
+    } catch (error) {
+      this.referencesState.set('error');
+      this.referencesError.set(inventoryErrorMessage(error, 'No se pudieron cargar las opciones de filtro.'));
     }
+  }
+
+  hasActiveFilters(): boolean {
+    const value = this.filters.getRawValue();
+    return Object.values(value).some(Boolean);
   }
 
   clearFilters(): void {
@@ -70,11 +86,7 @@ export class MovementsPage {
   }
 
   typeLabel(type: InventoryMovementType): string {
-    return TYPE_LABELS[type] ?? type;
-  }
-
-  typeClass(type: InventoryMovementType): string {
-    return type.replace('_', '-');
+    return TYPE_LABELS[type] ?? 'Otro movimiento';
   }
 
   date(value: string): string {

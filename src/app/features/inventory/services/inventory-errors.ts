@@ -11,15 +11,17 @@ export function inventoryErrorMessage(error: unknown, fallback = 'No se pudo com
   const problem = typeof error.error === 'object' && error.error !== null
     ? error.error as ApiProblem
     : {};
-  if (error.status === 0) return 'No hay conexión con el servidor.';
+  const message = typeof problem.message === 'string' && problem.message.trim() ? problem.message : undefined;
+  const detail = typeof problem.detail === 'string' && problem.detail.trim() ? problem.detail : undefined;
+  if (error.status === 0) return 'No se pudo conectar con el servidor. Intentá nuevamente.';
   if (error.status === 401) return 'La sesión expiró. Vuelve a iniciar sesión.';
   if (error.status === 403) return 'No tienes permiso para realizar esta acción.';
   if (error.status === 404) return 'El recurso solicitado no fue encontrado.';
-  if (error.status === 409) return problem.message ?? 'La operación entró en conflicto con el estado actual.';
-  if (error.status === 422) return problem.message ?? 'Revisa los datos ingresados.';
+  if (error.status === 409) return message ?? 'La operación entró en conflicto con el estado actual.';
+  if (error.status === 422) return message ?? 'Revisa los datos ingresados.';
   if (error.status >= 500) return 'El servidor no pudo completar la operación.';
 
-  return problem.message ?? problem.detail ?? fallback;
+  return message ?? detail ?? fallback;
 }
 
 export function applyInventoryValidationErrors(form: FormGroup, error: unknown): void {

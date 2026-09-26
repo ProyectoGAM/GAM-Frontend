@@ -74,3 +74,20 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
           };
         }),
 }));
+
+export const adminRoutes: Routes = [
+  {
+    path: '',
+    canActivate: [authGuard, adminPanelGuard],
+    loadComponent: () =>
+      import('./admin-shell.page').then((module) => module.AdminShellPage),
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: adminIndexRedirect,
+      },
+      ...moduleRoutes,
+    ],
+  },
+];

@@ -9,6 +9,10 @@ const UNIT_LABELS: Record<BaseUnit, string> = {
   dose: 'dosis',
 };
 
+export function isDiscreteUnit(unit: string | null | undefined): boolean {
+  return unit === 'unit' || unit === 'dose';
+}
+
 export function unitLabel(unit: BaseUnit | string): string {
   return UNIT_LABELS[unit as BaseUnit] ?? unit;
 }
@@ -22,6 +26,15 @@ export function formatQuantity(value: string, unit?: BaseUnit | string): string 
   const number = `${negative ? '-' : ''}${grouped}${fraction ? `,${fraction}` : ''}`;
 
   return unit ? `${number} ${unitLabel(unit)}` : number;
+}
+
+export function formatQuantityInput(value: string): string {
+  if (!value) return value;
+  const [integerPart, fractionPart] = value.replace(/^\+/, '').split('.');
+  const negative = integerPart.startsWith('-');
+  const integer = (negative ? integerPart.slice(1) : integerPart).replace(/^0+(?=\d)/, '');
+  const fraction = (fractionPart ?? '').replace(/0+$/, '');
+  return `${negative ? '-' : ''}${integer}${fraction ? `,${fraction}` : ''}`;
 }
 
 export function signedQuantity(value: string, unit?: BaseUnit | string): string {

@@ -1,0 +1,12 @@
+<dialog #dialog class="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="inventory-confirmation-title" (cancel)="onCancel($event)">
+  <div class="dialog-content">
+    <h2 id="inventory-confirmation-title">{{ title }}</h2>
+    @if (message) { <p class="message">{{ message }}</p> }
+    <ng-content />
+    @if (errorMessage) { <p class="error" role="alert">{{ errorMessage }}</p> }
+    <div class="actions">
+      <button #cancelButton class="button secondary" type="button" [disabled]="busy" (click)="dismiss()">Cancelar</button>
+      <button class="button danger" type="button" [disabled]="busy" (click)="confirmed.emit()">{{ busy ? 'Procesando…' : confirmLabel }}</button>
+    </div>
+  </div>
+</dialog>

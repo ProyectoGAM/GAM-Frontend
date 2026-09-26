@@ -29,7 +29,7 @@ export interface Product {
   status: ProductStatus;
 }
 
-export interface ProductionUnit {
+export interface StockLocationProductionUnitSummary {
   id: number;
   name: string;
   status?: 'active' | 'inactive';
@@ -38,7 +38,7 @@ export interface ProductionUnit {
 export interface StockLocation {
   id: number;
   name: string;
-  production_unit?: ProductionUnit | null;
+  production_unit?: StockLocationProductionUnitSummary | null;
   status: StockLocationStatus;
   created_at?: string;
   updated_at?: string;

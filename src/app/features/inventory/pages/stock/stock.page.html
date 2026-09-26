@@ -1,25 +1,65 @@
-<section class="inventory-page">
+<section class="inventory-page stock-page">
   <div class="page-heading">
-    <div><p class="eyebrow">Panel administrativo / Inventario</p><h1>Existencias</h1><p class="lead">Stock físico por producto y ubicación, con precisión decimal del backend.</p></div>
-    <div class="heading-actions"><a class="button secondary" routerLink="/administracion/inventario/existencias/ubicaciones">Gestionar ubicaciones</a><a class="button secondary" routerLink="/administracion/inventario/existencias/huevos">Ver huevos</a></div>
+    <div><p class="eyebrow">Inventario</p><h1>Existencias</h1><p class="lead">Consultá cuánto stock hay disponible en cada ubicación.</p></div>
+    <div class="heading-actions">
+      @if (canRegisterMovement()) { <a class="button primary" routerLink="/administracion/inventario/ajustes-y-perdidas">Registrar movimiento</a> }
+      <a class="button secondary" routerLink="/administracion/inventario/existencias/ubicaciones">{{ canManage() ? 'Gestionar ubicaciones' : 'Ver ubicaciones' }}</a>
+      <a class="button secondary" routerLink="/administracion/inventario/existencias/huevos">Stock de huevos</a>
+    </div>
   </div>
+
+  @if (referencesState() === 'loading') { <div class="state card" aria-live="polite">Cargando opciones para los filtros…</div> }
+  @if (referencesState() === 'empty') { <div class="state card" role="status">No hay productos o ubicaciones para filtrar. Las existencias siguen disponibles.</div> }
+  @if (referencesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="loadReferences()">Reintentar filtros</button></div> }
 
   <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
     <label>Producto<select formControlName="product_id"><option value="">Todos</option>@for (item of options()?.products ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
     <label>Ubicación<select formControlName="stock_location_id"><option value="">Todas</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
     <label class="checkbox"><input type="checkbox" formControlName="below_minimum"> Solo bajo mínimo</label>
-    <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
+    <div class="filter-actions"><button class="button secondary" type="submit">Aplicar filtros</button><button class="button secondary" type="button" (click)="clearFilters()">Limpiar</button></div>
   </form>
 
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="load()">Reintentar</button></div> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
   @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando existencias…</div> }
-  @if (state() === 'empty') { <div class="state card"><strong>No hay existencias para estos filtros.</strong><p>Los saldos se crean cuando el backend registra un movimiento válido.</p></div> }
+  @if (state() === 'empty') {
+    <div class="state card">
+      <strong>No hay existencias que coincidan con los filtros.</strong>
+      <p>Probá limpiar los filtros o registrar un movimiento.</p>
+      <div class="state-actions">
+        <button class="button secondary" type="button" (click)="clearFilters()" [hidden]="!hasActiveFilters()">Limpiar filtros</button>
+        @if (canRegisterMovement()) { <a class="button primary" routerLink="/administracion/inventario/ajustes-y-perdidas">Registrar movimiento</a> }
+      </div>
+    </div>
+  }
   @if (state() === 'success') {
     <div class="table-card card">
       <table><caption class="sr-only">Existencias de inventario</caption><thead><tr><th>Producto</th><th>Ubicación</th><th>Disponible</th><th>Mínimo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
         @for (balance of balances(); track balance.id) {
-          <tr><td data-label="Producto"><strong>{{ balance.product.name }}</strong><small>{{ balance.product.sku }} · {{ balance.product.kind }}</small></td><td data-label="Ubicación">{{ balance.stock_location.name }}@if (balance.stock_location.production_unit; as unit) { <small>{{ unit.name }}</small> }</td><td data-label="Disponible" class="quantity">{{ format(balance.available_quantity, balance.product.base_unit) }}</td><td data-label="Mínimo" class="quantity">{{ format(balance.minimum_quantity, balance.product.base_unit) }}</td><td data-label="Estado"><span class="status" [class]="statusClass(balance)">{{ status(balance) }}</span></td><td data-label="Acción">
-            @if (canManage()) { @if (minimumEditId() === balance.id) { <form class="inline-form" [formGroup]="minimumForm" (ngSubmit)="saveMinimum(balance)"><input aria-label="Stock mínimo" inputmode="decimal" formControlName="minimum_quantity"><button class="button small primary" type="submit">Guardar</button><button class="button small text" type="button" (click)="cancelMinimum()">Cancelar</button></form> } @else { <button class="button small text" type="button" (click)="editMinimum(balance)">Editar mínimo</button> } } @else { <span class="muted">Solo lectura</span> }
+          <tr>
+            <td data-label="Producto"><strong>{{ balance.product.name }}</strong><small>Código {{ balance.product.sku }} · {{ kindLabel(balance.product.kind) }}</small></td>
+            <td data-label="Ubicación">{{ balance.stock_location.name }}@if (balance.stock_location.production_unit; as unit) { <small>{{ unit.name }}</small> }</td>
+            <td data-label="Disponible" class="quantity">{{ format(balance.available_quantity, balance.product.base_unit) }}</td>
+            <td data-label="Mínimo" class="quantity">{{ format(balance.minimum_quantity, balance.product.base_unit) }}</td>
+            <td data-label="Estado"><span class="status" [class]="statusClass(balance)">{{ status(balance) }}</span></td>
+            <td data-label="Acción">
+              @if (canManage()) {
+                @if (minimumEditId() === balance.id) {
+                  <form class="minimum-form" [formGroup]="minimumForm" (ngSubmit)="saveMinimum(balance)">
+                    <p class="minimum-context"><span>Disponible ahora</span><strong>{{ format(balance.available_quantity, balance.product.base_unit) }}</strong></p>
+                    <p class="minimum-context"><span>Mínimo actual</span><strong>{{ format(balance.minimum_quantity, balance.product.base_unit) }}</strong></p>
+                    <label [for]="'minimum-quantity-' + balance.id">Nuevo mínimo</label>
+                    <input [id]="'minimum-quantity-' + balance.id" [attr.inputmode]="minimumInputMode()" formControlName="minimum_quantity" [attr.aria-invalid]="minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.invalid" [attr.aria-describedby]="'minimum-help-' + balance.id">
+                    <small class="muted" [id]="'minimum-help-' + balance.id">Indica cu&aacute;ndo avisar que quedan pocas existencias. No cambia la cantidad disponible. {{ minimumIsDiscrete() ? 'Usa una cantidad entera.' : 'Acepta hasta 6 decimales.' }}</small>
+                    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('required')) { <span class="field-error" role="alert">Escribe un m&iacute;nimo para continuar.</span> }
+                    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('pattern')) { <span class="field-error" role="alert">{{ minimumIsDiscrete() ? 'Usa una cantidad entera desde cero.' : 'Usa un n&uacute;mero desde cero, con hasta 6 decimales.' }}</span> }
+                    @if (minimumForm.controls.minimum_quantity.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+                    <div class="minimum-actions"><button class="button primary" type="submit" [disabled]="minimumSaving()">{{ minimumSaving() ? 'Guardando…' : 'Guardar mínimo' }}</button><button class="button secondary" type="button" (click)="cancelMinimum()" [disabled]="minimumSaving()">Cancelar</button></div>
+                  </form>
+                } @else {
+                  <button class="button secondary" type="button" (click)="editMinimum(balance)">Cambiar mínimo</button>
+                }
+              } @else { <span class="muted">Solo lectura</span> }
           </td></tr>
         }
       </tbody></table>
