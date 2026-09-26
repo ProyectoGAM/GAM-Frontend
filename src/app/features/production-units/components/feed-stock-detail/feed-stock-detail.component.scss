@@ -25,6 +25,8 @@ h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
 .empty-card p { margin: 6px 0 0; color: var(--gam-color-text-muted); line-height: 1.45; }
 .inline-state { display: flex; align-items: center; gap: 10px; min-height: 76px; margin-top: 14px; padding: 16px; color: var(--gam-color-text-muted); }
 .inline-state ion-spinner { color: var(--gam-color-primary); }
+.catalog-state { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--gam-color-text-muted); }
+.catalog-state ion-spinner { color: var(--gam-color-primary); }
 .error-state { justify-content: space-between; }
 @media (max-width: 760px) {
   .section-heading { align-items: flex-start; }

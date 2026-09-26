@@ -90,11 +90,14 @@
         [state]="feedStockState()"
         [formOpen]="ingredientFormOpen()"
         [form]="ingredientForm"
+        [ingredients]="availableIngredients()"
+        [catalogState]="catalogState()"
         [saving]="isAddingIngredient()"
         [message]="ingredientMessage()"
         (toggleForm)="toggleIngredientForm()"
         (saveIngredient)="addIngredient()"
         (retry)="retryRelated()"
+        (retryCatalog)="retryInventoryIngredients()"
       />
     }
   } @else if (state() === 'notFound') {

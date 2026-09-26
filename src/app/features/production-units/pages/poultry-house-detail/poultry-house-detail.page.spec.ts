@@ -13,6 +13,8 @@ describe('PoultryHouseDetailPage', () => {
   let getPoultryHouseById: ReturnType<typeof vi.fn>;
   let houseFlocks: ReturnType<typeof vi.fn>;
   let feedStock: ReturnType<typeof vi.fn>;
+  let inventoryIngredients: ReturnType<typeof vi.fn>;
+  let createFeedIngredient: ReturnType<typeof vi.fn>;
   let updatePoultryHouseStatus: ReturnType<typeof vi.fn>;
   let alertCreate: ReturnType<typeof vi.fn>;
 
@@ -41,6 +43,8 @@ describe('PoultryHouseDetailPage', () => {
     getPoultryHouseById = vi.fn().mockReturnValue(of({ data: house }));
     houseFlocks = vi.fn().mockReturnValue(of([]));
     feedStock = vi.fn().mockReturnValue(of({ data: { scope: 'plant', scope_id: 23, items: [] } }));
+    inventoryIngredients = vi.fn().mockReturnValue(of([]));
+    createFeedIngredient = vi.fn().mockReturnValue(of({ data: {} }));
     updatePoultryHouseStatus = vi.fn().mockReturnValue(of({ data: { ...house, status: 'inactive' } }));
     alertCreate = vi.fn().mockResolvedValue({
       present: vi.fn(),
@@ -51,7 +55,7 @@ describe('PoultryHouseDetailPage', () => {
       providers: [
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: '7', houseId: '22' }) } } },
-        { provide: ProductionUnitsService, useValue: { getPoultryHouseById, houseFlocks, feedStock, updatePoultryHouseStatus } },
+        { provide: ProductionUnitsService, useValue: { getPoultryHouseById, houseFlocks, feedStock, inventoryIngredients, createFeedIngredient, updatePoultryHouseStatus } },
         { provide: AlertController, useValue: { create: alertCreate } },
       ],
     });
@@ -120,6 +124,38 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Stock de ingredientes');
     expect(fixture.nativeElement.textContent).toContain('Agregar ingrediente');
     expect(fixture.nativeElement.textContent).not.toContain('Ubicación');
+  });
+
+  it('loads initial stock only from a selected inventory ingredient without editable SKU or name', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', bird_capacity: null, current_occupancy: null } }));
+    feedStock.mockReturnValue(of({ data: {
+      scope: 'plant', scope_id: 22,
+      items: [{ product_id: 1, product: { id: 1, sku: 'MAIZ-1', name: 'Maíz' }, total_g: '1000', is_negative: false, details: [] }],
+    } }));
+    inventoryIngredients.mockReturnValue(of([
+      { id: 1, sku: 'MAIZ-1', name: 'Maíz', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+      { id: 2, sku: 'SOJA-1', name: 'Harina de soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+    ]));
+    render();
+
+    fixture.componentInstance.toggleIngredientForm();
+    fixture.detectChanges();
+
+    expect(inventoryIngredients).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.querySelector('ion-input[formControlName="sku"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('ion-input[formControlName="name"]')).toBeNull();
+    const ingredientOptions = fixture.nativeElement.querySelectorAll('ion-select[formControlName="productId"] ion-select-option');
+    expect(ingredientOptions).toHaveLength(1);
+    expect(ingredientOptions[0].textContent).toContain('Harina de soja');
+    expect(fixture.nativeElement.textContent).not.toContain('Consultá al administrador');
+
+    fixture.componentInstance.ingredientForm.setValue({ productId: 2, quantity: '50', unit: 'kg' });
+    fixture.componentInstance.addIngredient();
+
+    expect(createFeedIngredient).toHaveBeenCalledWith(22, {
+      sku: 'SOJA-1', nombre: 'Harina de soja', cantidad: '50', unidad: 'kg',
+    }, expect.any(String));
+    expect(fixture.componentInstance.ingredientFormOpen()).toBe(false);
   });
 
   it('blocks deactivation while there are birds housed and exposes an information control', () => {

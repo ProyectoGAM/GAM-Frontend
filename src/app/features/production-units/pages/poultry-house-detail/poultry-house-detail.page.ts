@@ -23,6 +23,7 @@ import { PoultryHouseDetailContentComponent } from '../../components/poultry-hou
 import {
   FeedStock,
   HouseFlock,
+  InventoryIngredient,
   PoultryHouse,
   PoultryHouseDetail as PoultryHouseDetailData,
 } from '../../interfaces/production-unit.interface';
@@ -30,6 +31,7 @@ import { ProductionUnitsService } from '../../services/production-units.service'
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
 type RelatedState = 'loading' | 'success' | 'error';
+type CatalogState = 'idle' | 'loading' | 'success' | 'error';
 
 const birdCountFormatter = new Intl.NumberFormat('es-UY');
 const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 2 });
@@ -63,6 +65,8 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly isDeleting = signal(false);
   readonly deleteError = signal<string | null>(null);
   readonly ingredientFormOpen = signal(false);
+  readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
+  readonly catalogState = signal<CatalogState>('idle');
   readonly isAddingIngredient = signal(false);
   readonly ingredientMessage = signal<string | null>(null);
   private readonly ingredientIdempotencyKey = signal<string | null>(null);
@@ -108,6 +112,10 @@ export class PoultryHouseDetailPage implements OnInit {
       };
     });
   });
+  readonly availableIngredients = computed(() => {
+    const stockedIds = new Set(this.feedStock()?.items.map((item) => item.product_id) ?? []);
+    return this.inventoryIngredients().filter((product) => !stockedIds.has(product.id));
+  });
   readonly canDelete = computed(() => {
     const house = this.house();
     if (!house || house.status === 'inactive' || this.isDeleting()) return false;
@@ -122,8 +130,7 @@ export class PoultryHouseDetailPage implements OnInit {
     return 'No se pudo comprobar la ocupación actual. Volvé a cargar la instalación antes de eliminarla.';
   });
   readonly ingredientForm = new FormGroup({
-    sku: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(80)] }),
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(160)] }),
+    productId: new FormControl<number | null>(null, { validators: [Validators.required] }),
     quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^(?=.*[1-9])\d+(?:\.\d{1,6})?$/)] }),
     unit: new FormControl<'g' | 'kg'>('kg', { nonNullable: true }),
   });
@@ -206,6 +213,11 @@ export class PoultryHouseDetailPage implements OnInit {
   toggleIngredientForm(): void {
     this.ingredientFormOpen.update((open) => !open);
     this.ingredientMessage.set(null);
+    if (this.ingredientFormOpen()) this.loadInventoryIngredients();
+  }
+
+  retryInventoryIngredients(): void {
+    this.loadInventoryIngredients();
   }
 
   addIngredient(): void {
@@ -214,21 +226,27 @@ export class PoultryHouseDetailPage implements OnInit {
       return;
     }
     const house = this.house();
-    if (!house || house.type !== 'feed') return;
+    if (!house || house.type !== 'feed' || this.feedStockState() !== 'success' || this.catalogState() !== 'success') return;
     const form = this.ingredientForm.getRawValue();
+    const product = this.availableIngredients().find((ingredient) => ingredient.id === form.productId);
+    if (!product) {
+      this.ingredientMessage.set('Seleccioná un ingrediente disponible en Inventario.');
+      this.ingredientForm.controls.productId.setValue(null);
+      return;
+    }
     this.isAddingIngredient.set(true);
     this.ingredientMessage.set(null);
     const idempotencyKey = this.ingredientIdempotencyKey() ?? crypto.randomUUID();
     this.ingredientIdempotencyKey.set(idempotencyKey);
     this.service.createFeedIngredient(house.id, {
-      sku: form.sku.trim(),
-      nombre: form.name.trim(),
+      sku: product.sku,
+      nombre: product.name,
       cantidad: String(form.quantity),
       unidad: form.unit,
     }, idempotencyKey).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isAddingIngredient.set(false);
-        this.ingredientForm.reset({ sku: '', name: '', quantity: '', unit: 'kg' });
+        this.ingredientForm.reset({ productId: null, quantity: '', unit: 'kg' });
         this.ingredientIdempotencyKey.set(null);
         this.ingredientFormOpen.set(false);
         this.ingredientMessage.set('Ingrediente agregado.');
@@ -237,8 +255,12 @@ export class PoultryHouseDetailPage implements OnInit {
       error: (error: unknown) => {
         this.isAddingIngredient.set(false);
         this.ingredientMessage.set(error instanceof HttpErrorResponse && error.status === 409
-          ? 'El SKU o nombre ya existe, o los datos de stock cambiaron. Revisalos e intentá nuevamente.'
+          ? 'El ingrediente o los datos de stock cambiaron. Actualizá la lista e intentá nuevamente.'
           : 'No se pudo agregar el ingrediente. Revisá tus permisos y los datos.');
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.loadFeedStock(house.id);
+          this.loadInventoryIngredients();
+        }
       },
     });
   }
@@ -283,6 +305,14 @@ export class PoultryHouseDetailPage implements OnInit {
     this.service.feedStock(houseId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ data }) => { this.feedStock.set(data); this.feedStockState.set('success'); },
       error: () => this.feedStockState.set('error'),
+    });
+  }
+
+  private loadInventoryIngredients(): void {
+    this.catalogState.set('loading');
+    this.service.inventoryIngredients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (products) => { this.inventoryIngredients.set(products); this.catalogState.set('success'); },
+      error: () => this.catalogState.set('error'),
     });
   }
 

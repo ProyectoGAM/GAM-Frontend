@@ -129,6 +129,26 @@ describe('ProductionUnitsService', () => {
     expect(stock).toEqual(response);
   });
 
+  it('lists only active stock-tracked raw materials in grams for the ingredient selector', () => {
+    let ingredients: unknown;
+    service.inventoryIngredients().subscribe((result) => (ingredients = result));
+
+    const request = http.expectOne('/api/v1/products?kind=raw_material&status=active&page=1&per_page=100');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      data: [
+        { id: 1, sku: 'MAIZ-1', name: 'Maíz', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+        { id: 2, sku: 'SOJA-1', name: 'Soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: false },
+        { id: 3, sku: 'OTRO-1', name: 'Otro', kind: 'other', base_unit: 'g', status: 'active', stock_tracked: true },
+      ],
+      meta: { current_page: 1, last_page: 1 },
+    });
+
+    expect(ingredients).toEqual([
+      { id: 1, sku: 'MAIZ-1', name: 'Maíz', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+    ]);
+  });
+
   it('creates an ingredient with the contract idempotency header and logical house status update', () => {
     const request = { sku: 'MAIZ-01', nombre: 'Maíz', cantidad: '50', unidad: 'kg' as const };
     service.createFeedIngredient(23, request, 'e7b36df0-e3e0-4e3b-b0da-c229fc2ad32d').subscribe();

@@ -10,6 +10,7 @@ import {
   GeographyDepartment,
   GeographyLocality,
   HouseFlock,
+  InventoryIngredient,
   PaginatedResponse,
   PoultryHouse,
   PoultryHouseDetail,
@@ -62,6 +63,13 @@ export class ProductionUnitsService {
 
   feedStock(houseId: number) {
     return this.api.get<{ data: FeedStock }>(`plantas-racion/${houseId}/stock`);
+  }
+
+  inventoryIngredients() {
+    return this.allPages<InventoryIngredient>('products', { kind: 'raw_material', status: 'active' }).pipe(
+      map((products) => products.filter((product) => product.kind === 'raw_material'
+        && product.status === 'active' && product.base_unit === 'g' && product.stock_tracked)),
+    );
   }
 
   createFeedIngredient(houseId: number, request: CreateFeedIngredientRequest, idempotencyKey: string) {

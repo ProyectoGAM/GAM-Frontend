@@ -67,6 +67,16 @@ export interface CreateFeedIngredientRequest {
   unidad: 'g' | 'kg';
 }
 
+export interface InventoryIngredient {
+  id: number;
+  sku: string;
+  name: string;
+  kind: string;
+  base_unit: 'g' | 'kg';
+  stock_tracked: boolean;
+  status: 'active' | 'inactive';
+}
+
 export interface GeographyDepartment {
   id: number;
   name: string;
