@@ -1,0 +1,52 @@
+<section class="locations-page">
+  <a class="back" routerLink="/administracion/inventario/existencias">← Volver a existencias</a>
+  <div class="page-heading"><div><p class="eyebrow">Inventario</p><h1 #locationsHeading tabindex="-1">Ubicaciones de stock</h1><p class="lead">Lugares donde se guardan productos e insumos.</p></div>@if (canManage()) { <button class="button primary" type="button" (click)="startCreate()">Nueva ubicación</button> }</div>
+  @if (productionUnitsState() === 'loading' && productionUnits().length === 0) { <div class="card state" aria-live="polite">Cargando Unidades Productivas…</div> }
+  @if (productionUnitsError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="loadProductionUnits()">Reintentar</button></div> }
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="load()">Reintentar</button></div> } @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+    <label>Buscar por nombre<input formControlName="search" placeholder="Nombre de la ubicación"></label>
+    <label>Estado<select formControlName="status"><option value="">Todas</option><option value="active">Activas</option><option value="inactive">Inactivas</option></select></label>
+    <label>Unidad Productiva<select formControlName="production_unit_id"><option value="">Todas</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></label>
+    <div class="filter-actions"><button class="button secondary" type="submit">Aplicar filtros</button><button class="button secondary" type="button" (click)="clearFilters()">Limpiar</button></div>
+  </form>
+  @if (editorOpen()) {
+    <form class="card editor" [formGroup]="form" (ngSubmit)="save()">
+      <h2>{{ editTarget() ? 'Editar ubicación' : 'Nueva ubicación' }}</h2>
+      <label for="location-name">Nombre</label>
+      <input id="location-name" formControlName="name" maxlength="160" autocomplete="off">
+      @if (form.controls.name.touched && form.controls.name.hasError('required')) { <span class="field-error" role="alert">Escribí un nombre para la ubicación.</span> }
+      @if (form.controls.name.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+      <label for="location-unit">Unidad Productiva</label>
+      <select id="location-unit" formControlName="production_unit_id"><option value="">General (sin Unidad Productiva)</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select>
+      <p class="helper">Podés dejarla sin Unidad Productiva si es un depósito general.</p>
+      @if (form.controls.production_unit_id.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+      <div class="editor-actions"><button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">{{ editTarget() ? 'Guardar cambios' : 'Guardar ubicación' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancelar</button></div>
+    </form>
+  }
+  @if (state() === 'loading') { <div class="card state" aria-live="polite">Cargando ubicaciones…</div> }
+  @if (state() === 'empty') {
+    <div class="card state">
+      <strong>{{ hasActiveFilters() ? 'No hay ubicaciones que coincidan con los filtros.' : 'No hay ubicaciones registradas.' }}</strong>
+      <div class="state-actions">
+        @if (hasActiveFilters()) { <button class="button secondary" type="button" (click)="clearFilters()">Limpiar filtros</button> }
+        @if (canManage()) { <button class="button primary" type="button" (click)="startCreate()">Nueva ubicación</button> }
+      </div>
+    </div>
+  }
+  @if (state() === 'success') {
+    <div class="table-card card">
+      <table><caption class="sr-only">Ubicaciones de stock</caption><thead><tr><th>Nombre</th><th>Unidad Productiva</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        @for (location of locations(); track location.id) {
+          <tr><td data-label="Nombre"><strong>{{ location.name }}</strong></td><td data-label="Unidad Productiva">{{ productionUnitName(location) }}</td><td data-label="Estado"><span class="status" [class.inactive]="location.status === 'inactive'">{{ location.status === 'active' ? 'Activa' : 'Inactiva' }}</span></td><td data-label="Acciones">
+            @if (canManage()) { <div class="row-actions"><button class="button secondary" type="button" [attr.aria-label]="'Editar ubicación ' + location.name" (click)="startEdit(location)">Editar</button><button class="button secondary" type="button" [attr.aria-label]="(location.status === 'active' ? 'Desactivar ubicación ' : 'Activar ubicación ') + location.name" (click)="requestStatusChange($event, location)">{{ location.status === 'active' ? 'Desactivar' : 'Activar' }}</button></div> }
+            @else { <span class="muted">Solo lectura</span> }
+          </td></tr>
+        }
+      </tbody></table>
+    </div>
+    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+  }
+  <app-inventory-confirmation-dialog [title]="pendingStatusLocation()?.status === 'active' ? 'Desactivar ubicación' : 'Activar ubicación'" [message]="pendingStatusLocation()?.status === 'active' ? 'No se podrá elegir en movimientos nuevos. Esta acción cambia el estado; no registra un movimiento.' : 'Se podrá elegir en movimientos nuevos. Esta acción cambia el estado; no registra un movimiento.'" [confirmLabel]="pendingStatusLocation()?.status === 'active' ? 'Desactivar ubicación' : 'Activar ubicación'" [busy]="mutation() === 'submitting'" [errorMessage]="mutation() === 'error' ? error() : null" (confirmed)="toggleStatus()" (dismissed)="dismissStatusChange()">
+    @if (pendingStatusLocation(); as location) { <div class="confirm-summary"><p><strong>{{ location.name }}</strong></p></div> }
+  </app-inventory-confirmation-dialog></section>
