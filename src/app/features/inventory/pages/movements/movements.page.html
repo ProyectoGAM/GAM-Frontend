@@ -6,6 +6,10 @@
     }
   </div>
 
+  @if (unitContext?.selectedUnit(); as selectedUnit) {
+    <p class="permission-note" role="note">Movimientos todavía muestra todas las UP. La selección de {{ selectedUnit.name }} no filtra este listado.</p>
+  }
+
   @if (!canRegisterMovement()) { <p class="permission-note">No tienes permiso para registrar movimientos.</p> }
 
   @if (referencesState() === 'loading') { <p class="feedback" role="status">Cargando opciones de filtro…</p> }

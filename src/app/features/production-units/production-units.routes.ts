@@ -36,6 +36,11 @@ export const productionUnitCreateRoutes: Routes = [
   },
 ];
 
+export const productionUnitManagementRoutes: Routes = [
+  { path: 'nueva', loadChildren: () => Promise.resolve(productionUnitCreateRoutes) },
+  ...productionUnitsRoutes,
+];
+
 export const poultryHousesListRoutes: Routes = [
   {
     path: '',

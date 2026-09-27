@@ -8,6 +8,7 @@
     <label>Buscar por nombre<input formControlName="search" placeholder="Nombre de la ubicación"></label>
     <label>Estado<select formControlName="status"><option value="">Todas</option><option value="active">Activas</option><option value="inactive">Inactivas</option></select></label>
     <label>Unidad Productiva<select formControlName="production_unit_id"><option value="">Todas</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></label>
+    @if (unitContext?.selectedId()) { <p class="helper">La UP se cambia desde la navegación.</p> }
     <div class="filter-actions"><button class="button secondary" type="submit">Aplicar filtros</button><button class="button secondary" type="button" (click)="clearFilters()">Limpiar</button></div>
   </form>
   @if (editorOpen()) {

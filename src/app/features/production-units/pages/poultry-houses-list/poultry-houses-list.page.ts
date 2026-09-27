@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonButton, IonSpinner } from '@ionic/angular';
 
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { PoultryHouseListItem } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 import { ProductionUnitHouseCardComponent } from '../../components/production-unit-house-card/production-unit-house-card.component';
@@ -18,13 +19,18 @@ type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbid
 })
 export class PoultryHousesListPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly unitContext = inject(AdminUnitContextService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   readonly isFeedList = this.route.snapshot.data['houseType'] === 'feed';
   readonly state = signal<ListState>('loading');
   readonly houses = signal<PoultryHouseListItem[]>([]);
-  readonly activeHouses = computed(() => this.houses().filter((house) => house.status !== 'inactive'));
-  readonly inactiveHouses = computed(() => this.houses().filter((house) => house.status === 'inactive'));
+  readonly visibleHouses = computed(() => this.houses().filter((house) => {
+    const selectedId = this.unitContext?.selectedId();
+    return selectedId === null || selectedId === undefined || house.productionUnit.id === selectedId;
+  }));
+  readonly activeHouses = computed(() => this.visibleHouses().filter((house) => house.status !== 'inactive'));
+  readonly inactiveHouses = computed(() => this.visibleHouses().filter((house) => house.status === 'inactive'));
 
   ngOnInit(): void {
     this.load();

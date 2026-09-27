@@ -50,7 +50,7 @@ describe('ProductionUnitsListPage', () => {
 
     const cardLink = fixture.nativeElement.querySelector('a.unit-card');
     expect(cardLink).not.toBeNull();
-    expect(cardLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/12');
+    expect(cardLink.getAttribute('href')).toBe('/administracion/unidades-productivas/12');
     expect(cardLink.getAttribute('aria-label')).toBe('Ver unidad productiva activa Granja Sur');
   });
 
@@ -70,7 +70,7 @@ describe('ProductionUnitsListPage', () => {
     expect(inactiveGroup.textContent).toContain('Granja Inactiva');
     expect(inactiveGroup.querySelector('.inactive-label')?.textContent).toBe('Inactiva');
     expect(inactiveGroup.querySelector('a.unit-card')?.getAttribute('href'))
-      .toBe('/administracion/ubicaciones/unidades-productivas/2');
+      .toBe('/administracion/unidades-productivas/2');
   });
 
   it('keeps an inactive grid visible when all units are active', () => {
@@ -97,7 +97,7 @@ describe('ProductionUnitsListPage', () => {
 
     expect(button.nativeElement.textContent).toContain('Crear unidad productiva');
     expect(router.serializeUrl(button.injector.get(RouterLink).urlTree!))
-      .toBe('/administracion/ubicaciones/nueva-unidad-productiva');
+      .toBe('/administracion/unidades-productivas/nueva');
   });
 
   it('shows the empty state when the API returns no units', () => {

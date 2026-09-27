@@ -64,7 +64,7 @@ describe('ProductionUnitDetailPage', () => {
     expect(Number(poultryLink.querySelector('.occupancy-bar')?.getAttribute('aria-valuenow'))).toBe(0.5);
 
     const feedLink = active.querySelector('a[aria-label="Ver planta de ración Planta Norte"]');
-    expect(feedLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/7/galpon/2');
+    expect(feedLink.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/2');
     expect(feedLink.textContent).toContain('Planta de ración');
     expect(feedLink.textContent).toContain('Mantenimiento');
     expect((feedLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)

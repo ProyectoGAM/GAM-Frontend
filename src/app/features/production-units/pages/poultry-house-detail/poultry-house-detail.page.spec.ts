@@ -84,7 +84,7 @@ describe('PoultryHouseDetailPage', () => {
     const unitLink = fixture.nativeElement.querySelector('.unit-link');
     expect(backLink.getAttribute('href')).toBe('/administracion/ubicaciones/galpones');
     expect(backLink.textContent).toContain('Volver a galpones');
-    expect(unitLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/7');
+    expect(unitLink.getAttribute('href')).toBe('/administracion/unidades-productivas/7');
   });
 
   it('does not show a house when it does not belong to the unit in the route', () => {
@@ -120,7 +120,7 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.querySelector('#flock-title')).toBeNull();
     expect(fixture.nativeElement.querySelector('.back-link')?.textContent).toContain('Volver a la unidad productiva');
     expect(fixture.nativeElement.querySelector('.back-link')?.getAttribute('href'))
-      .toBe('/administracion/ubicaciones/unidades-productivas/7');
+      .toBe('/administracion/unidades-productivas/7');
     expect(fixture.nativeElement.textContent).toContain('Stock de ingredientes');
     expect(fixture.nativeElement.textContent).toContain('Agregar ingrediente');
     expect(fixture.nativeElement.textContent).not.toContain('Ubicación');

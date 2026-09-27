@@ -6,13 +6,13 @@
         Volver a galpones
       </a>
     } @else {
-      <a class="back-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit_id]">
+      <a class="back-link" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit_id]">
         <ion-icon name="arrow-back-outline" aria-hidden="true" />
         Volver a la unidad productiva
       </a>
     }
   } @else if (unitId > 0) {
-    <a class="back-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', unitId]">
+    <a class="back-link" [routerLink]="['/administracion/unidades-productivas', unitId]">
       <ion-icon name="arrow-back-outline" aria-hidden="true" />
       Volver a la unidad productiva
     </a>
@@ -31,7 +31,7 @@
   } @else if (state() === 'success' && house(); as currentHouse) {
     <header class="page-heading">
       <div class="heading-copy">
-        <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
+        <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Instalaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
         <h1 id="page-title">{{ currentHouse.name }}</h1>
         <div class="heading-meta">
           <p class="house-type">{{ currentHouse.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</p>
@@ -39,7 +39,7 @@
         </div>
       </div>
       <div class="actions" aria-label="Acciones de instalación">
-        <ion-button class="house-action" fill="outline" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'editar']">
+        <ion-button class="house-action" fill="outline" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'editar']">
           <ion-icon slot="start" name="pencil-outline" aria-hidden="true" />Editar
         </ion-button>
         <ion-button class="house-action" fill="outline" [disabled]="isChangingStatus()" (click)="changeStatus()">
@@ -72,7 +72,7 @@
         <h2>{{ currentHouse.production_unit.name }}</h2>
         <p>{{ currentHouse.production_unit.locality.name }}, {{ currentHouse.production_unit.locality.department.name }}</p>
       </div>
-      <a class="unit-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', currentHouse.production_unit.id]">
+      <a class="unit-link" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit.id]">
         Ver unidad productiva <span aria-hidden="true">→</span>
       </a>
     </section>

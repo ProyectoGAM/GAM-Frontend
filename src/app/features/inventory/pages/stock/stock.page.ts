@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
 import { applyInventoryValidationErrors, inventoryErrorMessage } from '../../services/inventory-errors';
@@ -29,6 +30,7 @@ const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {
 })
 export class StockPage {
   readonly auth = inject(AuthStore);
+  readonly unitContext = inject(AdminUnitContextService, { optional: true });
   private readonly api = inject(InventoryApi);
   private readonly references = inject(InventoryReferenceApi);
   readonly state = signal<LoadState>('idle');

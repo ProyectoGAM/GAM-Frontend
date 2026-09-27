@@ -1,7 +1,7 @@
 <section class="houses-page" aria-labelledby="page-title">
   <header class="page-heading">
     <div class="heading-copy">
-      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Instalaciones</p>
       <h1 id="page-title">{{ isFeedList ? 'Plantas de ración' : 'Galpones' }}</h1>
       <p class="intro">{{ isFeedList ? 'Estado operativo y ubicación de las plantas de ración.' : 'Capacidad, ocupación y estado operativo de los galpones avícolas.' }}</p>
     </div>
@@ -22,7 +22,7 @@
         @if (activeHouses().length) {
           <div class="house-grid">
             @for (house of activeHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name">
+              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name">
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
               </a>
             }
@@ -37,7 +37,7 @@
         @if (inactiveHouses().length) {
           <div class="house-grid">
             @for (house of inactiveHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/ubicaciones/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'">
+              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'">
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
               </a>
             }
