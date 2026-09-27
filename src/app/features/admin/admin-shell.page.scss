@@ -4,8 +4,8 @@
 .mobile-header ion-button { --color: var(--gam-color-nav-text); }
 .theme-toggle { min-width: 44px; min-height: 44px; margin: 0; }
 .theme-toggle:focus-visible { outline: 3px solid var(--gam-color-nav-focus); outline-offset: 2px; }
-.admin-layout { min-height: 100%; display: grid; grid-template-columns: 283px minmax(0, 1fr); align-items: start; background: var(--gam-color-canvas); }
-.workspace { min-width: 0; }
+.admin-layout { min-height: 100%; background: var(--gam-color-canvas); }
+.workspace { min-width: 0; margin-left: 283px; }
 .topbar { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(18px, 3vw, 38px); background: var(--gam-color-surface-alt); border-bottom: 1px solid var(--gam-color-border); }
 .topbar small, .topbar strong { display: block; }
 .topbar-actions { display: flex; align-items: center; gap: 16px; }
@@ -15,4 +15,4 @@
 .user-badge { display: flex; align-items: center; gap: 9px; color: var(--gam-color-text); font-size: 12px; }
 .user-badge span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--gam-color-heading); background: var(--gam-color-primary-soft); font-weight: 800; }
 .page-content { padding: clamp(18px, 3vw, 36px); }
-@media (max-width: 900px) { .mobile-header { display: block; }.admin-layout { display: block; }.topbar { display: none; }.page-content { padding: 16px; } }
+@media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px; } }

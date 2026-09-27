@@ -8,6 +8,10 @@
     </div>
   </div>
 
+  @if (unitContext?.selectedUnit(); as selectedUnit) {
+    <p class="lead" role="note">Existencias todavía muestra todas las UP. La selección de {{ selectedUnit.name }} no filtra esta tabla.</p>
+  }
+
   @if (referencesState() === 'loading') { <div class="state card" aria-live="polite">Cargando opciones para los filtros…</div> }
   @if (referencesState() === 'empty') { <div class="state card" role="status">No hay productos o ubicaciones para filtrar. Las existencias siguen disponibles.</div> }
   @if (referencesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button text" type="button" (click)="loadReferences()">Reintentar filtros</button></div> }

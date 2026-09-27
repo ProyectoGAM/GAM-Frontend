@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { PoultryHousesListPage } from './poultry-houses-list.page';
 
 describe('PoultryHousesListPage', () => {
@@ -27,6 +29,24 @@ describe('PoultryHousesListPage', () => {
     fixture = TestBed.createComponent(PoultryHousesListPage);
     fixture.detectChanges();
   }
+
+  it('shows only installations belonging to the selected UP', () => {
+    const selectedId = signal<number | null>(7);
+    TestBed.overrideProvider(AdminUnitContextService, { useValue: { selectedId } });
+    listAllPoultryHouses.mockReturnValue(of([
+      { id: 1, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000,
+        productionUnit: { id: 7, name: 'Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } } },
+      { id: 2, name: 'Galpón Sur', type: 'poultry', status: 'operational', bird_capacity: 1000,
+        productionUnit: { id: 8, name: 'Sur', locality: { name: 'Pando', department: { name: 'Canelones' } } } },
+    ]));
+
+    render();
+    expect(fixture.nativeElement.textContent).toContain('Galpón Norte');
+    expect(fixture.nativeElement.textContent).not.toContain('Galpón Sur');
+    selectedId.set(null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Galpón Sur');
+  });
 
   it('separates operational, maintenance and out-of-service houses from inactive houses', () => {
     const productionUnit = {
@@ -74,7 +94,7 @@ describe('PoultryHousesListPage', () => {
 
     const activeLink = fixture.nativeElement.querySelector('a.house-link');
     const inactiveGroup = fixture.nativeElement.querySelector('[aria-labelledby="inactive-houses-title"]');
-    expect(activeLink.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/12/galpon/22');
+    expect(activeLink.getAttribute('href')).toBe('/administracion/unidades-productivas/12/galpon/22');
     expect(activeLink.getAttribute('aria-label'))
       .toBe('Abrir el detalle del galpón Galpón Lotes Cuarentena Demo');
     expect(activeLink.textContent).toContain('Capacidad: 6.000 aves');
@@ -158,7 +178,7 @@ describe('PoultryHousesListPage', () => {
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Plantas de ración');
     expect(listAllFeedPlants).toHaveBeenCalledOnce();
     expect(listAllPoultryHouses).not.toHaveBeenCalled();
-    expect(link.getAttribute('href')).toBe('/administracion/ubicaciones/unidades-productivas/7/galpon/30');
+    expect(link.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/30');
     expect(link.getAttribute('aria-label')).toBe('Abrir el detalle de la planta de ración Planta Norte');
     expect((link.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
       .toBe('leaf-outline');

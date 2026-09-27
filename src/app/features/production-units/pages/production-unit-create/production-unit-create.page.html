@@ -1,6 +1,6 @@
 <main class="create-unit-page" aria-labelledby="page-title">
   <header class="page-heading">
-    <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Ubicaciones</p>
+    <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Unidades productivas</p>
     <h1 id="page-title">Crear unidad productiva</h1>
     <p class="intro">Completa los datos de la nueva unidad productiva.</p>
   </header>
@@ -14,7 +14,7 @@
         } @else {
           <p>No tienes permiso para crear unidades productivas.</p>
         }
-        <ion-button fill="outline" routerLink="/administracion/ubicaciones/unidades-productivas">Volver al listado</ion-button>
+        <ion-button fill="outline" routerLink="/administracion/unidades-productivas">Volver al listado</ion-button>
       </ion-card-content>
     </ion-card>
   } @else if (createdUnitName(); as name) {
@@ -22,7 +22,7 @@
       <ion-card-header><ion-card-title>Unidad productiva creada</ion-card-title></ion-card-header>
       <ion-card-content>
         <p>“{{ name }}” se creó correctamente.</p>
-        <ion-button routerLink="/administracion/ubicaciones/unidades-productivas">Volver al listado</ion-button>
+        <ion-button routerLink="/administracion/unidades-productivas">Volver al listado</ion-button>
       </ion-card-content>
     </ion-card>
   } @else if (departmentsState() === 'loading') {
@@ -168,7 +168,7 @@
           }
 
           <div class="form-actions">
-            <ion-button type="button" fill="outline" class="cancel-button" routerLink="/administracion/ubicaciones/unidades-productivas">Cancelar</ion-button>
+            <ion-button type="button" fill="outline" class="cancel-button" routerLink="/administracion/unidades-productivas">Cancelar</ion-button>
             <ion-button type="submit" class="submit-button" [disabled]="isSubmitting()">
               @if (isSubmitting()) { <ion-spinner name="crescent" aria-hidden="true" /> Creando… } @else { Crear unidad productiva }
             </ion-button>

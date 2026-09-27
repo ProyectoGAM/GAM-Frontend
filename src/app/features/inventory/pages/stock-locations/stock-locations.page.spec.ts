@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnit } from '../../../production-units/interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
@@ -38,6 +40,33 @@ const locationPage = {
 };
 
 describe('StockLocations production-unit integration', () => {
+  it('uses the sidebar UP as a locked location filter', async () => {
+    const selectedId = signal<number | null>(23);
+    const requests: Array<{ production_unit_id?: number }> = [];
+    const fixture = TestBed.configureTestingModule({
+      imports: [StockLocationsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: AdminUnitContextService, useValue: { selectedId } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
+        { provide: StockLocationsApi, useValue: {
+          list: (filters: { production_unit_id?: number }) => { requests.push(filters); return of(locationPage); },
+        } },
+      ],
+    }).createComponent(StockLocationsPage);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(requests.at(-1)?.production_unit_id).toBe(23);
+    expect(fixture.componentInstance.filters.controls.production_unit_id.disabled).toBe(true);
+    selectedId.set(null);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(requests.at(-1)?.production_unit_id).toBeUndefined();
+    fixture.destroy();
+  });
+
   it('keeps locations visible and retries a failed unit load', async () => {
     let listAllCalls = 0;
     let referenceOptionsCalls = 0;

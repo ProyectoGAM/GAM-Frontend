@@ -7,6 +7,7 @@ import { IonButton, IonCard, IonCardContent, IonIcon, IonInput, IonItem, IonLabe
 import { addIcons } from 'ionicons';
 import { businessOutline, eggOutline, leafOutline } from 'ionicons/icons';
 
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { CreatePoultryHouseRequest, PoultryHouseDetail, PoultryHouseType, ProductionUnit, UpdatePoultryHouseRequest } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 
@@ -22,6 +23,7 @@ type FieldErrors = Partial<Record<FormField, string>>;
 })
 export class PoultryHouseFormPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly unitContext = inject(AdminUnitContextService, { optional: true });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -75,6 +77,7 @@ export class PoultryHouseFormPage implements OnInit {
     const id = value == null || value === '' ? null : Number(value);
     this.form.controls.unitId.setValue(id);
     this.selectedUnit.set(this.units().find((unit) => unit.id === id) ?? null);
+    if (this.selectedUnit()) this.unitContext?.select(id);
     this.clearFieldError('unitId');
   }
 
@@ -153,8 +156,10 @@ export class PoultryHouseFormPage implements OnInit {
       next: (units) => {
         const active = units.filter((unit) => unit.status === 'active');
         this.units.set(active);
+        const queryId = Number(this.route.snapshot.queryParamMap.get('unitId'));
         const requestedId = this.form.controls.unitId.value
-          ?? Number(this.route.snapshot.queryParamMap.get('unitId'));
+          ?? (queryId > 0 ? queryId : null)
+          ?? this.unitContext?.selectedId();
         const selected = active.find((unit) => unit.id === requestedId) ?? null;
         this.form.controls.unitId.setValue(selected?.id ?? null);
         this.selectedUnit.set(selected);
@@ -181,7 +186,7 @@ export class PoultryHouseFormPage implements OnInit {
         this.applyType(data.type);
         if (data.type === 'poultry') this.form.controls.capacity.setValue(data.bird_capacity?.toString() ?? '');
         this.form.markAsPristine();
-        this.cancelPath.set(`/administracion/ubicaciones/unidades-productivas/${unitId}/galpon/${houseId}`);
+        this.cancelPath.set(`/administracion/unidades-productivas/${unitId}/galpon/${houseId}`);
         this.state.set('ready');
       },
       error: (error: unknown) => this.state.set(this.errorState(error)),
@@ -239,6 +244,6 @@ export class PoultryHouseFormPage implements OnInit {
   }
 
   private goToDetail(unitId: number, houseId: number): Promise<boolean> {
-    return this.router.navigate(['/administracion/ubicaciones/unidades-productivas', unitId, 'galpon', houseId]);
+    return this.router.navigate(['/administracion/unidades-productivas', unitId, 'galpon', houseId]);
   }
 }

@@ -1,9 +1,10 @@
-import { Component, computed, ElementRef, inject, signal, ViewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnit } from '../../../production-units/interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { inventoryErrorMessage, applyInventoryValidationErrors } from '../../services/inventory-errors';
@@ -22,6 +23,7 @@ export class StockLocationsPage {
   readonly auth = inject(AuthStore);
   private readonly api = inject(StockLocationsApi);
   private readonly productionUnitsApi = inject(ProductionUnitsService);
+  readonly unitContext = inject(AdminUnitContextService, { optional: true });
   readonly state = signal<LoadState>('idle');
   readonly mutation = signal<MutationState>('idle');
   readonly locations = signal<StockLocation[]>([]);
@@ -42,7 +44,17 @@ export class StockLocationsPage {
 
   constructor() {
     void this.loadProductionUnits();
-    void this.load();
+    if (this.unitContext) {
+      effect(() => {
+        const unitId = this.unitContext!.selectedId();
+        this.filters.controls.production_unit_id.setValue(unitId === null ? '' : String(unitId));
+        if (unitId === null) this.filters.controls.production_unit_id.enable({ emitEvent: false });
+        else this.filters.controls.production_unit_id.disable({ emitEvent: false });
+        void this.load();
+      });
+    } else {
+      void this.load();
+    }
   }
 
   async load(page = 1): Promise<void> {
@@ -80,14 +92,14 @@ export class StockLocationsPage {
   }
 
   clearFilters(): void {
-    this.filters.reset({ search: '', status: '', production_unit_id: '' });
+    this.filters.reset({ search: '', status: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' });
     void this.load();
   }
 
   startCreate(): void {
     this.editTarget.set(null);
     this.editorOpen.set(true);
-    this.form.reset({ name: '', production_unit_id: '' });
+    this.form.reset({ name: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' });
     this.error.set(null);
     this.success.set(null);
   }

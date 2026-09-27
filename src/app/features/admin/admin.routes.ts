@@ -21,34 +21,20 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               ),
           },
         ]
-      : group.items.map((item) => {
-          if (
-            group.id === 'ubicaciones' &&
-            item.slug === 'unidades-productivas'
-          ) {
-            return {
-              path: item.slug,
-              data: { title: item.label, groupLabel: group.label },
-              loadChildren: () =>
-                import('../production-units/production-units.routes').then(
-                  (module) => module.productionUnitsRoutes,
-                ),
-            };
-          }
-
-          if (
-            group.id === 'ubicaciones' &&
-            item.slug === 'nueva-unidad-productiva'
-          ) {
-            return {
-              path: item.slug,
-              data: { title: item.label, groupLabel: group.label },
-              loadChildren: () =>
-                import('../production-units/production-units.routes').then(
-                  (module) => module.productionUnitCreateRoutes,
-                ),
-            };
-          }
+      : group.id === 'unidades-productivas'
+        ? [{ path: '', loadChildren: () => import('../production-units/production-units.routes')
+          .then((module) => module.productionUnitManagementRoutes) }]
+      : group.id === 'resumen' || group.id === 'historial'
+        ? [{ path: '', data: { title: group.label, groupLabel: group.label },
+          loadComponent: () => import('./admin-placeholder.page').then((module) => module.AdminPlaceholderPage) }]
+      : [
+        ...(group.id === 'ubicaciones' ? [
+          { path: 'unidades-productivas', loadChildren: () => import('../production-units/production-units.routes')
+            .then((module) => module.productionUnitsRoutes) },
+          { path: 'nueva-unidad-productiva', loadChildren: () => import('../production-units/production-units.routes')
+            .then((module) => module.productionUnitCreateRoutes) },
+        ] : []),
+        ...group.items.map((item) => {
 
           if (
             group.id === 'ubicaciones' &&
@@ -91,6 +77,7 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               ),
           };
         }),
+      ],
 }));
 
 export const adminRoutes: Routes = [

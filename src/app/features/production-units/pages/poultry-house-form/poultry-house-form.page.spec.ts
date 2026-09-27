@@ -4,6 +4,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { PoultryHouseDetail, ProductionUnit } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 import { PoultryHouseFormPage } from './poultry-house-form.page';
@@ -32,7 +33,7 @@ describe('PoultryHouseFormPage', () => {
   let updatePoultryHouse: ReturnType<typeof vi.fn>;
   let navigate: ReturnType<typeof vi.spyOn>;
 
-  function render(params: Record<string, string> = {}, query: Record<string, string> = {}): PoultryHouseFormPage {
+  function render(params: Record<string, string> = {}, query: Record<string, string> = {}, selectedUnitId?: number): PoultryHouseFormPage {
     listAll = vi.fn().mockReturnValue(of([unit]));
     getPoultryHouseById = vi.fn().mockReturnValue(of({ data: house }));
     createPoultryHouse = vi.fn().mockReturnValue(of({ data: house }));
@@ -43,6 +44,7 @@ describe('PoultryHouseFormPage', () => {
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(params), queryParamMap: convertToParamMap(query) } } },
         { provide: ProductionUnitsService, useValue: { listAll, getPoultryHouseById, createPoultryHouse, updatePoultryHouse } },
+        ...(selectedUnitId === undefined ? [] : [{ provide: AdminUnitContextService, useValue: { selectedId: () => selectedUnitId, select: vi.fn() } }]),
       ],
     });
     navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -51,6 +53,12 @@ describe('PoultryHouseFormPage', () => {
     return fixture.componentInstance;
   }
 
+  it('preselects the UP from the sidebar when creating an installation', () => {
+    const page = render({}, {}, 7);
+    expect(page.form.controls.unitId.value).toBe(7);
+    expect(page.selectedUnit()?.name).toBe('Granja Norte');
+  });
+
   it('creates a poultry house in an active unit with capacity and operational initial state', () => {
     const page = render({}, { unitId: '7' });
     page.form.controls.name.setValue('  Galpón Nuevo  ');
@@ -58,7 +66,7 @@ describe('PoultryHouseFormPage', () => {
     page.submit();
 
     expect(createPoultryHouse).toHaveBeenCalledWith(7, { name: 'Galpón Nuevo', type: 'poultry', bird_capacity: 12000 });
-    expect(navigate).toHaveBeenCalledWith(['/administracion/ubicaciones/unidades-productivas', 7, 'galpon', 22]);
+    expect(navigate).toHaveBeenCalledWith(['/administracion/unidades-productivas', 7, 'galpon', 22]);
     expect(fixture.nativeElement.textContent).toContain('Se creará como Operativo');
   });
 
