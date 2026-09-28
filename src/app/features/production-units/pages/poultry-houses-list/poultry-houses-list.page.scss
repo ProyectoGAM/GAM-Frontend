@@ -20,6 +20,24 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .state-panel p { margin: 0; color: var(--gam-color-text-muted); line-height: 1.5; }
 .state-panel ion-button { min-height: 44px; --background: var(--gam-color-primary); --border-radius: 8px; --color: var(--gam-color-on-primary); }
 
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.filter-area { margin-bottom: 20px; }
+.filter-row, .active-filters { display: flex; gap: 8px; }
+.filter-row { max-width: 650px; }
+.search-field, .filter-button { min-height: 44px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); }
+.search-field { display: flex; align-items: center; flex: 1; min-width: 0; gap: 8px; padding: 0 12px; }
+.search-field input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--gam-color-text); font: inherit; }
+.search-field input::placeholder { color: var(--gam-color-text-muted); }
+.filter-button { display: flex; align-items: center; gap: 6px; padding: 0 12px; color: var(--gam-color-primary); font: inherit; font-weight: 700; }
+.filter-badge { background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+.filter-badge { padding: 2px 6px; border-radius: 99px; font-size: .75rem; }
+.active-filters { flex-wrap: wrap; margin-top: 12px; }
+.filter-chip { min-height: 32px; padding: 6px 10px; border: 0; border-radius: 99px; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); font: inherit; font-size: .8rem; }
+.global-chip { background: var(--gam-color-surface); }
+.result-count { margin: 12px 0 0; }
+.filter-button, button.filter-chip { cursor: pointer; }
+.search-field:focus-within, .filter-button:focus-visible, .filter-chip:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+
 @media (min-width: 640px) {
   .house-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
@@ -27,6 +45,6 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
   .house-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 }
 @media (max-width: 639px) {
-  .page-heading { flex-direction: column; }
+  .page-heading { flex-direction: column; margin-bottom: 18px; }
   .create-link { width: 100%; }
 }
