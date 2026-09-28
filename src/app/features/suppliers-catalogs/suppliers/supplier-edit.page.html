@@ -1,0 +1,84 @@
+<section class="supplier-edit-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="eyebrow">Proveedores</p>
+    <h1 id="page-title">Editar proveedor</h1>
+    <p class="lead">Actualiza los datos del proveedor. La localidad es opcional.</p>
+  </header>
+
+  @if (error(); as message) { <p class="feedback error" role="alert">{{ message }}</p> }
+
+  @if (supplier()) {
+    <form class="supplier-form card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="supplier-name">Nombre</label>
+        <input id="supplier-name" formControlName="name" maxlength="160" autocomplete="organization" required
+          [attr.aria-invalid]="fieldError(form.controls.name) ? 'true' : null"
+          [attr.aria-describedby]="fieldError(form.controls.name) ? 'name-error' : null"
+          (input)="clearFieldError(form.controls.name)">
+        @if (fieldError(form.controls.name); as message) { <span class="field-error" id="name-error" role="alert">{{ message }}</span> }
+      </div>
+
+      <div class="field">
+        <label for="supplier-department">Departamento <span class="optional">(opcional)</span></label>
+        <select #departmentSelect id="supplier-department" [value]="selectedDepartmentId() ?? ''"
+          [disabled]="departmentsState() !== 'success' || saving()"
+          aria-describedby="department-help" (change)="onDepartmentChanged(departmentSelect.value)">
+          <option value="">Sin seleccionar</option>
+          @for (department of departments(); track department.id) {
+            <option [value]="department.id" [selected]="department.id === selectedDepartmentId()">{{ department.name }}</option>
+          }
+        </select>
+        <div class="field-hint" id="department-help" aria-live="polite">
+          @if (departmentsState() === 'loading') { <span>Cargando departamentos…</span> }
+          @else if (departmentsState() === 'empty') { <span>No hay departamentos disponibles. Puedes guardar sin localidad.</span> }
+          @else if (departmentsState() === 'error') {
+            <span>No se pudieron cargar los departamentos. Se conserva la localidad guardada.</span>
+            <button class="inline-button" type="button" (click)="loadDepartments()">Reintentar</button>
+          } @else { <span>Selecciona un departamento para ver sus localidades.</span> }
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="supplier-locality">Localidad <span class="optional">(opcional)</span></label>
+        <select #localitySelect id="supplier-locality" [value]="selectedLocalityId() ?? ''"
+          [disabled]="selectedDepartmentId() === null || localitiesState() !== 'success' || saving()"
+          [attr.aria-describedby]="localityError() ? 'locality-help locality-error' : 'locality-help'"
+          [attr.aria-invalid]="localityError() ? 'true' : null"
+          (change)="onLocalityChanged(localitySelect.value)">
+          <option value="">Sin seleccionar</option>
+          @for (locality of localities(); track locality.id) {
+            <option [value]="locality.id" [selected]="locality.id === selectedLocalityId()">{{ locality.name }}</option>
+          }
+        </select>
+        <div class="field-hint" id="locality-help" aria-live="polite">
+          @if (localitiesState() === 'loading') { <span>Cargando localidades…</span> }
+          @else if (localitiesState() === 'empty') { <span>Este departamento no tiene localidades disponibles.</span> }
+          @else if (localitiesState() === 'error') {
+            <span>No se pudieron cargar las localidades. Se conserva la localidad guardada.</span>
+            <button class="inline-button" type="button" (click)="retryLocalities()">Reintentar</button>
+          } @else if (selectedDepartmentId() === null) { <span>Selecciona primero un departamento.</span> }
+          @else { <span>Selecciona una localidad o deja el campo vacío.</span> }
+        </div>
+        @if (localityError(); as message) { <span class="field-error" id="locality-error" role="alert">{{ message }}</span> }
+      </div>
+
+      <div class="field">
+        <label for="supplier-address">Dirección</label>
+        <textarea id="supplier-address" formControlName="address" maxlength="255" rows="3" autocomplete="street-address" required
+          [attr.aria-invalid]="fieldError(form.controls.address) ? 'true' : null"
+          [attr.aria-describedby]="fieldError(form.controls.address) ? 'address-error' : null"
+          (input)="clearFieldError(form.controls.address)"></textarea>
+        @if (fieldError(form.controls.address); as message) { <span class="field-error" id="address-error" role="alert">{{ message }}</span> }
+      </div>
+
+      <div class="form-actions">
+        <button class="button primary" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+        <a class="button secondary" routerLink="/administracion/proveedores/proveedores">Cancelar</a>
+      </div>
+    </form>
+  } @else {
+    <a class="button secondary" routerLink="/administracion/proveedores/proveedores">Volver al listado</a>
+  }
+</section>

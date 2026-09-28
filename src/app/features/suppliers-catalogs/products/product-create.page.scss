@@ -1,0 +1,28 @@
+.product-create-page {
+  max-width: 760px;
+  color: var(--gam-color-text);
+  font-size: 16px;
+
+  .page-heading { margin-bottom: 20px; }
+  .eyebrow { margin: 0 0 8px; color: var(--gam-color-text-muted); font-weight: 700; }
+  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); }
+  .product-form { display: grid; grid-template-columns: 1fr; gap: 18px; padding: 22px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  .field { display: grid; gap: 7px; }
+  .field label { font-weight: 700; }
+  input:not([type='checkbox']), select { width: 100%; min-height: 48px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 6px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
+  input[type='checkbox'] { width: 24px; height: 24px; margin: 0; accent-color: var(--gam-color-primary); }
+  .checkbox { display: flex; min-height: 48px; align-items: center; gap: 12px; font-weight: 700; cursor: pointer; }
+  .muted { color: var(--gam-color-text-muted); font-size: 14px; }
+  .field-error { color: var(--gam-color-danger); font-size: 14px; }
+  .feedback.error { padding: 14px 16px; border: 1px solid var(--gam-color-danger); border-radius: 8px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+  .form-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 10px 16px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; font-weight: 700; cursor: pointer; }
+  .button.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
+  .button:disabled { opacity: .55; cursor: not-allowed; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+
+  @media (max-width: 520px) {
+    .product-form { padding: 16px; }
+    .form-actions { display: grid; grid-template-columns: 1fr; }
+  }
+}

@@ -1,17 +1,21 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { combineLatest, firstValueFrom } from 'rxjs';
 import { distinctUntilChanged, startWith } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
+import { SuppliersApi } from '../../../suppliers-catalogs/suppliers/suppliers.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
+import { StockLocationsApi } from '../../services/stock-locations.api';
 import { createIdempotencyKey, formatQuantity, isDiscreteUnit, unitLabel } from '../../services/inventory-format';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
 import { InventoryOperation, MutationState } from '../../types/inventory-state.type';
-import { BaseUnit, Product, ReferenceOptions } from '../../interfaces/inventory';
+import { BaseUnit, Product, ReferenceOptions, StockLocation } from '../../interfaces/inventory';
+import { Supplier } from '../../../suppliers-catalogs/suppliers/suppliers.models';
 
 interface LineControls {
   product_id: FormControl<string>;
@@ -24,6 +28,8 @@ interface LineControls {
 type AdjustmentBalanceState =
   | { status: 'idle' | 'loading' | 'unavailable' }
   | { status: 'ready'; availableQuantity: string; unit: BaseUnit };
+
+type MovementReferenceOptions = Pick<ReferenceOptions, 'suppliers' | 'products' | 'stock_locations'>;
 
 const EMPTY_BALANCE_STATE: AdjustmentBalanceState = { status: 'idle' };
 
@@ -53,23 +59,26 @@ function decimalDifference(left: string, right: string): string | null {
   selector: 'app-inventory-movement-form',
   templateUrl: './movement-form.page.html',
   styleUrl: './movement-form.page.scss',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
 })
 export class MovementFormPage {
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(InventoryApi);
   private readonly references = inject(InventoryReferenceApi);
+  private readonly suppliersApi = inject(SuppliersApi);
+  private readonly stockLocationsApi = inject(StockLocationsApi);
   readonly canMove = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.move') === true);
   readonly canAdjust = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.adjust') === true);
   readonly operation = signal<InventoryOperation>(this.canMove() ? 'receipt' : 'adjustment');
-  readonly options = signal<ReferenceOptions | null>(null);
+  readonly options = signal<MovementReferenceOptions | null>(null);
   readonly stockProducts = signal<Product[]>([]);
   readonly referencesState = signal<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   readonly referencesError = signal<string | null>(null);
   readonly mutation = signal<MutationState>('idle');
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
+  readonly submitAttempted = signal(false);
   readonly lines = new FormArray<FormGroup<LineControls>>([this.newLine()]);
   readonly balanceStates = signal(new Map<FormGroup<LineControls>, AdjustmentBalanceState>());
   readonly form = new FormGroup({
@@ -94,15 +103,31 @@ export class MovementFormPage {
     this.referencesState.set('loading');
     this.referencesError.set(null);
     try {
-      const [referenceResponse, productsResponse] = await Promise.all([
-        firstValueFrom(this.references.options()),
+      const supplierFilters = { status: 'active' as const, per_page: 100 };
+      const locationFilters = { status: 'active' as const, per_page: 100 };
+      const [supplierResponse, locationResponse, productsResponse] = await Promise.all([
+        firstValueFrom(this.suppliersApi.list(supplierFilters, 1)),
+        firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page: 1 })),
         firstValueFrom(this.references.activeProducts()),
       ]);
-      const options = referenceResponse.data;
+      const suppliers: Supplier[] = [...supplierResponse.data];
+      const stockLocations: StockLocation[] = [...locationResponse.data];
+      for (let page = 2; page <= supplierResponse.meta.last_page; page += 1) {
+        const response = await firstValueFrom(this.suppliersApi.list(supplierFilters, page));
+        suppliers.push(...response.data);
+      }
+      for (let page = 2; page <= locationResponse.meta.last_page; page += 1) {
+        const response = await firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page }));
+        stockLocations.push(...response.data);
+      }
       this.stockProducts.set(productsResponse.data.filter((product) => product.stock_tracked));
       this.updateValidators();
-      this.options.set({ ...options, products: this.stockProducts().map((product) => ({ value: product.id, label: `${product.sku} — ${product.name}` })) });
-      this.referencesState.set(this.stockProducts().length && options.stock_locations.length ? 'success' : 'empty');
+      this.options.set({
+        suppliers: suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+        products: this.stockProducts().map((product) => ({ value: product.id, label: `${product.sku} — ${product.name}` })),
+        stock_locations: stockLocations.map((location) => ({ value: location.id, label: location.name })),
+      });
+      this.referencesState.set(this.stockProducts().length && stockLocations.length ? 'success' : 'empty');
       if (this.operation() === 'adjustment') this.lines.controls.forEach((line) => void this.loadAdjustmentBalance(line));
     } catch (error) {
       this.referencesState.set('error');
@@ -117,6 +142,7 @@ export class MovementFormPage {
     this.error.set(null);
     this.success.set(null);
     this.operationKey = null;
+    this.submitAttempted.set(false);
     this.form.markAsUntouched();
     this.lines.markAsUntouched();
     this.updateValidators();
@@ -189,7 +215,7 @@ export class MovementFormPage {
 
   differenceFor(line: FormGroup<LineControls>): string | null {
     const state = this.balanceStateFor(line);
-    if (state.status !== 'ready' || line.controls.counted_quantity.invalid || !line.controls.counted_quantity.value) return null;
+    if (state.status !== 'ready' || line.controls.counted_quantity.invalid || line.controls.counted_quantity.value === '') return null;
     const counted = line.controls.counted_quantity.value.replace(',', '.');
     const difference = decimalDifference(counted, state.availableQuantity);
     if (difference === null) return null;
@@ -210,12 +236,17 @@ export class MovementFormPage {
     return this.isDiscreteUnitFor(line) ? 'numeric' : 'decimal';
   }
 
+  fieldErrorVisible(control: AbstractControl): boolean {
+    return control.invalid && (this.submitAttempted() || (control.touched && control.dirty));
+  }
+
   async submit(): Promise<void> {
     if (this.mutation() === 'submitting') return;
     if (this.referencesState() !== 'success') {
       this.error.set('Carga nuevamente los productos y ubicaciones antes de registrar el movimiento.');
       return;
     }
+    this.submitAttempted.set(true);
     if (!this.allowedOperation() || this.form.invalid || this.lines.invalid || !this.validateBusinessFields()) {
       this.form.markAllAsTouched();
       this.lines.markAllAsTouched();
@@ -269,6 +300,7 @@ export class MovementFormPage {
       }
       this.lines.clear();
       this.form.reset();
+      this.submitAttempted.set(false);
       const line = this.newLine();
       this.lines.push(line);
       this.watchBalanceLine(line);
@@ -312,7 +344,7 @@ export class MovementFormPage {
       this.error.set('Completa producto y ubicación en todas las líneas.');
       return false;
     }
-    if (lines.some((line) => this.operation() === 'adjustment' ? !line.counted_quantity : !line.quantity)) {
+    if (lines.some((line) => this.operation() === 'adjustment' ? line.counted_quantity === '' : !line.quantity)) {
       this.error.set(this.operation() === 'adjustment' ? 'Completa la cantidad contada en todas las líneas.' : 'Completa la cantidad en todas las líneas.');
       return false;
     }

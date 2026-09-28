@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
@@ -20,7 +21,7 @@ const TYPE_LABELS: Record<InventoryMovementType, string> = {
   selector: 'app-inventory-movements',
   templateUrl: './movements.page.html',
   styleUrl: './movements.page.scss',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
 })
 export class MovementsPage {
   readonly auth = inject(AuthStore);

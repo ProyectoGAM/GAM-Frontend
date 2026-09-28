@@ -15,13 +15,18 @@
     <form class="card editor" [formGroup]="form" (ngSubmit)="save()">
       <h2>{{ editTarget() ? 'Editar ubicación' : 'Nueva ubicación' }}</h2>
       <label for="location-name">Nombre</label>
-      <input id="location-name" formControlName="name" maxlength="160" autocomplete="off">
-      @if (form.controls.name.touched && form.controls.name.hasError('required')) { <span class="field-error" role="alert">Escribí un nombre para la ubicación.</span> }
-      @if (form.controls.name.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+      <input id="location-name" formControlName="name" maxlength="160" autocomplete="off" [attr.aria-invalid]="fieldErrorVisible(form.controls.name) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.name) ? 'location-name-error' : null">
+      @if (fieldErrorVisible(form.controls.name)) {
+        <span class="field-error" id="location-name-error" role="alert">
+          @if (form.controls.name.hasError('required')) { Escribí un nombre para la ubicación. }
+          @else if (form.controls.name.hasError('maxlength')) { El nombre no puede superar los 160 caracteres. }
+          @else if (form.controls.name.getError('server'); as fieldError) { {{ fieldError }} }
+        </span>
+      }
       <label for="location-unit">Unidad Productiva</label>
-      <select id="location-unit" formControlName="production_unit_id"><option value="">General (sin Unidad Productiva)</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select>
+      <select id="location-unit" formControlName="production_unit_id" [attr.aria-invalid]="fieldErrorVisible(form.controls.production_unit_id) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.production_unit_id) ? 'location-unit-error' : null"><option value="">General (sin Unidad Productiva)</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select>
       <p class="helper">Podés dejarla sin Unidad Productiva si es un depósito general.</p>
-      @if (form.controls.production_unit_id.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+      @if (fieldErrorVisible(form.controls.production_unit_id) && form.controls.production_unit_id.getError('server'); as fieldError) { <span class="field-error" id="location-unit-error" role="alert">{{ fieldError }}</span> }
       <div class="editor-actions"><button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">{{ editTarget() ? 'Guardar cambios' : 'Guardar ubicación' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancelar</button></div>
     </form>
   }
@@ -40,7 +45,8 @@
       <table><caption class="sr-only">Ubicaciones de stock</caption><thead><tr><th>Nombre</th><th>Unidad Productiva</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
         @for (location of locations(); track location.id) {
           <tr><td data-label="Nombre"><strong>{{ location.name }}</strong></td><td data-label="Unidad Productiva">{{ productionUnitName(location) }}</td><td data-label="Estado"><span class="status" [class.inactive]="location.status === 'inactive'">{{ location.status === 'active' ? 'Activa' : 'Inactiva' }}</span></td><td data-label="Acciones">
-            @if (canManage()) { <div class="row-actions"><button class="button secondary" type="button" [attr.aria-label]="'Editar ubicación ' + location.name" (click)="startEdit(location)">Editar</button><button class="button secondary" type="button" [attr.aria-label]="(location.status === 'active' ? 'Desactivar ubicación ' : 'Activar ubicación ') + location.name" (click)="requestStatusChange($event, location)">{{ location.status === 'active' ? 'Desactivar' : 'Activar' }}</button></div> }
+            @if (location.system_managed) { <span class="muted">Ubicación gestionada por el sistema</span> }
+            @else if (canManage()) { <div class="row-actions"><button class="button secondary" type="button" [attr.aria-label]="'Editar ubicación ' + location.name" (click)="startEdit(location)">Editar</button><button class="button secondary" type="button" [attr.aria-label]="(location.status === 'active' ? 'Desactivar ubicación ' : 'Activar ubicación ') + location.name" (click)="requestStatusChange($event, location)">{{ location.status === 'active' ? 'Desactivar' : 'Activar' }}</button></div> }
             @else { <span class="muted">Solo lectura</span> }
           </td></tr>
         }

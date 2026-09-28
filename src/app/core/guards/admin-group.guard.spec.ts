@@ -40,4 +40,16 @@ describe('adminGroupGuard', () => {
     const result = await TestBed.runInInjectionContext(() => adminGroupGuard(route, {} as never));
     expect(result).toBe(true);
   });
+
+  it('does not grant admin group access from management-plans.manage alone', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { whenReady: async () => undefined, isAuthenticated: () => true, user: () => ({ roles: ['manager'], permissions: ['management-plans.manage'] }) } },
+      ],
+    });
+    const route = { data: { group: 'proveedores' } } as unknown as ActivatedRouteSnapshot;
+    const result = await TestBed.runInInjectionContext(() => adminGroupGuard(route, {} as never));
+    expect(TestBed.inject(Router).serializeUrl(result as ReturnType<Router['parseUrl']>)).toBe('/acceso-denegado');
+  });
 });

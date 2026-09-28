@@ -1,0 +1,90 @@
+<section class="suppliers-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Proveedores</p>
+      <h1 id="page-title">Proveedores</h1>
+      <p class="lead">Proveedores registrados para la operación.</p>
+    </div>
+    <a class="button primary" routerLink="/administracion/proveedores/proveedores/nuevo">Nuevo proveedor</a>
+  </header>
+
+  @if (createdFeedback()) {
+    <p class="feedback success" role="status" aria-live="polite">Proveedor creado correctamente.</p>
+  }
+  @if (updatedFeedback()) {
+    <p class="feedback success" role="status" aria-live="polite">Proveedor actualizado correctamente.</p>
+  }
+  @if (statusFeedback(); as message) {
+    <p class="feedback success" role="status" aria-live="polite">{{ message }}</p>
+  }
+
+  <form class="filters card" (submit)="$event.preventDefault(); applyFilters()">
+    <div class="field search-field">
+      <label for="supplier-search">Buscar</label>
+      <input #searchInput id="supplier-search" type="search" [value]="search()"
+        (input)="setSearch(searchInput.value)" placeholder="Nombre del proveedor" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="supplier-status">Estado</label>
+      <select #statusSelect id="supplier-status" [value]="status()" (change)="setStatus(statusSelect.value)">
+        <option value="">Todos</option>
+        <option value="active">Activo</option>
+        <option value="inactive">Inactivo</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="button primary" type="submit">Buscar</button>
+      <button class="button secondary" type="button" (click)="clearFilters()">Limpiar filtros</button>
+    </div>
+  </form>
+
+  @if (state() === 'loading') {
+    <div class="state card" role="status" aria-live="polite">Cargando proveedores…</div>
+  }
+  @if (error(); as message) {
+    <div class="feedback error" role="alert">
+      {{ message }} <button class="button secondary" type="button" (click)="load()">Reintentar</button>
+    </div>
+  }
+  @if (state() === 'empty') {
+    <div class="state card"><strong>No hay proveedores para mostrar.</strong></div>
+  }
+  @if (state() === 'success') {
+    <div class="supplier-list" aria-label="Listado de proveedores">
+      @for (supplier of suppliers(); track supplier.id) {
+        <article class="supplier-card card">
+          <div class="supplier-heading">
+            <h2>{{ supplier.name }}</h2>
+            <span class="status" [class.inactive]="supplier.status === 'inactive'">{{ statusLabel(supplier.status) }}</span>
+          </div>
+          <dl class="supplier-details">
+            <div><dt>Localidad / ubicación</dt><dd>{{ locationLabel(supplier) }}</dd></div>
+            <div><dt>Dirección</dt><dd>{{ supplier.address }}</dd></div>
+          </dl>
+          <div class="supplier-actions">
+            <button class="button secondary" type="button" (click)="editSupplier(supplier)">Editar</button>
+            <button class="button secondary" type="button"
+              [attr.aria-label]="(supplier.status === 'active' ? 'Desactivar proveedor ' : 'Activar proveedor ') + supplier.name"
+              (click)="requestStatusChange($event, supplier)">{{ supplier.status === 'active' ? 'Desactivar' : 'Activar' }}</button>
+          </div>
+        </article>
+      }
+    </div>
+    <nav class="pagination" aria-label="Paginación de proveedores">
+      <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page <= 1"
+        (click)="load(meta()!.current_page - 1)">Anterior</button>
+      <span aria-live="polite">Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} proveedores</span>
+      <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page"
+        (click)="load(meta()!.current_page + 1)">Siguiente</button>
+    </nav>
+  }
+  <app-inventory-confirmation-dialog
+    [title]="pendingStatusSupplier()?.status === 'active' ? 'Desactivar proveedor' : 'Activar proveedor'"
+    [message]="pendingStatusSupplier()?.status === 'active' ? '¿Querés desactivar este proveedor?' : '¿Querés activar este proveedor?'"
+    [confirmLabel]="pendingStatusSupplier()?.status === 'active' ? 'Desactivar' : 'Activar'"
+    [busy]="statusMutation() === 'submitting'"
+    [errorMessage]="statusMutation() === 'error' ? statusChangeError() : null"
+    (confirmed)="confirmStatusChange()"
+    (dismissed)="dismissStatusChange()">
+  </app-inventory-confirmation-dialog>
+</section>

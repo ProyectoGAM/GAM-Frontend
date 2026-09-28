@@ -1,0 +1,60 @@
+<section class="product-create-page">
+  <header class="page-heading"><p class="eyebrow">Proveedores</p><h1>Nuevo producto</h1></header>
+
+  @if (error(); as message) { <p class="feedback error" role="alert">{{ message }}</p> }
+
+  <form class="product-form card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="product-sku">Código SKU</label>
+      <input id="product-sku" formControlName="sku" maxlength="80" autocomplete="off" required
+        [attr.aria-invalid]="fieldError(form.controls.sku) ? 'true' : null"
+        [attr.aria-describedby]="fieldError(form.controls.sku) ? 'sku-error' : null">
+      @if (fieldError(form.controls.sku); as message) { <span class="field-error" id="sku-error" role="alert">{{ message }}</span> }
+    </div>
+
+    <div class="field">
+      <label for="product-name">Nombre</label>
+      <input id="product-name" formControlName="name" maxlength="160" autocomplete="off" required
+        [attr.aria-invalid]="fieldError(form.controls.name) ? 'true' : null"
+        [attr.aria-describedby]="fieldError(form.controls.name) ? 'name-error' : null">
+      @if (fieldError(form.controls.name); as message) { <span class="field-error" id="name-error" role="alert">{{ message }}</span> }
+    </div>
+
+    <div class="field">
+      <label for="product-kind">Tipo de producto</label>
+      <select id="product-kind" formControlName="kind" (change)="kindChanged()" required
+        [attr.aria-invalid]="fieldError(form.controls.kind) ? 'true' : null"
+        [attr.aria-describedby]="fieldError(form.controls.kind) ? 'kind-error' : null">
+        <option value="" disabled>Seleccioná un tipo</option>
+        @for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }
+      </select>
+      @if (fieldError(form.controls.kind); as message) { <span class="field-error" id="kind-error" role="alert">{{ message }}</span> }
+    </div>
+
+    <div class="field">
+      <label for="product-unit">Unidad base</label>
+      <select id="product-unit" formControlName="base_unit" required
+        [attr.aria-invalid]="fieldError(form.controls.base_unit) ? 'true' : null"
+        [attr.aria-describedby]="fieldError(form.controls.base_unit) ? 'unit-error' : null">
+        <option value="" disabled>Seleccioná una unidad</option>
+        @for (unit of units; track unit.value) { <option [value]="unit.value">{{ unit.label }}</option> }
+      </select>
+      @if (form.controls.kind.value === 'raw_material') { <small class="muted">La materia prima se registra en gramos.</small> }
+      @if (fieldError(form.controls.base_unit); as message) { <span class="field-error" id="unit-error" role="alert">{{ message }}</span> }
+    </div>
+
+    <label class="checkbox" for="product-stock-tracked">
+      <input id="product-stock-tracked" type="checkbox" formControlName="stock_tracked"
+        [attr.aria-invalid]="fieldError(form.controls.stock_tracked) ? 'true' : null"
+        [attr.aria-describedby]="fieldError(form.controls.stock_tracked) ? 'stock-tracked-error' : null">
+      Controlar stock
+    </label>
+    @if (fieldError(form.controls.stock_tracked); as message) { <span class="field-error" id="stock-tracked-error" role="alert">{{ message }}</span> }
+    @if (form.controls.kind.value === 'raw_material') { <small class="muted">La materia prima siempre controla stock.</small> }
+
+    <div class="form-actions">
+      <button class="button primary" type="submit" [disabled]="saving()">Guardar producto</button>
+      <button class="button secondary" type="button" (click)="cancel()" [disabled]="saving()">Cancelar</button>
+    </div>
+  </form>
+</section>

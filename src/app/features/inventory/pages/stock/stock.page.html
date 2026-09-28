@@ -3,7 +3,6 @@
     <div><p class="eyebrow">Inventario</p><h1>Existencias</h1><p class="lead">Consultá cuánto stock hay disponible en cada ubicación.</p></div>
     <div class="heading-actions">
       @if (canRegisterMovement()) { <a class="button primary" routerLink="/administracion/inventario/ajustes-y-perdidas">Registrar movimiento</a> }
-      <a class="button secondary" routerLink="/administracion/inventario/existencias/ubicaciones">{{ canManage() ? 'Gestionar ubicaciones' : 'Ver ubicaciones' }}</a>
       <a class="button secondary" routerLink="/administracion/inventario/existencias/huevos">Stock de huevos</a>
     </div>
   </div>
@@ -48,21 +47,7 @@
             <td data-label="Estado"><span class="status" [class]="statusClass(balance)">{{ status(balance) }}</span></td>
             <td data-label="Acción">
               @if (canManage()) {
-                @if (minimumEditId() === balance.id) {
-                  <form class="minimum-form" [formGroup]="minimumForm" (ngSubmit)="saveMinimum(balance)">
-                    <p class="minimum-context"><span>Disponible ahora</span><strong>{{ format(balance.available_quantity, balance.product.base_unit) }}</strong></p>
-                    <p class="minimum-context"><span>Mínimo actual</span><strong>{{ format(balance.minimum_quantity, balance.product.base_unit) }}</strong></p>
-                    <label [for]="'minimum-quantity-' + balance.id">Nuevo mínimo</label>
-                    <input [id]="'minimum-quantity-' + balance.id" [attr.inputmode]="minimumInputMode()" formControlName="minimum_quantity" [attr.aria-invalid]="minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.invalid" [attr.aria-describedby]="'minimum-help-' + balance.id">
-                    <small class="muted" [id]="'minimum-help-' + balance.id">Indica cu&aacute;ndo avisar que quedan pocas existencias. No cambia la cantidad disponible. {{ minimumIsDiscrete() ? 'Usa una cantidad entera.' : 'Acepta hasta 6 decimales.' }}</small>
-                    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('required')) { <span class="field-error" role="alert">Escribe un m&iacute;nimo para continuar.</span> }
-                    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('pattern')) { <span class="field-error" role="alert">{{ minimumIsDiscrete() ? 'Usa una cantidad entera desde cero.' : 'Usa un n&uacute;mero desde cero, con hasta 6 decimales.' }}</span> }
-                    @if (minimumForm.controls.minimum_quantity.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
-                    <div class="minimum-actions"><button class="button primary" type="submit" [disabled]="minimumSaving()">{{ minimumSaving() ? 'Guardando…' : 'Guardar mínimo' }}</button><button class="button secondary" type="button" (click)="cancelMinimum()" [disabled]="minimumSaving()">Cancelar</button></div>
-                  </form>
-                } @else {
-                  <button class="button secondary" type="button" (click)="editMinimum(balance)">Cambiar mínimo</button>
-                }
+                <button class="button secondary" type="button" (click)="editMinimum(balance, $event)">Cambiar mínimo</button>
               } @else { <span class="muted">Solo lectura</span> }
           </td></tr>
         }
@@ -70,4 +55,31 @@
     </div>
     <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} saldos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
   }
+<dialog #minimumDialog class="minimum-dialog" role="dialog" aria-modal="true" aria-labelledby="minimum-dialog-title" (cancel)="onMinimumDialogCancel($event)">
+  <form class="minimum-dialog-content" [formGroup]="minimumForm" (ngSubmit)="saveMinimum()">
+    <div class="minimum-dialog-heading">
+      <h2 id="minimum-dialog-title">Cambiar mínimo</h2>
+      <button class="minimum-close" type="button" aria-label="Cerrar" [disabled]="minimumSaving()" (click)="cancelMinimum()">&times;</button>
+    </div>
+    @if (minimumBalance(); as balance) {
+      <dl class="minimum-context">
+        <div><dt>Producto</dt><dd>{{ balance.product.name }}</dd></div>
+        <div><dt>Ubicación</dt><dd>{{ balance.stock_location.name }}</dd></div>
+        <div><dt>Disponible actual</dt><dd>{{ format(balance.available_quantity, balance.product.base_unit) }}</dd></div>
+        <div><dt>Mínimo actual</dt><dd>{{ format(balance.minimum_quantity, balance.product.base_unit) }}</dd></div>
+      </dl>
+    }
+    <label for="minimum-quantity">Nuevo mínimo</label>
+    <input #minimumInput id="minimum-quantity" [attr.inputmode]="minimumInputMode()" formControlName="minimum_quantity" [readonly]="minimumSaving()" [attr.aria-invalid]="minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.invalid" aria-describedby="minimum-help">
+    <small class="muted" id="minimum-help">Indica cu&aacute;ndo avisar que quedan pocas existencias. No cambia la cantidad disponible. {{ minimumIsDiscrete() ? 'Usa una cantidad entera.' : 'Acepta hasta 6 decimales.' }}</small>
+    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('required')) { <span class="field-error" role="alert">Escribe un m&iacute;nimo para continuar.</span> }
+    @if (minimumForm.controls.minimum_quantity.touched && minimumForm.controls.minimum_quantity.hasError('pattern')) { <span class="field-error" role="alert">{{ minimumIsDiscrete() ? 'Usa una cantidad entera desde cero.' : 'Usa un n&uacute;mero desde cero, con hasta 6 decimales.' }}</span> }
+    @if (minimumForm.controls.minimum_quantity.getError('server'); as fieldError) { <span class="field-error" role="alert">{{ fieldError }}</span> }
+    @if (minimumError(); as message) { <p class="minimum-error" role="alert">{{ message }}</p> }
+    <div class="minimum-actions">
+      <button class="button secondary" type="button" (click)="cancelMinimum()" [disabled]="minimumSaving()">Cancelar</button>
+      <button class="button primary" type="submit" [disabled]="minimumSaving()">{{ minimumSaving() ? 'Guardando…' : 'Guardar mínimo' }}</button>
+    </div>
+  </form>
+</dialog>
 </section>

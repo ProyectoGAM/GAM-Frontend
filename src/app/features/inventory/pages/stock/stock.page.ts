@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, ViewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -41,9 +41,10 @@ export class StockPage {
   readonly referencesError = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
-  readonly minimumEditId = signal<number | null>(null);
+  readonly minimumBalance = signal<StockBalance | null>(null);
   readonly minimumUnit = signal<string | null>(null);
   readonly minimumSaving = signal(false);
+  readonly minimumError = signal<string | null>(null);
   readonly minimumForm = new FormGroup({
     minimum_quantity: new FormControl('', {
       nonNullable: true,
@@ -51,6 +52,9 @@ export class StockPage {
     }),
   });
   private originalMinimum: string | null = null;
+  private minimumReturnFocusTo: HTMLElement | null = null;
+  @ViewChild('minimumDialog', { static: true }) private readonly minimumDialog!: ElementRef<HTMLDialogElement>;
+  @ViewChild('minimumInput', { static: true }) private readonly minimumInput!: ElementRef<HTMLInputElement>;
   readonly filters = new FormGroup({
     product_id: new FormControl('', { nonNullable: true }),
     stock_location_id: new FormControl('', { nonNullable: true }),
@@ -99,34 +103,58 @@ export class StockPage {
     void this.load();
   }
 
-  editMinimum(balance: StockBalance): void {
+  editMinimum(balance: StockBalance, event: Event): void {
+    if (this.minimumSaving()) return;
+    const trigger = event.currentTarget;
+    this.minimumReturnFocusTo = trigger instanceof HTMLElement ? trigger : null;
+    this.minimumBalance.set(balance);
     this.originalMinimum = balance.minimum_quantity;
-    this.minimumEditId.set(balance.id);
     this.minimumUnit.set(balance.product.base_unit);
+    this.minimumError.set(null);
     this.updateMinimumValidators(balance.product.base_unit);
     this.minimumForm.setValue({ minimum_quantity: formatQuantityInput(balance.minimum_quantity) });
+    this.minimumDialog.nativeElement.showModal();
+    this.minimumInput.nativeElement.focus();
   }
 
   cancelMinimum(): void {
+    if (this.minimumSaving()) return;
+    this.closeMinimum();
+  }
+
+  onMinimumDialogCancel(event: Event): void {
+    event.preventDefault();
+    this.cancelMinimum();
+  }
+
+  private closeMinimum(): void {
+    const dialog = this.minimumDialog.nativeElement;
+    if (dialog.open) dialog.close();
     this.originalMinimum = null;
-    this.minimumEditId.set(null);
+    this.minimumBalance.set(null);
     this.minimumUnit.set(null);
+    this.minimumError.set(null);
     this.updateMinimumValidators(null);
     this.minimumForm.reset();
+    if (this.minimumReturnFocusTo?.isConnected) this.minimumReturnFocusTo.focus();
+    this.minimumReturnFocusTo = null;
   }
 
   minimumIsDiscrete(): boolean { return isDiscreteUnit(this.minimumUnit()); }
 
   minimumInputMode(): 'numeric' | 'decimal' { return this.minimumIsDiscrete() ? 'numeric' : 'decimal'; }
 
-  async saveMinimum(balance: StockBalance): Promise<void> {
+  async saveMinimum(): Promise<void> {
     if (this.minimumSaving() || !this.canManage()) return;
+    const balance = this.minimumBalance();
+    if (!balance) return;
     if (this.minimumForm.invalid) {
       this.minimumForm.markAllAsTouched();
       return;
     }
     this.error.set(null);
     this.success.set(null);
+    this.minimumError.set(null);
     this.minimumSaving.set(true);
     try {
       const input = this.minimumForm.controls.minimum_quantity.value.trim();
@@ -137,10 +165,10 @@ export class StockPage {
       const response = await firstValueFrom(this.api.setMinimumStock(balance.id, minimum));
       this.balances.update((items) => items.map((item) => item.id === balance.id ? response.data : item));
       this.success.set('Stock mínimo actualizado.');
-      this.cancelMinimum();
+      this.closeMinimum();
     } catch (error) {
       applyInventoryValidationErrors(this.minimumForm, error);
-      this.error.set(inventoryErrorMessage(error, 'No se pudo actualizar el stock mínimo.'));
+      this.minimumError.set(inventoryErrorMessage(error, 'No se pudo actualizar el stock mínimo.'));
     } finally {
       this.minimumSaving.set(false);
     }

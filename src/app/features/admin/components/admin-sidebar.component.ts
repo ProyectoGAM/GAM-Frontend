@@ -78,4 +78,8 @@ export class AdminSidebarComponent {
   onEscape(): void {
     this.closeMobileMenu();
   }
+
+  itemRouteCommands(groupId: AdminNavigationGroup['id'], slug: string): string[] {
+    return ['/administracion', groupId, ...(slug ? slug.split('/') : [])];
+  }
 }

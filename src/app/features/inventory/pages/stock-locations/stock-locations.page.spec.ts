@@ -29,6 +29,7 @@ const productionUnit: ProductionUnit = {
 const location: StockLocation = {
   id: 5,
   name: 'Depósito principal',
+  system_managed: false,
   production_unit: { id: 23, name: 'Granja Oeste', status: 'active' },
   status: 'active',
 };
@@ -150,12 +151,12 @@ describe('StockLocations activation confirmation', () => {
   beforeEach(() => { restoreDialog = stubNativeDialog(); });
   afterEach(() => { restoreDialog(); });
 
-  const createFixture = async (setStatus: ReturnType<typeof vi.fn>) => {
+  const createFixture = async (setStatus: ReturnType<typeof vi.fn>, canManage = true) => {
     const fixture = await TestBed.configureTestingModule({
       imports: [StockLocationsPage],
       providers: [
         provideRouter([]),
-        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: AuthStore, useValue: { isAdmin: () => canManage, user: () => ({ permissions: [] }) } },
         { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
         { provide: StockLocationsApi, useValue: {
           list: () => of(locationPage),
@@ -171,6 +172,44 @@ describe('StockLocations activation confirmation', () => {
     pageFixture.detectChanges();
     return pageFixture;
   };
+
+  it('keeps edit and status actions available for manually managed locations', async () => {
+    const fixture = await createFixture(vi.fn());
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    expect(row.querySelectorAll('.row-actions button')).toHaveLength(2);
+    expect(row.textContent).toContain('Editar');
+    expect(row.textContent).toContain('Desactivar');
+    expect(row.textContent).not.toContain('Ubicación gestionada por el sistema');
+    fixture.destroy();
+  });
+
+  it('shows system-managed information and hides actions for managers', async () => {
+    const fixture = await createFixture(vi.fn());
+    const managedLocation = Object.assign({}, location, { system_managed: true });
+    fixture.componentInstance.locations.set([managedLocation]);
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    expect(row.querySelector('.row-actions')).toBeNull();
+    expect(row.querySelectorAll('button')).toHaveLength(0);
+    expect(row.textContent).toContain('Ubicación gestionada por el sistema');
+    fixture.destroy();
+  });
+
+  it('shows system-managed information instead of read-only copy for non-managers', async () => {
+    const fixture = await createFixture(vi.fn(), false);
+    const managedLocation = Object.assign({}, location, { system_managed: true });
+    fixture.componentInstance.locations.set([managedLocation]);
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    expect(row.querySelectorAll('button')).toHaveLength(0);
+    expect(row.textContent).toContain('Ubicación gestionada por el sistema');
+    expect(row.textContent).not.toContain('Solo lectura');
+    fixture.destroy();
+  });
 
   it('cancels without an API call, then submits once and locks while busy', async () => {
     const pendingStatus = new Subject<{ data: StockLocation }>();
@@ -244,6 +283,90 @@ describe('StockLocations activation confirmation', () => {
     expect(dialog.open).toBe(true);
     expect(dialog.querySelector('[role="alert"]')?.textContent).toContain('No se pudo conectar con el servidor');
     expect(setStatus).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+});
+
+describe('StockLocations editor validation visibility', () => {
+  const createEditorFixture = async () => {
+    const fixture = await TestBed.configureTestingModule({
+      imports: [StockLocationsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
+        { provide: StockLocationsApi, useValue: {
+          list: () => of(locationPage),
+          create: () => of({ data: location }),
+          update: () => of({ data: location }),
+          setStatus: () => of({ data: location }),
+        } },
+      ],
+    }).compileComponents();
+    const pageFixture = TestBed.createComponent(StockLocationsPage);
+    pageFixture.detectChanges();
+    await pageFixture.whenStable();
+    pageFixture.detectChanges();
+    pageFixture.componentInstance.startCreate();
+    pageFixture.detectChanges();
+    return pageFixture;
+  };
+
+  it('keeps an untouched required name error hidden after focus and blur', async () => {
+    const fixture = await createEditorFixture();
+    const input = fixture.nativeElement.querySelector('#location-name') as HTMLInputElement;
+    const name = fixture.componentInstance.form.controls.name;
+
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+
+    expect(name.touched).toBe(true);
+    expect(name.pristine).toBe(true);
+    expect(fixture.nativeElement.querySelector('.editor .field-error')).toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(input.getAttribute('aria-describedby')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('shows an edited invalid name and aligns its ARIA attributes with the message', async () => {
+    const fixture = await createEditorFixture();
+    const input = fixture.nativeElement.querySelector('#location-name') as HTMLInputElement;
+    const name = fixture.componentInstance.form.controls.name;
+
+    input.value = 'Depósito nuevo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+
+    expect(name.dirty).toBe(true);
+    expect(name.invalid).toBe(true);
+    expect(fixture.nativeElement.querySelector('.editor .field-error')?.textContent).toContain('Escribí un nombre para la ubicación.');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('location-name-error');
+    fixture.destroy();
+  });
+
+  it('shows a required name error after submit and clears it when the editor resets', async () => {
+    const fixture = await createEditorFixture();
+    const page = fixture.componentInstance;
+    const input = fixture.nativeElement.querySelector('#location-name') as HTMLInputElement;
+
+    await page.save();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.editor .field-error')?.textContent).toContain('Escribí un nombre para la ubicación.');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('location-name-error');
+
+    page.cancelEdit();
+    page.startCreate();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.editor .field-error')).toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(input.getAttribute('aria-describedby')).toBeNull();
     fixture.destroy();
   });
 });

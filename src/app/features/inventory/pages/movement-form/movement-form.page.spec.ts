@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { Subject, of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { SuppliersApi } from '../../../suppliers-catalogs/suppliers/suppliers.api';
 import { InventoryApi } from '../../services/inventory.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
-import { PaginatedResponse, Product, ReferenceOptions, StockBalance } from '../../interfaces/inventory';
+import { StockLocationsApi } from '../../services/stock-locations.api';
+import { PaginatedResponse, Product, StockBalance } from '../../interfaces/inventory';
 import { MovementFormPage } from './movement-form.page';
 
 const product: Product = {
@@ -15,11 +18,24 @@ const doseProduct: Product = {
   id: 5, sku: 'DOS-5', name: 'Dosis', kind: 'medicine', base_unit: 'dose', stock_tracked: true, status: 'active',
 };
 
-const emptyReferences: ReferenceOptions = {
-  production_units: [], suppliers: [], products: [], stock_locations: [{ value: 2, label: 'Depósito' }],
-  types: { products: [], base_units: [], movements: [] },
-  statuses: { production_units: [], products: [], stock_locations: [] },
-};
+const suppliers = [
+  { id: 3, name: 'Proveedor activo', status: 'active' },
+  { id: 4, name: 'Proveedor activo 2', status: 'active' },
+  { id: 30, name: 'Proveedor inactivo', status: 'inactive' },
+  { id: 40, name: 'Proveedor inactivo 2', status: 'inactive' },
+];
+const stockLocations = [
+  { id: 2, name: 'Depósito activo', system_managed: false, status: 'active' },
+  { id: 9, name: 'Depósito activo 2', system_managed: false, status: 'active' },
+  { id: 20, name: 'Depósito inactivo', system_managed: false, status: 'inactive' },
+  { id: 90, name: 'Depósito inactivo 2', system_managed: false, status: 'inactive' },
+];
+
+const paginated = <T>(data: T[], page: number, lastPage: number) => ({
+  data,
+  links: { first: null, last: null, prev: null, next: null },
+  meta: { current_page: page, from: data.length ? 1 : null, last_page: lastPage, per_page: 100, to: data.length || null, total: data.length },
+});
 
 const balancesResponse = (data: StockBalance[]): PaginatedResponse<StockBalance> => ({
   data,
@@ -32,7 +48,7 @@ const balance = (locationId: number, availableQuantity: string): StockBalance =>
   product_id: 4,
   stock_location_id: locationId,
   product,
-  stock_location: { id: locationId, name: 'Depósito', status: 'active' },
+  stock_location: { id: locationId, name: 'Depósito', system_managed: false, status: 'active' },
   available_quantity: availableQuantity,
   minimum_quantity: '0',
   created_at: '2026-01-01',
@@ -42,10 +58,30 @@ const balance = (locationId: number, availableQuantity: string): StockBalance =>
 describe('Inventory movement adjustment comparison', () => {
   let fixture: ComponentFixture<MovementFormPage>;
   let requests: Subject<PaginatedResponse<StockBalance>>[];
+  let supplierList: ReturnType<typeof vi.fn>;
+  let stockLocationList: ReturnType<typeof vi.fn>;
+  let receiveMovement: ReturnType<typeof vi.fn>;
+  let adjustMovement: ReturnType<typeof vi.fn>;
+  let transferMovement: ReturnType<typeof vi.fn>;
 
   const createFixture = async (permissions = ['inventory.adjust']): Promise<void> => {
     requests = [];
+    supplierList = vi.fn().mockImplementation((filters: { status?: string }, page: number) => {
+      const matching = filters.status === 'active' ? suppliers.filter((item) => item.status === 'active') : suppliers;
+      return of(paginated(matching.slice(page - 1, page), page, matching.length));
+    });
+    stockLocationList = vi.fn().mockImplementation((filters: { status?: string; page?: number }) => {
+      const page = filters.page ?? 1;
+      const matching = filters.status === 'active' ? stockLocations.filter((item) => item.status === 'active') : stockLocations;
+      return of(paginated(matching.slice(page - 1, page), page, matching.length));
+    });
+    receiveMovement = vi.fn().mockReturnValue(of({ data: {} }));
+    adjustMovement = vi.fn().mockReturnValue(of({ data: {} }));
+    transferMovement = vi.fn().mockReturnValue(of({ data: {} }));
     const api = {
+      receive: receiveMovement,
+      adjustment: adjustMovement,
+      transfer: transferMovement,
       balances: () => {
         const request = new Subject<PaginatedResponse<StockBalance>>();
         requests.push(request);
@@ -59,16 +95,136 @@ describe('Inventory movement adjustment comparison', () => {
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
         { provide: InventoryApi, useValue: api },
         { provide: InventoryReferenceApi, useValue: {
-          options: () => of({ data: emptyReferences }),
           activeProducts: () => of({ data: [product, doseProduct], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: 1, last_page: 1, per_page: 100, to: 2, total: 2 } }),
         } },
+        { provide: SuppliersApi, useValue: { list: supplierList } },
+        { provide: StockLocationsApi, useValue: { list: stockLocationList } },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(MovementFormPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await fixture.componentInstance.loadReferences();
     fixture.detectChanges();
   };
+
+  it('requests active supplier and location pages and displays only the returned active options', async () => {
+    await createFixture(['inventory.move']);
+    fixture.detectChanges();
+
+    expect(supplierList).toHaveBeenCalledWith({ status: 'active', per_page: 100 }, 1);
+    expect(supplierList).toHaveBeenCalledWith({ status: 'active', per_page: 100 }, 2);
+    expect(stockLocationList).toHaveBeenCalledWith({ status: 'active', per_page: 100, page: 1 });
+    expect(stockLocationList).toHaveBeenCalledWith({ status: 'active', per_page: 100, page: 2 });
+
+    const supplierLabels = [...fixture.nativeElement.querySelectorAll('#supplier option') as NodeListOf<HTMLOptionElement>]
+      .map((option) => option.textContent?.trim());
+    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
+    productInput.focus();
+    fixture.detectChanges();
+    const productLabels = [...fixture.nativeElement.querySelectorAll('#product-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+      .map((option) => option.textContent?.trim());
+    const locationInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+    locationInput.focus();
+    fixture.detectChanges();
+    const locationLabels = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+      .map((option) => option.textContent?.trim());
+    expect(supplierLabels).toContain('Proveedor activo');
+    expect(supplierLabels).not.toContain('Proveedor inactivo');
+    expect(productLabels).toContain('AL-4 — Alimento');
+    expect(productLabels).toContain('DOS-5 — Dosis');
+    expect(locationLabels).toContain('Depósito activo');
+    expect(locationLabels).not.toContain('Depósito inactivo');
+    fixture.destroy();
+  });
+
+  it('uses the loaded active locations for every operation and both transfer selects', async () => {
+    await createFixture(['inventory.move', 'inventory.adjust']);
+    const page = fixture.componentInstance;
+
+    for (const operation of ['receipt', 'issue', 'loss', 'adjustment', 'transfer'] as const) {
+      page.setOperation(operation);
+      fixture.detectChanges();
+      const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+      sourceInput.focus();
+      fixture.detectChanges();
+      const sourceOptions = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+        .map((option) => option.textContent?.trim());
+      expect(sourceOptions).toEqual(['Depósito activo', 'Depósito activo 2']);
+      if (operation === 'transfer') {
+        const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
+        destinationInput.focus();
+        fixture.detectChanges();
+        const destinationOptions = [...fixture.nativeElement.querySelectorAll('#destination-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+          .map((option) => option.textContent?.trim());
+        expect(destinationOptions).toEqual(sourceOptions);
+      }
+    }
+    fixture.destroy();
+  });
+
+  it('keeps string IDs in the controls and builds the existing transfer payload', async () => {
+    await createFixture(['inventory.move', 'inventory.adjust']);
+    const page = fixture.componentInstance;
+    const line = page.lines.at(0);
+
+    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
+    productInput.focus();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#product-0-listbox [role="option"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(line.controls.product_id.value).toBe('4');
+
+    page.setOperation('transfer');
+    fixture.detectChanges();
+    const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+    sourceInput.focus();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('#location-0-listbox [role="option"]')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    fixture.detectChanges();
+    expect(line.controls.stock_location_id.value).toBe('2');
+
+    const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
+    destinationInput.focus();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#destination-0-listbox [role="option"]:nth-child(2)') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(line.controls.to_stock_location_id.value).toBe('9');
+
+    line.controls.quantity.setValue('1');
+    await page.submit();
+    expect(transferMovement.mock.calls[0][0].lines[0]).toEqual({
+      product_id: 4,
+      from_stock_location_id: 2,
+      to_stock_location_id: 9,
+      quantity: '1',
+    });
+    fixture.destroy();
+  });
+
+  it('keeps a backend submit error visible in the movement form', async () => {
+    await createFixture(['inventory.move']);
+    receiveMovement.mockReturnValue(throwError(() => new HttpErrorResponse({
+      status: 409,
+      error: { message: 'La ubicación está inactiva.' },
+    })));
+    const page = fixture.componentInstance;
+    page.form.controls.supplier_id.setValue('3');
+    const line = page.lines.at(0);
+    line.controls.product_id.setValue('4');
+    line.controls.stock_location_id.setValue('2');
+    line.controls.quantity.setValue('1');
+
+    await page.submit();
+    fixture.detectChanges();
+
+    expect(page.mutation()).toBe('error');
+    expect(page.error()).toBe('La ubicación está inactiva.');
+    expect(fixture.nativeElement.querySelector('.feedback.error')?.textContent).toContain('La ubicación está inactiva.');
+    fixture.destroy();
+  });
 
   it('shows the exact counted-minus-registered difference with the selected product unit', async () => {
     await createFixture();
@@ -143,24 +299,8 @@ describe('Inventory movement adjustment comparison', () => {
   });
 
   it('keeps the entered decimal precision when the form builds a movement payload', async () => {
-    const receive = vi.fn().mockReturnValue(of({ data: {} }));
-    await TestBed.configureTestingModule({
-      imports: [MovementFormPage],
-      providers: [
-        provideRouter([]),
-        { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: ['inventory.move'] }) } },
-        { provide: InventoryApi, useValue: { receive, balances: () => of(balancesResponse([])) } },
-        { provide: InventoryReferenceApi, useValue: {
-          options: () => of({ data: { ...emptyReferences, suppliers: [{ value: 3, label: 'Proveedor' }] } }),
-          activeProducts: () => of({ data: [product], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: 1, last_page: 1, per_page: 100, to: 1, total: 1 } }),
-        } },
-      ],
-    }).compileComponents();
-    fixture = TestBed.createComponent(MovementFormPage);
-    fixture.detectChanges();
-    await fixture.whenStable();
+    await createFixture(['inventory.move']);
     const page = fixture.componentInstance;
-    await page.loadReferences();
     page.form.controls.supplier_id.setValue('3');
     const line = page.lines.at(0);
     line.controls.product_id.setValue('4');
@@ -172,8 +312,156 @@ describe('Inventory movement adjustment comparison', () => {
 
     await page.submit();
 
-    expect(receive).toHaveBeenCalledTimes(1);
-    expect(receive.mock.calls[0][0].lines[0].quantity).toBe('12.500000');
+    expect(receiveMovement).toHaveBeenCalledTimes(1);
+    expect(receiveMovement.mock.calls[0][0].lines[0].quantity).toBe('12.500000');
+    fixture.destroy();
+  });
+
+  it('renders the registered stock and positive, negative, and zero adjustment differences', async () => {
+    await createFixture();
+    const page = fixture.componentInstance;
+    const line = page.lines.at(0);
+    line.controls.product_id.setValue('4');
+    line.controls.stock_location_id.setValue('2');
+    requests[0].next(balancesResponse([balance(2, '10')]));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const summaryText = (): string => fixture.nativeElement.querySelector('.adjustment-summary')?.textContent ?? '';
+    expect(summaryText()).toContain('Resumen del ajuste');
+    expect(summaryText()).toContain('Stock registrado actualmente');
+    expect(summaryText()).toContain('10 kg');
+    expect(summaryText()).toContain('Ingresa una cantidad válida para ver la diferencia.');
+
+    const input = fixture.nativeElement.querySelector('#counted-0') as HTMLInputElement;
+    const enterCount = async (value: string): Promise<void> => {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+    await enterCount('20');
+    expect(summaryText()).toContain('+10 kg');
+
+    await enterCount('0');
+    expect(page.differenceFor(line)).toBe('-10 kg');
+    expect(summaryText()).toContain('-10 kg');
+
+    await enterCount('10');
+    expect(summaryText()).toContain('0 kg');
+    fixture.destroy();
+  });
+
+  it('accepts an explicitly entered zero count and preserves it in the adjustment payload', async () => {
+    await createFixture();
+    const page = fixture.componentInstance;
+    const line = page.lines.at(0);
+    line.controls.product_id.setValue('4');
+    line.controls.stock_location_id.setValue('2');
+    requests[0].next(balancesResponse([balance(2, '10')]));
+    await fixture.whenStable();
+    line.controls.counted_quantity.setValue('0');
+    page.form.controls.reason.setValue('Conteo físico');
+
+    expect(line.controls.counted_quantity.valid).toBe(true);
+    expect(page.form.valid).toBe(true);
+    expect(page.lines.valid).toBe(true);
+
+    await page.submit();
+
+    expect(adjustMovement).toHaveBeenCalledTimes(1);
+    expect(adjustMovement.mock.calls[0][0].lines[0]).toEqual({
+      product_id: 4,
+      stock_location_id: 2,
+      counted_quantity: '0',
+    });
+    fixture.destroy();
+  });
+
+  it('keeps the adjustment summary and difference independent for multiple lines', async () => {
+    await createFixture();
+    const page = fixture.componentInstance;
+    page.addLine();
+    const firstLine = page.lines.at(0);
+    const secondLine = page.lines.at(1);
+    firstLine.controls.product_id.setValue('4');
+    firstLine.controls.stock_location_id.setValue('2');
+    secondLine.controls.product_id.setValue('4');
+    secondLine.controls.stock_location_id.setValue('9');
+
+    expect(requests).toHaveLength(2);
+    requests[0].next(balancesResponse([balance(2, '3')]));
+    requests[1].next(balancesResponse([balance(9, '8')]));
+    await fixture.whenStable();
+    firstLine.controls.counted_quantity.setValue('4');
+    secondLine.controls.counted_quantity.setValue('4');
+    fixture.detectChanges();
+
+    const summaries = [...fixture.nativeElement.querySelectorAll('.adjustment-summary') as NodeListOf<HTMLElement>];
+    expect(summaries).toHaveLength(2);
+    expect(summaries[0].textContent).toContain('+1 kg');
+    expect(summaries[1].textContent).toContain('-4 kg');
+    fixture.destroy();
+  });
+
+  it('does not reveal an initially invalid quantity after focus and blur without editing', async () => {
+    await createFixture(['inventory.move']);
+    await fixture.componentInstance.loadReferences();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
+    const quantity = fixture.componentInstance.lines.at(0).controls.quantity;
+
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+
+    expect(quantity.touched).toBe(true);
+    expect(quantity.pristine).toBe(true);
+    expect(fixture.nativeElement.querySelector('#quantity-error-0')).toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(input.getAttribute('aria-describedby')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('reveals an edited invalid quantity and keeps ARIA state aligned with the message', async () => {
+    await createFixture(['inventory.move']);
+    await fixture.componentInstance.loadReferences();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
+    const quantity = fixture.componentInstance.lines.at(0).controls.quantity;
+
+    input.value = '0';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+
+    expect(quantity.dirty).toBe(true);
+    expect(quantity.invalid).toBe(true);
+    expect(fixture.nativeElement.querySelector('#quantity-error-0')).not.toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('quantity-error-0');
+    fixture.destroy();
+  });
+
+  it('reveals invalid fields after submit and resets that visibility when changing operation', async () => {
+    await createFixture(['inventory.move']);
+    await fixture.componentInstance.loadReferences();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
+
+    await page.submit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#quantity-error-0')).not.toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('quantity-error-0');
+
+    page.setOperation('issue');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#quantity-error-0')).toBeNull();
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(input.getAttribute('aria-describedby')).toBeNull();
     fixture.destroy();
   });
 });

@@ -1,5 +1,19 @@
-import { Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -35,6 +49,7 @@ export class StockLocationsPage {
   readonly success = signal<string | null>(null);
   readonly editTarget = signal<StockLocation | null>(null);
   readonly editorOpen = signal(false);
+  readonly submitAttempted = signal(false);
   readonly pendingStatusLocation = signal<StockLocation | null>(null);
   @ViewChild('locationsHeading', { static: true }) private locationsHeading!: ElementRef<HTMLElement>;
   @ViewChild(InventoryConfirmationDialogComponent) private statusDialog!: InventoryConfirmationDialogComponent;
@@ -96,26 +111,36 @@ export class StockLocationsPage {
     void this.load();
   }
 
-  startCreate(): void {
-    this.editTarget.set(null);
-    this.editorOpen.set(true);
-    this.form.reset({ name: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' });
-    this.error.set(null);
-    this.success.set(null);
-  }
+startCreate(): void {
+  this.editTarget.set(null);
+  this.editorOpen.set(true);
+  this.submitAttempted.set(false);
+  this.form.reset({
+    name: '',
+    production_unit_id: this.unitContext?.selectedId()?.toString() ?? '',
+  });
+  this.error.set(null);
+  this.success.set(null);
+}
 
   startEdit(location: StockLocation): void {
     this.editTarget.set(location);
     this.editorOpen.set(true);
+    this.submitAttempted.set(false);
     this.form.reset({ name: location.name, production_unit_id: String(this.productionUnitId(location) ?? '') });
     this.error.set(null);
     this.success.set(null);
   }
 
-  cancelEdit(): void { this.editTarget.set(null); this.editorOpen.set(false); this.form.reset({ name: '', production_unit_id: '' }); }
+  cancelEdit(): void { this.editTarget.set(null); this.editorOpen.set(false); this.submitAttempted.set(false); this.form.reset({ name: '', production_unit_id: '' }); }
+
+  fieldErrorVisible(control: AbstractControl): boolean {
+    return control.invalid && (this.submitAttempted() || (control.touched && control.dirty));
+  }
 
   async save(): Promise<void> {
     if (!this.canManage() || this.mutation() === 'submitting') return;
+    this.submitAttempted.set(true);
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

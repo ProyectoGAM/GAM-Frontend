@@ -80,42 +80,111 @@ td small {
   background: var(--gam-color-danger-soft);
 }
 
-.minimum-form {
+.minimum-dialog {
+  box-sizing: border-box;
+  width: min(560px, calc(100% - 28px));
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+  border: 1px solid var(--gam-color-border);
+  border-radius: 10px;
+  color: var(--gam-color-text);
+  background: var(--gam-color-surface);
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--gam-color-heading) 25%, transparent);
+  overflow-y: auto;
+}
+
+.minimum-dialog::backdrop {
+  background: color-mix(in srgb, var(--gam-color-heading) 56%, transparent);
+}
+
+.minimum-dialog-content {
   display: grid;
-  min-width: 210px;
+  gap: 14px;
+}
+
+.minimum-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+}
+
+.minimum-dialog-heading h2 {
+  margin: 0;
+  color: var(--gam-color-heading);
+  font-size: 21px;
+}
+
+.minimum-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  min-height: 48px;
+  border: 1px solid var(--gam-color-control-border);
+  border-radius: 6px;
+  color: var(--gam-color-text);
+  background: var(--gam-color-surface);
+  font: inherit;
+  font-size: 24px;
 }
 
 .minimum-context {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
   gap: 10px;
   margin: 0;
-  color: var(--gam-color-text-muted);
-  font-size: 14px;
 }
 
-.minimum-context strong {
-  color: var(--gam-color-text);
-}
-
-.minimum-form label {
-  margin-top: 4px;
+.minimum-context div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
 }
 
 .minimum-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gam-color-border);
 }
 
 .minimum-actions .button {
-  flex: 1 1 auto;
+  box-sizing: border-box;
 }
 
-.field-error {
+.minimum-context dt {
+  color: var(--gam-color-text-muted);
+}
+
+.minimum-context dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.minimum-dialog-content label {
+  margin-top: 4px;
+}
+
+.minimum-dialog-content input {
+  min-width: 0;
+}
+
+.field-error,
+.minimum-error {
   color: var(--gam-color-danger);
   font-size: 14px;
+}
+
+.minimum-error {
+  margin: 0;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--gam-color-danger-soft);
 }
 
 @media (max-width: 960px) {
@@ -181,9 +250,6 @@ td small {
     display: none;
   }
 
-  .minimum-form {
-    min-width: 0;
-  }
 }
 
 @media (max-width: 600px) {
@@ -209,8 +275,17 @@ td small {
     padding-inline: 12px;
   }
 
+  .minimum-dialog {
+    padding: 18px;
+  }
+
   .minimum-actions {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .minimum-actions .button {
+    width: 100%;
   }
 
   .pagination > span {

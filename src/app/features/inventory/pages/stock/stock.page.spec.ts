@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
@@ -6,6 +7,7 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { InventoryApi } from '../../services/inventory.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { StockBalance } from '../../interfaces/inventory';
+import { stubNativeDialog } from '../../testing/native-dialog-test';
 import { StockPage } from './stock.page';
 
 const emptyBalances = {
@@ -30,7 +32,7 @@ const balance: StockBalance = {
   product_id: 4,
   stock_location_id: 2,
   product: { id: 4, sku: 'AL-4', name: 'Alimento', kind: 'supply', base_unit: 'kg', stock_tracked: true, status: 'active' },
-  stock_location: { id: 2, name: 'Depósito', status: 'active' },
+  stock_location: { id: 2, name: 'Depósito', system_managed: false, status: 'active' },
   available_quantity: '5',
   minimum_quantity: '12.500000',
   created_at: '2026-01-01',
@@ -45,14 +47,20 @@ const doseBalance: StockBalance = {
 };
 
 describe('Existencias page', () => {
-  const createFixture = (permissions: string[]) => TestBed.configureTestingModule({
+  let restoreNativeDialog: () => void;
+
+  beforeEach(() => { restoreNativeDialog = stubNativeDialog(); });
+  afterEach(() => { restoreNativeDialog(); });
+
+  const createFixture = (permissions: string[], inventoryApi: Partial<InventoryApi> = {}) => TestBed.configureTestingModule({
     imports: [StockPage],
     providers: [
       provideRouter([]),
       { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
       { provide: InventoryApi, useValue: {
         balances: () => of(emptyBalances),
-        setMinimumStock: () => of({ data: {} }),
+        setMinimumStock: () => of({ data: balance }),
+        ...inventoryApi,
       } },
       { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
     ],
@@ -62,7 +70,8 @@ describe('Existencias page', () => {
     const allowed = createFixture(['inventory.move']);
     await allowed.whenStable();
     allowed.detectChanges();
-    const action = allowed.nativeElement.querySelector('a.primary') as HTMLAnchorElement;
+    const action = Array.from((allowed.nativeElement as HTMLElement).querySelectorAll('a'))
+      .find((link) => link.textContent?.trim() === 'Registrar movimiento') as HTMLAnchorElement | undefined;
     expect(action?.textContent?.trim()).toBe('Registrar movimiento');
     expect(action?.getAttribute('href')).toBe('/administracion/inventario/ajustes-y-perdidas');
     allowed.destroy();
@@ -72,8 +81,75 @@ describe('Existencias page', () => {
     const denied = createFixture([]);
     await denied.whenStable();
     denied.detectChanges();
-    expect(denied.nativeElement.querySelector('a.primary')).toBeNull();
+    const movementAction = Array.from((denied.nativeElement as HTMLElement).querySelectorAll('a'))
+      .find((link) => link.textContent?.trim() === 'Registrar movimiento');
+    expect(movementAction).toBeUndefined();
     denied.destroy();
+  });
+
+  it.each([
+    { scenario: 'without', permissions: [] as string[] },
+    { scenario: 'with', permissions: ['inventory.manage'] },
+  ])('removes maintenance access from Existencias $scenario inventory permission', async ({ permissions }) => {
+    const fixture = createFixture(permissions);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const pageText = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(pageText).not.toContain('Nuevo producto');
+    expect(pageText).not.toContain('Gestionar ubicaciones');
+    expect(pageText).not.toContain('Ver ubicaciones');
+    fixture.destroy();
+  });
+
+  it('applies below-minimum only on submit and clears back to the unfiltered server response', async () => {
+    const atOrAboveMinimum: StockBalance = {
+      ...balance,
+      id: 10,
+      product_id: 6,
+      product: { ...balance.product, id: 6, sku: 'EQ-6', name: 'Alimento al mínimo' },
+      available_quantity: '12.500000',
+    };
+    const balances = vi.fn()
+      .mockReturnValueOnce(of(emptyBalances))
+      .mockReturnValueOnce(of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }))
+      .mockReturnValueOnce(of({ ...emptyBalances, data: [balance, atOrAboveMinimum], meta: { ...emptyBalances.meta, from: 1, to: 2, total: 2 } }));
+    const fixture = TestBed.configureTestingModule({
+      imports: [StockPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: [] }) } },
+        { provide: InventoryApi, useValue: { balances, setMinimumStock: () => of({ data: {} }) } },
+        { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
+      ],
+    }).createComponent(StockPage);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    expect(balances).toHaveBeenCalledTimes(1);
+
+    checkbox.click();
+    fixture.detectChanges();
+    expect(checkbox.checked).toBe(true);
+    expect(balances).toHaveBeenCalledTimes(1);
+
+    (fixture.nativeElement.querySelector('.filter-actions button[type="submit"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: true }));
+    expect(fixture.nativeElement.textContent).toContain('Alimento');
+    expect(fixture.nativeElement.textContent).not.toContain('Alimento al mínimo');
+
+    (fixture.nativeElement.querySelector('.filter-actions button[type="button"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(checkbox.checked).toBe(false);
+    expect(balances).toHaveBeenCalledTimes(3);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: undefined }));
+    expect(fixture.nativeElement.textContent).toContain('Alimento al mínimo');
+    fixture.destroy();
   });
 
   it('also allows the existing adjustment permission and translates product kinds', async () => {
@@ -81,7 +157,9 @@ describe('Existencias page', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('a.primary')?.textContent?.trim()).toBe('Registrar movimiento');
+    const movementAction = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a'))
+      .find((link) => link.textContent?.trim() === 'Registrar movimiento');
+    expect(movementAction?.textContent?.trim()).toBe('Registrar movimiento');
     expect(fixture.componentInstance.kindLabel('raw_material')).toBe('Materia prima');
     expect(fixture.componentInstance.kindLabel('finished_feed')).toBe('Ración / alimento preparado');
     fixture.destroy();
@@ -121,56 +199,146 @@ describe('Existencias page', () => {
     fixture.destroy();
   });
 
-  it('validates a minimum and sends comma decimals using the API decimal format', async () => {
-    const setMinimumStock = vi.fn((_id: number, minimum: string) => of({ data: { ...balance, minimum_quantity: minimum } }));
-    const fixture = TestBed.configureTestingModule({
-      imports: [StockPage],
-      providers: [
-        provideRouter([]),
-        { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: ['inventory.manage'] }) } },
-        { provide: InventoryApi, useValue: {
-          balances: () => of({ ...emptyBalances, data: [balance, doseBalance], meta: { ...emptyBalances.meta, from: 1, to: 2, total: 2 } }),
-          setMinimumStock,
-        } },
-        { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
-      ],
-    }).createComponent(StockPage);
-
+  it('opens the modal with the minimum prefilled and cancels without an API request', async () => {
+    const setMinimumStock = vi.fn(() => of({ data: balance }));
+    const fixture = createFixture(['inventory.manage'], {
+      balances: () => of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }),
+      setMinimumStock,
+    });
     await fixture.whenStable();
-    const page = fixture.componentInstance;
-    page.editMinimum(balance);
     fixture.detectChanges();
-    expect(page.minimumInputMode()).toBe('decimal');
-    expect(fixture.nativeElement.querySelector('#minimum-quantity-8')?.getAttribute('inputmode')).toBe('decimal');
-    expect(page.minimumForm.controls.minimum_quantity.value).toBe('12,5');
-    page.minimumForm.setValue({ minimum_quantity: '-1' });
-    await page.saveMinimum(balance);
-    expect(page.minimumForm.invalid).toBe(true);
+
+    const opener = fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement;
+    opener.focus();
+    opener.click();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+    const input = dialog.querySelector('#minimum-quantity') as HTMLInputElement;
+    expect(dialog.open).toBe(true);
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe('12,5');
+    expect(dialog.textContent).toContain('Producto');
+    expect(dialog.textContent).toContain('Alimento');
+    expect(dialog.textContent).toContain('Ubicación');
+    expect(dialog.textContent).toContain('Depósito');
+    expect(dialog.textContent).toContain('Disponible actual');
+    expect(dialog.textContent).toContain('5 kg');
+    expect(dialog.textContent).toContain('Mínimo actual');
+
+    (dialog.querySelector('.minimum-actions button[type="button"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(dialog.open).toBe(false);
+    expect(setMinimumStock).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(opener);
+
+    opener.click();
+    fixture.detectChanges();
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    fixture.detectChanges();
+    expect(dialog.open).toBe(false);
+    expect(setMinimumStock).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('sends the decimal payload once and closes with the updated row and success feedback', async () => {
+    const updated = { ...balance, minimum_quantity: '5.250000' };
+    const setMinimumStock = vi.fn((_id: number, _minimum: string) => of({ data: updated }));
+    const fixture = createFixture(['inventory.manage'], {
+      balances: () => of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }),
+      setMinimumStock,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+    const input = dialog.querySelector('#minimum-quantity') as HTMLInputElement;
+    input.value = '5,250000';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const save = dialog.querySelector('button[type="submit"]') as HTMLButtonElement;
+    save.click();
+    save.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(setMinimumStock).toHaveBeenCalledTimes(1);
+    expect(setMinimumStock).toHaveBeenCalledWith(balance.id, '5.250000');
+    expect(dialog.open).toBe(false);
+    expect(fixture.componentInstance.balances()[0].minimum_quantity).toBe('5.250000');
+    expect(fixture.nativeElement.querySelector('[data-label="Mínimo"]')?.textContent).toContain('5,25 kg');
+    expect(fixture.componentInstance.success()).toBe('Stock mínimo actualizado.');
+    expect(fixture.nativeElement.textContent).toContain('Stock mínimo actualizado.');
+    fixture.destroy();
+  });
+
+  it('keeps backend errors visible in the open modal', async () => {
+    const backendError = new HttpErrorResponse({
+      status: 422,
+      error: { message: 'Revisa el mínimo.', errors: { minimum_quantity: ['El mínimo supera el límite permitido.'] } },
+    });
+    const setMinimumStock = vi.fn(() => throwError(() => backendError));
+    const fixture = createFixture(['inventory.manage'], {
+      balances: () => of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }),
+      setMinimumStock,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+    const save = dialog.querySelector('button[type="submit"]') as HTMLButtonElement;
+    save.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector('.minimum-error')?.textContent).toContain('Revisa el mínimo.');
+    expect(dialog.textContent).toContain('El mínimo supera el límite permitido.');
+    expect(setMinimumStock).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+
+  it('preserves nonnegative precision and discrete-unit minimum validation', async () => {
+    const setMinimumStock = vi.fn((_id: number, _minimum: string) => of({ data: balance }));
+    const fixture = createFixture(['inventory.manage'], {
+      balances: () => of({ ...emptyBalances, data: [balance, doseBalance], meta: { ...emptyBalances.meta, from: 1, to: 2, total: 2 } }),
+      setMinimumStock,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const opener = fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement;
+    opener.click();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+    const input = dialog.querySelector('#minimum-quantity') as HTMLInputElement;
+    expect(input.getAttribute('inputmode')).toBe('decimal');
+    expect(input.value).toBe('12,5');
+    input.value = '-1';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    (dialog.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.minimumForm.invalid).toBe(true);
     expect(setMinimumStock).not.toHaveBeenCalled();
 
-    page.editMinimum(balance);
-    expect(page.minimumForm.controls.minimum_quantity.value).toBe('12,5');
-    await page.saveMinimum(balance);
-    expect(setMinimumStock).toHaveBeenCalledWith(balance.id, '12.500000');
-
-    page.editMinimum(balance);
-    page.minimumForm.setValue({ minimum_quantity: '5,250000' });
-    await page.saveMinimum(balance);
-    expect(setMinimumStock).toHaveBeenLastCalledWith(balance.id, '5.250000');
-    expect(page.success()).toBe('Stock mínimo actualizado.');
-    page.editMinimum(doseBalance);
+    (dialog.querySelector('.minimum-actions button[type="button"]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(page.minimumInputMode()).toBe('numeric');
-    expect(fixture.nativeElement.querySelector('#minimum-quantity-9')?.getAttribute('inputmode')).toBe('numeric');
-    expect(page.minimumForm.controls.minimum_quantity.value).toBe('2');
-    page.minimumForm.setValue({ minimum_quantity: '2,5' });
-    await page.saveMinimum(doseBalance);
-    expect(page.minimumForm.invalid).toBe(true);
-    expect(setMinimumStock).toHaveBeenCalledTimes(2);
-
-    page.minimumForm.setValue({ minimum_quantity: '3' });
-    await page.saveMinimum(doseBalance);
-    expect(setMinimumStock).toHaveBeenLastCalledWith(doseBalance.id, '3');
+    const doseRow = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr'))
+      .find((row) => row.textContent?.includes('Dosis'));
+    const doseOpener = doseRow?.querySelector('button') as HTMLButtonElement;
+    doseOpener.click();
+    fixture.detectChanges();
+    expect(input.getAttribute('inputmode')).toBe('numeric');
+    expect(input.value).toBe('2');
+    input.value = '2,5';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    (dialog.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.minimumForm.invalid).toBe(true);
+    expect(setMinimumStock).not.toHaveBeenCalled();
     fixture.destroy();
   });
 });
