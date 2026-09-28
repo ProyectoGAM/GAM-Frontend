@@ -62,6 +62,7 @@ describe('Inventory movement adjustment comparison', () => {
   let stockLocationList: ReturnType<typeof vi.fn>;
   let receiveMovement: ReturnType<typeof vi.fn>;
   let adjustMovement: ReturnType<typeof vi.fn>;
+  let transferMovement: ReturnType<typeof vi.fn>;
 
   const createFixture = async (permissions = ['inventory.adjust']): Promise<void> => {
     requests = [];
@@ -76,9 +77,11 @@ describe('Inventory movement adjustment comparison', () => {
     });
     receiveMovement = vi.fn().mockReturnValue(of({ data: {} }));
     adjustMovement = vi.fn().mockReturnValue(of({ data: {} }));
+    transferMovement = vi.fn().mockReturnValue(of({ data: {} }));
     const api = {
       receive: receiveMovement,
       adjustment: adjustMovement,
+      transfer: transferMovement,
       balances: () => {
         const request = new Subject<PaginatedResponse<StockBalance>>();
         requests.push(request);
@@ -116,10 +119,20 @@ describe('Inventory movement adjustment comparison', () => {
 
     const supplierLabels = [...fixture.nativeElement.querySelectorAll('#supplier option') as NodeListOf<HTMLOptionElement>]
       .map((option) => option.textContent?.trim());
-    const locationLabels = [...fixture.nativeElement.querySelectorAll('#location-0 option') as NodeListOf<HTMLOptionElement>]
+    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
+    productInput.focus();
+    fixture.detectChanges();
+    const productLabels = [...fixture.nativeElement.querySelectorAll('#product-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+      .map((option) => option.textContent?.trim());
+    const locationInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+    locationInput.focus();
+    fixture.detectChanges();
+    const locationLabels = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
       .map((option) => option.textContent?.trim());
     expect(supplierLabels).toContain('Proveedor activo');
     expect(supplierLabels).not.toContain('Proveedor inactivo');
+    expect(productLabels).toContain('AL-4 — Alimento');
+    expect(productLabels).toContain('DOS-5 — Dosis');
     expect(locationLabels).toContain('Depósito activo');
     expect(locationLabels).not.toContain('Depósito inactivo');
     fixture.destroy();
@@ -132,15 +145,62 @@ describe('Inventory movement adjustment comparison', () => {
     for (const operation of ['receipt', 'issue', 'loss', 'adjustment', 'transfer'] as const) {
       page.setOperation(operation);
       fixture.detectChanges();
-      const sourceOptions = [...fixture.nativeElement.querySelectorAll('#location-0 option') as NodeListOf<HTMLOptionElement>]
-        .map((option) => option.value);
-      expect(sourceOptions).toEqual(['', '2', '9']);
+      const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+      sourceInput.focus();
+      fixture.detectChanges();
+      const sourceOptions = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+        .map((option) => option.textContent?.trim());
+      expect(sourceOptions).toEqual(['Depósito activo', 'Depósito activo 2']);
       if (operation === 'transfer') {
-        const destinationOptions = [...fixture.nativeElement.querySelectorAll('#destination-0 option') as NodeListOf<HTMLOptionElement>]
-          .map((option) => option.value);
+        const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
+        destinationInput.focus();
+        fixture.detectChanges();
+        const destinationOptions = [...fixture.nativeElement.querySelectorAll('#destination-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
+          .map((option) => option.textContent?.trim());
         expect(destinationOptions).toEqual(sourceOptions);
       }
     }
+    fixture.destroy();
+  });
+
+  it('keeps string IDs in the controls and builds the existing transfer payload', async () => {
+    await createFixture(['inventory.move', 'inventory.adjust']);
+    const page = fixture.componentInstance;
+    const line = page.lines.at(0);
+
+    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
+    productInput.focus();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#product-0-listbox [role="option"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(line.controls.product_id.value).toBe('4');
+
+    page.setOperation('transfer');
+    fixture.detectChanges();
+    const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
+    sourceInput.focus();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('#location-0-listbox [role="option"]')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    fixture.detectChanges();
+    expect(line.controls.stock_location_id.value).toBe('2');
+
+    const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
+    destinationInput.focus();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#destination-0-listbox [role="option"]:nth-child(2)') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(line.controls.to_stock_location_id.value).toBe('9');
+
+    line.controls.quantity.setValue('1');
+    await page.submit();
+    expect(transferMovement.mock.calls[0][0].lines[0]).toEqual({
+      product_id: 4,
+      from_stock_location_id: 2,
+      to_stock_location_id: 9,
+      quantity: '1',
+    });
     fixture.destroy();
   });
 

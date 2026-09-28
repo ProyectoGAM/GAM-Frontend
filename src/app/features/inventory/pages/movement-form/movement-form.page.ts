@@ -6,6 +6,7 @@ import { distinctUntilChanged, startWith } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
 import { SuppliersApi } from '../../../suppliers-catalogs/suppliers/suppliers.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
@@ -58,7 +59,7 @@ function decimalDifference(left: string, right: string): string | null {
   selector: 'app-inventory-movement-form',
   templateUrl: './movement-form.page.html',
   styleUrl: './movement-form.page.scss',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
 })
 export class MovementFormPage {
   readonly auth = inject(AuthStore);

@@ -1,0 +1,64 @@
+<div class="searchable-select">
+  <input
+    #searchInput
+    [id]="inputId()"
+    type="text"
+    role="combobox"
+    aria-autocomplete="list"
+    aria-haspopup="listbox"
+    [attr.aria-expanded]="isOpen()"
+    [attr.aria-controls]="isOpen() && !loading() && filteredOptions().length ? listboxId() : null"
+    [attr.aria-activedescendant]="activeOptionId()"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [attr.aria-describedby]="describedBy()"
+    [attr.aria-required]="required() ? 'true' : null"
+    [attr.aria-busy]="loading() ? 'true' : null"
+    [required]="required()"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [value]="displayValue()"
+    autocomplete="off"
+    (focus)="open()"
+    (click)="open()"
+    (blur)="close(true)"
+    (input)="onInput($any($event.target).value)"
+    (keydown)="onKeydown($event)"
+  >
+
+  @if (loading() && loadingMessage()) {
+    <p class="loading-message" role="status" aria-live="polite">{{ loadingMessage() }}</p>
+  }
+
+  @if (isOpen()) {
+    <div class="dropdown" [class.above]="placement() === 'above'"
+      [style.max-height.px]="dropdownMaxHeight()" [style.left.px]="dropdownLeft()"
+      [style.width.px]="dropdownWidth()">
+      @if (loading()) {
+        <p class="message" role="status" aria-live="polite">{{ loadingMessage() }}</p>
+      } @else {
+        @if (options().length === 0) {
+          <p class="message" role="status" aria-live="polite">{{ emptyMessage() }}</p>
+        } @else if (filteredOptions().length === 0) {
+        <p class="message" role="status" aria-live="polite">
+          {{ noResultsMessage() }}
+        </p>
+        }
+        @if (filteredOptions().length > 0) {
+        <div class="options" [id]="listboxId()" role="listbox">
+          @for (option of filteredOptions(); track optionId($index); let index = $index) {
+            <div
+              class="option"
+              [id]="optionId(index)"
+              role="option"
+              [attr.aria-selected]="isSelected(option)"
+              [class.active]="activeIndex() === index"
+              (mousedown)="$event.preventDefault()"
+              (click)="select(option)"
+            >{{ option.label }}</div>
+          }
+        </div>
+        }
+      }
+    </div>
+  }
+</div>
