@@ -33,8 +33,15 @@ export function isAdminUser(user: Pick<AuthUser, 'roles'> | null): boolean {
   return normalizedRoles(user).has('admin');
 }
 
-export function canAccessGroup(user: Pick<AuthUser, 'roles'> | null, group: AdminGroup): boolean {
+export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, permission: 'view' | 'manage'): boolean {
+  const permissions = new Set((user?.permissions ?? []).map((value) => value.trim().toLowerCase()));
+  return permissions.has(`management-plans.${permission}`)
+    || (permission === 'view' && permissions.has('management-plans.manage'));
+}
+
+export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, group: AdminGroup): boolean {
   if (isAdminUser(user)) return true;
+  if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
   const roles = normalizedRoles(user);
   return GROUP_ROLE_GRANTS[group].some((role) => roles.has(role.trim().toLocaleLowerCase()));
 }

@@ -96,7 +96,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(29);
+    ).toBe(28);
 
     expect(supplierItems).toEqual([
       { label: 'Proveedores', slug: 'proveedores' },
@@ -118,6 +118,14 @@ describe('admin navigation visibility', () => {
       label: 'Ubicaciones de stock',
       slug: 'existencias/ubicaciones',
     });
+  });
+
+  it('shows Planes by permission without exposing unrelated Manejo de Lotes entries', () => {
+    const navigation = visibleAdminNavigation({ roles: ['employee'], permissions: ['management-plans.view'] });
+    expect(navigation.map((group) => group.id)).toEqual(['manejo-lotes']);
+    expect(navigation[0]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
+    expect(firstVisibleAdminPath({ roles: ['employee'], permissions: ['management-plans.view'] }))
+      .toBe('/administracion/manejo-lotes/planes');
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {

@@ -41,7 +41,7 @@
       <div class="nav-items" [id]="'nav-items-' + group.id" [hidden]="!isGroupExpanded(group.id)">
         @for (item of group.items; track item.slug) {
         <a [routerLink]="itemRouteCommands(group.id, item.slug)" routerLinkActive="active" ariaCurrentWhenActive="page"
-          [routerLinkActiveOptions]="{ exact: true }">
+          [routerLinkActiveOptions]="{ exact: !(group.id === 'manejo-lotes' && item.slug === 'planes') }">
           {{ item.label }}
         </a>
         }
