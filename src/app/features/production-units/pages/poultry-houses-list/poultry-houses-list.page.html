@@ -16,7 +16,55 @@
       <span>{{ isFeedList ? 'Cargando plantas de ración…' : 'Cargando galpones…' }}</span>
     </div>
   } @else if (state() === 'success') {
+    <div class="filter-area">
+      <div class="filter-row">
+        <label class="search-field">
+          <ion-icon name="search-outline" aria-hidden="true" />
+          <span class="visually-hidden">{{ isFeedList ? 'Buscar planta de ración' : 'Buscar galpón' }}</span>
+          <input #searchInput type="search" [placeholder]="isFeedList ? 'Buscar planta' : 'Buscar galpón'"
+            [value]="searchQuery()" (input)="searchQuery.set(searchInput.value)" autocomplete="off" />
+        </label>
+        <button class="filter-button" type="button" (click)="openFilters()" aria-haspopup="dialog">
+          <ion-icon name="funnel-outline" aria-hidden="true" />
+          <span>Filtros</span>
+          @if (activeFilterCount()) { <span class="filter-badge">{{ activeFilterCount() }}</span> }
+        </button>
+      </div>
+
+      @if (globalUnitId() !== null || activeFilterCount()) {
+        <div class="active-filters" aria-label="Filtros aplicados">
+          @if (globalUnitId() !== null) {
+            <span class="filter-chip global-chip" [attr.aria-label]="'UP global: ' + globalUnitName()">UP global: {{ globalUnitName() }}</span>
+          } @else if (selectedUnitId() !== null) {
+            <button class="filter-chip" type="button" (click)="selectedUnitId.set(null)" [attr.aria-label]="'Quitar filtro de ' + selectedUnitName()">
+              {{ selectedUnitName() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+          @if (selectedStatus() !== 'all') {
+            <button class="filter-chip" type="button" (click)="selectedStatus.set('all')" [attr.aria-label]="'Quitar filtro de estado ' + selectedStatusLabel()">
+              {{ selectedStatusLabel() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+          @if (!isFeedList && selectedOccupancy() !== 'all') {
+            <button class="filter-chip" type="button" (click)="selectedOccupancy.set('all')" [attr.aria-label]="'Quitar filtro de ocupación ' + selectedOccupancyLabel()">
+              {{ selectedOccupancyLabel() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+        </div>
+      }
+      @if (hasFilters()) {
+        <p class="result-count" role="status">{{ visibleHouses().length }} {{ visibleHouses().length === 1 ? 'resultado' : 'resultados' }}</p>
+      }
+    </div>
+
+    @if (!visibleHouses().length) {
+      <div class="state-panel no-results" role="status">
+        <h2>Sin resultados</h2>
+        <p>{{ isFeedList ? 'No hay plantas de ración que coincidan con la búsqueda y los filtros.' : 'No hay galpones que coincidan con la búsqueda y los filtros.' }}</p>
+      </div>
+    } @else {
     <div class="house-groups" [attr.aria-label]="isFeedList ? 'Plantas de ración' : 'Galpones'">
+      @if (activeHouses().length || !hasFilters()) {
       <section class="house-group" aria-labelledby="active-houses-title">
         <h2 id="active-houses-title">Activos <span>{{ activeHouses().length }}</span></h2>
         @if (activeHouses().length) {
@@ -31,7 +79,9 @@
           <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración activas.' : 'No hay galpones activos.' }}</p>
         }
       </section>
+      }
 
+      @if (inactiveHouses().length || !hasFilters()) {
       <section class="house-group inactive-group" aria-labelledby="inactive-houses-title">
         <h2 id="inactive-houses-title">Inactivos <span>{{ inactiveHouses().length }}</span></h2>
         @if (inactiveHouses().length) {
@@ -46,7 +96,9 @@
           <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración inactivas.' : 'No hay galpones inactivos.' }}</p>
         }
       </section>
+      }
     </div>
+    }
   } @else if (state() === 'empty') {
     <div class="state-panel">
       <h2>{{ isFeedList ? 'No hay plantas de ración' : 'No hay galpones avícolas' }}</h2>
@@ -70,4 +122,12 @@
       <ion-button (click)="retry()">Reintentar</ion-button>
     </div>
   }
+
+  <app-house-filter-sheet [isFeedList]="isFeedList" [globalUnitId]="globalUnitId()"
+    [globalUnitName]="globalUnitName()" [availableUnits]="availableUnits()"
+    [draftUnitId]="draftUnitId()" [draftStatus]="draftStatus()"
+    [draftOccupancy]="draftOccupancy()" [draftResultCount]="draftMatches().length"
+    (unitChanged)="draftUnitId.set($event)" (statusChanged)="draftStatus.set($event)"
+    (occupancyChanged)="draftOccupancy.set($event)" (clearRequested)="clearDraft()"
+    (applyRequested)="applyFilters()" />
 </section>

@@ -48,6 +48,107 @@ describe('PoultryHousesListPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Galpón Sur');
   });
 
+  it('uses the global UP without asking for it again, then allows a local UP when the global scope is all', () => {
+    const selectedId = signal<number | null>(7);
+    TestBed.overrideProvider(AdminUnitContextService, { useValue: { selectedId } });
+    const north = { id: 7, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } };
+    const south = { id: 8, name: 'Granja Sur', locality: { name: 'Libertad', department: { name: 'San José' } } };
+    listAllPoultryHouses.mockReturnValue(of([
+      { id: 1, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000, productionUnit: north },
+      { id: 2, name: 'Galpón Sur', type: 'poultry', status: 'operational', bird_capacity: 1000, productionUnit: south },
+    ]));
+
+    render();
+    expect(fixture.nativeElement.querySelector('.global-chip')?.textContent).toContain('Granja Norte');
+    expect(fixture.nativeElement.querySelector('#house-unit-filter')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+
+    selectedId.set(null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#house-unit-filter')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(2);
+
+    fixture.componentInstance.draftUnitId.set(8);
+    fixture.componentInstance.applyFilters();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.textContent).toContain('Galpón Sur');
+
+    selectedId.set(7);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Galpón Norte');
+    expect(fixture.nativeElement.textContent).not.toContain('Galpón Sur');
+    expect(fixture.componentInstance.selectedUnitId()).toBeNull();
+  });
+
+  it('names a globally selected UP even when it has no installations', () => {
+    const emptyUnit = { id: 9, name: 'Granja Vacía', locality: { name: 'Pando', department: { name: 'Canelones' } } };
+    const selectedId = signal<number | null>(9);
+    TestBed.overrideProvider(AdminUnitContextService, {
+      useValue: { selectedId, selectedUnit: signal(emptyUnit), units: signal([emptyUnit]) },
+    });
+    listAllPoultryHouses.mockReturnValue(of([{
+      id: 1, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000,
+      productionUnit: { id: 7, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } },
+    }]));
+
+    render();
+    expect(fixture.nativeElement.querySelector('.global-chip')?.textContent).toContain('Granja Vacía');
+    expect(fixture.nativeElement.querySelector('.no-results h2')?.textContent).toBe('Sin resultados');
+  });
+
+  it('searches names and locations without accents and shows a distinct no-results state', () => {
+    const unit = { id: 7, name: 'Granja El Ombú', locality: { name: 'Las Piedras', department: { name: 'Canelones' } } };
+    listAllPoultryHouses.mockReturnValue(of([
+      { id: 1, name: 'Galpón Norte', type: 'poultry', status: 'operational', bird_capacity: 1000, productionUnit: unit },
+      { id: 2, name: 'Galpón Sur', type: 'poultry', status: 'inactive', bird_capacity: 1000, productionUnit: unit },
+    ]));
+    render();
+
+    const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
+    search.value = 'ombu';
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(2);
+
+    search.value = 'norte';
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.textContent).not.toContain('Galpón Sur');
+
+    search.value = 'sin coincidencia';
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.no-results h2')?.textContent).toBe('Sin resultados');
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(0);
+  });
+
+  it('combines status and occupancy, excluding unknown occupancy from Con aves and Sin aves', () => {
+    const unit = { id: 7, name: 'Granja Norte', locality: { name: 'Pando', department: { name: 'Canelones' } } };
+    listAllPoultryHouses.mockReturnValue(of([
+      { id: 1, name: 'Con aves', type: 'poultry', status: 'operational', bird_capacity: 100, current_occupancy: 20, productionUnit: unit },
+      { id: 2, name: 'Sin aves', type: 'poultry', status: 'operational', bird_capacity: 100, current_occupancy: 0, productionUnit: unit },
+      { id: 3, name: 'Ocupación desconocida', type: 'poultry', status: 'operational', bird_capacity: 100, productionUnit: unit },
+      { id: 4, name: 'En mantenimiento', type: 'poultry', status: 'maintenance', bird_capacity: 100, current_occupancy: 0, productionUnit: unit },
+    ]));
+    render();
+
+    fixture.componentInstance.draftStatus.set('operational');
+    fixture.componentInstance.draftOccupancy.set('empty');
+    fixture.componentInstance.applyFilters();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('a.house-link')?.textContent).toContain('Sin aves');
+    expect(fixture.nativeElement.querySelector('.filter-badge')?.textContent).toBe('2');
+
+    fixture.componentInstance.draftOccupancy.set('occupied');
+    fixture.componentInstance.applyFilters();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('a.house-link')?.textContent).toContain('Con aves');
+  });
+
   it('separates operational, maintenance and out-of-service houses from inactive houses', () => {
     const productionUnit = {
       id: 7,
@@ -186,6 +287,7 @@ describe('PoultryHousesListPage', () => {
     expect(link.querySelector('.occupancy-bar')).toBeNull();
     expect(link.textContent).toContain('Granja Norte');
     expect(link.textContent).toContain('Pando, Canelones');
+    expect(fixture.nativeElement.querySelectorAll('.filter-section')).toHaveLength(2);
   });
 
   it('shows an error and retries the request when requested', () => {
