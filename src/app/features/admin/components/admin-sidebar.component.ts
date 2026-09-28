@@ -80,6 +80,6 @@ export class AdminSidebarComponent {
   }
 
   itemRouteCommands(groupId: AdminNavigationGroup['id'], slug: string): string[] {
-    return ['/administracion', groupId, ...slug.split('/')];
+    return ['/administracion', groupId, ...(slug ? slug.split('/') : [])];
   }
 }

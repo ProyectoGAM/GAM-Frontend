@@ -5,8 +5,18 @@ import {
   Router,
   Routes,
 } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { AlertController } from '@ionic/angular';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 import { AuthStore } from '../../core/auth/auth.store';
+import { ProductionUnitsService } from '../production-units/services/production-units.service';
+import { ProductionUnitCreatePage } from '../production-units/pages/production-unit-create/production-unit-create.page';
+import { ProductionUnitDetailPage } from '../production-units/pages/production-unit-detail/production-unit-detail.page';
+import { ProductionUnitEditPage } from '../production-units/pages/production-unit-edit/production-unit-edit.page';
+import { ProductionUnitsListPage } from '../production-units/pages/production-units-list/production-units-list.page';
+import { AdminUnitContextService } from './services/admin-unit-context.service';
 import { adminIndexRedirect } from './admin-index.redirect';
 import {
   activeAdminGroup,
@@ -170,7 +180,19 @@ describe('admin navigation visibility', () => {
 
     TestBed.configureTestingModule({
       imports: [AdminSidebarComponent],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        {
+          provide: AdminUnitContextService,
+          useValue: {
+            selectedId: () => null,
+            state: () => 'ready',
+            units: () => [],
+            selectedUnit: () => null,
+            select: vi.fn(),
+          },
+        },
+      ],
     });
 
     const fixture = TestBed.createComponent(AdminSidebarComponent);
@@ -209,7 +231,90 @@ describe('admin navigation visibility', () => {
       '/administracion/proveedores/productos/nuevo',
     );
 
+    expect(
+      links
+        .find((link) => link.textContent?.trim() === 'Listado')
+        ?.getAttribute('href'),
+    ).toBe('/administracion/unidades-productivas');
+
     fixture.destroy();
+  });
+
+  it('loads the production-unit list at the route root and keeps its child routes active', async () => {
+    const productionUnit = {
+      id: 7,
+      name: 'Granja Norte',
+      status: 'active' as const,
+      locality: {
+        id: 4,
+        department_id: 2,
+        name: 'San José',
+        department: { id: 2, name: 'San José' },
+      },
+    };
+    const listAll = vi.fn(() => of([productionUnit]));
+    const getById = vi.fn(() => of({ data: productionUnit }));
+    const poultryHouses = vi.fn(() => of([]));
+    const departments = vi.fn(() => of([{ id: 2, name: 'San José' }]));
+    const localities = vi.fn(() => of([productionUnit.locality]));
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: 'administracion', children: adminRoutes[0]?.children ?? [] },
+        ]),
+        {
+          provide: AuthStore,
+          useValue: {
+            whenReady: async () => undefined,
+            isAuthenticated: () => true,
+            user: () => ({ roles: ['admin'] }),
+          },
+        },
+        {
+          provide: ProductionUnitsService,
+          useValue: { listAll, getById, poultryHouses, departments, localities },
+        },
+        { provide: AlertController, useValue: { create: vi.fn() } },
+      ],
+    });
+
+    const harness = await RouterTestingHarness.create();
+    const listPage = await harness.navigateByUrl(
+      '/administracion/unidades-productivas',
+      ProductionUnitsListPage,
+    );
+    const router = TestBed.inject(Router);
+    const activeRoutes = snapshotsFrom(router.routerState.snapshot.root);
+    const listSnapshot = activeRoutes.find(
+      (snapshot) => snapshot.component === ProductionUnitsListPage,
+    );
+
+    expect(listPage).toBeInstanceOf(ProductionUnitsListPage);
+    expect(listSnapshot?.routeConfig?.path).toBe('');
+    expect(listSnapshot?.params).toEqual({});
+    expect(listSnapshot?.paramMap.get('id')).toBeNull();
+    expect(listAll).toHaveBeenCalledTimes(1);
+    expect(getById).not.toHaveBeenCalled();
+
+    const detailPage = await harness.navigateByUrl(
+      '/administracion/unidades-productivas/7',
+      ProductionUnitDetailPage,
+    );
+    expect(detailPage).toBeInstanceOf(ProductionUnitDetailPage);
+    expect(getById).toHaveBeenCalledWith(7);
+
+    const editPage = await harness.navigateByUrl(
+      '/administracion/unidades-productivas/7/editar',
+      ProductionUnitEditPage,
+    );
+    expect(editPage).toBeInstanceOf(ProductionUnitEditPage);
+
+    const createPage = await harness.navigateByUrl(
+      '/administracion/unidades-productivas/nueva',
+      ProductionUnitCreatePage,
+    );
+    expect(createPage).toBeInstanceOf(ProductionUnitCreatePage);
   });
 
   it('routes the panel entry to the first group and item the user can see', () => {
@@ -270,3 +375,7 @@ describe('admin navigation visibility', () => {
     ).toBe('/administracion/resumen');
   });
 });
+
+function snapshotsFrom(snapshot: ActivatedRouteSnapshot): ActivatedRouteSnapshot[] {
+  return [snapshot, ...snapshot.children.flatMap((child) => snapshotsFrom(child))];
+}
