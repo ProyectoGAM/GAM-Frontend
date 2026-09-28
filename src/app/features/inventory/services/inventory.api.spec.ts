@@ -6,11 +6,13 @@ import { API_CONFIG } from '../../../core/config/api.config';
 import { EggStockApi } from './egg-stock.api';
 import { InventoryApi } from './inventory.api';
 import { InventoryReferenceApi } from './inventory-reference.api';
+import { StockLocationsApi } from './stock-locations.api';
 
 describe('Inventory API contracts', () => {
   let generic: InventoryApi;
   let references: InventoryReferenceApi;
   let eggs: EggStockApi;
+  let stockLocations: StockLocationsApi;
   let http: HttpTestingController;
 
   beforeEach(() => {
@@ -24,10 +26,39 @@ describe('Inventory API contracts', () => {
     generic = TestBed.inject(InventoryApi);
     references = TestBed.inject(InventoryReferenceApi);
     eggs = TestBed.inject(EggStockApi);
+    stockLocations = TestBed.inject(StockLocationsApi);
     http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => http.verify());
+
+  it('omits below_minimum when the stock filter is inactive', () => {
+    generic.balances({ below_minimum: false, per_page: 25, page: 1 }).subscribe();
+
+    const request = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(request.request.params.has('below_minimum')).toBe(false);
+    request.flush({ data: [] });
+  });
+
+  it('encodes the active below-minimum filter as the backend boolean integer', () => {
+    generic.balances({ below_minimum: true }).subscribe();
+
+    const request = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(request.request.params.get('below_minimum')).toBe('1');
+    request.flush({ data: [] });
+  });
+
+  it('sends the active status and pagination query for stock-location options', () => {
+    stockLocations.list({ status: 'active', per_page: 100, page: 1 }).subscribe();
+
+    const request = http.expectOne('/api/v1/stock-locations?status=active&per_page=100&page=1');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      data: [],
+      links: { first: null, last: null, prev: null, next: null },
+      meta: { current_page: 1, from: null, last_page: 1, per_page: 100, to: null, total: 0 },
+    });
+  });
 
   it('sends counted quantities and the idempotency key for generic adjustments', () => {
     generic.adjustment({

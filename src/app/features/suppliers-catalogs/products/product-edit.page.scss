@@ -1,0 +1,35 @@
+.product-edit-page {
+  max-width: 760px;
+  color: var(--gam-color-text);
+
+  .back-link { display: inline-flex; min-height: 44px; align-items: center; margin-bottom: 18px; color: var(--gam-color-primary); font-weight: 700; }
+  .page-heading { margin-bottom: 22px; }
+  .eyebrow { margin: 0 0 8px; color: var(--gam-color-text-muted); font-weight: 700; }
+  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); }
+  .lead { margin: 10px 0 0; color: var(--gam-color-text-muted); }
+  .editor, .state, .feedback { padding: 22px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  .editor { display: grid; gap: 18px; }
+  .field { display: grid; gap: 7px; }
+  .field > label { color: var(--gam-color-heading); font-weight: 700; }
+  input:not([type="checkbox"]), select { box-sizing: border-box; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
+  input[readonly], select:disabled, input:disabled { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); }
+  input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--gam-color-primary); }
+  .checkbox-field { grid-template-columns: 1fr auto; align-items: center; }
+  .checkbox-field .field-help { grid-column: 1 / -1; }
+  .field-help { color: var(--gam-color-text-muted); font-size: 14px; }
+  .field-error, .feedback.error { color: var(--gam-color-danger); }
+  .readonly-summary { display: flex; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--gam-color-border); }
+  .readonly-summary span { color: var(--gam-color-text-muted); }
+  .form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 9px 16px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .button.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
+  .button:disabled { opacity: .55; cursor: not-allowed; }
+  .state { text-align: center; }
+  .feedback { margin-bottom: 14px; }
+
+  @media (max-width: 560px) {
+    .editor, .state, .feedback { padding: 16px; }
+    .form-actions { flex-direction: column; }
+    .form-actions .button { width: 100%; }
+  }
+}

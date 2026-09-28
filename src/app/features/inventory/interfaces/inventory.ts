@@ -38,6 +38,7 @@ export interface StockLocationProductionUnitSummary {
 export interface StockLocation {
   id: number;
   name: string;
+  system_managed: boolean;
   production_unit?: StockLocationProductionUnitSummary | null;
   status: StockLocationStatus;
   created_at?: string;

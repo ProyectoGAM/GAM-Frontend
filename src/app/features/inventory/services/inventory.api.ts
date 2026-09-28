@@ -21,7 +21,9 @@ export class InventoryApi {
   private readonly api = inject(ApiClient);
 
   balances(filters: InventoryBalanceFilters): Observable<PaginatedResponse<StockBalance>> {
-    return this.api.get<PaginatedResponse<StockBalance>>('inventory/balances', { params: { ...filters } });
+    return this.api.get<PaginatedResponse<StockBalance>>('inventory/balances', {
+      params: { ...filters, below_minimum: filters.below_minimum ? 1 : undefined },
+    });
   }
 
   setMinimumStock(id: number, minimum_quantity: string): Observable<ApiEnvelope<StockBalance>> {

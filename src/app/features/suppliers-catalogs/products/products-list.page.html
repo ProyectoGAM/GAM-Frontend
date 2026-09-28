@@ -1,0 +1,55 @@
+<section class="products-page">
+  <div class="page-heading">
+    <div><p class="eyebrow">Proveedores</p><h1 #productsHeading tabindex="-1">Productos</h1><p class="lead">Productos e insumos disponibles para la operación.</p></div>
+    <a class="button primary" routerLink="/administracion/proveedores/productos/nuevo">Nuevo producto</a>
+  </div>
+
+  @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando productos…</div> }
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button secondary" type="button" (click)="load()">Reintentar</button></div> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (state() === 'empty') { <div class="state card"><strong>No hay productos registrados.</strong></div> }
+  @if (state() === 'success') {
+    <div class="product-list">
+      @for (product of products(); track product.id) {
+        <article class="product-card card">
+          <div class="product-heading"><div><h2>{{ product.name }}</h2><p class="muted">Código {{ product.sku }}</p></div><span class="status">{{ statusLabel(product.status) }}</span></div>
+          <dl class="product-details">
+            <div><dt>Tipo</dt><dd>{{ kindLabel(product.kind) }}</dd></div>
+            <div><dt>Unidad base</dt><dd>{{ unitLabel(product.base_unit) }}</dd></div>
+            <div><dt>Controla stock</dt><dd>{{ stockTrackedLabel(product.stock_tracked) }}</dd></div>
+          </dl>
+          <div class="row-actions" aria-label="Acciones del producto">
+            @if (product.specialized_owner?.type === 'egg_stock') {
+              <a class="button secondary" routerLink="/administracion/inventario/existencias/huevos">Gestionado por Stock de huevos</a>
+            } @else {
+              @if (product.capabilities.editable_fields.length > 0) {
+                <a class="button secondary" [routerLink]="editPath(product)">Editar</a>
+              }
+              @if (product.capabilities.deactivate) {
+                <button class="button secondary" type="button" (click)="requestStatusChange($event, product, 'inactive')">Desactivar</button>
+              }
+              @if (product.capabilities.activate) {
+                <button class="button secondary" type="button" (click)="requestStatusChange($event, product, 'active')">Activar</button>
+              }
+            }
+          </div>
+        </article>
+      }
+    </div>
+    <div class="pagination" aria-label="Paginación de productos">
+      <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button>
+      <span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span>
+      <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button>
+    </div>
+  }
+  <app-inventory-confirmation-dialog
+    [title]="pendingStatusTarget() === 'inactive' ? 'Desactivar producto' : 'Activar producto'"
+    [message]="pendingStatusTarget() === 'inactive' ? 'El producto quedará inactivo para nuevas operaciones.' : 'El producto volverá a estar disponible para nuevas operaciones.'"
+    [confirmLabel]="pendingStatusTarget() === 'inactive' ? 'Desactivar producto' : 'Activar producto'"
+    [busy]="statusSaving()"
+    [errorMessage]="statusError()"
+    (confirmed)="changeStatus()"
+    (dismissed)="dismissStatusChange()">
+    @if (pendingStatusProduct(); as product) { <div class="confirm-summary"><p><strong>{{ product.name }}</strong></p></div> }
+  </app-inventory-confirmation-dialog>
+</section>
