@@ -1,4 +1,4 @@
-:host { display: block; min-height: 100%; color: var(--gam-color-text); }
+:host { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--gam-color-text); }
 .mobile-header { display: none; }
 .mobile-header ion-toolbar { --background: var(--gam-color-nav); --color: var(--gam-color-nav-text); }
 .mobile-header ion-button { --color: var(--gam-color-nav-text); }
@@ -14,5 +14,5 @@
 .topbar strong { color: var(--gam-color-heading); font-size: 17px; }
 .user-badge { display: flex; align-items: center; gap: 9px; color: var(--gam-color-text); font-size: 12px; }
 .user-badge span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--gam-color-heading); background: var(--gam-color-primary-soft); font-weight: 800; }
-.page-content { padding: clamp(18px, 3vw, 36px); }
-@media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px; } }
+.page-content { padding: clamp(18px, 3vw, 36px); padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+@media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px 16px calc(48px + env(safe-area-inset-bottom)); } }
