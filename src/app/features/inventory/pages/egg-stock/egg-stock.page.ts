@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
@@ -167,6 +168,13 @@ export class EggStockPage {
       this.physicalCountForm.reset({ counted_quantity: '', occurred_at: localDate(), reason: '' });
       await this.load(this.meta()?.current_page ?? 1);
     } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        const message = inventoryErrorMessage(error, 'El saldo cambió mientras registrabas el conteo. Se actualizó el saldo actual.');
+        await this.load(this.meta()?.current_page ?? 1);
+        this.mutation.set('error');
+        this.error.set(message);
+        return;
+      }
       this.mutation.set('error');
       applyInventoryValidationErrors(this.physicalCountForm, error);
       this.error.set(inventoryErrorMessage(error, 'No se pudo registrar el conteo físico. Intentá nuevamente.'));

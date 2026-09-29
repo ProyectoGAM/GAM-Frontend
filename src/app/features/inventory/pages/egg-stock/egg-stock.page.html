@@ -175,31 +175,43 @@
         @if (state() === 'loading') { <div class="state" aria-live="polite">Cargando saldo e historial…</div> }
         @if (state() === 'empty') { <div class="state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><span>El saldo puede ser cero aunque todavía no haya movimientos.</span></div> }
         @if (state() === 'success') {
-          <div class="movement-list" role="list" aria-label="Historial de movimientos">
-            @for (item of transactions(); track item.id) {
-              <article class="movement-row" role="listitem">
-                <div class="movement-primary">
-                  <div class="movement-field movement-date"><span class="movement-label">Fecha</span><time [attr.datetime]="item.occurred_at">{{ movementDate(item) }}</time></div>
-                  <div class="movement-field movement-type"><span class="movement-label">Tipo</span><strong>{{ typeLabel(item.type) }}</strong>@if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</div>
-                  <div class="movement-field movement-actor"><span class="movement-label">Actor</span><span>{{ movementActor(item) }}</span></div>
-                  <strong class="movement-quantity" [class.positive]="movementDirection(item) === 'positive'" [class.negative]="movementDirection(item) === 'negative'">{{ signedMovementQuantity(item) }}</strong>
-                </div>
-                <div class="movement-secondary">
-                  <div class="movement-field movement-reason"><span class="movement-label">Motivo</span><span>{{ item.reason }}</span></div>
-                  <div class="movement-field movement-status"><span class="movement-label">Estado</span><div class="movement-badges">
-                    <span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span>
-                    @if (isCorrected(item)) { <span class="status corrected">Corregido</span> }
-                  </div></div>
-                  <div class="movement-field movement-detail"><span class="movement-label">Detalle</span><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]">Ver detalle</a></div>
-                </div>
-              </article>
-            }
+          <div class="movement-table-wrap">
+            <table class="movement-table">
+              <caption class="sr-only">Historial de movimientos de stock de huevos</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Fecha</th>
+                  <th scope="col">Movimiento</th>
+                  <th scope="col">Actor</th>
+                  <th scope="col">Motivo</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col" class="movement-quantity-heading">Cantidad</th>
+                  <th scope="col">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of transactions(); track item.id) {
+                  <tr class="movement-row">
+                    <td class="movement-field movement-date" data-label="Fecha"><time [attr.datetime]="item.occurred_at">{{ movementDate(item) }}</time></td>
+                    <td class="movement-field movement-type" data-label="Movimiento"><strong>{{ typeLabel(item.type) }}</strong>@if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</td>
+                    <td class="movement-field movement-actor" data-label="Actor"><span>{{ movementActor(item) }}</span></td>
+                    <td class="movement-field movement-reason" data-label="Motivo"><span>{{ item.reason }}</span></td>
+                    <td class="movement-field movement-status" data-label="Estado"><div class="movement-badges">
+                      <span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span>
+                      @if (isCorrected(item)) { <span class="status corrected">Corregido</span> }
+                    </div></td>
+                    <td class="movement-field movement-quantity" data-label="Cantidad" [class.positive]="movementDirection(item) === 'positive'" [class.negative]="movementDirection(item) === 'negative'"><strong>{{ signedMovementQuantity(item) }}</strong></td>
+                    <td class="movement-field movement-detail" data-label="Acción"><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]" [attr.aria-label]="'Ver detalle del movimiento ' + movementDate(item)">Ver detalle</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
-          <div class="pagination">
+          <footer class="pagination movement-pagination" aria-label="Paginación del historial">
             <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button>
             <span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span>
             <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button>
-          </div>
+          </footer>
         }
       </section>
     </div>

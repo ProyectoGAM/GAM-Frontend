@@ -171,8 +171,14 @@ describe('EggStock active production-unit integration', () => {
 
     await fixture.whenStable();
     fixture.detectChanges();
-    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.movement-row'));
+    const root = fixture.nativeElement as HTMLElement;
+    const table = root.querySelector('table.movement-table');
+    expect(table).not.toBeNull();
+    expect(Array.from(table!.querySelectorAll('thead th')).map((header) => header.textContent?.trim())).toEqual(['Fecha', 'Movimiento', 'Actor', 'Motivo', 'Estado', 'Cantidad', 'Acción']);
+    expect(table!.querySelectorAll('thead th')).toHaveLength(7);
+    const rows = Array.from(root.querySelectorAll<HTMLElement>('.movement-row'));
     expect(rows).toHaveLength(3);
+    expect(Array.from(rows[0].querySelectorAll('td')).map((cell) => cell.dataset['label'])).toEqual(['Fecha', 'Movimiento', 'Actor', 'Motivo', 'Estado', 'Cantidad', 'Acción']);
     expect(rows[0].textContent).toContain('Juan');
     expect(rows[0].querySelector('.movement-quantity')?.textContent).toContain('+320 huevos');
     expect(rows[1].textContent).toContain('ID 12');
@@ -380,6 +386,11 @@ describe('EggStock active production-unit integration', () => {
 
   it('shows stale-balance errors and reuses the idempotency key for the same retry', async () => {
     const keys: string[] = [];
+    const refreshedTransaction = { id: 'egg-refreshed', production_unit_id: 8, type: 'physical_count' as const, quantity: 0, occurred_at: '2026-09-28T00:00:00Z', reason: 'Conteo concurrente', notes: null, status: 'recorded' as const, version: 1, reference: null, balance_before: 86, counted_quantity: 86, difference: 0 };
+    const balance = vi.fn(() => of({ data: { production_unit_id: 8, balance: 86 } }));
+    const movements = vi.fn()
+      .mockReturnValueOnce(of(emptyMovements))
+      .mockReturnValue(of({ ...emptyMovements, data: [refreshedTransaction], meta: { ...emptyMovements.meta, total: 1 } }));
     const fixture = TestBed.configureTestingModule({
       imports: [EggStockPage],
       providers: [
@@ -387,8 +398,8 @@ describe('EggStock active production-unit integration', () => {
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: ['egg-stock.adjust'] }) } },
         { provide: AdminUnitContextService, useValue: createUnitContext([productionUnit(8, 'Granja Sur')], 8) },
         { provide: EggStockApi, useValue: {
-          balance: (id: number) => of({ data: { production_unit_id: id, balance: 86 } }),
-          movements: () => of(emptyMovements),
+          balance,
+          movements,
           physicalCount: (_id: number, _body: unknown, key: string) => {
             keys.push(key);
             return throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'El saldo teórico cambió. Actualiza el saldo antes de confirmar.' } }));
@@ -402,10 +413,18 @@ describe('EggStock active production-unit integration', () => {
 
     await page.submitPhysicalCount();
     fixture.detectChanges();
+    expect(balance).toHaveBeenCalledTimes(2);
+    expect(movements).toHaveBeenCalledTimes(2);
+    expect(page.balance()).toBe(86);
+    expect(page.transactions()).toEqual([refreshedTransaction]);
+    expect(page.physicalCountForm.getRawValue()).toEqual({ counted_quantity: '90', occurred_at: '2026-09-27', reason: 'Recuento' });
     expect(page.error()).toBe('El saldo teórico cambió. Actualiza el saldo antes de confirmar.');
     await page.submitPhysicalCount();
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
+    expect(balance).toHaveBeenCalledTimes(3);
+    expect(movements).toHaveBeenCalledTimes(3);
+    expect(page.physicalCountForm.getRawValue()).toEqual({ counted_quantity: '90', occurred_at: '2026-09-27', reason: 'Recuento' });
     fixture.destroy();
   });
 
