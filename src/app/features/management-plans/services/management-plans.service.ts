@@ -8,8 +8,10 @@ import { CreatePlanTemplateRequest, ExpectedPlanTemplateVersionRequest, FlockPla
 export class ManagementPlansService {
   private readonly api = inject(ApiClient);
 
-  templates(page = 1, status?: 'active' | 'retired'): Observable<PlanPage<PlanTemplate>> {
-    return this.api.get<PlanPage<PlanTemplate>>('plantillas-manejo', { params: { page, per_page: 10, status } });
+  templates(page = 1, status?: 'active' | 'retired', hasDraft = false): Observable<PlanPage<PlanTemplate>> {
+    return this.api.get<PlanPage<PlanTemplate>>('plantillas-manejo', {
+      params: { page, per_page: 10, status, has_draft: hasDraft ? 1 : undefined },
+    });
   }
 
   template(id: string, version?: number): Observable<PlanEnvelope<PlanTemplate>> {
@@ -36,6 +38,12 @@ export class ManagementPlansService {
 
   retireTemplate(id: string, expectedVersion: number, idempotencyKey: string): Observable<PlanEnvelope<PlanTemplate>> {
     return this.api.post<PlanEnvelope<PlanTemplate>, ExpectedPlanTemplateVersionRequest>(`plantillas-manejo/${encodeURIComponent(id)}/retiro`, {
+      expected_version: expectedVersion,
+    }, { headers: { 'Idempotency-Key': idempotencyKey } });
+  }
+
+  activateTemplate(id: string, expectedVersion: number, idempotencyKey: string): Observable<PlanEnvelope<PlanTemplate>> {
+    return this.api.post<PlanEnvelope<PlanTemplate>, ExpectedPlanTemplateVersionRequest>(`plantillas-manejo/${encodeURIComponent(id)}/activacion`, {
       expected_version: expectedVersion,
     }, { headers: { 'Idempotency-Key': idempotencyKey } });
   }

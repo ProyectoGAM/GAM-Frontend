@@ -40,6 +40,21 @@ describe('ManagementPlansService', () => {
     draft.flush({ data: {} });
   });
 
+  it('filters drafts on the server before pagination', () => {
+    service.templates(2, undefined, true).subscribe();
+    const drafts = http.expectOne((request) => request.url.endsWith('/plantillas-manejo'));
+    expect(drafts.request.params.get('has_draft')).toBe('1');
+    expect(drafts.request.params.get('page')).toBe('2');
+    expect(drafts.request.params.has('status')).toBe(false);
+    drafts.flush({ data: [], meta: { current_page: 2, last_page: 2, total: 11 } });
+
+    service.templates(1, 'retired').subscribe();
+    const retired = http.expectOne((request) => request.url.endsWith('/plantillas-manejo'));
+    expect(retired.request.params.has('has_draft')).toBe(false);
+    expect(retired.request.params.get('status')).toBe('retired');
+    retired.flush({ data: [], meta: { current_page: 1, last_page: 1, total: 0 } });
+  });
+
   it('creates a draft with an idempotency key and the complete activity list', () => {
     const request = {
       name: 'Ponedora estándar', description: null, activities: [{
@@ -55,7 +70,7 @@ describe('ManagementPlansService', () => {
     create.flush({ data: {} });
   });
 
-  it('sends optimistic version and idempotency for revision, publication and retirement', () => {
+  it('sends optimistic version and idempotency for revision, publication, retirement and activation', () => {
     const id = '01J00000000000000000000000';
     const key = '00000000-0000-4000-8000-000000000002';
     const revision = { expected_version: 2, name: 'Revisada', description: null, activities: [] };
@@ -76,5 +91,11 @@ describe('ManagementPlansService', () => {
     expect(retire.request.body).toEqual({ expected_version: 3 });
     expect(retire.request.headers.get('Idempotency-Key')).toBe(key);
     retire.flush({ data: {} });
+
+    service.activateTemplate(id, 3, key).subscribe();
+    const activate = http.expectOne((item) => item.url.endsWith(`/plantillas-manejo/${id}/activacion`) && item.method === 'POST');
+    expect(activate.request.body).toEqual({ expected_version: 3 });
+    expect(activate.request.headers.get('Idempotency-Key')).toBe(key);
+    activate.flush({ data: {} });
   });
 });
