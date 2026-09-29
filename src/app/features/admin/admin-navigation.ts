@@ -104,7 +104,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
       { label: 'Planes', slug: 'planes' },
       { label: 'Vacunación', slug: 'vacunacion' },
       { label: 'Medicación', slug: 'medicacion' },
-      { label: 'Raciones', slug: 'raciones' },
+      { label: 'Recetas', slug: 'Recetas' },
     ],
   },
   {
