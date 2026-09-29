@@ -12,14 +12,24 @@
 
   @if (movement(); as item) {
     <div class="page-heading">
-      <div><p class="eyebrow">Stock de huevos</p><h1>{{ typeLabel(item.type) }}</h1><p class="lead">{{ date(item.occurred_at) }}</p></div>
+      <div><p class="eyebrow">Stock de huevos</p><h1>{{ typeLabel(item.type) }}</h1><p class="lead">{{ isPhysicalCount(item) ? countDate(item.occurred_at) : date(item.occurred_at) }}</p></div>
       <span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span>
     </div>
-    <div class="summary card">
+    @if (isPhysicalCount(item)) {
+      <div class="summary physical-count-summary card">
+        <div><span>Saldo teórico</span><strong>{{ item.balance_before === undefined ? 'No disponible' : quantity(item.balance_before) }}</strong></div>
+        <div><span>Conteo físico</span><strong>{{ item.counted_quantity === undefined ? 'No disponible' : quantity(item.counted_quantity) }}</strong></div>
+        <div><span>Diferencia</span><strong>{{ item.difference === undefined ? 'No disponible' : differenceLabel(item.difference) }}</strong></div>
+        <div><span>Motivo</span><strong>{{ item.reason }}</strong></div>
+        <div><span>Actor</span><strong>{{ actorLabel(item) }}</strong></div>
+      </div>
+    } @else {
+      <div class="summary card">
       <div><span>Cantidad</span><strong>{{ quantity(item.quantity) }}</strong></div>
       <div><span>Motivo</span><strong>{{ item.reason }}</strong></div>
       <div><span>Origen</span><strong>{{ sourceLabel(item) }}</strong></div>
-    </div>
+      </div>
+    }
 
     @if (item.revisions?.length) {
       <div class="card revisions">
@@ -35,7 +45,7 @@
       </div>
     }
 
-    @if (canAdjust() && item.status === 'recorded' && item.type !== 'collection_receipt') {
+    @if (canAdjust() && item.status === 'recorded' && item.type !== 'collection_receipt' && !isPhysicalCount(item)) {
       <section class="actions" aria-labelledby="action-heading">
         <div class="actions-heading">
           <h2 id="action-heading">Cambiar movimiento</h2>
@@ -76,6 +86,8 @@
       </section>
     } @else if (item.type === 'collection_receipt') {
       <div class="card note">Este ingreso se generó al registrar la producción. Se muestra aquí para consulta; puedes corregirlo o cancelarlo desde el registro de producción original.</div>
+    } @else if (isPhysicalCount(item)) {
+      <div class="card note">El conteo físico y su diferencia se conservan como un registro independiente. Para registrar una nueva observación del saldo, ingresa otro conteo físico.</div>
     }
   }
 </section>

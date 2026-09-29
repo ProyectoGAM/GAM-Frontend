@@ -54,7 +54,7 @@ export class EggMovementDetailPage {
 
   async correct(): Promise<void> {
     const item = this.movement();
-    if (!item || !this.canAdjust() || item.status !== 'recorded' || item.type === 'collection_receipt' || this.correctionForm.invalid || this.mutation() === 'submitting') { this.correctionForm.markAllAsTouched(); return; }
+    if (!item || !this.canAdjust() || item.status !== 'recorded' || !this.isHistoricallyEditable(item) || this.correctionForm.invalid || this.mutation() === 'submitting') { this.correctionForm.markAllAsTouched(); return; }
     this.mutation.set('submitting'); this.error.set(null); this.success.set(null); this.correctionKey ??= createIdempotencyKey();
     const value = this.correctionForm.getRawValue();
     try {
@@ -65,7 +65,7 @@ export class EggMovementDetailPage {
 
   requestCancel(event: Event): void {
     const item = this.movement();
-    if (!item || !this.canAdjust() || item.status !== 'recorded' || item.type === 'collection_receipt' || this.cancellationForm.invalid || this.mutation() === 'submitting') {
+    if (!item || !this.canAdjust() || item.status !== 'recorded' || !this.isHistoricallyEditable(item) || this.cancellationForm.invalid || this.mutation() === 'submitting') {
       this.cancellationForm.markAllAsTouched();
       return;
     }
@@ -76,7 +76,7 @@ export class EggMovementDetailPage {
 
   async cancel(): Promise<void> {
     const item = this.movement();
-    if (!item || !this.canAdjust() || item.status !== 'recorded' || item.type === 'collection_receipt' || this.cancellationForm.invalid || this.mutation() === 'submitting') {
+    if (!item || !this.canAdjust() || item.status !== 'recorded' || !this.isHistoricallyEditable(item) || this.cancellationForm.invalid || this.mutation() === 'submitting') {
       this.cancellationForm.markAllAsTouched();
       return;
     }
@@ -89,8 +89,14 @@ export class EggMovementDetailPage {
     } catch (error) { this.mutation.set('error'); this.error.set(inventoryErrorMessage(error, 'No se pudo cancelar. Recarga para ver si alguien ya modificó este movimiento.')); }
   }
   selectAction(action: 'correct' | 'cancel'): void { this.activeAction.set(action); this.error.set(null); this.success.set(null); }
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida' } satisfies Record<EggStockMovementType, string>)[type]; }
-  sourceLabel(item: EggStockTransaction): string { return item.type === 'collection_receipt' || item.reference?.type === 'egg_collection' ? 'Producción' : item.reference ? 'Otro registro' : 'Registro manual'; }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida', physical_count: 'Conteo físico' } satisfies Record<EggStockMovementType, string>)[type]; }
+  sourceLabel(item: EggStockTransaction): string { return item.type === 'physical_count' ? 'Conteo físico' : item.type === 'collection_receipt' || item.reference?.type === 'egg_collection' ? 'Producción' : item.reference ? 'Otro registro' : 'Registro manual'; }
+  isPhysicalCount(item: EggStockTransaction): boolean { return item.type === 'physical_count'; }
+  actorLabel(item: EggStockTransaction): string { return item.actor?.name ?? 'No disponible'; }
+  differenceLabel(difference: number): string {
+    if (difference === 0) return `Sin diferencia · ${this.quantity(0)}`;
+    return `${difference > 0 ? 'Sobrante' : 'Faltante'} · ${difference > 0 ? '+' : '−'}${this.quantity(Math.abs(difference))}`;
+  }
   revisionQuantities(item: EggStockRevision): string | null {
     const previous = item.before['quantity'];
     const current = item.after['quantity'];
@@ -99,5 +105,15 @@ export class EggMovementDetailPage {
   }
   statusLabel(status: EggStockStatus): string { return status === 'recorded' ? 'Registrado' : 'Cancelado'; }
   date(value: string): string { return new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
+  countDate(value: string): string {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (!match) return new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium' }).format(new Date(value));
+    return new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium' })
+      .format(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
   quantity(value: number): string { return `${formatQuantity(String(value))} huevos`; }
+
+  private isHistoricallyEditable(item: EggStockTransaction): boolean {
+    return item.type !== 'collection_receipt' && item.type !== 'physical_count';
+  }
 }

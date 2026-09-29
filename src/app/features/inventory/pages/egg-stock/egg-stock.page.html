@@ -1,86 +1,207 @@
 <section class="egg-page stock-page">
-  <a class="back" routerLink="/administracion/inventario/existencias">← Volver a existencias</a>
-  <div class="page-heading">
-    <div>
-      <p class="eyebrow">Control de huevos</p>
+  <header class="page-heading">
+    <div class="heading-copy">
+      <nav class="breadcrumb" aria-label="Ruta actual">
+        <a routerLink="/administracion/inventario/existencias">Inventario</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Stock de huevos</span>
+      </nav>
       <h1>Stock de huevos</h1>
-      <p class="lead">Consulta el saldo y los movimientos de cada unidad productiva. Los ingresos registrados desde Producción aparecen aquí automáticamente.</p>
+      <p class="lead">Consultá el saldo y registrá los movimientos de esta unidad productiva.</p>
     </div>
-  </div>
+    <div class="unit-summary" aria-live="polite">
+      <span>Unidad productiva</span>
+      <strong>{{ selectedUnitName() ?? (selectedUnit() === null ? 'Sin unidad seleccionada' : 'Cargando unidad productiva…') }}</strong>
+    </div>
+  </header>
 
-  <label class="unit-picker">
-    Unidad productiva
-    <select [value]="selectedUnit() ?? ''" (change)="chooseUnitFromEvent($event)" [disabled]="productionUnitsState() === 'loading' && productionUnits().length === 0">
-      <option value="">Seleccionar unidad productiva</option>
-      @for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
-    </select>
-  </label>
-  @if (productionUnitsState() === 'loading' && productionUnits().length === 0) { <div class="card state" aria-live="polite">Cargando unidades productivas…</div> }
-  @if (productionUnitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="loadProductionUnits()">Reintentar</button></div> }
-  @if (productionUnitsState() === 'empty') { <div class="card state">No hay unidades productivas disponibles.</div> }
-
-  @if (balance() !== null) {
-    <div class="balance-card card" [class.negative]="balance()! < 0">
-      <span>Saldo actual</span>
-      <strong>{{ quantity(balance()!) }}</strong>
-      @if (balance()! < 0) { <p>El saldo está por debajo de cero. Revisa los ingresos y salidas recientes.</p> }
+  @if (selectedUnit() === null) {
+    <div class="card state unit-empty" role="status">
+      <strong>No hay una unidad productiva seleccionada.</strong>
+      <p>Elegí una desde el menú lateral para consultar su saldo e historial.</p>
     </div>
   }
 
-  @if (canMove() && selectedUnit()) {
-    <section class="commands" aria-labelledby="command-heading">
-      <div class="commands-heading">
-        <div><h2 id="command-heading">Registrar movimiento</h2><p>Los ingresos de producción se generan automáticamente. Aquí puedes registrar un ingreso manual o una salida.</p></div>
-        <div class="operation-picker" role="group" aria-label="Tipo de movimiento">
-          <button class="button" [class.selected]="activeOperation() === 'receipt'" [attr.aria-pressed]="activeOperation() === 'receipt'" type="button" (click)="selectOperation('receipt')">Ingreso manual</button>
-          <button class="button" [class.selected]="activeOperation() === 'issue'" [attr.aria-pressed]="activeOperation() === 'issue'" type="button" (click)="selectOperation('issue')">Salida</button>
-        </div>
-      </div>
-      @if (activeOperation() === 'receipt') {
-        <form class="card command-form" [formGroup]="receiptForm" (ngSubmit)="submitReceipt()">
-          <h3>Ingreso manual</h3>
-          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
-          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
-          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
-          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
-          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar ingreso</button>
-        </form>
+  @if (selectedUnit()) {
+    <div class="balance-actions-row">
+      @if (balance() !== null) {
+        <section class="balance-card card" [class.negative]="balance()! < 0" aria-label="Huevos disponibles">
+          <span class="balance-icon"><ion-icon name="egg-outline" aria-hidden="true" /></span>
+          <div class="balance-copy">
+            <span>Huevos disponibles</span>
+            <strong>{{ quantity(balance()!) }}</strong>
+            <p>Saldo registrado en el sistema</p>
+            @if (balance()! < 0) { <small>El saldo está por debajo de cero. Revisa los ingresos y salidas recientes.</small> }
+          </div>
+        </section>
       } @else {
-        <form class="card command-form" [formGroup]="issueForm" (ngSubmit)="submitIssue()">
-          <h3>Salida de huevos</h3>
-          <label>Motivo de la salida<select formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
-          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
-          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
-          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
-          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
-          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar salida</button>
-        </form>
+        <div class="balance-card card balance-loading" aria-live="polite">Cargando saldo…</div>
       }
-    </section>
+
+      <div class="action-picker" role="group" aria-label="Acciones de stock">
+        @if (canAdjust()) {
+          <button class="button action-button" [class.primary]="activeAction() === 'count'" [class.secondary]="activeAction() !== 'count'" [class.selected]="activeAction() === 'count'" [attr.aria-pressed]="activeAction() === 'count'" type="button" (click)="selectAction('count')">
+            <ion-icon name="calculator-outline" aria-hidden="true" />
+            <span>Contar huevos</span>
+          </button>
+        }
+        @if (canMove()) {
+          <button class="button action-button" [class.primary]="activeAction() === 'receipt'" [class.secondary]="activeAction() !== 'receipt'" [class.selected]="activeAction() === 'receipt'" [attr.aria-pressed]="activeAction() === 'receipt'" type="button" (click)="selectAction('receipt')">
+            <ion-icon name="add-circle-outline" aria-hidden="true" />
+            <span>Registrar ingreso</span>
+          </button>
+          <button class="button action-button" [class.primary]="activeAction() === 'issue'" [class.secondary]="activeAction() !== 'issue'" [class.selected]="activeAction() === 'issue'" [attr.aria-pressed]="activeAction() === 'issue'" type="button" (click)="selectAction('issue')">
+            <ion-icon name="remove-circle-outline" aria-hidden="true" />
+            <span>Registrar salida</span>
+          </button>
+        }
+      </div>
+    </div>
   }
+
   @if (error(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="load()">Reintentar</button></div> }
   @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
 
   @if (selectedUnit()) {
-    <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
-      <label>Estado<select formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></label>
-      <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
-      <label>Desde<input type="date" formControlName="date_from"></label>
-      <label>Hasta<input type="date" formControlName="date_to"></label>
-      <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
-    </form>
-  }
+    <div class="work-grid">
+      @if (activeAction() === 'count' && canAdjust()) {
+        <section class="work-panel count-section card" aria-labelledby="physical-count-heading">
+          <div class="panel-heading">
+            <span class="panel-icon"><ion-icon name="calculator-outline" aria-hidden="true" /></span>
+            <div>
+              <h2 id="physical-count-heading">Contar huevos</h2>
+              <p>Ingresá lo que contaste para comparar con el saldo.</p>
+            </div>
+          </div>
+          <form class="command-form" [formGroup]="physicalCountForm" (ngSubmit)="submitPhysicalCount()">
+            <div class="count-fields">
+              <label for="physical-counted-quantity">¿Cuántos huevos contaste?
+                <input id="physical-counted-quantity" inputmode="numeric" autocomplete="off" formControlName="counted_quantity" required aria-describedby="physical-count-help" [attr.aria-invalid]="physicalCountForm.controls.counted_quantity.invalid && physicalCountForm.controls.counted_quantity.touched">
+              </label>
+              <label for="physical-count-date">Fecha
+                <input id="physical-count-date" type="date" formControlName="occurred_at" required [attr.aria-invalid]="physicalCountForm.controls.occurred_at.invalid && physicalCountForm.controls.occurred_at.touched">
+              </label>
+            </div>
+            <small id="physical-count-help" class="help-text">Usa un número entero desde cero.</small>
+            @if (physicalCountForm.controls.counted_quantity.touched && physicalCountForm.controls.counted_quantity.hasError('required')) { <small class="field-error">Ingresa la cantidad contada.</small> }
+            @if (physicalCountForm.controls.counted_quantity.touched && (physicalCountForm.controls.counted_quantity.hasError('pattern') || physicalCountForm.controls.counted_quantity.hasError('max'))) { <small class="field-error">Ingresa una cantidad entera válida de huevos.</small> }
+            @if (physicalCountForm.controls.counted_quantity.hasError('server')) { <small class="field-error">{{ physicalCountForm.controls.counted_quantity.getError('server') }}</small> }
+            @if (physicalCountForm.controls.occurred_at.touched && physicalCountForm.controls.occurred_at.invalid) { <small class="field-error">Selecciona la fecha del conteo.</small> }
+            @if (physicalCountForm.controls.occurred_at.hasError('server')) { <small class="field-error">{{ physicalCountForm.controls.occurred_at.getError('server') }}</small> }
+            <label for="physical-count-reason">Motivo del conteo
+              <textarea id="physical-count-reason" rows="2" formControlName="reason" required maxlength="500" [attr.aria-invalid]="physicalCountForm.controls.reason.invalid && physicalCountForm.controls.reason.touched"></textarea>
+            </label>
+            @if (physicalCountForm.controls.reason.touched && physicalCountForm.controls.reason.hasError('required')) { <small class="field-error">Escribe el motivo del conteo.</small> }
+            @if (physicalCountForm.controls.reason.touched && physicalCountForm.controls.reason.hasError('maxlength')) { <small class="field-error">El motivo no puede superar los 500 caracteres.</small> }
+            @if (physicalCountForm.controls.reason.hasError('server')) { <small class="field-error">{{ physicalCountForm.controls.reason.getError('server') }}</small> }
 
-  @if (state() === 'loading') { <div class="card state" aria-live="polite">Cargando saldo e historial…</div> }
-  @if (state() === 'empty') { <div class="card state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><p>El saldo puede ser cero aunque todavía no haya movimientos.</p></div> }
-  @if (state() === 'success') {
-    <div class="table-card card">
-      <table><caption class="sr-only">Movimientos de stock de huevos</caption><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-        <tbody>@for (item of transactions(); track item.id) {
-          <tr><td data-label="Fecha">{{ date(item.occurred_at) }}</td><td data-label="Tipo">{{ typeLabel(item.type) }} @if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</td><td data-label="Cantidad">{{ quantity(item.quantity) }}</td><td data-label="Motivo">{{ item.reason }}</td><td data-label="Estado"><span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span></td><td data-label="Detalle"><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]">Ver detalle</a></td></tr>
-        }</tbody>
-      </table>
+            @if (countDifference() !== null) {
+              <section class="count-preview" role="status" aria-label="Resultado del conteo">
+                <div class="count-preview-item"><span>En el sistema</span><strong>{{ quantity(balance()!) }}</strong></div>
+                <div class="count-preview-item"><span>Contados</span><strong>{{ quantity(countedQuantityValue()) }}</strong></div>
+                <div class="count-preview-difference"><span>Diferencia</span><strong>{{ signedDifference(countDifference()!) }}</strong></div>
+                <p>{{ countExplanation(countDifference()!) }}</p>
+              </section>
+            }
+            <div class="form-actions">
+              <button class="button secondary" type="button" (click)="cancelPhysicalCount()" [disabled]="mutation() === 'submitting'">Cancelar</button>
+              <button class="button primary" type="submit" [disabled]="mutation() === 'submitting' || state() === 'loading' || balance() === null || physicalCountForm.invalid || countDifference() === null">Confirmar conteo</button>
+            </div>
+          </form>
+        </section>
+      }
+
+      @if (activeAction() === 'receipt' && canMove()) {
+        <section class="work-panel commands card" aria-labelledby="receipt-heading">
+          <div class="panel-heading">
+            <span class="panel-icon"><ion-icon name="add-circle-outline" aria-hidden="true" /></span>
+            <div>
+              <h2 id="receipt-heading">Registrar ingreso</h2>
+              <p>Los ingresos de producción se generan automáticamente. Aquí puedes registrar un ingreso manual.</p>
+            </div>
+          </div>
+          <form class="command-form" [formGroup]="receiptForm" (ngSubmit)="submitReceipt()">
+            <h3>Ingreso manual</h3>
+            <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
+            <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
+            <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
+            <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
+            <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar ingreso</button>
+          </form>
+        </section>
+      }
+
+      @if (activeAction() === 'issue' && canMove()) {
+        <section class="work-panel commands card" aria-labelledby="issue-heading">
+          <div class="panel-heading">
+            <span class="panel-icon"><ion-icon name="remove-circle-outline" aria-hidden="true" /></span>
+            <div>
+              <h2 id="issue-heading">Registrar salida</h2>
+              <p>Registra una preparación de reparto o una pérdida de huevos.</p>
+            </div>
+          </div>
+          <form class="command-form" [formGroup]="issueForm" (ngSubmit)="submitIssue()">
+            <h3>Salida de huevos</h3>
+            <label>Motivo de la salida<select formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
+            <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
+            <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
+            <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
+            <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
+            <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar salida</button>
+          </form>
+        </section>
+      }
+
+      <section class="work-panel movements-panel card" aria-labelledby="movement-heading">
+        <div class="panel-heading">
+          <span class="panel-icon"><ion-icon name="time-outline" aria-hidden="true" /></span>
+          <div>
+            <h2 id="movement-heading">Últimos movimientos</h2>
+            <p>Actividades registradas anteriormente.</p>
+          </div>
+        </div>
+
+        <details class="movement-filters">
+          <summary>Filtrar movimientos</summary>
+          <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+            <label>Estado<select formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></label>
+            <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option><option value="physical_count">Conteo físico</option></select></label>
+            <label>Desde<input type="date" formControlName="date_from"></label>
+            <label>Hasta<input type="date" formControlName="date_to"></label>
+            <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
+          </form>
+        </details>
+
+        @if (state() === 'loading') { <div class="state" aria-live="polite">Cargando saldo e historial…</div> }
+        @if (state() === 'empty') { <div class="state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><span>El saldo puede ser cero aunque todavía no haya movimientos.</span></div> }
+        @if (state() === 'success') {
+          <div class="movement-list" role="list" aria-label="Historial de movimientos">
+            @for (item of transactions(); track item.id) {
+              <article class="movement-row" role="listitem">
+                <div class="movement-primary">
+                  <div class="movement-field movement-date"><span class="movement-label">Fecha</span><time [attr.datetime]="item.occurred_at">{{ movementDate(item) }}</time></div>
+                  <div class="movement-field movement-type"><span class="movement-label">Tipo</span><strong>{{ typeLabel(item.type) }}</strong>@if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</div>
+                  <div class="movement-field movement-actor"><span class="movement-label">Actor</span><span>{{ movementActor(item) }}</span></div>
+                  <strong class="movement-quantity" [class.positive]="movementDirection(item) === 'positive'" [class.negative]="movementDirection(item) === 'negative'">{{ signedMovementQuantity(item) }}</strong>
+                </div>
+                <div class="movement-secondary">
+                  <div class="movement-field movement-reason"><span class="movement-label">Motivo</span><span>{{ item.reason }}</span></div>
+                  <div class="movement-field movement-status"><span class="movement-label">Estado</span><div class="movement-badges">
+                    <span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span>
+                    @if (isCorrected(item)) { <span class="status corrected">Corregido</span> }
+                  </div></div>
+                  <div class="movement-field movement-detail"><span class="movement-label">Detalle</span><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]">Ver detalle</a></div>
+                </div>
+              </article>
+            }
+          </div>
+          <div class="pagination">
+            <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button>
+            <span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span>
+            <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button>
+          </div>
+        }
+      </section>
     </div>
-    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
   }
 </section>

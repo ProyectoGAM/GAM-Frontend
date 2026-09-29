@@ -40,10 +40,10 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     icon: 'cube-outline',
     section: 'unit',
     items: [
+      { label: 'Stock de huevos', slug: 'existencias/huevos' },
       { label: 'Existencias', slug: 'existencias' },
       { label: 'Ubicaciones de stock', slug: 'existencias/ubicaciones' },
       { label: 'Movimientos', slug: 'movimientos' },
-      { label: 'Donaciones', slug: 'donaciones' },
       { label: 'Ajustes y pérdidas', slug: 'ajustes-y-perdidas' },
     ],
   },

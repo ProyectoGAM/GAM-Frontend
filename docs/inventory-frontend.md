@@ -84,6 +84,7 @@ GET   /production-units/{productionUnit}/egg-stock
 GET   /production-units/{productionUnit}/egg-stock/movements
 POST  /production-units/{productionUnit}/egg-stock/receipts
 POST  /production-units/{productionUnit}/egg-stock/issues
+POST  /production-units/{productionUnit}/egg-stock/counts
 GET   /egg-stock/movements/{movement}
 PATCH /egg-stock/movements/{movement}
 POST  /egg-stock/movements/{movement}/cancellation
@@ -92,6 +93,8 @@ POST  /egg-stock/movements/{movement}/cancellation
 `collection_receipt` se muestra como `Ingreso por producción` y queda en solo lectura: la producción es dueña de su corrección/cancelación. Los tipos manuales se muestran como ingreso manual, preparación de reparto o pérdida.
 
 El saldo de EggStock puede ser negativo según el backend y se muestra con advertencia, sin bloquearlo. Correcciones y cancelaciones envían la `version` cargada, el motivo de corrección y un `Idempotency-Key`. Los conflictos 409 no sobrescriben el registro; se informa al usuario para recargar.
+
+El conteo físico es una operación especializada de EggStock. Envía `counted_quantity`, `expected_balance`, `reason` y `occurred_at` con `Idempotency-Key`; el saldo esperado permite al backend rechazar una vista desactualizada. El recurso de conteo devuelve `balance_before`, `counted_quantity`, la diferencia firmada `difference` (conteo menos saldo teórico) y el actor `{ id, name }`. Una diferencia positiva se presenta como sobrante y una negativa como faltante. El detalle de conteo es de solo consulta: corregir/cancelar movimientos históricos continúa siendo un flujo independiente.
 
 ## Permisos y dominios relacionados
 

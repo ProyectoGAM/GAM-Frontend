@@ -112,12 +112,22 @@ describe('admin navigation visibility', () => {
       supplierItems?.map((item) => item.label),
     ).not.toContain('Vacunas');
 
-    expect(
-      navigation.find((group) => group.id === 'inventario')?.items,
-    ).toContainEqual({
-      label: 'Ubicaciones de stock',
-      slug: 'existencias/ubicaciones',
+    const inventoryItems = navigation.find(
+      (group) => group.id === 'inventario',
+    )?.items;
+
+    expect(inventoryItems?.[0]).toEqual({
+      label: 'Stock de huevos',
+      slug: 'existencias/huevos',
     });
+    expect(inventoryItems?.map((item) => item.slug)).toEqual([
+      'existencias/huevos',
+      'existencias',
+      'existencias/ubicaciones',
+      'movimientos',
+      'ajustes-y-perdidas',
+    ]);
+    expect(inventoryItems?.map((item) => item.label)).not.toContain('Donaciones');
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {
@@ -219,6 +229,16 @@ describe('admin navigation visibility', () => {
     ).toBe(
       '/administracion/inventario/existencias/ubicaciones',
     );
+
+    expect(
+      links
+        .find((link) => link.textContent?.trim() === 'Stock de huevos')
+        ?.getAttribute('href'),
+    ).toBe('/administracion/inventario/existencias/huevos');
+
+    expect(
+      links.some((link) => link.textContent?.trim() === 'Donaciones'),
+    ).toBe(false);
 
     expect(
       links

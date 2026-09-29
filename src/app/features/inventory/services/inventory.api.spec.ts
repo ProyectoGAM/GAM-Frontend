@@ -183,6 +183,22 @@ describe('Inventory API contracts', () => {
     correctionRequest.flush({ data: {} });
   });
 
+  it('sends a physical egg count with its theoretical-balance guard and idempotency key', () => {
+    const body = { counted_quantity: 91, expected_balance: 86, reason: 'Recuento de cierre', occurred_at: '2026-09-27' };
+    eggs.physicalCount(19, body, 'egg-count-key').subscribe();
+
+    const request = http.expectOne('/api/v1/production-units/19/egg-stock/counts');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('Idempotency-Key')).toBe('egg-count-key');
+    expect(request.request.body).toEqual(body);
+    request.flush({ data: {
+      id: '01JCOUNT', production_unit_id: 19, type: 'physical_count', quantity: 5,
+      occurred_at: '2026-09-27T00:00:00Z', reason: 'Recuento de cierre', notes: null,
+      status: 'recorded', version: 1, reference: null, balance_before: 86,
+      counted_quantity: 91, difference: 5, actor: { id: 8, name: 'Ana Pérez' },
+    } });
+  });
+
   it('uses the specialized egg endpoint for cancellation', () => {
     eggs.cancel('01JTESTMOVEMENT', { version: 3, correction_reason: 'Duplicado' }, '00000000-0000-4000-8000-000000000002').subscribe();
 

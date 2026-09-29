@@ -142,4 +142,40 @@ describe('Egg movement detail', () => {
     expect(text).not.toContain('collection-secret-id');
     fixture.destroy();
   });
+
+  it('shows physical count difference, date, reason and actor without historical correction or cancellation', async () => {
+    const item: EggStockTransaction = {
+      ...movement('physical_count'),
+      quantity: 14,
+      occurred_at: '2026-09-27T10:30:00Z',
+      reason: 'Conteo de cierre',
+      balance_before: 86,
+      counted_quantity: 100,
+      difference: 14,
+      actor: { id: 12, name: 'Ana Pérez' },
+    };
+    const { fixture, correct, cancel } = await createFixture(item);
+    const page = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    const text = root.textContent ?? '';
+
+    expect(text).toContain('Conteo físico');
+    expect(text).toContain('Saldo teórico');
+    expect(text).toContain('86 huevos');
+    expect(text).toContain('100 huevos');
+    expect(text).toContain('Sobrante · +14 huevos');
+    expect(text).toContain('Conteo de cierre');
+    expect(text).toContain('Ana Pérez');
+    expect(root.querySelector('.actions')).toBeNull();
+    expect(text).toContain('se conservan como un registro independiente');
+
+    page.correctionForm.controls.correction_reason.setValue('Intentar corregir');
+    page.correctionForm.controls.quantity.setValue('5');
+    await page.correct();
+    page.cancellationForm.controls.correction_reason.setValue('Intentar cancelar');
+    await page.cancel();
+    expect(correct).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
 });

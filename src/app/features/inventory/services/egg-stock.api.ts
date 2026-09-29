@@ -9,6 +9,7 @@ import {
   EggStockCorrectionInput,
   EggStockFilters,
   EggStockIssueInput,
+  EggStockPhysicalCountInput,
   EggStockReceiptInput,
   EggStockTransaction,
   PaginatedResponse,
@@ -43,6 +44,13 @@ export class EggStockApi {
 
   issue(productionUnitId: number, body: EggStockIssueInput, idempotencyKey: string): Observable<ApiEnvelope<EggCommandResult>> {
     return this.command(`production-units/${productionUnitId}/egg-stock/issues`, body, idempotencyKey);
+  }
+
+  physicalCount(productionUnitId: number, body: EggStockPhysicalCountInput, idempotencyKey: string): Observable<ApiEnvelope<EggStockTransaction>> {
+    return this.api.post<ApiEnvelope<EggStockTransaction>, EggStockPhysicalCountInput>(
+      `production-units/${productionUnitId}/egg-stock/counts`, body,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    );
   }
 
   correct(id: string, body: EggStockCorrectionInput, idempotencyKey: string): Observable<ApiEnvelope<EggCommandResult>> {

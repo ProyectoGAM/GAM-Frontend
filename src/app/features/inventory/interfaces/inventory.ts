@@ -227,7 +227,8 @@ export type EggStockMovementType =
   | 'collection_receipt'
   | 'manual_receipt'
   | 'distribution_preparation'
-  | 'loss';
+  | 'loss'
+  | 'physical_count';
 
 export type EggStockStatus = 'recorded' | 'cancelled';
 
@@ -255,6 +256,10 @@ export interface EggStockTransaction {
   reference: { type: string; id: string } | null;
   inventory_references?: number[];
   balance?: number;
+  balance_before?: number;
+  counted_quantity?: number;
+  difference?: number;
+  actor?: { id: number; name: string } | null;
   revisions?: EggStockRevision[];
 }
 
@@ -280,6 +285,13 @@ export interface EggStockIssueInput {
   occurred_at?: string;
   reason: string;
   notes?: string;
+}
+
+export interface EggStockPhysicalCountInput {
+  counted_quantity: number;
+  expected_balance: number;
+  reason: string;
+  occurred_at: string;
 }
 
 export interface EggStockCorrectionInput {
