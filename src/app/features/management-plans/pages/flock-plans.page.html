@@ -1,0 +1,24 @@
+<main class="plans-page">
+  <p class="breadcrumb">Manejo de Lotes / Planes</p>
+  <header class="heading"><div><h1>Planes por lote</h1><p>Consultá la copia y las revisiones propias de cada lote.</p></div></header>
+  <nav class="tabs" aria-label="Vistas de planes"><a routerLink="/administracion/manejo-lotes/planes/plantillas">Plantillas</a><a routerLink="/administracion/manejo-lotes/planes/lotes" aria-current="page">Planes por lote</a></nav>
+  <section class="panel">
+    <form class="filters" (submit)="$event.preventDefault(); load()">
+      <label>Buscar lote <input type="search" placeholder="Código del lote" [value]="search()" (input)="setSearch($event)" /></label>
+      <button class="button primary" type="submit">Buscar</button>
+    </form>
+    @if (state() === 'loading') { <p class="state" role="status">Cargando lotes…</p> }
+    @else if (state() === 'forbidden') { <p class="notice">Tu permiso permite consultar planes, pero no listar lotes. Abrí un plan desde el identificador del lote.</p> }
+    @else if (state() === 'error') { <div class="feedback" role="alert">No se pudieron cargar los lotes. <button type="button" (click)="load()">Reintentar</button></div> }
+    @else if (!flocks().length) { <p class="state">No se encontraron lotes.</p> }
+    @else {
+      <div class="flock-list">
+        @for (flock of flocks(); track flock.id) {
+          <article class="flock-row"><div><h2>{{ flock.code }}</h2><p>{{ flock.entry_date ? 'Ingreso: ' + flock.entry_date : 'Fecha de ingreso no disponible' }}</p></div><a class="button outline" [routerLink]="['/administracion/manejo-lotes/planes/lotes', flock.id]">Ver plan</a></article>
+        }
+      </div>
+      <div class="pagination"><button type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><button type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+    }
+    <div class="direct-link"><label>Identificador del lote <input type="text" [value]="directId()" (input)="setDirectId($event)" placeholder="ULID del lote" /></label><a class="button soft" [class.disabled]="!directId()" [attr.aria-disabled]="!directId()" [routerLink]="directId() ? ['/administracion/manejo-lotes/planes/lotes', directId()] : null">Abrir plan</a></div>
+  </section>
+</main>

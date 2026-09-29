@@ -1,0 +1,36 @@
+<main class="plans-page">
+  <a class="back-link" routerLink="/administracion/manejo-lotes/planes/plantillas">← Volver a plantillas</a>
+  @if (state() === 'loading') { <p class="state" role="status">Cargando plantilla…</p> }
+  @else if (state() === 'error') { <div class="feedback" role="alert">No se pudo abrir esta versión. <button type="button" (click)="load()">Reintentar</button></div> }
+  @else if (template(); as item) {
+    <p class="breadcrumb">Manejo de Lotes / Planes / Plantillas</p>
+    <header class="heading"><div><h1>{{ item.name }}</h1><p>{{ item.description || 'Plantilla de manejo previsto.' }}</p></div><span class="badge" [class.retired]="item.status === 'retired'">{{ item.status === 'active' ? 'Activa' : 'Retirada' }}</span></header>
+    <section class="summary"><div><span>Vista</span><strong>{{ item.version_status === 'draft' ? 'Borrador' : 'Versión ' + (selectedVersion() ?? item.published_version) }}</strong></div><div><span>Versión actual</span><strong>{{ item.current_version }}</strong></div><div><span>Publicada</span><strong>{{ item.published_version ?? 'Sin publicar' }}</strong></div></section>
+    @if (item.published_version !== null && item.current_version > item.published_version) { <p class="notice">Hay una revisión pendiente. La vista normal muestra la versión publicada.</p> }
+    @if (canManage()) {
+      <div class="template-actions" aria-label="Acciones de plantilla">
+        @if (item.status === 'active') {
+          <a class="button outline" [routerLink]="detailPath() + '/editar'">Editar plan</a>
+          @if (item.current_version > (item.published_version ?? 0) && selectedVersion() !== item.current_version) {
+            <a class="button soft" [routerLink]="detailPath()" [queryParams]="{ version: item.current_version }">Abrir borrador v{{ item.current_version }}</a>
+          }
+          @if (canPublish()) { <button class="button primary" type="button" (click)="confirmation.set('publish')">Publicar versión {{ item.current_version }}</button> }
+          <button class="button danger-outline" type="button" (click)="confirmation.set('retire')">Eliminar plan</button>
+        } @else { <p class="retired-explanation">Esta plantilla está desactivada y no puede asignarse a nuevos lotes.</p> }
+      </div>
+      @if (confirmation(); as action) {
+        <section class="action-confirmation" aria-label="Confirmar acción">
+          <h2>{{ action === 'publish' ? 'Publicar versión ' + item.current_version : 'Desactivar plantilla' }}</h2>
+          <p>{{ action === 'publish' ? 'Los nuevos lotes podrán usar esta versión. Los planes ya asignados conservan su copia.' : 'La plantilla dejará de estar disponible para nuevas asignaciones. Los lotes existentes conservarán su plan. No se borrará físicamente.' }}</p>
+          <div class="row-actions"><button class="button outline" type="button" [disabled]="!!workingAction()" (click)="confirmation.set(null)">Cancelar</button><button class="button" [class.primary]="action === 'publish'" [class.danger]="action === 'retire'" type="button" [disabled]="!!workingAction() || !!conflictVersion()" (click)="confirmAction(action)">{{ workingAction() ? 'Guardando…' : action === 'publish' ? 'Confirmar publicación' : 'Confirmar desactivación' }}</button></div>
+        </section>
+      }
+      @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
+      @if (conflictVersion()) {
+        <section class="conflict-card" aria-label="Cambios recientes"><h2>Cambios recientes</h2><ul>@for (change of conflictChanges(); track change) { <li>{{ change }}</li> }</ul><button class="button outline" type="button" (click)="showCurrentVersion()">Revisar versión actual</button></section>
+      }
+    }
+    <div class="section-heading"><h2>Actividades previstas</h2><p>Los tiempos son relativos al ingreso del lote. Día 1 es la fecha de ingreso.</p></div>
+    <app-plan-activities [activities]="item.activities" />
+  }
+</main>

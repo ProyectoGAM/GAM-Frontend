@@ -1,4 +1,4 @@
-import { canAccessGroup, AdminGroup } from '../../core/auth/access-policy';
+import { canAccessGroup, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
 import { AuthUser } from '../../core/auth/auth.types';
 
 export interface AdminNavigationGroup {
@@ -140,11 +140,16 @@ export function adminItemPath(group: AdminNavigationGroup, slug: string): string
   return `/administracion/${group.id}${slug ? `/${slug}` : ''}`;
 }
 
-export function visibleAdminNavigation(user: Pick<AuthUser, 'roles'> | null): readonly AdminNavigationGroup[] {
-  return ADMIN_NAVIGATION.filter((group) => canAccessGroup(user, group.id));
+export function visibleAdminNavigation(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): readonly AdminNavigationGroup[] {
+  return ADMIN_NAVIGATION.filter((group) => canAccessGroup(user, group.id)).map((group) => {
+    if (group.id !== 'manejo-lotes') return group;
+    const isAdmin = user?.roles.some((role) => role.trim().toLowerCase() === 'admin');
+    const hasPlans = hasManagementPlansPermission(user, 'view');
+    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : isAdmin) };
+  });
 }
 
-export function firstVisibleAdminPath(user: Pick<AuthUser, 'roles'> | null): string | null {
+export function firstVisibleAdminPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string | null {
   const group = visibleAdminNavigation(user)[0];
   const item = group?.items[0];
   return group && item ? adminItemPath(group, item.slug) : null;

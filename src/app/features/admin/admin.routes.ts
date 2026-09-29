@@ -169,6 +169,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'planes') {
+                    return {
+                      path: 'planes',
+                      loadChildren: () => import('../management-plans/management-plans.routes').then((module) => module.managementPlansRoutes),
+                    };
+                  }
+
                   return {
                     path: item.slug,
                     data: {

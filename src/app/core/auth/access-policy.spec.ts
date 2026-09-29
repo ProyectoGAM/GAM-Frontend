@@ -1,4 +1,4 @@
-import { canAccessGroup, isAdminUser } from './access-policy';
+import { canAccessGroup, hasManagementPlansPermission, isAdminUser } from './access-policy';
 import { AuthUser } from './auth.types';
 
 const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
@@ -15,5 +15,14 @@ describe('admin access policy', () => {
     expect(isAdminUser(user(['employee']))).toBe(false);
     expect(canAccessGroup(user(['employee']), 'usuarios')).toBe(false);
     expect(canAccessGroup(null, 'reportes')).toBe(false);
+  });
+
+  it('shows only the management plans group for a reader or manager permission', () => {
+    const reader = { roles: ['employee'], permissions: ['management-plans.view'] };
+    const manager = { roles: ['employee'], permissions: ['management-plans.manage'] };
+    expect(canAccessGroup(reader, 'manejo-lotes')).toBe(true);
+    expect(canAccessGroup(reader, 'inventario')).toBe(false);
+    expect(hasManagementPlansPermission(reader, 'manage')).toBe(false);
+    expect(hasManagementPlansPermission(manager, 'view')).toBe(true);
   });
 });
