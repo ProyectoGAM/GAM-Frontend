@@ -39,4 +39,42 @@ describe('ManagementPlansService', () => {
     expect(draft.request.params.get('version')).toBe('4');
     draft.flush({ data: {} });
   });
+
+  it('creates a draft with an idempotency key and the complete activity list', () => {
+    const request = {
+      name: 'Ponedora estándar', description: null, activities: [{
+        type: 'weighing' as const, title: 'Control', timing_kind: 'day' as const,
+        start_day: 28, end_day: null, start_week: null, end_week: null, interval_days: null,
+        conditional: false, condition: null, notes: null, catalog_ref: null,
+      }],
+    };
+    service.createTemplate(request, '00000000-0000-4000-8000-000000000001').subscribe();
+    const create = http.expectOne((item) => item.url.endsWith('/plantillas-manejo') && item.method === 'POST');
+    expect(create.request.headers.get('Idempotency-Key')).toBe('00000000-0000-4000-8000-000000000001');
+    expect(create.request.body).toEqual(request);
+    create.flush({ data: {} });
+  });
+
+  it('sends optimistic version and idempotency for revision, publication and retirement', () => {
+    const id = '01J00000000000000000000000';
+    const key = '00000000-0000-4000-8000-000000000002';
+    const revision = { expected_version: 2, name: 'Revisada', description: null, activities: [] };
+    service.reviseTemplate(id, revision, key).subscribe();
+    const patch = http.expectOne((item) => item.url.endsWith(`/plantillas-manejo/${id}`) && item.method === 'PATCH');
+    expect(patch.request.body).toEqual(revision);
+    expect(patch.request.headers.get('Idempotency-Key')).toBe(key);
+    patch.flush({ data: {} });
+
+    service.publishTemplate(id, 3, key).subscribe();
+    const publish = http.expectOne((item) => item.url.endsWith(`/plantillas-manejo/${id}/publicacion`) && item.method === 'POST');
+    expect(publish.request.body).toEqual({ expected_version: 3 });
+    expect(publish.request.headers.get('Idempotency-Key')).toBe(key);
+    publish.flush({ data: {} });
+
+    service.retireTemplate(id, 3, key).subscribe();
+    const retire = http.expectOne((item) => item.url.endsWith(`/plantillas-manejo/${id}/retiro`) && item.method === 'POST');
+    expect(retire.request.body).toEqual({ expected_version: 3 });
+    expect(retire.request.headers.get('Idempotency-Key')).toBe(key);
+    retire.flush({ data: {} });
+  });
 });

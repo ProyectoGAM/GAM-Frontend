@@ -1,6 +1,6 @@
 <main class="plans-page">
   <p class="breadcrumb">Manejo de Lotes / Planes</p>
-  <header class="heading"><div><h1>Plantillas de manejo</h1><p>Planes previstos reutilizables para nuevos lotes.</p></div></header>
+  <header class="heading"><div><h1>Plantillas de manejo</h1><p>Planes previstos reutilizables para nuevos lotes.</p></div>@if (canManage()) { <a class="button primary new-template-link" routerLink="/administracion/manejo-lotes/planes/plantillas/nueva"><span aria-hidden="true">＋</span> Nueva plantilla</a> }</header>
   <nav class="tabs" aria-label="Vistas de planes"><a routerLink="/administracion/manejo-lotes/planes/plantillas" aria-current="page">Plantillas</a><a routerLink="/administracion/manejo-lotes/planes/lotes">Planes por lote</a></nav>
 
   <section class="panel">

@@ -10,3 +10,11 @@ export const managementPlansGuard: CanActivateFn = async () => {
   if (!auth.isAuthenticated()) return router.parseUrl('/auth');
   return hasManagementPlansPermission(auth.user(), 'view') ? true : router.parseUrl('/acceso-denegado');
 };
+
+export const managementPlansManageGuard: CanActivateFn = async () => {
+  const auth = inject(AuthStore);
+  const router = inject(Router);
+  await auth.whenReady();
+  if (!auth.isAuthenticated()) return router.parseUrl('/auth');
+  return hasManagementPlansPermission(auth.user(), 'manage') ? true : router.parseUrl('/acceso-denegado');
+};

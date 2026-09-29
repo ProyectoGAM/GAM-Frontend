@@ -1,4 +1,37 @@
 export type PlanTimingKind = 'day' | 'week' | 'week_range' | 'day_recurrence' | 'unscheduled';
+export type PlanActivityType = 'vaccination' | 'medication' | 'ration_change' | 'weighing' | 'manual_practice' | 'flock_movement' | 'egg_collection' | 'mortality';
+export type PlanCatalogType = Extract<PlanActivityType, 'vaccination' | 'medication' | 'ration_change'>;
+
+export interface PlanActivityInput {
+  type: PlanActivityType;
+  title: string;
+  timing_kind: PlanTimingKind;
+  start_day: number | null;
+  end_day: number | null;
+  start_week: number | null;
+  end_week: number | null;
+  interval_days: number | null;
+  conditional: boolean;
+  condition: string | null;
+  notes: string | null;
+  catalog_ref: string | number | null;
+}
+
+export interface CreatePlanTemplateRequest {
+  name: string;
+  description: string | null;
+  activities: PlanActivityInput[];
+}
+
+export interface RevisePlanTemplateRequest extends CreatePlanTemplateRequest {
+  expected_version: number;
+}
+
+export interface ExpectedPlanTemplateVersionRequest {
+  expected_version: number;
+}
+
+export interface PlanCatalogOption { value: string; label: string }
 
 export interface PlanActivity {
   id: string;
