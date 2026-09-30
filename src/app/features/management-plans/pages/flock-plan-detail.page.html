@@ -1,0 +1,23 @@
+<main class="plans-page">
+  <a class="back-link" routerLink="/administracion/manejo-lotes/planes/lotes">← Volver a lotes</a>
+  <p class="breadcrumb">Manejo de Lotes / Planes / Lote</p>
+  <header class="heading"><div><h1>Plan de manejo</h1><p>{{ flock()?.code ?? flockId }}</p></div></header>
+  @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
+  @if (state() === 'loading') { <p class="state" role="status">Cargando plan del lote…</p> }
+  @else if (state() === 'error') { <div class="feedback" role="alert">No se pudo consultar el plan. <button type="button" (click)="load()">Reintentar</button></div> }
+  @else if (state() === 'empty') {
+    <section class="empty-plan"><h2>Este lote no tiene plan de manejo</h2><p>Los lotes nuevos reciben su plan al crearlos desde Lotes. Este caso puede corresponder a un lote anterior a esa regla.</p>
+    </section>
+  }
+  @else if (plan(); as item) {
+    <section class="summary"><div><span>Ingreso del lote</span><strong>{{ item.baseline_date }}</strong></div><div><span>Plantilla de origen</span><strong>{{ item.source_template?.name_at_assignment ?? 'Sin plantilla de origen' }}</strong></div><div><span>Versión copiada</span><strong>{{ item.source_template?.version ?? '—' }}</strong></div><div><span>Revisión del lote</span><strong>{{ item.current_revision }}</strong></div></section>
+    <div class="section-heading"><h2>Actividades previstas</h2><p>Tiempos relativos al ingreso: día 1 es la fecha de ingreso y semana 1 abarca los días 1 a 7.</p></div>
+    @if (currentRevision(); as revision) { <app-plan-activities [activities]="revision.activities" /> }
+    @if (item.current_revision > 1) {
+      <div class="revisions"><button class="revision-toggle" type="button" [attr.aria-expanded]="revisionsExpanded()" (click)="showRevisions()">{{ revisionsExpanded() ? 'Ocultar revisiones anteriores' : 'Ver revisiones anteriores' }}</button>
+        @if (revisionsExpanded()) { <label>Revisión mostrada <select [value]="selectedRevision() ?? item.current_revision" (change)="selectRevision($event)"><option [value]="item.current_revision">Actual · revisión {{ item.current_revision }}</option>@for (revision of pastRevisions(); track revision.number) { <option [value]="revision.number">Revisión {{ revision.number }}{{ revision.reason ? ' · ' + revision.reason : '' }}</option> }</select></label> }
+      </div>
+    }
+    <p class="notice">Este plan describe actividades previstas. No registra realizaciones ni vencimientos.</p>
+  }
+</main>

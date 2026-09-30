@@ -125,6 +125,8 @@ Backend/business invariants remain authoritative.
 
 - SCSS
 - Ionic theme variables for global theming
+- Follow `docs/design-colors.md`: new and modified UI uses the semantic `--gam-color-*` tokens from `src/theme/variables.scss` in both light and dark themes
+- Do not hardcode product colors or define feature-local palettes; add missing semantic tokens centrally for both themes
 - feature styles close to feature components
 - avoid `!important`
 - avoid fixed page heights

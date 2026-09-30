@@ -23,6 +23,19 @@ When native integration changes:
 npx cap sync
 ```
 
+The same frontend checks can run in the pinned Docker toolchain:
+
+```bash
+docker build --target verification -t gam-frontend:verification .
+```
+
+Validate both Compose definitions without starting services:
+
+```bash
+docker compose -f compose.dev.yaml config --quiet
+docker compose config --quiet
+```
+
 ## Test priorities
 
 1. feature service behavior
@@ -74,3 +87,9 @@ Real device checks complement unit tests.
 Coverage is diagnostic.
 
 Do not create meaningless tests solely to increase percentages.
+
+## Authentication matrix
+
+Unit tests cover signal bootstrap, leading-zero PIN input and interceptor leakage boundaries. Backend PHPUnit covers personal cookie login, native/shared PIN login, five-attempt blocking and web shared sessions.
+
+Vitest/jsdom does not prove browser cookie persistence, CSRF across origins, multiple-tab races, real inactivity timing or device revocation after reload. Those require an integration browser run against the Docker Compose gateway. Android and iOS builds require their platform SDKs.

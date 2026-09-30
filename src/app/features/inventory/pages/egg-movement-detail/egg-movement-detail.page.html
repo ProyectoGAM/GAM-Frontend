@@ -1,0 +1,81 @@
+<section class="egg-detail-page stock-page">
+  <a class="back" routerLink="/administracion/inventario/existencias/huevos">← Volver al stock de huevos</a>
+  @if (state() === 'loading') { <div class="card state" aria-live="polite">Cargando movimiento…</div> }
+  @if (error(); as message) {
+    <div class="feedback error" role="alert">
+      <span>{{ message }}</span>
+      @if (state() === 'error') { <button class="button text" type="button" (click)="load()">Volver a cargar</button> }
+      @else if (mutation() === 'error') { <span class="retry-hint">Revisa el mensaje e intenta guardar el mismo cambio nuevamente.</span> }
+    </div>
+  }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+
+  @if (movement(); as item) {
+    <div class="page-heading">
+      <div><p class="eyebrow">Stock de huevos</p><h1>{{ typeLabel(item.type) }}</h1><p class="lead">{{ date(item.occurred_at) }}</p></div>
+      <span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span>
+    </div>
+    <div class="summary card">
+      <div><span>Cantidad</span><strong>{{ quantity(item.quantity) }}</strong></div>
+      <div><span>Motivo</span><strong>{{ item.reason }}</strong></div>
+      <div><span>Origen</span><strong>{{ sourceLabel(item) }}</strong></div>
+    </div>
+
+    @if (item.revisions?.length) {
+      <div class="card revisions">
+        <h2>Historial de cambios</h2>
+        @for (revision of item.revisions; track revision.id) {
+          <div class="revision">
+            <strong>{{ revision.action === 'cancel' ? 'Cancelación' : 'Corrección' }}</strong>
+            @if (revisionQuantities(revision); as quantities) { <span>Cantidad: {{ quantities }}</span> }
+            <span>Motivo: {{ revision.correction_reason }}</span>
+            <small>{{ date(revision.created_at) }}</small>
+          </div>
+        }
+      </div>
+    }
+
+    @if (canAdjust() && item.status === 'recorded' && item.type !== 'collection_receipt') {
+      <section class="actions" aria-labelledby="action-heading">
+        <div class="actions-heading">
+          <h2 id="action-heading">Cambiar movimiento</h2>
+          <div class="action-picker" role="group" aria-label="Acción sobre el movimiento">
+            <button class="button" [class.selected]="activeAction() === 'correct'" [attr.aria-pressed]="activeAction() === 'correct'" type="button" (click)="selectAction('correct')">Corregir</button>
+            <button class="button" [class.selected]="activeAction() === 'cancel'" [attr.aria-pressed]="activeAction() === 'cancel'" type="button" (click)="selectAction('cancel')">Cancelar</button>
+          </div>
+        </div>
+        @if (activeAction() === 'correct') {
+          <form class="card action-form" [formGroup]="correctionForm" (ngSubmit)="correct()">
+            <h3>Corregir movimiento</h3>
+            <div class="quantity-comparison"><span>Cantidad actual registrada</span><strong>{{ quantity(item.quantity) }}</strong></div>
+            <label>Nueva cantidad<input inputmode="numeric" formControlName="quantity" [attr.aria-invalid]="correctionForm.controls.quantity.invalid && correctionForm.controls.quantity.touched"></label>
+            <small class="help-text">La cantidad ingresada quedará como la nueva. Si la dejas vacía, se conservará la cantidad actual.</small>
+            <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
+            <label>Motivo de la corrección <span class="required">(obligatorio)</span><textarea rows="2" formControlName="correction_reason" required [attr.aria-invalid]="correctionForm.controls.correction_reason.invalid && correctionForm.controls.correction_reason.touched"></textarea></label>
+            @if (correctionForm.controls.correction_reason.touched && correctionForm.controls.correction_reason.hasError('required')) { <small class="field-error">Escribe el motivo de la corrección.</small> }
+            <label>Motivo del movimiento<input formControlName="reason"></label>
+            <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
+            <p>Si otra persona ya modificó este movimiento, tendrás que volver a cargarlo antes de guardar.</p>
+            <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Guardar corrección</button>
+          </form>
+        } @else {
+          <form class="card action-form" [formGroup]="cancellationForm" (ngSubmit)="requestCancel($event)">
+            <h3>Cancelar movimiento</h3>
+            <p>El registro original permanecerá en el historial y se marcará como cancelado. El saldo también se actualizará.</p>
+            <label>Motivo de la cancelación <span class="required">(obligatorio)</span><textarea rows="3" formControlName="correction_reason" required [attr.aria-invalid]="cancellationForm.controls.correction_reason.invalid && cancellationForm.controls.correction_reason.touched"></textarea></label>
+            @if (cancellationForm.controls.correction_reason.touched && cancellationForm.controls.correction_reason.hasError('required')) { <small class="field-error">Escribe el motivo de la cancelación.</small> }
+            <button class="button danger" type="submit" [disabled]="mutation() === 'submitting'">Continuar con la cancelación</button>
+          </form>
+          <app-inventory-confirmation-dialog title="Confirmar cancelación" message="El registro original y sus cambios permanecerán en el historial; el saldo se actualizará." confirmLabel="Confirmar cancelación" [busy]="mutation() === 'submitting'" [errorMessage]="mutation() === 'error' ? error() : null" (confirmed)="cancel()">
+            <div class="confirm-summary">
+              <p><strong>{{ typeLabel(item.type) }}</strong> · {{ quantity(item.quantity) }} · {{ date(item.occurred_at) }}</p>
+              <p><strong>Motivo de la cancelación:</strong> {{ cancellationForm.controls.correction_reason.value }}</p>
+            </div>
+          </app-inventory-confirmation-dialog>
+        }
+      </section>
+    } @else if (item.type === 'collection_receipt') {
+      <div class="card note">Este ingreso se generó al registrar la producción. Se muestra aquí para consulta; puedes corregirlo o cancelarlo desde el registro de producción original.</div>
+    }
+  }
+</section>

@@ -328,3 +328,9 @@ Small implementation details do not require ADRs.
 Prefer explicit, local, testable code over clever abstractions.
 
 The architecture exists to control coupling and support product evolution, not to maximize the number of layers.
+
+## 16. Authentication/session boundary
+
+The core authentication store exposes explicit startup, personal guest, personal authenticated, shared verification, shared selector, shared authenticated and connection error states. The interceptor only adds credentials to the configured API path.
+
+Web sessions are cookie-based with CSRF. Native personal PATs and shared-device secrets are persisted through the secure storage wrapper. Employee PATs stay in memory and the shared device marker never grants access by itself.

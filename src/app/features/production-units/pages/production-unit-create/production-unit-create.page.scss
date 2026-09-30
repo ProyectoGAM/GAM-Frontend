@@ -1,0 +1,46 @@
+:host { display: block; color: var(--gam-color-text); }
+
+.create-unit-page { width: min(100%, 760px); margin-inline: auto; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+.page-heading { margin-bottom: 22px; }
+.breadcrumb { margin: 0 0 8px; color: var(--gam-color-text-muted); font-size: 0.8125rem; }
+.breadcrumb span { padding-inline: 4px; }
+h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; }
+.intro { margin: 9px 0 0; color: var(--gam-color-text-muted); font-size: 0.9375rem; }
+
+.form-card, .state-card { margin: 0; --background: var(--gam-color-surface); border: 1px solid var(--gam-color-border); border-radius: 12px; box-shadow: none; }
+.form-card ion-card-title { color: var(--gam-color-heading); }
+.form-card ion-card-content { padding: 18px; }
+.form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.form-field { min-width: 0; }
+.control-item { min-height: 72px; border: 1px solid var(--gam-color-control-border); border-radius: 9px; --background: var(--gam-color-surface); --color: var(--gam-color-text); --border-width: 0; --inner-border-width: 0; --highlight-height: 0; --padding-start: 12px; --inner-padding-end: 12px; }
+.control-item:focus-within { border-color: var(--gam-color-focus); }
+.control-item ion-label { color: var(--gam-color-heading); font-weight: 600; }
+.control-item ion-input, .control-item ion-select { --color: var(--gam-color-text); --placeholder-color: var(--gam-color-text-muted); }
+.field-error { display: block; margin: 5px 2px 0; color: var(--gam-color-danger); font-size: 0.8125rem; }
+.field-hint { margin: 6px 2px 0; color: var(--gam-color-text-muted); font-size: 0.8125rem; line-height: 1.4; }
+.locality-retry { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.locality-retry ion-button { --color: var(--gam-color-primary); margin: 0; }
+.geo-warning { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid var(--gam-color-warning); border-radius: 8px; background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
+.geo-warning ion-icon { flex: 0 0 auto; margin-top: 1px; font-size: 1.125rem; }
+.geo-warning p { margin: 0; font-size: 0.8125rem; line-height: 1.45; }
+.form-actions { display: flex; flex-direction: column-reverse; gap: 10px; margin-top: 22px; }
+.form-actions ion-button { min-height: 44px; --border-radius: 8px; }
+.submit-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); }
+.cancel-button { --color: var(--gam-color-primary); --border-color: var(--gam-color-primary); }
+.submit-error { display: block; margin-top: 14px; color: var(--gam-color-danger); }
+.state-card ion-card-title { color: var(--gam-color-heading); }
+.state-card ion-card-content p { color: var(--gam-color-text-muted); line-height: 1.5; }
+.state-card ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); --border-radius: 8px; min-height: 44px; }
+.state-card ion-button[fill="outline"] { --background: transparent; --color: var(--gam-color-primary); --border-color: var(--gam-color-primary); }
+.success-card { border-color: var(--gam-color-success); }
+.success-card ion-card-title { color: var(--gam-color-success); }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 32px 18px; color: var(--gam-color-text); }
+.loading-state ion-spinner { color: var(--gam-color-primary); }
+
+@media (min-width: 680px) {
+  .form-card ion-card-content { padding: 28px; }
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
+  .field-wide { grid-column: 1 / -1; }
+  .form-actions { flex-direction: row; justify-content: flex-end; }
+  .form-actions ion-button { min-width: 150px; }
+}

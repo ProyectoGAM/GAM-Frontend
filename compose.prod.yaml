@@ -1,0 +1,39 @@
+name: gam-frontend-prod
+
+services:
+  web:
+    image: gam-frontend:${RELEASE_SHA:?Set RELEASE_SHA to the release commit SHA}
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24.15.0}
+    environment:
+      API_UPSTREAM: http://gateway:8080
+      NGINX_ENVSUBST_FILTER: API_UPSTREAM
+    networks:
+      backend:
+      edge:
+        aliases:
+          - gam_web
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:rw,noexec,nosuid,size=1m,uid=101,gid=101
+      - /tmp:rw,noexec,nosuid,size=16m,uid=101,gid=101
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m,uid=101,gid=101
+      - /var/run:rw,noexec,nosuid,size=1m,uid=101,gid=101
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 10s
+
+networks:
+  backend:
+    external: true
+    name: gam_prod_backend
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:?Set EDGE_NETWORK to the network used by edge_nginx}

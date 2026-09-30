@@ -1,0 +1,42 @@
+<section class="detail-page">
+  <a class="back" routerLink="/administracion/inventario/movimientos">← Volver al historial</a>
+  @if (state() === 'loading') { <div class="card state" role="status">Cargando el movimiento…</div> }
+  @if (error(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button secondary" type="button" (click)="load()">Reintentar</button></div> }
+  @if (referencesError(); as message) { <div class="feedback error" role="alert"><span>{{ message }} Los nombres no disponibles se mostrarán de forma genérica hasta que se carguen.</span><button class="button secondary" type="button" (click)="loadLocationNames()">Reintentar</button></div> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (movement(); as item) {
+    <div class="page-heading"><div><p class="eyebrow">Inventario</p><h1>{{ typeLabel(item.type) }}</h1><p class="lead">Fecha efectiva: {{ date(item.occurred_at) }}</p></div></div>
+    <div class="summary-grid">
+      <div class="card summary"><span>Motivo</span><strong>{{ item.reason || 'Sin motivo indicado' }}</strong></div>
+      <div class="card summary"><span>Proveedor</span><strong>{{ item.supplier?.name || 'No corresponde' }}</strong></div>
+      <div class="card summary"><span>Registrado</span><strong>{{ date(item.created_at) }}</strong></div>
+    </div>
+    @if (item.reverses_movement_id) { <p class="feedback">Este movimiento compensa un registro anterior. Ambos se conservan en el historial.</p> }
+    <div class="card lines"><h2>Productos y cantidades</h2><div class="line-list">
+      @for (line of item.lines ?? []; track line.id) {
+        <div class="line"><div><strong>{{ productName(line) }}</strong><small>{{ locationName(line.stock_location_id) }} · {{ unit(line.unit) }}</small></div><b [class.negative]="line.physical_delta.startsWith('-')">{{ delta(line.physical_delta, line.unit) }}</b></div>
+      } @empty { <p class="muted">No hay líneas de productos disponibles para este movimiento.</p> }
+    </div></div>
+    @if (canReverse()) {
+      <div class="card reversal">
+      <h2>Revertir este movimiento</h2>
+      <p>La reversión no borra ni modifica el registro original. Agrega otro movimiento que compensa sus cantidades y deja ambos en el historial.</p>
+      <form [formGroup]="reverseForm" (ngSubmit)="requestReverse($event)">
+        <label for="reversal-reason">Motivo de la reversión <span aria-hidden="true">*</span><textarea id="reversal-reason" rows="3" maxlength="255" required formControlName="reason" [attr.aria-describedby]="reverseForm.controls.reason.invalid && reverseForm.controls.reason.touched ? 'reversal-reason-help reversal-reason-error' : 'reversal-reason-help'"></textarea></label>
+        <small id="reversal-reason-help">Explica por qué es necesario corregir este movimiento.</small>
+        @if (reverseForm.controls.reason.invalid && reverseForm.controls.reason.touched) { <p class="field-error" id="reversal-reason-error" role="alert">Escribe un motivo de hasta 255 caracteres.</p> }
+        <button class="button danger" type="submit" [disabled]="mutation() === 'submitting'">Continuar con la reversión</button>
+      </form>
+    </div>
+    <app-inventory-confirmation-dialog title="Confirmar reversión" message="Se registrará un movimiento compensatorio y el original permanecerá en el historial." confirmLabel="Confirmar reversión" [busy]="mutation() === 'submitting'" [errorMessage]="mutation() === 'error' ? error() : null" (confirmed)="reverse()">
+      <div class="confirm-summary">
+        <p><strong>{{ typeLabel(item.type) }}</strong> · {{ date(item.occurred_at) }}</p>
+        <ul>
+          @for (line of item.lines ?? []; track line.id) { <li>{{ productName(line) }} · {{ locationName(line.stock_location_id) }} · {{ delta(line.physical_delta, line.unit) }}</li> }
+        </ul>
+        <p><strong>Motivo indicado:</strong> {{ reverseForm.controls.reason.value }}</p>
+      </div>
+    </app-inventory-confirmation-dialog>
+    }
+  }
+</section>

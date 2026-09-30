@@ -1,0 +1,91 @@
+<section class="form-page">
+  <a class="back" routerLink="/administracion/inventario/existencias">← Volver a existencias</a>
+  <div class="page-heading"><p class="eyebrow">Inventario</p><h1>Registrar movimiento</h1><p class="lead">Elige una operación y completa sus datos.</p></div>
+
+  @if (!canMove() && !canAdjust()) {
+    <div class="state card" role="status">Tu usuario no tiene permiso para registrar movimientos de inventario.</div>
+  } @else {
+    <nav class="operation-tabs" aria-label="Elige qué movimiento registrar">
+      @if (canMove()) {
+        <button type="button" [class.active]="operation() === 'receipt'" [attr.aria-pressed]="operation() === 'receipt'" (click)="setOperation('receipt')"><strong>Ingreso</strong><small>Productos recibidos</small></button>
+        <button type="button" [class.active]="operation() === 'issue'" [attr.aria-pressed]="operation() === 'issue'" (click)="setOperation('issue')"><strong>Salida</strong><small>Productos que salen</small></button>
+        <button type="button" [class.active]="operation() === 'transfer'" [attr.aria-pressed]="operation() === 'transfer'" (click)="setOperation('transfer')"><strong>Transferencia</strong><small>Mover entre ubicaciones</small></button>
+      }
+      @if (canAdjust()) {
+        <button type="button" [class.active]="operation() === 'loss'" [attr.aria-pressed]="operation() === 'loss'" (click)="setOperation('loss')"><strong>Pérdida</strong><small>Producto perdido o dañado</small></button>
+        <button type="button" [class.active]="operation() === 'adjustment'" [attr.aria-pressed]="operation() === 'adjustment'" (click)="setOperation('adjustment')"><strong>Ajuste por conteo</strong><small>Corregir tras contar</small></button>
+      }
+    </nav>
+
+    @if (referencesState() === 'loading') { <div class="state card" role="status">Cargando productos y ubicaciones…</div> }
+    @if (referencesError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button secondary" type="button" (click)="loadReferences()">Reintentar</button></div> }
+    @if (referencesState() === 'empty') { <div class="state card">No hay productos con seguimiento de inventario o ubicaciones disponibles. Pide a una persona administradora que revise la configuración.</div> }
+
+    @if (error(); as message) { <div class="feedback error" role="alert">{{ message }}</div> }
+    @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+    @if (operation() === 'receipt' && referencesState() === 'success' && !options()?.suppliers?.length) { <p class="feedback">No hay proveedores disponibles para registrar un ingreso.</p> }
+
+    @if (referencesState() === 'success') {
+      <form class="card movement-form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-intro"><h2>{{ operationLabel() }}</h2><p>{{ operationDescription() }}</p></div>
+        @if (operation() === 'receipt') {
+          <label for="supplier">Proveedor <span aria-hidden="true">*</span><select id="supplier" formControlName="supplier_id" required [attr.aria-invalid]="fieldErrorVisible(form.controls.supplier_id) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.supplier_id) ? 'supplier-error' : null"><option value="">Selecciona un proveedor</option>@for (item of options()?.suppliers ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+          @if (fieldErrorVisible(form.controls.supplier_id)) { <p class="field-error" id="supplier-error" role="alert">Selecciona el proveedor que entregó los productos.</p> }
+        }
+        <div class="field-grid">
+          <label for="occurred-at">Fecha efectiva<input id="occurred-at" type="date" formControlName="occurred_at"></label>
+          <label for="reason">Motivo @if (operation() === 'loss' || operation() === 'adjustment') { <span aria-hidden="true">*</span> }<input id="reason" formControlName="reason" maxlength="255" [required]="operation() === 'loss' || operation() === 'adjustment'" [attr.aria-invalid]="fieldErrorVisible(form.controls.reason) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.reason) ? 'reason-error' : null"></label>
+          @if (fieldErrorVisible(form.controls.reason)) { <p class="field-error" id="reason-error" role="alert">Escribe un motivo de hasta 255 caracteres.</p> }
+        </div>
+        <div class="lines-heading"><h2>Productos</h2><button class="button secondary" type="button" (click)="addLine()" [disabled]="lines.length >= 100">Agregar otro producto</button></div>
+        <div class="lines" formArrayName="lines">
+          @for (line of lines.controls; track line; let index = $index) {
+            <fieldset class="line" [formGroupName]="index"><legend>Producto {{ index + 1 }}</legend>
+              @if (operation() === 'adjustment') {
+                <div>
+                  <label for="product-{{ index }}">Producto<app-searchable-select formControlName="product_id" [options]="options()?.products ?? []" inputId="product-{{ index }}" placeholder="Selecciona un producto" [required]="true" [invalid]="fieldErrorVisible(line.controls.product_id)" [describedBy]="fieldErrorVisible(line.controls.product_id) ? 'product-error-' + index : null" /></label>
+                  @if (fieldErrorVisible(line.controls.product_id)) { <p class="field-error" id="product-error-{{ index }}" role="alert">Selecciona un producto.</p> }
+                </div>
+                <div>
+                  <label for="location-{{ index }}">Ubicación<app-searchable-select formControlName="stock_location_id" [options]="options()?.stock_locations ?? []" inputId="location-{{ index }}" placeholder="Selecciona una ubicación" [required]="true" [invalid]="fieldErrorVisible(line.controls.stock_location_id)" [describedBy]="fieldErrorVisible(line.controls.stock_location_id) ? 'location-error-' + index : null" /></label>
+                  @if (fieldErrorVisible(line.controls.stock_location_id)) { <p class="field-error" id="location-error-{{ index }}" role="alert">Selecciona la ubicación.</p> }
+                </div>
+                <div>
+                  <label for="counted-{{ index }}">Cantidad contada @if (selectedUnitFor(line); as unit) { <small>({{ unit }})</small> }<input id="counted-{{ index }}" [attr.inputmode]="quantityInputModeFor(line)" formControlName="counted_quantity" [placeholder]="isDiscreteUnitFor(line) ? '0' : '0,000000'" required [attr.aria-invalid]="fieldErrorVisible(line.controls.counted_quantity) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(line.controls.counted_quantity) ? 'counted-error-' + index : null"></label>
+                  @if (fieldErrorVisible(line.controls.counted_quantity)) { <p class="field-error" id="counted-error-{{ index }}" role="alert">{{ isDiscreteUnitFor(line) ? 'Ingresa una cantidad entera.' : 'Ingresa una cantidad válida, con hasta 6 decimales.' }}</p> }
+                </div>
+                <section class="adjustment-summary" aria-labelledby="adjustment-summary-heading-{{ index }}">
+                  <div class="lines-heading"><h2 id="adjustment-summary-heading-{{ index }}">Resumen del ajuste</h2></div>
+                  @if (balanceStateFor(line).status === 'loading') { <p class="muted" role="status" aria-live="polite">Consultando el saldo actual…</p> }
+                    @else if (balanceStateFor(line).status === 'ready') {
+                      <div class="field-grid" role="status" aria-live="polite">
+                        <p>Stock registrado actualmente: <strong>{{ registeredQuantityFor(line) }}</strong></p>
+                        @if (differenceFor(line); as difference) { <p>Diferencia con el conteo: <strong>{{ difference }}</strong></p> }
+                        @else { <p class="muted">Ingresa una cantidad válida para ver la diferencia.</p> }
+                      </div>
+                    }
+                    @else if (balanceStateFor(line).status === 'unavailable') {
+                      <div class="feedback" role="status" aria-live="polite"><span>No se pudo consultar el saldo.</span><button class="button secondary" type="button" (click)="loadAdjustmentBalance(line)">Volver a consultar</button></div>
+                    } @else { <p class="muted" role="status" aria-live="polite">Elige producto y ubicación para consultar el saldo.</p> }
+                </section>
+              } @else {
+                <label for="product-{{ index }}">Producto<app-searchable-select formControlName="product_id" [options]="options()?.products ?? []" inputId="product-{{ index }}" placeholder="Selecciona un producto" [required]="true" [invalid]="fieldErrorVisible(line.controls.product_id)" [describedBy]="fieldErrorVisible(line.controls.product_id) ? 'product-error-' + index : null" /></label>
+                @if (fieldErrorVisible(line.controls.product_id)) { <p class="field-error" id="product-error-{{ index }}" role="alert">Selecciona un producto.</p> }
+                <label for="location-{{ index }}">@if (operation() === 'transfer') { Desde ubicación } @else { Ubicación }<app-searchable-select formControlName="stock_location_id" [options]="options()?.stock_locations ?? []" inputId="location-{{ index }}" placeholder="Selecciona una ubicación" [required]="true" [invalid]="fieldErrorVisible(line.controls.stock_location_id)" [describedBy]="fieldErrorVisible(line.controls.stock_location_id) ? 'location-error-' + index : null" /></label>
+                @if (fieldErrorVisible(line.controls.stock_location_id)) { <p class="field-error" id="location-error-{{ index }}" role="alert">Selecciona la ubicación.</p> }
+                @if (operation() === 'transfer') {
+                  <label for="destination-{{ index }}">Hacia ubicación<app-searchable-select formControlName="to_stock_location_id" [options]="options()?.stock_locations ?? []" inputId="destination-{{ index }}" placeholder="Selecciona el destino" [required]="true" [invalid]="fieldErrorVisible(line.controls.to_stock_location_id)" [describedBy]="fieldErrorVisible(line.controls.to_stock_location_id) ? 'destination-error-' + index : null" /></label>
+                  @if (fieldErrorVisible(line.controls.to_stock_location_id)) { <p class="field-error" id="destination-error-{{ index }}" role="alert">Selecciona una ubicación de destino.</p> }
+                }
+                <label for="quantity-{{ index }}">Cantidad @if (selectedUnitFor(line); as unit) { <small>({{ unit }})</small> }<input id="quantity-{{ index }}" [attr.inputmode]="quantityInputModeFor(line)" formControlName="quantity" [placeholder]="isDiscreteUnitFor(line) ? '0' : '0,000000'" required [attr.aria-invalid]="fieldErrorVisible(line.controls.quantity) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(line.controls.quantity) ? 'quantity-error-' + index : null"></label>
+                @if (fieldErrorVisible(line.controls.quantity)) { <p class="field-error" id="quantity-error-{{ index }}" role="alert">{{ isDiscreteUnitFor(line) ? 'Ingresa una cantidad entera mayor que cero.' : 'Ingresa una cantidad mayor que cero, con hasta 6 decimales.' }}</p> }
+              }
+              @if (lines.length > 1) { <button class="button text remove" type="button" (click)="removeLine(index)">Quitar producto {{ index + 1 }}</button> }
+            </fieldset>
+          }
+        </div>
+        <div class="form-footer"><p class="muted">Si aparece un error, puedes reintentar sin registrar dos veces la misma operación.</p><button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">{{ mutation() === 'submitting' ? 'Registrando…' : 'Registrar ' + operationLabel().toLowerCase() }}</button></div>
+      </form>
+    }
+  }
+</section>

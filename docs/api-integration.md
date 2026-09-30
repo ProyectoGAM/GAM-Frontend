@@ -209,3 +209,9 @@ Avoid locale-dependent parsing.
 Contracts must be explicit when unit/currency ambiguity is possible.
 
 Do not derive domain units from visual labels.
+
+## Authentication contract
+
+The configured base path is /api/v1. Browser requests use withCredentials and Laravel Sanctum CSRF; native requests use Bearer for the active PAT, X-Shared-Device-Token for the device and X-GAM-Session for the employee context. The interceptor rejects external origins for secret headers.
+
+Errors preserve the backend problem code. 401 for the employee clears only employee state when the device is still valid; SHARED_DEVICE_UNAUTHORIZED clears the device credential; 419 and 429 remain actionable errors and do not trigger indiscriminate logout.

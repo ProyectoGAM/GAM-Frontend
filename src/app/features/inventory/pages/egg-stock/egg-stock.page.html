@@ -1,0 +1,86 @@
+<section class="egg-page stock-page">
+  <a class="back" routerLink="/administracion/inventario/existencias">← Volver a existencias</a>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Control de huevos</p>
+      <h1>Stock de huevos</h1>
+      <p class="lead">Consulta el saldo y los movimientos de cada unidad productiva. Los ingresos registrados desde Producción aparecen aquí automáticamente.</p>
+    </div>
+  </div>
+
+  <label class="unit-picker">
+    Unidad productiva
+    <select [value]="selectedUnit() ?? ''" (change)="chooseUnitFromEvent($event)" [disabled]="productionUnitsState() === 'loading' && productionUnits().length === 0">
+      <option value="">Seleccionar unidad productiva</option>
+      @for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+    </select>
+  </label>
+  @if (productionUnitsState() === 'loading' && productionUnits().length === 0) { <div class="card state" aria-live="polite">Cargando unidades productivas…</div> }
+  @if (productionUnitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="loadProductionUnits()">Reintentar</button></div> }
+  @if (productionUnitsState() === 'empty') { <div class="card state">No hay unidades productivas disponibles.</div> }
+
+  @if (balance() !== null) {
+    <div class="balance-card card" [class.negative]="balance()! < 0">
+      <span>Saldo actual</span>
+      <strong>{{ quantity(balance()!) }}</strong>
+      @if (balance()! < 0) { <p>El saldo está por debajo de cero. Revisa los ingresos y salidas recientes.</p> }
+    </div>
+  }
+
+  @if (canMove() && selectedUnit()) {
+    <section class="commands" aria-labelledby="command-heading">
+      <div class="commands-heading">
+        <div><h2 id="command-heading">Registrar movimiento</h2><p>Los ingresos de producción se generan automáticamente. Aquí puedes registrar un ingreso manual o una salida.</p></div>
+        <div class="operation-picker" role="group" aria-label="Tipo de movimiento">
+          <button class="button" [class.selected]="activeOperation() === 'receipt'" [attr.aria-pressed]="activeOperation() === 'receipt'" type="button" (click)="selectOperation('receipt')">Ingreso manual</button>
+          <button class="button" [class.selected]="activeOperation() === 'issue'" [attr.aria-pressed]="activeOperation() === 'issue'" type="button" (click)="selectOperation('issue')">Salida</button>
+        </div>
+      </div>
+      @if (activeOperation() === 'receipt') {
+        <form class="card command-form" [formGroup]="receiptForm" (ngSubmit)="submitReceipt()">
+          <h3>Ingreso manual</h3>
+          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
+          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
+          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
+          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
+          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar ingreso</button>
+        </form>
+      } @else {
+        <form class="card command-form" [formGroup]="issueForm" (ngSubmit)="submitIssue()">
+          <h3>Salida de huevos</h3>
+          <label>Motivo de la salida<select formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
+          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
+          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
+          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
+          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
+          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar salida</button>
+        </form>
+      }
+    </section>
+  }
+  @if (error(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="load()">Reintentar</button></div> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+
+  @if (selectedUnit()) {
+    <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+      <label>Estado<select formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></label>
+      <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
+      <label>Desde<input type="date" formControlName="date_from"></label>
+      <label>Hasta<input type="date" formControlName="date_to"></label>
+      <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
+    </form>
+  }
+
+  @if (state() === 'loading') { <div class="card state" aria-live="polite">Cargando saldo e historial…</div> }
+  @if (state() === 'empty') { <div class="card state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><p>El saldo puede ser cero aunque todavía no haya movimientos.</p></div> }
+  @if (state() === 'success') {
+    <div class="table-card card">
+      <table><caption class="sr-only">Movimientos de stock de huevos</caption><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
+        <tbody>@for (item of transactions(); track item.id) {
+          <tr><td data-label="Fecha">{{ date(item.occurred_at) }}</td><td data-label="Tipo">{{ typeLabel(item.type) }} @if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</td><td data-label="Cantidad">{{ quantity(item.quantity) }}</td><td data-label="Motivo">{{ item.reason }}</td><td data-label="Estado"><span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span></td><td data-label="Detalle"><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]">Ver detalle</a></td></tr>
+        }</tbody>
+      </table>
+    </div>
+    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+  }
+</section>

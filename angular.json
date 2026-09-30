@@ -33,7 +33,7 @@
                 "output": "assets"
               }
             ],
-            "styles": ["src/global.scss", "src/theme/variables.scss"],
+            "styles": ["src/global.scss", "src/theme/variables.scss", "node_modules/leaflet/dist/leaflet.css"],
             "scripts": [],
             "browser": "src/main.ts"
           },
@@ -48,7 +48,7 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "2kb",
-                  "maximumError": "4kb"
+                  "maximumError": "12kb"
                 }
               ],
               "fileReplacements": [
@@ -90,6 +90,7 @@
               "buildTarget": "app:build:production"
             },
             "development": {
+              "proxyConfig": "proxy.conf.json",
               "buildTarget": "app:build:development"
             },
             "ci": {

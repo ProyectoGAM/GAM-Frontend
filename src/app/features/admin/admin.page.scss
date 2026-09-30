@@ -1,0 +1,21 @@
+.admin-shell {
+  width: min(100% - 2rem, 48rem);
+  margin: 0 auto;
+  padding: calc(1rem + var(--ion-safe-area-top)) 0 calc(2rem + var(--ion-safe-area-bottom));
+}
+
+ion-card {
+  margin-inline: 0;
+}
+
+ion-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+}
+
+.pairing-code {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-align: center;
+}

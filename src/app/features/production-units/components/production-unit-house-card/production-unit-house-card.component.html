@@ -1,0 +1,32 @@
+<ion-card class="house-card" [class.inactive-card]="house().status === 'inactive'">
+  <ion-card-content>
+    <div class="card-heading">
+      <span class="house-icon"><ion-icon [name]="presentation().iconName" aria-hidden="true" /></span>
+      <div class="heading-details">
+        <div class="title-row">
+          <span class="house-name" role="heading" [attr.aria-level]="productionUnit() ? 3 : 4">{{ house().name }}</span>
+          <span class="house-status" [attr.data-status]="house().status">{{ presentation().statusLabel }}</span>
+        </div>
+        <p class="context-label">{{ productionUnit()?.name ?? presentation().typeLabel }}</p>
+      </div>
+    </div>
+
+    @if (presentation().metricLabel) {
+      <div class="house-metrics">
+        <p class="capacity">{{ presentation().metricLabel }}</p>
+        @if (presentation().occupancyPercent !== null && presentation().occupancyLabel) {
+          <div class="occupancy-bar" role="progressbar" [attr.aria-label]="presentation().occupancyLabel" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="presentation().occupancyPercent" [attr.data-status]="house().status">
+            <span [style.width.%]="presentation().occupancyPercent"></span>
+          </div>
+        }
+      </div>
+    }
+
+    @if (presentation().locationLabel) {
+      <p class="location">
+        <ion-icon name="location-outline" aria-hidden="true" />
+        <span>{{ presentation().locationLabel }}</span>
+      </p>
+    }
+  </ion-card-content>
+</ion-card>

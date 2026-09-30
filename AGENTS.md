@@ -14,7 +14,8 @@ Before implementing a feature, read:
 4. `docs/api-integration.md`
 5. `docs/testing.md`
 6. `docs/development-workflow.md`
-7. Relevant ADRs in `docs/adr/`
+7. `docs/design-colors.md`
+8. Relevant ADRs in `docs/adr/`
 
 Architectural rules are constraints, not suggestions.
 
@@ -256,6 +257,13 @@ Authentication headers belong in an interceptor or dedicated auth infrastructure
 - Do not build desktop first and shrink it.
 - Tablet/desktop layouts may enhance composition without duplicating business flows.
 
+## Design color contract
+
+- Every new or modified interface MUST follow `docs/design-colors.md` and use the semantic `--gam-color-*` tokens defined in `src/theme/variables.scss`.
+- Define every new product color for both light and dark themes in that central file; update the specification in the same change.
+- Do not add literal colors or feature-local palettes to component SCSS/HTML. Map Ionic component color properties to GAM tokens.
+- Verify contrast and legibility in both themes. When editing legacy UI, migrate the colors in the affected area to tokens.
+
 ## 9. Native rules
 
 Pages and presentational components MUST NOT import Capacitor plugins directly.
@@ -360,3 +368,11 @@ A task is complete only when:
 - documentation/ADR is updated if architecture changed
 
 If a required validation command cannot run, report it explicitly.
+
+## Authentication and local mode
+
+- Authentication infrastructure lives in core/auth, core/guards, core/interceptors and core/native.
+- The browser uses HttpOnly cookies and CSRF; it never stores a PAT or shared-device secret in localStorage.
+- Native PAT and device credentials use the secure-storage wrapper. Preferences/localStorage only stores the non-secret mode marker.
+- personal/shared is a startup preference, not authorization evidence. The server must validate device, user, PIN session and permissions.
+- On app resume or shared-session finish, clear employee identity and return to the selector without requiring a new pairing code.

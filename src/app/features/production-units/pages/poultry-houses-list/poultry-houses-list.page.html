@@ -1,0 +1,133 @@
+<section class="houses-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Instalaciones</p>
+      <h1 id="page-title">{{ isFeedList ? 'Plantas de ración' : 'Galpones' }}</h1>
+      <p class="intro">{{ isFeedList ? 'Estado operativo y ubicación de las plantas de ración.' : 'Capacidad, ocupación y estado operativo de los galpones avícolas.' }}</p>
+    </div>
+    <a class="create-link" routerLink="/administracion/ubicaciones/nuevo-galpon" [queryParams]="{ type: isFeedList ? 'feed' : 'poultry' }">
+      {{ isFeedList ? 'Crear planta de ración' : 'Crear galpón' }}
+    </a>
+  </header>
+
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>{{ isFeedList ? 'Cargando plantas de ración…' : 'Cargando galpones…' }}</span>
+    </div>
+  } @else if (state() === 'success') {
+    <div class="filter-area">
+      <div class="filter-row">
+        <label class="search-field">
+          <ion-icon name="search-outline" aria-hidden="true" />
+          <span class="visually-hidden">{{ isFeedList ? 'Buscar planta de ración' : 'Buscar galpón' }}</span>
+          <input #searchInput type="search" [placeholder]="isFeedList ? 'Buscar planta' : 'Buscar galpón'"
+            [value]="searchQuery()" (input)="searchQuery.set(searchInput.value)" autocomplete="off" />
+        </label>
+        <button class="filter-button" type="button" (click)="openFilters()" aria-haspopup="dialog">
+          <ion-icon name="funnel-outline" aria-hidden="true" />
+          <span>Filtros</span>
+          @if (activeFilterCount()) { <span class="filter-badge">{{ activeFilterCount() }}</span> }
+        </button>
+      </div>
+
+      @if (globalUnitId() !== null || activeFilterCount()) {
+        <div class="active-filters" aria-label="Filtros aplicados">
+          @if (globalUnitId() !== null) {
+            <span class="filter-chip global-chip" [attr.aria-label]="'UP global: ' + globalUnitName()">UP global: {{ globalUnitName() }}</span>
+          } @else if (selectedUnitId() !== null) {
+            <button class="filter-chip" type="button" (click)="selectedUnitId.set(null)" [attr.aria-label]="'Quitar filtro de ' + selectedUnitName()">
+              {{ selectedUnitName() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+          @if (selectedStatus() !== 'all') {
+            <button class="filter-chip" type="button" (click)="selectedStatus.set('all')" [attr.aria-label]="'Quitar filtro de estado ' + selectedStatusLabel()">
+              {{ selectedStatusLabel() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+          @if (!isFeedList && selectedOccupancy() !== 'all') {
+            <button class="filter-chip" type="button" (click)="selectedOccupancy.set('all')" [attr.aria-label]="'Quitar filtro de ocupación ' + selectedOccupancyLabel()">
+              {{ selectedOccupancyLabel() }} <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          }
+        </div>
+      }
+      @if (hasFilters()) {
+        <p class="result-count" role="status">{{ visibleHouses().length }} {{ visibleHouses().length === 1 ? 'resultado' : 'resultados' }}</p>
+      }
+    </div>
+
+    @if (!visibleHouses().length) {
+      <div class="state-panel no-results" role="status">
+        <h2>Sin resultados</h2>
+        <p>{{ isFeedList ? 'No hay plantas de ración que coincidan con la búsqueda y los filtros.' : 'No hay galpones que coincidan con la búsqueda y los filtros.' }}</p>
+      </div>
+    } @else {
+    <div class="house-groups" [attr.aria-label]="isFeedList ? 'Plantas de ración' : 'Galpones'">
+      @if (activeHouses().length || !hasFilters()) {
+      <section class="house-group" aria-labelledby="active-houses-title">
+        <h2 id="active-houses-title">Activos <span>{{ activeHouses().length }}</span></h2>
+        @if (activeHouses().length) {
+          <div class="house-grid">
+            @for (house of activeHouses(); track house.id) {
+              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name">
+                <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración activas.' : 'No hay galpones activos.' }}</p>
+        }
+      </section>
+      }
+
+      @if (inactiveHouses().length || !hasFilters()) {
+      <section class="house-group inactive-group" aria-labelledby="inactive-houses-title">
+        <h2 id="inactive-houses-title">Inactivos <span>{{ inactiveHouses().length }}</span></h2>
+        @if (inactiveHouses().length) {
+          <div class="house-grid">
+            @for (house of inactiveHouses(); track house.id) {
+              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'">
+                <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="group-empty">{{ isFeedList ? 'No hay plantas de ración inactivas.' : 'No hay galpones inactivos.' }}</p>
+        }
+      </section>
+      }
+    </div>
+    }
+  } @else if (state() === 'empty') {
+    <div class="state-panel">
+      <h2>{{ isFeedList ? 'No hay plantas de ración' : 'No hay galpones avícolas' }}</h2>
+      <p>{{ isFeedList ? 'Todavía no se registraron plantas de ración en las unidades productivas.' : 'Todavía no se registraron galpones en las unidades productivas.' }}</p>
+    </div>
+  } @else if (state() === 'offline') {
+    <div class="state-panel" role="alert">
+      <h2>Sin conexión</h2>
+      <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else if (state() === 'forbidden') {
+    <div class="state-panel" role="alert">
+      <h2>Acceso no disponible</h2>
+      <p>{{ isFeedList ? 'No tenés permiso para consultar las plantas de ración.' : 'No tenés permiso para consultar los galpones.' }}</p>
+    </div>
+  } @else {
+    <div class="state-panel" role="alert">
+      <h2>No se pudo cargar el listado</h2>
+      <p>{{ isFeedList ? 'Ocurrió un error al consultar las plantas de ración.' : 'Ocurrió un error al consultar los galpones.' }}</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  }
+
+  <app-house-filter-sheet [isFeedList]="isFeedList" [globalUnitId]="globalUnitId()"
+    [globalUnitName]="globalUnitName()" [availableUnits]="availableUnits()"
+    [draftUnitId]="draftUnitId()" [draftStatus]="draftStatus()"
+    [draftOccupancy]="draftOccupancy()" [draftResultCount]="draftMatches().length"
+    (unitChanged)="draftUnitId.set($event)" (statusChanged)="draftStatus.set($event)"
+    (occupancyChanged)="draftOccupancy.set($event)" (clearRequested)="clearDraft()"
+    (applyRequested)="applyFilters()" />
+</section>

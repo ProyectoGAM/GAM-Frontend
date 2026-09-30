@@ -1,0 +1,39 @@
+:host { display: block; }
+.section { margin-top: 24px; }
+h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.section-heading p { margin: 5px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; }
+.stock-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 18px; margin-top: 14px; }
+.add-section { display: grid; justify-items: start; gap: 8px; margin-top: 24px; }
+.add-section h3 { margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
+.action { min-height: 44px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-primary); }
+.stock-list, .ingredient-form, .empty-card, .inline-state { border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); }
+.stock-list { display: grid; gap: 0; margin-top: 14px; overflow: hidden; }
+.stock-row { display: flex; justify-content: space-between; gap: 16px; padding: 15px 16px; }
+.stock-row + .stock-row { border-top: 1px solid var(--gam-color-border); }
+.stock-name, .stock-quantity { min-width: 0; }
+.stock-name h3, .empty-card h3 { margin: 3px 0 0; color: var(--gam-color-heading); font-size: 1rem; overflow-wrap: anywhere; }
+.stock-name > span { display: block; margin-top: 5px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+.stock-quantity { display: grid; justify-items: end; gap: 4px; color: var(--gam-color-heading); text-align: right; }
+.negative-stock { color: var(--gam-color-warning); font-size: .75rem; font-weight: 700; }
+.ingredient-form { display: grid; gap: 14px; margin: 14px 0; padding: 16px; }
+.ingredient-form ion-input, .ingredient-form ion-select { min-height: 52px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-text); --highlight-color-focused: var(--gam-color-focus); }
+.quantity-fields { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 10px; }
+.form-hint { margin: -4px 0 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.45; }
+.feedback { margin: 0 0 14px; }
+.empty-card { margin-top: 14px; padding: 18px; }
+.empty-card p { margin: 6px 0 0; color: var(--gam-color-text-muted); line-height: 1.45; }
+.inline-state { display: flex; align-items: center; gap: 10px; min-height: 76px; margin-top: 14px; padding: 16px; color: var(--gam-color-text-muted); }
+.inline-state ion-spinner { color: var(--gam-color-primary); }
+.catalog-state { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--gam-color-text-muted); }
+.catalog-state ion-spinner { color: var(--gam-color-primary); }
+.error-state { justify-content: space-between; }
+@media (max-width: 760px) {
+  .section-heading { align-items: flex-start; }
+}
+@media (max-width: 420px) {
+  .section-heading { display: grid; }
+  .stock-row { flex-direction: column; }
+  .stock-quantity { justify-items: start; text-align: left; }
+  .quantity-fields { grid-template-columns: minmax(0, 1fr) 90px; }
+}
