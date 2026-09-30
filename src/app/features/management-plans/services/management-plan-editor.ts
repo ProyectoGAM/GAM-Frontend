@@ -62,7 +62,7 @@ export function describeTemplateChanges(previous: PlanTemplate, current: PlanTem
   const changes: string[] = [];
   if (previous.current_version !== current.current_version) changes.push(`La versión actual pasó de ${previous.current_version} a ${current.current_version}.`);
   if (previous.published_version !== current.published_version) changes.push(`La versión publicada pasó de ${previous.published_version ?? 'ninguna'} a ${current.published_version ?? 'ninguna'}.`);
-  if (previous.status !== current.status) changes.push(current.status === 'retired' ? 'La plantilla fue retirada.' : 'Cambió el estado de la plantilla.');
+  if (previous.status !== current.status) changes.push(current.status === 'retired' ? 'La plantilla fue retirada.' : 'La plantilla fue activada.');
   if (previous.name !== current.name) changes.push('Cambió el nombre.');
   if (previous.description !== current.description) changes.push('Cambió la descripción.');
   if (previous.activities.length !== current.activities.length) changes.push(`Las actividades pasaron de ${previous.activities.length} a ${current.activities.length}.`);

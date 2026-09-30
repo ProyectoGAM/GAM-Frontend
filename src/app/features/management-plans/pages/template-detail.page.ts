@@ -28,8 +28,8 @@ export class TemplateDetailPage {
     return this.canManage() && item?.status === 'active' && item.version_status === 'draft'
       && (this.selectedVersion() === null || this.selectedVersion() === item.current_version);
   });
-  readonly confirmation = signal<'publish' | 'retire' | null>(null);
-  readonly workingAction = signal<'publish' | 'retire' | null>(null);
+  readonly confirmation = signal<'publish' | 'retire' | 'activate' | null>(null);
+  readonly workingAction = signal<'publish' | 'retire' | 'activate' | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly conflictChanges = signal<string[]>([]);
   readonly conflictVersion = signal<number | null>(null);
@@ -63,9 +63,10 @@ export class TemplateDetailPage {
     }
   }
 
-  async confirmAction(action: 'publish' | 'retire'): Promise<void> {
+  async confirmAction(action: 'publish' | 'retire' | 'activate'): Promise<void> {
     const item = this.template();
-    if (!item || !this.canManage() || item.status !== 'active' || this.workingAction() || this.conflictVersion()) return;
+    if (!item || !this.canManage() || this.workingAction() || this.conflictVersion()) return;
+    if (action === 'activate' ? item.status !== 'retired' : item.status !== 'active') return;
     if (action === 'publish' && !this.canPublish()) return;
     this.workingAction.set(action);
     this.actionError.set(null);
@@ -78,7 +79,9 @@ export class TemplateDetailPage {
     try {
       await firstValueFrom(action === 'publish'
         ? this.service.publishTemplate(item.id, item.current_version, idempotencyKey)
-        : this.service.retireTemplate(item.id, item.current_version, idempotencyKey));
+        : action === 'retire'
+          ? this.service.retireTemplate(item.id, item.current_version, idempotencyKey)
+          : this.service.activateTemplate(item.id, item.current_version, idempotencyKey));
       this.actionKeys.delete(keyName);
       this.confirmation.set(null);
       await this.router.navigate([], { relativeTo: this.route, queryParams: {} });
