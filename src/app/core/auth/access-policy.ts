@@ -33,6 +33,18 @@ export function isAdminUser(user: Pick<AuthUser, 'roles'> | null): boolean {
   return normalizedRoles(user).has('admin');
 }
 
+export function hasDeliveryRole(user: Pick<AuthUser, 'roles'> | null): boolean {
+  return normalizedRoles(user).has('delivery');
+}
+
+export function postLoginPath(user: Pick<AuthUser, 'roles'> | null): string {
+  const roles = normalizedRoles(user);
+
+  if (roles.has('delivery') && roles.size === 1) return '/repartidor';
+
+  return isAdminUser(user) ? '/administracion' : '/home';
+}
+
 export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, permission: 'view' | 'manage'): boolean {
   const permissions = new Set((user?.permissions ?? []).map((value) => value.trim().toLowerCase()));
   return permissions.has(`management-plans.${permission}`)

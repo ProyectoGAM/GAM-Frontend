@@ -1,4 +1,4 @@
-import { canAccessGroup, hasManagementPlansPermission, isAdminUser } from './access-policy';
+import { canAccessGroup, hasDeliveryRole, hasManagementPlansPermission, isAdminUser, postLoginPath } from './access-policy';
 import { AuthUser } from './auth.types';
 
 const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
@@ -24,5 +24,12 @@ describe('admin access policy', () => {
     expect(canAccessGroup(reader, 'inventario')).toBe(false);
     expect(hasManagementPlansPermission(reader, 'manage')).toBe(false);
     expect(hasManagementPlansPermission(manager, 'view')).toBe(true);
+  });
+
+  it('sends delivery-only users to the driver mode and preserves multi-role access', () => {
+    expect(hasDeliveryRole(user(['delivery']))).toBe(true);
+    expect(postLoginPath(user(['delivery']))).toBe('/repartidor');
+    expect(postLoginPath(user(['delivery', 'employee']))).toBe('/home');
+    expect(postLoginPath(user(['delivery', 'admin']))).toBe('/administracion');
   });
 });

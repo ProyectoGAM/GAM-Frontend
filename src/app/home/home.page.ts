@@ -14,6 +14,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthStore } from '../core/auth/auth.store';
+import { hasDeliveryRole } from '../core/auth/access-policy';
 
 @Component({
   selector: 'app-home',
@@ -35,6 +36,7 @@ import { AuthStore } from '../core/auth/auth.store';
 })
 export class HomePage {
   readonly auth = inject(AuthStore);
+  readonly hasDeliveryRole = hasDeliveryRole;
   private readonly router = inject(Router);
 
   async logout(): Promise<void> {

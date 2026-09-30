@@ -19,6 +19,9 @@
           <ion-button routerLink="/administracion" expand="block">Panel administrativo</ion-button>
           <ion-button routerLink="/gestion-accesos" fill="outline" expand="block">Gestión de usuarios y dispositivos</ion-button>
         }
+        @if (hasDeliveryRole(auth.user())) {
+          <ion-button routerLink="/repartidor" color="success" expand="block">Abrir modo repartidor</ion-button>
+        }
         <ion-button color="medium" fill="outline" expand="block" (click)="logout()">
           Cerrar sesión
         </ion-button>
