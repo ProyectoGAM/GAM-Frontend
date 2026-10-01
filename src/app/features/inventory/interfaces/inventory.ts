@@ -227,6 +227,7 @@ export type EggStockMovementType =
   | 'collection_receipt'
   | 'manual_receipt'
   | 'distribution_preparation'
+  | 'distribution_return'
   | 'loss'
   | 'physical_count';
 
@@ -281,7 +282,7 @@ export interface EggStockReceiptInput {
 
 export interface EggStockIssueInput {
   quantity: number;
-  type: 'distribution_preparation' | 'loss';
+  type: 'loss';
   occurred_at?: string;
   reason: string;
   notes?: string;

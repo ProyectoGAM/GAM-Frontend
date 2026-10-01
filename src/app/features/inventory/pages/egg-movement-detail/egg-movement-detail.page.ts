@@ -89,8 +89,8 @@ export class EggMovementDetailPage {
     } catch (error) { this.mutation.set('error'); this.error.set(inventoryErrorMessage(error, 'No se pudo cancelar. Recarga para ver si alguien ya modificó este movimiento.')); }
   }
   selectAction(action: 'correct' | 'cancel'): void { this.activeAction.set(action); this.error.set(null); this.success.set(null); }
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida', physical_count: 'Conteo físico' } satisfies Record<EggStockMovementType, string>)[type]; }
-  sourceLabel(item: EggStockTransaction): string { return item.type === 'physical_count' ? 'Conteo físico' : item.type === 'collection_receipt' || item.reference?.type === 'egg_collection' ? 'Producción' : item.reference ? 'Otro registro' : 'Registro manual'; }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', distribution_return: 'Devolución de reparto', loss: 'Pérdida', physical_count: 'Conteo físico' } satisfies Record<EggStockMovementType, string>)[type]; }
+  sourceLabel(item: EggStockTransaction): string { return item.type === 'physical_count' ? 'Conteo físico' : item.type === 'distribution_return' ? 'Reparto' : item.type === 'collection_receipt' || item.reference?.type === 'egg_collection' ? 'Producción' : item.reference ? 'Otro registro' : 'Registro manual'; }
   isPhysicalCount(item: EggStockTransaction): boolean { return item.type === 'physical_count'; }
   actorLabel(item: EggStockTransaction): string { return item.actor?.name ?? 'No disponible'; }
   differenceLabel(difference: number): string {
@@ -113,7 +113,7 @@ export class EggMovementDetailPage {
   }
   quantity(value: number): string { return `${formatQuantity(String(value))} huevos`; }
 
-  private isHistoricallyEditable(item: EggStockTransaction): boolean {
-    return item.type !== 'collection_receipt' && item.type !== 'physical_count';
+  isHistoricallyEditable(item: EggStockTransaction): boolean {
+    return item.type !== 'collection_receipt' && item.type !== 'physical_count' && item.type !== 'distribution_return';
   }
 }

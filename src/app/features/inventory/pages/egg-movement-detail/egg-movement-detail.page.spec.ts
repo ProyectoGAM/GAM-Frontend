@@ -178,4 +178,21 @@ describe('Egg movement detail', () => {
     expect(cancel).not.toHaveBeenCalled();
     fixture.destroy();
   });
+
+  it('shows delivery returns as linked read-only movements', async () => {
+    const item = {
+      ...movement('distribution_return'),
+      quantity: 18,
+      reason: 'Devolución al cierre',
+      reference: { type: 'delivery', id: 'delivery-1' },
+    };
+    const { fixture } = await createFixture(item);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Devolución de reparto');
+    expect(root.textContent).toContain('Origen');
+    expect(root.textContent).toContain('Reparto');
+    expect(root.querySelector('.actions')).toBeNull();
+    expect(root.textContent).toContain('se conserva como parte del historial de Inventario');
+    fixture.destroy();
+  });
 });

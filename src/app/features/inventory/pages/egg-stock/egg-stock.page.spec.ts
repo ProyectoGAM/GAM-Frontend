@@ -144,7 +144,9 @@ describe('EggStock active production-unit integration', () => {
     fixture.detectChanges();
     expect(root.querySelectorAll('.commands .command-form')).toHaveLength(1);
     expect(root.querySelector('.commands .command-form')?.textContent).toContain('Salida de huevos');
-    expect(root.querySelector('.commands .command-form select option[value="collection_receipt"]')).toBeNull();
+    expect(root.querySelector('.commands .command-form select')).toBeNull();
+    expect(root.querySelector('.commands')?.textContent).toContain('pérdida');
+    expect(root.querySelector('.commands')?.textContent).not.toContain('Preparación de reparto');
     expect(issueButton?.getAttribute('aria-pressed')).toBe('true');
     fixture.destroy();
   });
@@ -309,6 +311,49 @@ describe('EggStock active production-unit integration', () => {
     next.click();
     await fixture.whenStable();
     expect(requestedFilters.at(-1)).toEqual({ status: undefined, type: undefined, date_from: undefined, date_to: undefined, per_page: 25, page: 2 });
+    fixture.destroy();
+  });
+
+  it('filters and shows both physical counts and delivery returns with their correct balance signs', async () => {
+    const requestedFilters: Array<Record<string, unknown>> = [];
+    const movements = [
+      { id: 'count-1', production_unit_id: 8, type: 'physical_count' as const, quantity: 5, occurred_at: '2026-09-28T00:00:00Z', reason: 'Conteo', notes: null, status: 'recorded' as const, version: 1, reference: null, balance_before: 86, counted_quantity: 91, difference: 5 },
+      { id: 'return-1', production_unit_id: 8, type: 'distribution_return' as const, quantity: 12, occurred_at: '2026-09-29T00:00:00Z', reason: 'Devolución de reparto', notes: null, status: 'recorded' as const, version: 1, reference: { type: 'delivery', id: 'delivery-1' } },
+    ];
+    const fixture = TestBed.configureTestingModule({
+      imports: [EggStockPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: AdminUnitContextService, useValue: createUnitContext([productionUnit(8, 'Granja Sur')], 8) },
+        { provide: EggStockApi, useValue: {
+          balance: () => of({ data: { production_unit_id: 8, balance: 103 } }),
+          movements: (_id: number, filters: Record<string, unknown>) => {
+            requestedFilters.push(filters);
+            return of({ ...emptyMovements, data: movements, meta: { ...emptyMovements.meta, total: movements.length } });
+          },
+        } },
+      ],
+    }).createComponent(EggStockPage);
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.movement-filters option[value="physical_count"]')).not.toBeNull();
+    expect(root.querySelector('.movement-filters option[value="distribution_return"]')?.textContent).toContain('Devolución de reparto');
+    expect(root.textContent).toContain('Conteo físico');
+    expect(root.textContent).toContain('Devolución de reparto');
+    expect(root.querySelectorAll('.movement-row')).toHaveLength(2);
+    expect(root.querySelectorAll('.movement-quantity')[0].textContent).toContain('+5 huevos');
+    expect(root.querySelectorAll('.movement-quantity')[1].textContent).toContain('+12 huevos');
+
+    page.filters.controls.type.setValue('physical_count');
+    await page.load();
+    expect(requestedFilters.at(-1)?.['type']).toBe('physical_count');
+    page.filters.controls.type.setValue('distribution_return');
+    await page.load();
+    expect(requestedFilters.at(-1)?.['type']).toBe('distribution_return');
     fixture.destroy();
   });
 

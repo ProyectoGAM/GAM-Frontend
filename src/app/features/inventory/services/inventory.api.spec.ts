@@ -3,6 +3,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { API_CONFIG } from '../../../core/config/api.config';
+import { EggStockMovementType } from '../interfaces/inventory';
 import { EggStockApi } from './egg-stock.api';
 import { InventoryApi } from './inventory.api';
 import { InventoryReferenceApi } from './inventory-reference.api';
@@ -151,7 +152,7 @@ describe('Inventory API contracts', () => {
     } });
   });
 
-  it('preserves the egg receipt, issue, loss and correction contracts', () => {
+  it('preserves the egg receipt, loss and correction contracts', () => {
     const receipt = { quantity: 120, occurred_at: '2026-09-26T13:00:00Z', reason: 'Recogida', notes: 'Galpón 1' };
     eggs.receipt(19, receipt, 'egg-receipt-key').subscribe();
     const receiptRequest = http.expectOne('/api/v1/production-units/19/egg-stock/receipts');
@@ -159,13 +160,6 @@ describe('Inventory API contracts', () => {
     expect(receiptRequest.request.headers.get('Idempotency-Key')).toBe('egg-receipt-key');
     expect(receiptRequest.request.body).toEqual(receipt);
     receiptRequest.flush({ data: {} });
-
-    const issue = { quantity: 20, type: 'distribution_preparation' as const, reason: 'Preparación de reparto' };
-    eggs.issue(19, issue, 'egg-issue-key').subscribe();
-    const issueRequest = http.expectOne('/api/v1/production-units/19/egg-stock/issues');
-    expect(issueRequest.request.headers.get('Idempotency-Key')).toBe('egg-issue-key');
-    expect(issueRequest.request.body).toEqual(issue);
-    issueRequest.flush({ data: {} });
 
     const loss = { quantity: 3, type: 'loss' as const, reason: 'Huevos dañados' };
     eggs.issue(19, loss, 'egg-loss-key').subscribe();
@@ -197,6 +191,37 @@ describe('Inventory API contracts', () => {
       status: 'recorded', version: 1, reference: null, balance_before: 86,
       counted_quantity: 91, difference: 5, actor: { id: 8, name: 'Ana Pérez' },
     } });
+  });
+
+  it('filters Egg Stock history by distribution returns while accepting physical counts in the same contract', () => {
+    let receivedTypes: EggStockMovementType[] = [];
+    eggs.movements(19, { per_page: 25, page: 1 })
+      .subscribe((response) => { receivedTypes = response.data.map((movement) => movement.type); });
+
+    const historyRequest = http.expectOne((req) => req.url === '/api/v1/production-units/19/egg-stock/movements'
+      && !req.params.has('type'));
+    historyRequest.flush({
+      data: [
+        { id: 'count-1', production_unit_id: 19, type: 'physical_count', quantity: 5, occurred_at: '2026-09-27T00:00:00Z', reason: 'Conteo', notes: null, status: 'recorded', version: 1, reference: null, balance_before: 86, counted_quantity: 91, difference: 5 },
+        { id: 'return-1', production_unit_id: 19, type: 'distribution_return', quantity: 12, occurred_at: '2026-09-28T00:00:00Z', reason: 'Devolución', notes: null, status: 'recorded', version: 1, reference: { type: 'delivery', id: 'delivery-1' } },
+      ],
+      links: { first: null, last: null, prev: null, next: null },
+      meta: { current_page: 1, from: 1, last_page: 1, per_page: 25, to: 2, total: 2 },
+    });
+
+    expect(receivedTypes).toEqual(['physical_count', 'distribution_return']);
+
+    receivedTypes = [];
+    eggs.movements(19, { type: 'distribution_return', per_page: 25, page: 1 })
+      .subscribe((response) => { receivedTypes = response.data.map((movement) => movement.type); });
+    const filteredRequest = http.expectOne((req) => req.url === '/api/v1/production-units/19/egg-stock/movements'
+      && req.params.get('type') === 'distribution_return');
+    filteredRequest.flush({
+      data: [{ id: 'return-1', production_unit_id: 19, type: 'distribution_return', quantity: 12, occurred_at: '2026-09-28T00:00:00Z', reason: 'Devolución', notes: null, status: 'recorded', version: 1, reference: { type: 'delivery', id: 'delivery-1' } }],
+      links: { first: null, last: null, prev: null, next: null },
+      meta: { current_page: 1, from: 1, last_page: 1, per_page: 25, to: 1, total: 1 },
+    });
+    expect(receivedTypes).toEqual(['distribution_return']);
   });
 
   it('uses the specialized egg endpoint for cancellation', () => {

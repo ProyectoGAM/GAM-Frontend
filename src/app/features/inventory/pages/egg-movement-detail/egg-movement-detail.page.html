@@ -45,7 +45,7 @@
       </div>
     }
 
-    @if (canAdjust() && item.status === 'recorded' && item.type !== 'collection_receipt' && !isPhysicalCount(item)) {
+    @if (canAdjust() && item.status === 'recorded' && isHistoricallyEditable(item)) {
       <section class="actions" aria-labelledby="action-heading">
         <div class="actions-heading">
           <h2 id="action-heading">Cambiar movimiento</h2>
@@ -88,6 +88,8 @@
       <div class="card note">Este ingreso se generó al registrar la producción. Se muestra aquí para consulta; puedes corregirlo o cancelarlo desde el registro de producción original.</div>
     } @else if (isPhysicalCount(item)) {
       <div class="card note">El conteo físico y su diferencia se conservan como un registro independiente. Para registrar una nueva observación del saldo, ingresa otro conteo físico.</div>
+    } @else if (item.type === 'distribution_return') {
+      <div class="card note">Esta devolución está vinculada a un registro externo y se conserva como parte del historial de Inventario.</div>
     }
   }
 </section>

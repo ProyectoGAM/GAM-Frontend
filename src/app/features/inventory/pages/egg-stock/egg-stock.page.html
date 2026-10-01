@@ -137,12 +137,11 @@
             <span class="panel-icon"><ion-icon name="remove-circle-outline" aria-hidden="true" /></span>
             <div>
               <h2 id="issue-heading">Registrar salida</h2>
-              <p>Registra una preparación de reparto o una pérdida de huevos.</p>
+              <p>Registra una pérdida de huevos.</p>
             </div>
           </div>
           <form class="command-form" [formGroup]="issueForm" (ngSubmit)="submitIssue()">
             <h3>Salida de huevos</h3>
-            <label>Motivo de la salida<select formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
             <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
             <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
             <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
@@ -165,7 +164,7 @@
           <summary>Filtrar movimientos</summary>
           <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
             <label>Estado<select formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></label>
-            <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option><option value="physical_count">Conteo físico</option></select></label>
+            <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="distribution_return">Devolución de reparto</option><option value="loss">Pérdida</option><option value="physical_count">Conteo físico</option></select></label>
             <label>Desde<input type="date" formControlName="date_from"></label>
             <label>Hasta<input type="date" formControlName="date_to"></label>
             <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
@@ -193,7 +192,7 @@
                 @for (item of transactions(); track item.id) {
                   <tr class="movement-row">
                     <td class="movement-field movement-date" data-label="Fecha"><time [attr.datetime]="item.occurred_at">{{ movementDate(item) }}</time></td>
-                    <td class="movement-field movement-type" data-label="Movimiento"><strong>{{ typeLabel(item.type) }}</strong>@if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</td>
+                    <td class="movement-field movement-type" data-label="Movimiento"><strong>{{ typeLabel(item.type) }}</strong>@if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> } @else if (item.type === 'distribution_return') { <small>Origen: Reparto</small> }</td>
                     <td class="movement-field movement-actor" data-label="Actor"><span>{{ movementActor(item) }}</span></td>
                     <td class="movement-field movement-reason" data-label="Motivo"><span>{{ item.reason }}</span></td>
                     <td class="movement-field movement-status" data-label="Estado"><div class="movement-badges">

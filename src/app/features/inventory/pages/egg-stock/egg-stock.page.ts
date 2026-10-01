@@ -52,7 +52,7 @@ export class EggStockPage {
     return Number.isSafeInteger(counted) && counted <= 2147483647 ? counted - balance : null;
   });
   readonly receiptForm = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/)] }), occurred_at: new FormControl('', { nonNullable: true }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
-  readonly issueForm = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/)] }), type: new FormControl<'distribution_preparation' | 'loss'>('distribution_preparation', { nonNullable: true }), occurred_at: new FormControl('', { nonNullable: true }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
+  readonly issueForm = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/)] }), occurred_at: new FormControl('', { nonNullable: true }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
   readonly filters = new FormGroup({ status: new FormControl('', { nonNullable: true }), type: new FormControl('', { nonNullable: true }), date_from: new FormControl('', { nonNullable: true }), date_to: new FormControl('', { nonNullable: true }) });
   private commandKey: string | null = null;
   private commandKind: 'receipt' | 'issue' | null = null;
@@ -132,7 +132,7 @@ export class EggStockPage {
   async submitIssue(): Promise<void> {
     if (!this.selectedUnit() || this.issueForm.invalid || this.mutation() === 'submitting') { this.issueForm.markAllAsTouched(); return; }
     const value = this.issueForm.getRawValue();
-    await this.submitCommand('issue', () => this.api.issue(this.selectedUnit()!, { quantity: Number(value.quantity), type: value.type, occurred_at: value.occurred_at || undefined, reason: value.reason, notes: value.notes || undefined }, this.key('issue')));
+    await this.submitCommand('issue', () => this.api.issue(this.selectedUnit()!, { quantity: Number(value.quantity), type: 'loss', occurred_at: value.occurred_at || undefined, reason: value.reason, notes: value.notes || undefined }, this.key('issue')));
   }
 
   async submitPhysicalCount(): Promise<void> {
@@ -192,7 +192,7 @@ export class EggStockPage {
     this.error.set(null);
     this.success.set(null);
   }
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso de producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida', physical_count: 'Conteo físico' } satisfies Record<EggStockMovementType, string>)[type]; }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso de producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', distribution_return: 'Devolución de reparto', loss: 'Pérdida', physical_count: 'Conteo físico' } satisfies Record<EggStockMovementType, string>)[type]; }
   statusLabel(status: EggStockStatus): string { return status === 'recorded' ? 'Registrado' : 'Cancelado'; }
   date(value: string): string { return new Intl.DateTimeFormat('es-UY', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
   movementDate(item: EggStockTransaction): string { return item.type === 'physical_count' ? countDate(item.occurred_at) : this.date(item.occurred_at); }
@@ -226,7 +226,7 @@ export class EggStockPage {
     if (item.type === 'physical_count' && item.difference !== undefined) {
       return item.difference > 0 ? 'positive' : item.difference < 0 ? 'negative' : 'neutral';
     }
-    if (item.type === 'collection_receipt' || item.type === 'manual_receipt') return 'positive';
+    if (item.type === 'collection_receipt' || item.type === 'manual_receipt' || item.type === 'distribution_return') return 'positive';
     return 'negative';
   }
   isCorrected(item: EggStockTransaction): boolean {
@@ -248,7 +248,7 @@ export class EggStockPage {
       this.success.set(kind === 'receipt' ? 'Ingreso de huevos registrado.' : 'Movimiento de huevos registrado.');
       this.commandKey = null;
       this.commandKind = null;
-      if (kind === 'receipt') this.receiptForm.reset(); else this.issueForm.reset({ type: 'distribution_preparation', quantity: '', occurred_at: '', reason: '', notes: '' });
+      if (kind === 'receipt') this.receiptForm.reset(); else this.issueForm.reset({ quantity: '', occurred_at: '', reason: '', notes: '' });
       await this.load(this.meta()?.current_page ?? 1);
     } catch (error) {
       this.mutation.set('error');
