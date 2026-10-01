@@ -21,7 +21,7 @@ Architectural rules are constraints, not suggestions.
 
 ## 2. Current baseline
 
-- Angular 22.1.x
+- Angular 22.2.x
 - Ionic Angular 9.x
 - Capacitor 8.5.x
 - TypeScript 6.x

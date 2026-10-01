@@ -16,3 +16,5 @@
 .user-badge span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--gam-color-heading); background: var(--gam-color-primary-soft); font-weight: 800; }
 .page-content { padding: clamp(18px, 3vw, 36px); padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
 @media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px 16px calc(48px + env(safe-area-inset-bottom)); } }
+@media (max-width: 480px) { .mobile-header .mobile-logout { display: none; } }
+@media (max-width: 900px) { .mobile-header ion-title { padding-inline: 8px; font-size: clamp(1rem, 4.4vw, 1.125rem); } }
