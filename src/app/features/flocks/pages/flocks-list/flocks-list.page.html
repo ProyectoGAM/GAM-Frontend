@@ -1,0 +1,155 @@
+<section class="flocks-page" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="breadcrumb">Manejo de Lotes <span aria-hidden="true">/</span> Lotes</p>
+    <h1 id="page-title">Lotes</h1>
+    <p class="intro">Consultá los lotes por unidad productiva.</p>
+  </header>
+
+  <button class="create-button" type="button" (click)="showUpcoming('create')">
+    <ion-icon name="add-outline" aria-hidden="true" /> Crear lote
+  </button>
+
+  <div class="list-controls">
+    <label class="search-field">
+      <ion-icon name="search-outline" aria-hidden="true" />
+      <span class="visually-hidden">Buscar lote</span>
+      <input #searchInput type="search" placeholder="Buscar lote" [value]="searchQuery()"
+        (input)="searchQuery.set(searchInput.value)" autocomplete="off" />
+    </label>
+    <button #filtersTrigger class="filter-button" type="button"
+      [attr.aria-label]="activeFilterCount() ? 'Filtros, 1 aplicado' : 'Filtros'" aria-haspopup="dialog"
+      (click)="openFilters(filtersTrigger)">
+      <ion-icon name="funnel-outline" aria-hidden="true" />
+      <span class="filter-label">Filtros</span>
+      @if (activeFilterCount()) { <span class="filter-count">{{ activeFilterCount() }}</span> }
+    </button>
+  </div>
+
+  @if (unitContext.selectedUnit(); as selectedUnit) {
+    <div class="active-filters" aria-label="Filtros aplicados">
+      @if (auth.isAdmin()) {
+        <button class="filter-chip" type="button" (click)="clearUnitFilter()"
+          [attr.aria-label]="'Quitar filtro de ' + selectedUnit.name">
+          {{ selectedUnit.name }} <ion-icon name="close-outline" aria-hidden="true" />
+        </button>
+      } @else {
+        <span class="filter-chip">{{ selectedUnit.name }}</span>
+      }
+    </div>
+  }
+
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status" aria-live="polite">
+      <ion-spinner name="crescent" aria-hidden="true" />
+      <span>Cargando lotes…</span>
+    </div>
+  } @else if (state() === 'success') {
+    <p class="result-count" role="status">{{ flocks().length }} {{ flocks().length === 1 ? 'resultado' : 'resultados' }}</p>
+    <div class="flock-list" aria-label="Lotes">
+      @for (flock of flocks(); track flock.id) {
+        <article class="flock-card">
+          <button class="flock-card-button" type="button" (click)="showUpcoming('detail')"
+            [attr.aria-label]="'Ver detalle del lote ' + flock.code + (flock.is_grouped ? ', agrupado' : '')">
+            <span class="card-copy">
+              <span class="card-title">
+                <span class="flock-name">{{ flock.code }}</span>
+                @if (flock.is_grouped) {
+                  <span class="grouped-badge">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M7 9C5.1 8.6 3.7 7.4 3 5.6c-.2 2.2.5 4.2 2.1 5.3" />
+                  <path d="M6.2 10.2A6.8 6.8 0 0 1 13 7.1V5.5a2.5 2.5 0 0 1 5 0v2.1l2 1.2-2 1.1c-.2 4.8-3.2 8.1-7.2 8.1A6.8 6.8 0 0 1 4 11.4" />
+                  <path d="M13.4 3.8 13 2l1.8 1 1-1.5 1 1.6M9 18v3m4-3v3m-5.5 0h3m1 0h3" />
+                  <circle cx="16.4" cy="6.2" r=".5" fill="currentColor" stroke="none" />
+                </svg>
+                Agrupado
+                  </span>
+                }
+              </span>
+              <span class="house-name">{{ flock.poultry_house_name }}</span>
+              @if (flock.entry_date_display; as entryDate) {
+                <span class="entry-date">{{ entryDate }}</span>
+              } @else {
+                <span class="entry-date">Fecha no disponible</span>
+              }
+            </span>
+            <ion-icon class="card-chevron" name="chevron-forward-outline" aria-hidden="true" />
+          </button>
+        </article>
+      }
+    </div>
+  } @else if (state() === 'empty') {
+    <div class="state-panel no-results">
+      <h2>{{ searchQuery().trim() ? 'Sin resultados' : 'Todavía no hay lotes' }}</h2>
+      <p>{{ searchQuery().trim() ? 'No se encontraron lotes que coincidan con la búsqueda.' : 'No hay lotes registrados en el alcance actual.' }}</p>
+    </div>
+  } @else if (state() === 'offline') {
+    <div class="state-panel" role="alert">
+      <h2>Sin conexión</h2>
+      <p>No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else if (state() === 'forbidden') {
+    <div class="state-panel" role="alert">
+      <h2>Acceso no disponible</h2>
+      <p>No tenés permiso para consultar los lotes.</p>
+    </div>
+  } @else if (state() === 'context-error') {
+    <div class="state-panel" role="alert">
+      <h2>No se pudo cargar la unidad productiva</h2>
+      <p>Revisá la conexión e intentá cargar nuevamente el contexto.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  } @else {
+    <div class="state-panel" role="alert">
+      <h2>No se pudo cargar el listado</h2>
+      <p>Ocurrió un error al consultar los lotes y sus galpones.</p>
+      <ion-button (click)="retry()">Reintentar</ion-button>
+    </div>
+  }
+</section>
+
+<dialog #filtersDialog class="filters-dialog" aria-labelledby="flocks-filters-title" (cancel)="onFilterCancel($event)">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <div class="sheet-header">
+    <h2 id="flocks-filters-title">Filtros</h2>
+    <button class="sheet-close" type="button" aria-label="Cerrar filtros" (click)="closeFilters()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </div>
+  <div class="sheet-body">
+    <label for="flocks-unit-filter">Unidad productiva</label>
+    <select #unitSelect id="flocks-unit-filter" [value]="draftUnitId() ?? ''"
+      (change)="setDraftUnit(unitSelect.value)">
+      @if (auth.isAdmin()) { <option value="">Todas las UP</option> }
+      @for (unit of unitContext.units(); track unit.id) {
+        <option [value]="unit.id">{{ unit.name }}</option>
+      }
+    </select>
+    <div class="unit-choices" aria-label="Elegir unidad productiva">
+      @if (auth.isAdmin()) {
+        <button type="button" [attr.aria-pressed]="draftUnitId() === null"
+          (click)="draftUnitId.set(null)">Todas las UP</button>
+      }
+      @for (unit of unitContext.units(); track unit.id) {
+        <button type="button" [attr.aria-pressed]="draftUnitId() === unit.id"
+          (click)="draftUnitId.set(unit.id)">{{ unit.name }}</button>
+      }
+    </div>
+  </div>
+  <div class="sheet-footer">
+    @if (auth.isAdmin()) {
+      <button class="sheet-action secondary" type="button" (click)="draftUnitId.set(null)">Limpiar</button>
+    }
+    <button class="sheet-action primary" type="button" (click)="applyFilters()">
+      @if (draftResultCount() !== null) {
+        Ver {{ draftResultCount() }} {{ draftResultCount() === 1 ? 'resultado' : 'resultados' }}
+      } @else {
+        Ver resultados
+      }
+    </button>
+  </div>
+</dialog>
+
+<ion-toast [isOpen]="!!notice()" [message]="notice()" [duration]="2500"
+  (didDismiss)="notice.set('')" />

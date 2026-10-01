@@ -14,7 +14,7 @@
     <ion-button slot="end" fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
       <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
     </ion-button>
-    <ion-button slot="end" fill="clear" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
+    <ion-button slot="end" fill="clear" class="mobile-logout" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
   </ion-toolbar>
 </ion-header>
 
