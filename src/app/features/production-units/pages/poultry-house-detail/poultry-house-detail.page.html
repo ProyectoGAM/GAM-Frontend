@@ -85,7 +85,8 @@
         [occupancyPercent]="occupancyPercent()"
         [flocks]="currentFlocks()"
         [state]="flocksState()"
-        (addLot)="showUnavailableFlow()"
+        [canAddLot]="canAddLot()"
+        (addLot)="addLot()"
         (retry)="retryRelated()"
       />
     } @else {

@@ -2,10 +2,10 @@
   <label for="admin-unit-select">UNIDAD PRODUCTIVA</label>
   <div class="unit-select-wrap">
     <ion-icon name="business-outline" aria-hidden="true" />
-    <select id="admin-unit-select" [value]="context.selectedId() ?? ''" (change)="selectUnit($event)"
+    <select id="admin-unit-select" (change)="selectUnit($event)"
       [disabled]="context.state() !== 'ready'" aria-label="Unidad productiva seleccionada">
-      @if (isAdmin()) { <option value="">Todas las UP</option> }
-      @for (unit of context.units(); track unit.id) { <option [value]="unit.id">{{ unit.name }}</option> }
+      @if (isAdmin()) { <option value="" [selected]="context.selectedId() === null">Todas las UP</option> }
+      @for (unit of context.units(); track unit.id) { <option [value]="unit.id" [selected]="context.selectedId() === unit.id">{{ unit.name }}</option> }
     </select>
     <ion-icon name="chevron-down-outline" aria-hidden="true" />
   </div>

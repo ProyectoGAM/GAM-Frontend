@@ -17,7 +17,7 @@ It intentionally avoids ceremonial Clean Architecture layers unless real complex
 ## 2. Technology baseline
 
 ```text
-Angular                 22.1.x
+Angular                 22.2.x
 Ionic Angular            9.x
 Capacitor                8.5.x
 TypeScript               6.x
