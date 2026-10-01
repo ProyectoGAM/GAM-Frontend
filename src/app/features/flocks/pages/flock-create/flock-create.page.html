@@ -1,0 +1,232 @@
+<section #pageTop class="flock-create-page" aria-labelledby="page-title">
+  <a class="back-link" [routerLink]="listPath">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a lotes
+  </a>
+  <p class="breadcrumb">Manejo de Lotes <span aria-hidden="true">/</span> Crear lote</p>
+  <h1 id="page-title">Crear lote</h1>
+  <p class="intro">Completá los datos para registrar el ingreso de aves.</p>
+
+  <div class="progress-heading">
+    <span>Paso {{ step() }} de 3</span>
+    <strong>{{ step() === 1 ? 'Datos del lote' : step() === 2 ? 'Aves y procedencia' : 'Plan y revisión' }}</strong>
+  </div>
+  <ol class="progress" [class.step-two]="step() === 2" [class.step-three]="step() === 3" aria-label="Progreso de creación">
+    <li [class.active]="step() >= 1" [attr.aria-current]="step() === 1 ? 'step' : null">1</li>
+    <li [class.active]="step() >= 2" [attr.aria-current]="step() === 2 ? 'step' : null">2</li>
+    <li [class.active]="step() >= 3" [attr.aria-current]="step() === 3 ? 'step' : null">3</li>
+  </ol>
+
+  @if (message()) { <p class="feedback" role="alert">{{ message() }}</p> }
+
+  <div class="unit-card">
+    <span class="context-label">Unidad productiva</span>
+    @if (unitContext.state() === 'loading') {
+      <span class="context-status"><ion-spinner name="crescent" /> Cargando unidades…</span>
+    } @else if (unitContext.state() === 'error') {
+      <span class="context-status">No se pudieron cargar las UP.</span>
+      <button class="inline-action" type="button" (click)="unitContext.load()">Reintentar</button>
+    } @else if (unitContext.selectedUnit()?.status === 'active') {
+      <strong>{{ unitContext.selectedUnit()?.name }}</strong>
+      <span class="context-status"><ion-icon name="location-outline" aria-hidden="true" />
+        {{ step() === 1 ? 'Seleccionada globalmente' : selectedHouse()?.name ?? 'Galpón por seleccionar' }}
+      </span>
+    } @else {
+      <label class="visually-hidden" for="flock-unit">Unidad productiva</label>
+      <select #unitSelect id="flock-unit" [value]="unitContext.selectedId() ?? ''"
+        [attr.aria-invalid]="!!errors().unitId" (change)="selectUnit(unitSelect.value)">
+        <option value="" [selected]="unitContext.selectedId() === null">Seleccioná una UP</option>
+        @for (unit of activeUnits(); track unit.id) { <option [value]="unit.id" [selected]="unitContext.selectedId() === unit.id">{{ unit.name }}</option> }
+      </select>
+      <span class="context-status">Elegí una UP para ver sus galpones.</span>
+      @if (errors().unitId) { <span class="field-error">{{ errors().unitId }}</span> }
+    }
+  </div>
+
+  <form (submit)="onFormSubmit($event)" novalidate>
+    @if (step() === 1) {
+      <div class="field">
+        <label for="flock-code">Código del lote <span class="required" aria-hidden="true">*</span></label>
+        <input #codeInput id="flock-code" type="text" autocomplete="off" maxlength="60" required
+          placeholder="PONEDORAS-A24" [value]="draft().code" [attr.aria-invalid]="!!errors().code"
+          (input)="update('code', codeInput.value.toUpperCase())" />
+        @if (errors().code) { <span class="field-error">{{ errors().code }}</span> }
+      </div>
+
+      <div class="field">
+        <label for="flock-house">Galpón <span class="required" aria-hidden="true">*</span></label>
+        <div class="select-wrap">
+          <select #houseSelect id="flock-house" required [value]="draft().houseId ?? ''"
+            [disabled]="unitContext.selectedId() === null || houseState() !== 'ready'"
+            [attr.aria-invalid]="!!errors().houseId" (change)="selectHouse(houseSelect.value)">
+            <option value="" [selected]="draft().houseId === null">Seleccioná un galpón</option>
+            @for (house of houses(); track house.id) { <option [value]="house.id" [selected]="draft().houseId === house.id">{{ house.name }}</option> }
+          </select>
+          <ion-icon name="chevron-down-outline" aria-hidden="true" />
+        </div>
+        @if (houseState() === 'loading') { <span class="field-hint">Cargando galpones…</span> }
+        @else if (houseState() === 'ready' && houses().length === 0) {
+          <span class="field-hint">No hay galpones operativos y vacíos en esta UP.</span>
+        } @else if (houseState() === 'error' || houseState() === 'offline') {
+          <span class="field-hint">No se pudieron cargar los galpones.
+            <button class="inline-action" type="button" (click)="retryHouses()">Reintentar</button>
+          </span>
+        } @else if (houseState() === 'forbidden') {
+          <span class="field-hint">No tenés permiso para consultar los galpones.</span>
+        }
+        @if (errors().houseId) { <span class="field-error">{{ errors().houseId }}</span> }
+      </div>
+
+      <div class="field">
+        <label for="flock-entry-date">Fecha de ingreso <span class="required" aria-hidden="true">*</span></label>
+        <div class="date-wrap">
+          <input #dateInput id="flock-entry-date" type="date" required [max]="todayIso"
+            [value]="draft().entryDate" [attr.aria-invalid]="!!errors().entryDate"
+            (change)="update('entryDate', dateInput.value)" />
+          <ion-icon name="calendar-outline" aria-hidden="true" />
+        </div>
+        @if (errors().entryDate) { <span class="field-error">{{ errors().entryDate }}</span> }
+      </div>
+
+      <div class="field">
+        <label for="flock-quantity">Cantidad inicial de aves <span class="required" aria-hidden="true">*</span></label>
+        <input #quantityInput id="flock-quantity" type="number" inputmode="numeric" min="1" max="2147483647" step="1" required
+          placeholder="1200" [value]="draft().initialQuantity" [attr.aria-invalid]="!!errors().initialQuantity"
+          (input)="update('initialQuantity', quantityInput.value)" />
+        @if (errors().initialQuantity) { <span class="field-error">{{ errors().initialQuantity }}</span> }
+      </div>
+      <p class="step-note"><ion-icon name="information-circle-outline" aria-hidden="true" />
+        Luego elegirás raza, procedencia y plan de manejo.
+      </p>
+    } @else if (step() === 2) {
+      @if (catalogState() === 'loading') {
+        <p class="state-note"><ion-spinner name="crescent" /> Cargando opciones…</p>
+      } @else if (catalogState() !== 'ready') {
+        <p class="feedback" role="alert">No se pudieron cargar las opciones para crear el lote.
+          <button class="inline-action" type="button" (click)="retryCatalogs()">Reintentar</button>
+        </p>
+      }
+      <div class="field">
+        <label for="flock-breed">Raza <span class="required" aria-hidden="true">*</span></label>
+        <div class="select-wrap">
+          <select #breedSelect id="flock-breed" required [value]="draft().breedId ?? ''"
+            [disabled]="catalogState() !== 'ready'" [attr.aria-invalid]="!!errors().breedId"
+            (change)="selectBreed(breedSelect.value)">
+            <option value="" [selected]="draft().breedId === null">Seleccioná una raza</option>
+            @for (breed of breeds(); track breed.id) { <option [value]="breed.id" [selected]="draft().breedId === breed.id">{{ breed.name }}</option> }
+          </select>
+          <ion-icon name="chevron-down-outline" aria-hidden="true" />
+        </div>
+        @if (catalogState() === 'ready' && breeds().length === 0) { <span class="field-hint">No hay razas activas disponibles.</span> }
+        @if (errors().breedId) { <span class="field-error">{{ errors().breedId }}</span> }
+      </div>
+
+      <fieldset class="source-field">
+        <legend>Procedencia <span class="required" aria-hidden="true">*</span></legend>
+        <div class="source-choices">
+          <button type="button" [class.selected]="draft().source === 'supplier'"
+            [attr.aria-pressed]="draft().source === 'supplier'" (click)="setSource('supplier')">Proveedor</button>
+          <button type="button" [class.selected]="draft().source === 'origin'"
+            [attr.aria-pressed]="draft().source === 'origin'" (click)="setSource('origin')">Origen</button>
+        </div>
+      </fieldset>
+
+      @if (draft().source === 'supplier') {
+        <div class="field">
+          <label for="flock-supplier">Proveedor <span class="required" aria-hidden="true">*</span></label>
+          <div class="select-wrap">
+            <select #supplierSelect id="flock-supplier" required [value]="draft().supplierId ?? ''"
+              [disabled]="catalogState() !== 'ready'" [attr.aria-invalid]="!!errors().supplierId"
+              (change)="selectSupplier(supplierSelect.value)">
+              <option value="" [selected]="draft().supplierId === null">Seleccioná un proveedor</option>
+              @for (supplier of suppliers(); track supplier.id) { <option [value]="supplier.id" [selected]="draft().supplierId === supplier.id">{{ supplier.name }}</option> }
+            </select>
+            <ion-icon name="chevron-down-outline" aria-hidden="true" />
+          </div>
+          @if (catalogState() === 'ready' && suppliers().length === 0) {
+            <span class="field-hint">No hay proveedores activos. Podés indicar el origen.</span>
+          }
+          @if (errors().supplierId) { <span class="field-error">{{ errors().supplierId }}</span> }
+        </div>
+      } @else {
+        <div class="field">
+          <label for="flock-origin">Origen de las aves <span class="required" aria-hidden="true">*</span></label>
+          <input #originInput id="flock-origin" type="text" required maxlength="255"
+            placeholder="Describí la procedencia" [value]="draft().origin" [attr.aria-invalid]="!!errors().origin"
+            (input)="update('origin', originInput.value)" />
+          @if (errors().origin) { <span class="field-error">{{ errors().origin }}</span> }
+        </div>
+      }
+
+      <div class="field">
+        <label for="flock-notes">Notas <span class="optional">(opcional)</span></label>
+        <textarea #notesInput id="flock-notes" rows="3" maxlength="5000"
+          placeholder="Observaciones sobre el ingreso" [value]="draft().notes" [attr.aria-invalid]="!!errors().notes"
+          (input)="update('notes', notesInput.value)"></textarea>
+        @if (errors().notes) { <span class="field-error">{{ errors().notes }}</span> }
+      </div>
+      <p class="step-note"><ion-icon name="information-circle-outline" aria-hidden="true" />
+        Podés indicar un proveedor o escribir el origen de las aves.
+      </p>
+    } @else {
+      @if (catalogState() === 'loading') {
+        <p class="state-note"><ion-spinner name="crescent" /> Cargando plantillas…</p>
+      } @else if (catalogState() !== 'ready') {
+        <p class="feedback" role="alert">No se pudieron cargar las plantillas.
+          <button class="inline-action" type="button" (click)="retryCatalogs()">Reintentar</button>
+        </p>
+      }
+      <div class="field">
+        <label for="flock-template">Plantilla de manejo <span class="required" aria-hidden="true">*</span></label>
+        <div class="select-wrap">
+          <select #templateSelect id="flock-template" required [value]="draft().templateId"
+            [disabled]="catalogState() !== 'ready'" [attr.aria-invalid]="!!errors().templateId"
+            (change)="update('templateId', templateSelect.value)">
+            <option value="" [selected]="!draft().templateId">Seleccioná una plantilla</option>
+            @for (template of templates(); track template.id) {
+              <option [value]="template.id" [selected]="draft().templateId === template.id">{{ template.name }}</option>
+            }
+          </select>
+          <ion-icon name="chevron-down-outline" aria-hidden="true" />
+        </div>
+        @if (catalogState() === 'ready' && templates().length === 0) {
+          <span class="field-hint">No hay plantillas publicadas y activas disponibles.</span>
+        }
+        @if (selectedTemplate(); as template) {
+          <div class="template-selection">
+            <span class="field-hint">Versión {{ template.published_version }} seleccionada</span>
+            <span class="published-badge">Publicada</span>
+          </div>
+        }
+        @if (errors().templateId) { <span class="field-error">{{ errors().templateId }}</span> }
+      </div>
+      <p class="step-note plan-note"><ion-icon name="information-circle-outline" aria-hidden="true" />
+        Se creará una copia del plan para este lote.
+      </p>
+
+      <div class="review-card">
+        <h2>Revisá los datos</h2>
+        <dl>
+          <div><dt>Código</dt><dd>{{ draft().code || '—' }}</dd></div>
+          <div><dt>Fecha de ingreso</dt><dd>{{ dateDisplay() }}</dd></div>
+          <div><dt>Cantidad inicial</dt><dd>{{ quantityDisplay() }} aves</dd></div>
+          <div><dt>Raza</dt><dd>{{ selectedBreed()?.name ?? '—' }}</dd></div>
+          <div><dt>{{ draft().source === 'supplier' ? 'Proveedor' : 'Origen' }}</dt>
+            <dd>{{ draft().source === 'supplier' ? selectedSupplier()?.name ?? '—' : draft().origin }}</dd></div>
+        </dl>
+        <button class="edit-link" type="button" (click)="editData()">Editar datos</button>
+      </div>
+    }
+
+    <div class="form-actions">
+      @if (step() === 1) {
+        <a class="action secondary" [routerLink]="listPath">Cancelar</a>
+      } @else {
+        <button class="action secondary" type="button" (click)="back()">Atrás</button>
+      }
+      <button class="action primary" type="submit" [disabled]="saving()">
+        @if (saving()) { <ion-spinner name="crescent" /> }
+        {{ step() === 3 ? 'Crear lote' : 'Continuar' }}
+      </button>
+    </div>
+  </form>
+</section>

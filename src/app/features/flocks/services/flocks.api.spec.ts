@@ -66,4 +66,37 @@ describe('FlocksApi', () => {
       meta: { current_page: 1, last_page: 1, per_page: 100, total: 0 },
     });
   });
+
+  it('loads active creation options and keeps only templates with a published version', () => {
+    let templates: unknown;
+    api.activeBreeds().subscribe();
+    api.activeSuppliers().subscribe();
+    api.publishedTemplates().subscribe((items) => (templates = items));
+
+    for (const path of ['breeds', 'suppliers', 'plantillas-manejo']) {
+      const request = http.expectOne((item) => item.url === `/api/v1/${path}`);
+      expect(request.request.params.get('status')).toBe('active');
+      request.flush({
+        data: path === 'plantillas-manejo'
+          ? [{ id: 'published', status: 'active', published_version: 2 }, { id: 'draft', status: 'active', published_version: null }]
+          : [],
+        meta: { last_page: 1 },
+      });
+    }
+    expect(templates).toEqual([{ id: 'published', status: 'active', published_version: 2 }]);
+  });
+
+  it('sends the create command with its idempotency key', () => {
+    api.create({
+      code: 'PONEDORAS-A24', breed_id: 4, poultry_house_id: 22, initial_quantity: 1200,
+      entry_date: '2026-09-29', plan_template_id: '01J00000000000000000000000', plan_template_version: 3,
+      origin: 'Criadero externo', notes: null,
+    }, '00000000-0000-4000-8000-000000000001').subscribe();
+
+    const request = http.expectOne('/api/v1/flocks');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('Idempotency-Key')).toBe('00000000-0000-4000-8000-000000000001');
+    expect(request.request.body).toMatchObject({ plan_template_version: 3, origin: 'Criadero externo' });
+    request.flush({ data: { operation_id: 'operation-1' } });
+  });
 });

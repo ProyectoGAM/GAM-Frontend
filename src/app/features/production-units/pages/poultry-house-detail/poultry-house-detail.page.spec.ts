@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
@@ -85,6 +85,27 @@ describe('PoultryHouseDetailPage', () => {
     expect(backLink.getAttribute('href')).toBe('/administracion/ubicaciones/galpones');
     expect(backLink.textContent).toContain('Volver a galpones');
     expect(unitLink.getAttribute('href')).toBe('/administracion/unidades-productivas/7');
+  });
+
+  it('opens lot creation with the empty operational house and its UP selected', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, status: 'operational', current_occupancy: 0 } }));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    render();
+
+    const addButton = fixture.nativeElement.querySelector('app-poultry-house-detail-content ion-button.action');
+    expect(addButton?.textContent).toContain('Agregar lote');
+    addButton.click();
+
+    expect(navigate).toHaveBeenCalledWith(['/administracion/lotes/lotes/nuevo'], {
+      queryParams: { unitId: 7, houseId: 22 },
+    });
+  });
+
+  it('does not offer lot creation when the house is not operational', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 0 } }));
+    render();
+    expect(fixture.nativeElement.textContent).toContain('Galpón vacío');
+    expect(fixture.nativeElement.textContent).not.toContain('Agregar lote');
   });
 
   it('does not show a house when it does not belong to the unit in the route', () => {

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { computed, signal, WritableSignal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -69,6 +70,7 @@ describe('FlocksListPage', () => {
     TestBed.configureTestingModule({
       imports: [FlocksListPage],
       providers: [
+        provideRouter([]),
         { provide: FlocksApi, useValue: { list: listFlocks } },
         { provide: ProductionUnitsService, useValue: { listAllPoultryHouses } },
         { provide: AuthStore, useValue: { isAdmin: signal(true) } },

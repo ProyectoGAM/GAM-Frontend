@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline,
@@ -52,6 +52,7 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
 export class PoultryHouseDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly alertController = inject(AlertController);
   readonly unitId = Number(this.route.snapshot.paramMap.get('id'));
@@ -97,6 +98,11 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly currentFlocks = computed(() => this.flocks().filter(
     (flock) => flock.status === 'active' || flock.status === 'quarantined',
   ));
+  readonly canAddLot = computed(() => {
+    const house = this.house();
+    return house?.type === 'poultry' && house.status === 'operational'
+      && house.production_unit.status === 'active' && house.current_occupancy === 0;
+  });
   readonly stockRows = computed(() => {
     const houseId = this.house()?.id;
     return (this.feedStock()?.items ?? []).map((item) => {
@@ -167,13 +173,12 @@ export class PoultryHouseDetailPage implements OnInit {
     })[status];
   }
 
-  async showUnavailableFlow(): Promise<void> {
-    const alert = await this.alertController.create({
-      header: 'Alta de lotes pendiente',
-      message: 'El alta de lotes requiere seleccionar un plan publicado. Ese flujo todavía no está disponible en esta aplicación.',
-      buttons: ['Entendido'],
+  addLot(): void {
+    const house = this.house();
+    if (!house || !this.canAddLot() || this.flocksState() !== 'success' || this.currentFlocks().length) return;
+    void this.router.navigate(['/administracion/lotes/lotes/nuevo'], {
+      queryParams: { unitId: house.production_unit_id, houseId: house.id },
     });
-    await alert.present();
   }
 
   async changeStatus(): Promise<void> {

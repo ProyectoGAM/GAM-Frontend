@@ -43,3 +43,39 @@ export interface FlockListItem extends Flock {
   poultry_house_name: string;
   entry_date_display: string | null;
 }
+
+export interface FlockCatalogOption {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
+}
+
+export interface FlockSupplierOption {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
+}
+
+export interface FlockPlanTemplateOption {
+  id: string;
+  name: string;
+  status: 'active' | 'retired';
+  published_version: number | null;
+}
+
+export interface CreateFlockRequest {
+  code: string;
+  breed_id: number;
+  poultry_house_id: number;
+  initial_quantity: number;
+  entry_date: string;
+  plan_template_id: string;
+  plan_template_version: number;
+  supplier_id?: number;
+  origin?: string;
+  notes?: string | null;
+}
+
+export interface CreateFlockResponse {
+  data: { operation_id: string; flock?: { id: string; code: string } };
+}

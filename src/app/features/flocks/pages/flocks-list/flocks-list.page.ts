@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { IonButton, IonIcon, IonSpinner, IonToast } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addOutline, chevronForwardOutline, closeOutline, funnelOutline, searchOutline } from 'ionicons/icons';
@@ -32,7 +33,7 @@ type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbid
   selector: 'app-flocks-list-page',
   templateUrl: './flocks-list.page.html',
   styleUrl: './flocks-list.page.scss',
-  imports: [IonButton, IonIcon, IonSpinner, IonToast],
+  imports: [IonButton, IonIcon, IonSpinner, IonToast, RouterLink],
 })
 export class FlocksListPage {
   @ViewChild('filtersDialog', { static: true }) private readonly filtersDialog!: ElementRef<HTMLDialogElement>;
@@ -144,10 +145,8 @@ export class FlocksListPage {
     if (this.auth.isAdmin()) this.unitContext.select(null);
   }
 
-  showUpcoming(feature: 'create' | 'detail'): void {
-    this.notice.set(feature === 'create'
-      ? 'La creación de lotes estará disponible próximamente.'
-      : 'El detalle del lote estará disponible próximamente.');
+  showUpcoming(): void {
+    this.notice.set('El detalle del lote estará disponible próximamente.');
   }
 
   private toListItems(flocks: Flock[], houses: readonly PoultryHouseListItem[]): FlockListItem[] {

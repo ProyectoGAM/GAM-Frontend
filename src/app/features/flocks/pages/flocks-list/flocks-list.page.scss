@@ -7,7 +7,7 @@
 h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-height: 1.15; font-weight: 750; }
 .intro { margin: 7px 0 0; font-size: 1rem; line-height: 1.35; }
 .create-button, .filter-button, .filter-chip, .flock-card-button, .sheet-close, .unit-choices button, .sheet-action { cursor: pointer; font: inherit; }
-.create-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; margin-bottom: 16px; border: 0; border-radius: 9px; background: var(--gam-color-primary); color: var(--gam-color-on-primary); font-weight: 700; }
+.create-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; margin-bottom: 16px; border: 0; border-radius: 9px; background: var(--gam-color-primary); color: var(--gam-color-on-primary); font-weight: 700; text-decoration: none; }
 .create-button ion-icon { font-size: 1.5rem; }
 .list-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-bottom: 12px; }
 .search-field, .filter-button { display: flex; align-items: center; min-height: 48px; border: 1px solid var(--gam-color-control-border); border-radius: 9px; background: var(--gam-color-surface); color: var(--gam-color-heading); }

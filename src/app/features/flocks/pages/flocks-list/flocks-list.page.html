@@ -5,9 +5,9 @@
     <p class="intro">Consultá los lotes por unidad productiva.</p>
   </header>
 
-  <button class="create-button" type="button" (click)="showUpcoming('create')">
+  <a class="create-button" routerLink="nuevo">
     <ion-icon name="add-outline" aria-hidden="true" /> Crear lote
-  </button>
+  </a>
 
   <div class="list-controls">
     <label class="search-field">
@@ -48,7 +48,7 @@
     <div class="flock-list" aria-label="Lotes">
       @for (flock of flocks(); track flock.id) {
         <article class="flock-card">
-          <button class="flock-card-button" type="button" (click)="showUpcoming('detail')"
+          <button class="flock-card-button" type="button" (click)="showUpcoming()"
             [attr.aria-label]="'Ver detalle del lote ' + flock.code + (flock.is_grouped ? ', agrupado' : '')">
             <span class="card-copy">
               <span class="card-title">
