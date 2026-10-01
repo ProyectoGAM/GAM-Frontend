@@ -24,6 +24,7 @@ import {
 
 import { AuthStore } from '../../../core/auth/auth.store';
 import { SharedUser } from '../../../core/auth/auth.types';
+import { postLoginPath } from '../../../core/auth/access-policy';
 
 @Component({
   selector: 'app-auth',
@@ -98,7 +99,7 @@ export class AuthPage {
     const { email, password } = this.loginForm.getRawValue();
     const success = await this.auth.login(email, password);
     this.submitting.set(false);
-    if (success) await this.router.navigateByUrl(this.auth.isAdmin() ? '/administracion' : '/home');
+    if (success) await this.router.navigateByUrl(postLoginPath(this.auth.user()));
   }
 
   async submitPairing(): Promise<void> {
@@ -134,7 +135,7 @@ export class AuthPage {
     const { pin } = this.pinForm.getRawValue();
     const success = await this.auth.loginWithPin(user.id, pin);
     this.submitting.set(false);
-    if (success) await this.router.navigateByUrl(this.auth.isAdmin() ? '/administracion' : '/home');
+    if (success) await this.router.navigateByUrl(postLoginPath(this.auth.user()));
   }
 
   async reloadUsers(): Promise<void> {

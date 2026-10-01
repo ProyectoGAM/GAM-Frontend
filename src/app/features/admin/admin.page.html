@@ -29,7 +29,10 @@
         <form [formGroup]="userForm" (ngSubmit)="createUser()">
           <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="name"></ion-input></ion-item>
           <ion-item><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email"></ion-input></ion-item>
-          <ion-item><ion-label position="stacked">Contraseña inicial</ion-label><ion-input type="password" formControlName="password"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Contraseña inicial</ion-label><ion-input type="password" autocomplete="new-password" minlength="8" formControlName="password"></ion-input></ion-item>
+          @if (userForm.controls.password.touched && userForm.controls.password.hasError('minlength')) {
+            <ion-text color="danger"><small>La contraseña debe tener al menos 8 caracteres.</small></ion-text>
+          }
           <ion-item>
             <ion-label>Rol</ion-label>
             <ion-select formControlName="role">

@@ -1,0 +1,65 @@
+<div class="heading">
+  <div><p>Panel administrativo / Repartos</p><h1>Seguimiento de repartos</h1></div>
+  <ion-button fill="outline" (click)="load()" [disabled]="loading()"><ion-icon slot="start" name="refresh-outline" aria-hidden="true" />Actualizar</ion-button>
+</div>
+
+@if (error()) { <ion-text color="danger"><p>{{ error() }}</p></ion-text> }
+
+<div class="delivery-grid">
+  <section>
+    <ion-card>
+      <ion-card-header><ion-card-title>Repartos actuales</ion-card-title></ion-card-header>
+      <ion-card-content>
+        @if (loading() && active().length === 0) { <ion-spinner name="crescent" /> }
+        @for (delivery of active(); track delivery.id) {
+          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)">
+            <span class="status-dot active"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos · {{ delivery.stops_summary.total }} visitas</small></span>
+          </button>
+        } @empty { <p class="muted">No hay repartos activos.</p> }
+      </ion-card-content>
+    </ion-card>
+    <ion-card>
+      <ion-card-header><ion-card-title>Historial</ion-card-title></ion-card-header>
+      <ion-card-content>
+        @for (delivery of history(); track delivery.id) {
+          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)">
+            <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>
+          </button>
+        } @empty { <p class="muted">Todavía no hay repartos cerrados.</p> }
+      </ion-card-content>
+    </ion-card>
+  </section>
+
+  <section>
+    <div #adminMap class="admin-map" aria-label="Ubicación del reparto seleccionado"></div>
+    @if (selected(); as delivery) {
+      <ion-card class="detail-card">
+        <ion-card-header><ion-card-title>Detalle del reparto</ion-card-title></ion-card-header>
+        <ion-card-content>
+          <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
+          <p><strong>Unidad:</strong> {{ delivery.production_unit?.name ?? '—' }}</p>
+          <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }}</p>
+          @if (delivery.loads?.length) {
+            <div class="stops-detail"><strong>Cargas</strong>
+              @for (load of delivery.loads; track load.id) {
+                <div><span>{{ load.type === 'initial' ? 'Inicial' : 'Adicional' }} · {{ load.created_at | date:'short' }}
+                  @for (item of load.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} = {{ item.eggs }} huevos</small> }
+                </span><small>{{ load.quantity }} huevos</small></div>
+              }
+            </div>
+          }
+          <p><strong>Última ubicación:</strong> {{ delivery.latest_location ? (delivery.latest_location.captured_at | date:'medium') : 'Sin datos aún' }}</p>
+          @if (delivery.stops?.length) {
+            <div class="stops-detail"><strong>Visitas</strong>
+              @for (stop of delivery.stops; track stop.id) {
+                <div><span>{{ stop.client_name }}
+                  @for (item of stop.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} · {{ item.eggs }} huevos</small> }
+                </span><small>{{ stop.status === 'delivered' ? stop.delivered_quantity + ' huevos' : stop.status === 'not_delivered' ? 'Sin entrega' : 'Sin visita registrada' }}</small></div>
+              }
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+    }
+  </section>
+</div>

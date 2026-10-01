@@ -1,0 +1,241 @@
+<ion-header class="delivery-header">
+  <ion-toolbar>
+    <div slot="start" class="brand">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span><strong>GAM Repartos</strong><small>{{ delivery()?.status === 'active' ? 'Reparto en curso' : 'Modo repartidor' }}</small></span>
+    </div>
+    <div slot="end" class="header-actions">
+      <button type="button" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()"><ion-icon [name]="theme.toggleIcon()" aria-hidden="true" /></button>
+      <button type="button" class="driver-avatar" aria-label="Abrir cuenta" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">{{ driverInitials() }}</button>
+    </div>
+  </ion-toolbar>
+  @if (profileOpen()) {
+    <div class="profile-menu"><strong>{{ auth.user()?.name }}</strong>@if (canLeaveDelivery()) { <a [routerLink]="otherViewPath()">Otras vistas</a> }<button type="button" (click)="logout()">Cerrar sesión</button></div>
+  }
+</ion-header>
+
+<ion-content [fullscreen]="true" [fixedSlotPlacement]="'before'" [class.map-content]="delivery()?.status === 'active' && panel() === 'map'">
+  @if (delivery()?.status === 'active' && panel() === 'map') {
+    <div slot="fixed" class="map-background"><div #deliveryMap class="delivery-map" aria-label="Mapa interactivo de clientes"></div></div>
+  }
+  <main class="delivery-page" [class.has-nav]="delivery()?.status === 'active'" [class.map-mode]="delivery()?.status === 'active' && panel() === 'map'">
+    @if (error() && !startConfirmation() && !closeConfirmation()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
+
+    @if (!delivery() || delivery()?.status !== 'active') {
+      @if (delivery()?.status === 'completed') {
+        <section class="idle-card completed-card">
+          <span class="idle-icon"><ion-icon name="checkmark-circle-outline" aria-hidden="true" /></span>
+          <p class="eyebrow">REPARTO FINALIZADO</p>
+          <h1>¡Buen trabajo!</h1>
+          <p>Entregaste {{ delivery()?.delivered_quantity }} huevos. El resumen queda disponible para administración.</p>
+        </section>
+      }
+      <section class="idle-card">
+        <span class="idle-icon"><ion-icon name="location-outline" aria-hidden="true" /></span>
+        <p class="eyebrow">OPERACIÓN EN CALLE</p>
+        <h1>Prepará tu reparto</h1>
+        <p>Indicá lo que cargás en la camioneta. Después elegís libremente a qué clientes visitar.</p>
+        <form [formGroup]="startForm" (ngSubmit)="openStartConfirmation()" class="stock-form">
+          <div class="load-head" aria-hidden="true"><span>Presentación</span><span>Cantidad</span><span></span></div>
+          <div formArrayName="items" class="load-lines">
+            @for (line of startForm.controls.items.controls; track line; let index = $index) {
+              <div [formGroupName]="index" class="load-line">
+                <span class="presentation-select">
+                  <select formControlName="unit" [attr.aria-label]="'Presentación ' + (index + 1)" required>
+                    @for (unit of units(); track unit.id) { <option [value]="unit.id">{{ unit.label }}</option> }
+                  </select>
+                </span>
+                <input type="text" formControlName="amount" inputmode="decimal" placeholder="0,5" [attr.aria-label]="'Cantidad ' + (index + 1)" required>
+                <button type="button" class="remove-line" (click)="removeLine(startForm, index)" [disabled]="startForm.controls.items.length === 1" [attr.aria-label]="'Quitar presentación ' + (index + 1)"><ion-icon name="trash-outline" aria-hidden="true" /></button>
+              </div>
+            }
+          </div>
+          <button type="button" class="secondary-action" (click)="addLine(startForm)" [disabled]="startForm.controls.items.length >= 20">+ Otra presentación</button>
+          <strong class="load-total">Total: {{ formEggs(startForm) }} huevos</strong>
+          <button type="submit" class="primary-action" [disabled]="busy() || !online() || !canOperate || !units().length">Iniciar reparto</button>
+        </form>
+        @if (!online()) { <small class="offline-hint">Necesitás conexión para iniciar.</small> }
+      </section>
+    } @else {
+      @if (panel() === 'map') {
+        <section class="route-status" aria-label="Estado del reparto">
+          <strong>Recorrido {{ delivery()?.started_at | date:'dd/MM/yy' }}</strong>
+          <span class="connection-line" [class.offline]="!online()" role="status"><span class="connection-dot" aria-hidden="true"></span>{{ online() ? 'Conectado' : 'Sin conexión' }}</span>
+        </section>
+        <section class="metrics" aria-label="Resumen de huevos; tocá para ver las unidades">
+          <button type="button" aria-haspopup="dialog" (click)="selectedMetric.set('loaded')"><small>Huevos totales</small><strong>{{ delivery()?.loaded_quantity }}</strong></button>
+          <button type="button" aria-haspopup="dialog" (click)="selectedMetric.set('delivered')"><small>Entregados</small><strong>{{ delivery()?.delivered_quantity }}</strong></button>
+          <button type="button" aria-haspopup="dialog" (click)="selectedMetric.set('remaining')"><small>En vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong></button>
+        </section>
+        <button type="button" class="secondary-action close-button" (click)="openLoad()" [disabled]="busy() || closePending() || !canOperate">+ Agregar carga</button>
+      }
+
+      @if (panel() === 'clients') {
+        <section class="route-panel" id="clients-panel" role="tabpanel" aria-labelledby="clients-tab">
+          <div class="section-heading"><h2>Clientes</h2></div>
+          <label class="search-box" for="client-search"><ion-icon name="people-outline" aria-hidden="true" /><input id="client-search" type="search" aria-label="Buscar cliente" placeholder="Buscar cliente" [value]="search()" (input)="setSearch($event)"></label>
+          <div class="client-list">
+            @for (client of visibleClients(); track client.id) {
+              <button type="button" class="client-row" [class.visited]="statusFor(client) !== 'pending'" (click)="openClient(client)" [disabled]="!canOperate || statusFor(client) !== 'pending' || closePending()">
+                <span class="client-number" aria-hidden="true"><ion-icon name="location-outline" /></span>
+                <span class="client-info"><strong>{{ client.name }}</strong><small>{{ client.address }}</small>@if (statusFor(client) !== 'pending') { <em>{{ statusFor(client) === 'delivered' ? 'Visitado · Entregado' : 'Visitado · Sin entrega' }}</em> }</span>
+                <ion-icon [name]="statusFor(client) === 'pending' ? 'location-outline' : 'checkmark-circle-outline'" aria-hidden="true" />
+              </button>
+            } @empty { <p class="empty-state">No hay clientes para esa búsqueda.</p> }
+          </div>
+        </section>
+      }
+
+      @if (panel() === 'map') {
+        <section class="route-panel map-panel" id="map-panel" role="tabpanel" aria-labelledby="map-tab">
+          <label class="search-box map-search" for="map-search"><ion-icon name="people-outline" aria-hidden="true" /><input id="map-search" type="search" aria-label="Buscar cliente" placeholder="Buscar cliente" [value]="search()" (input)="setSearch($event)"></label>
+        </section>
+      }
+
+      @if (panel() === 'summary') {
+        <section class="route-panel" id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
+          <div class="section-heading"><div><p class="eyebrow">REPARTO DE HOY</p><h2>Resumen</h2></div></div>
+          <article class="summary-card"><small>Huevos en vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong><span>de {{ delivery()?.loaded_quantity }} cargados en este reparto</span></article>
+          <article class="balance-card"><h3>Balance de carga</h3><dl><div><dt>Cargados en {{ delivery()?.loads?.length ?? 0 }} carga(s)</dt><dd>{{ delivery()?.loaded_quantity }} huevos</dd></div><div><dt>Maples cargados</dt><dd>{{ loadedPresentations().maples }}</dd></div><div><dt>Cajones cargados</dt><dd>{{ loadedPresentations().cajones }}</dd></div><div><dt>Cajas cargadas</dt><dd>{{ loadedPresentations().cajas }}</dd></div><div><dt>Entregados</dt><dd>{{ delivery()?.delivered_quantity }} huevos</dd></div><div><dt>En vehículo</dt><dd>{{ delivery()?.remaining_quantity }} huevos</dd></div><div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div></dl></article>
+          @if (delivery()?.loads?.length) {
+            <article class="balance-card"><h3>Cargas registradas</h3><dl>
+              @for (load of delivery()?.loads; track load.id) {
+                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.created_at | date:'short' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · } </small></dt><dd>{{ load.quantity }} huevos</dd></div>
+              }
+            </dl></article>
+          }
+          @if (pendingCount() > 0) {
+            <div class="sync-card" role="status"><ion-icon name="sync-outline" aria-hidden="true" /><span>{{ pendingCount() }} operaciones pendientes. Se enviarán en orden al volver la conexión.</span><button type="button" (click)="syncNow()" [disabled]="!online() || syncing()">Sincronizar</button></div>
+          }
+          @if (closePending()) {
+            <div class="sync-card" role="status">El cierre está guardado y se enviará cuando vuelva la conexión.</div>
+          } @else {
+            <button type="button" class="secondary-action close-button" (click)="closeConfirmation.set(true); error.set(null)" [disabled]="busy() || !canOperate">Finalizar reparto</button>
+          }
+        </section>
+      }
+    }
+  </main>
+</ion-content>
+
+@if (delivery()?.status === 'active') {
+  <nav class="bottom-nav" aria-label="Navegación del reparto" role="tablist">
+    <button id="clients-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'clients'" [class.active]="panel() === 'clients'" (click)="selectPanel('clients')"><ion-icon name="people-outline" aria-hidden="true" />Clientes</button>
+    <button id="map-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'map'" [class.active]="panel() === 'map'" (click)="selectPanel('map')"><ion-icon name="map-outline" aria-hidden="true" />Mapa</button>
+    <button id="summary-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'summary'" [class.active]="panel() === 'summary'" (click)="selectPanel('summary')"><ion-icon name="stats-chart-outline" aria-hidden="true" />Resumen</button>
+  </nav>
+}
+
+@if (startConfirmation()) {
+  <div class="sheet-backdrop" (click)="startConfirmation.set(false); startPin.reset()" aria-hidden="true"></div>
+  <section #pinSheet class="client-sheet pin-sheet" role="dialog" aria-modal="true" aria-labelledby="start-pin-title" tabindex="-1" (keydown.escape)="startConfirmation.set(false); startPin.reset()">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="start-pin-title">Confirmar inicio</h2>
+    <p>Vas a iniciar el reparto con {{ formEggs(startForm) }} huevos.</p>
+    <form (submit)="startDelivery(); $event.preventDefault()" class="pin-form">
+      <label for="start-pin">Tu PIN de repartidor</label>
+      <input id="start-pin" type="password" [formControl]="startPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4 dígitos" aria-describedby="start-pin-hint">
+      @if (startPin.touched && startPin.invalid) { <small class="field-error">Ingresá un PIN de 4 dígitos.</small> }
+      @if (error()) { <small class="field-error" role="alert">{{ error() }}</small> }
+      <small id="start-pin-hint" class="offline-hint">El PIN se verifica con conexión.</small>
+      <div class="pin-actions"><button type="button" class="secondary-action" (click)="startConfirmation.set(false); startPin.reset()">Volver</button><button type="submit" class="primary-action" [disabled]="busy() || !online()">@if (busy()) { <ion-spinner name="crescent" aria-label="Iniciando reparto" /> } @else { Confirmar inicio }</button></div>
+    </form>
+  </section>
+}
+
+@if (closeConfirmation()) {
+  <div class="sheet-backdrop" (click)="closeConfirmation.set(false); closePin.reset()" aria-hidden="true"></div>
+  <section #pinSheet class="client-sheet pin-sheet pin-dialog" role="dialog" aria-modal="true" aria-labelledby="close-pin-title" tabindex="-1" (keydown.escape)="closeConfirmation.set(false); closePin.reset()">
+    <h2 id="close-pin-title">¿Finalizar este reparto?</h2>
+    <p>Se registrarán {{ delivery()?.remaining_quantity }} huevos como devueltos. Esta acción no se puede deshacer.</p>
+    <form (submit)="closeDelivery(); $event.preventDefault()" class="pin-form">
+      <label for="close-pin">Tu PIN de repartidor</label>
+      <input id="close-pin" type="password" [formControl]="closePin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4 dígitos">
+      @if (closePin.touched && closePin.invalid) { <small class="field-error">Ingresá un PIN de 4 dígitos.</small> }
+      @if (error()) { <small class="field-error" role="alert">{{ error() }}</small> }
+      <small class="offline-hint">Necesitás conexión para confirmar el cierre.</small>
+      <div class="pin-actions"><button type="button" class="secondary-action" (click)="closeConfirmation.set(false); closePin.reset()">Seguir repartiendo</button><button type="submit" class="danger-action" [disabled]="busy() || !online()">@if (busy()) { <ion-spinner name="crescent" aria-label="Cerrando reparto" /> } @else { Confirmar cierre }</button></div>
+    </form>
+  </section>
+}
+
+@if (selectedClient(); as client) {
+  <div class="sheet-backdrop" (click)="selectedClient.set(null)" aria-hidden="true"></div>
+  <section #clientSheet class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="client-sheet-title" tabindex="-1" (keydown.escape)="selectedClient.set(null)">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-heading"><div><p class="eyebrow">REGISTRAR VISITA</p><h2 id="client-sheet-title">{{ client.name }}</h2><p>{{ client.address }}</p></div><button type="button" class="sheet-close" (click)="selectedClient.set(null)" aria-label="Cerrar cliente">×</button></div>
+    @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    <form [formGroup]="stopForm" (ngSubmit)="saveStop()" class="stop-form">
+      <div class="mode-choice" role="group" aria-label="Resultado de la visita"><button type="button" [class.active]="stopMode() === 'delivered'" (click)="stopMode.set('delivered')">Entregado</button><button type="button" [class.active]="stopMode() === 'not_delivered'" (click)="stopMode.set('not_delivered')">No entregado</button></div>
+      @if (stopMode() === 'delivered') {
+        <strong>¿Qué presentaciones entregaste?</strong>
+        <div class="delivery-units" role="group" aria-label="Presentaciones entregadas">
+          @for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) {
+            <div class="delivery-unit-row">
+              <span>{{ row.label }}</span>
+              <div class="unit-stepper">
+                <button type="button" (click)="adjustStopUnit(row, -1)" [disabled]="selectedUnitAmount(row) === 0" [attr.aria-label]="'Restar ' + row.label"><ion-icon name="remove-outline" aria-hidden="true" /></button>
+                <output [attr.aria-label]="row.label + ': ' + displayUnitAmount(selectedUnitAmount(row))">{{ displayUnitAmount(selectedUnitAmount(row)) }}</output>
+                <button type="button" (click)="adjustStopUnit(row, 1)" [disabled]="!canIncrementStopUnit(row)" [attr.aria-label]="'Sumar ' + row.label"><ion-icon name="add-outline" aria-hidden="true" /></button>
+              </div>
+            </div>
+          } @empty { <small>Primero cargá huevos para poder registrar una entrega.</small> }
+        </div>
+        @if ((delivery()?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0) { <small class="field-error">Este reparto anterior no tiene saldo por presentación verificable. Para entregar por unidades, iniciá uno nuevo.</small> }
+        <strong>Entregás: {{ selectedStopEggs() }} huevos</strong><small>En vehículo: {{ delivery()?.remaining_quantity }} huevos</small>
+      } @else {
+        <label for="visit-reason">Motivo de no entrega</label><input id="visit-reason" type="text" formControlName="reason" maxlength="240" placeholder="Ej.: negocio cerrado" required>
+      }
+      <label for="visit-notes">Nota opcional</label><textarea id="visit-notes" formControlName="notes" maxlength="5000" rows="2" placeholder="Agregá un detalle si hace falta"></textarea>
+      <button type="submit" class="primary-action" [disabled]="busy()">@if (busy()) { <ion-spinner name="crescent" aria-label="Guardando visita" /> } @else { Guardar visita }</button>
+    </form>
+  </section>
+}
+
+@if (loadOpen()) {
+  <div class="sheet-backdrop" (click)="loadOpen.set(false)" aria-hidden="true"></div>
+  <section class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="load-sheet-title" tabindex="-1" (keydown.escape)="loadOpen.set(false)">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-heading"><div><p class="eyebrow">DURANTE EL REPARTO</p><h2 id="load-sheet-title">Agregar carga</h2><p>Registrá los huevos que subís ahora al vehículo.</p></div><button type="button" class="sheet-close" (click)="loadOpen.set(false)" aria-label="Cerrar carga">×</button></div>
+    @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    <form [formGroup]="loadForm" (ngSubmit)="addLoad()" class="stock-form">
+      <div class="load-head" aria-hidden="true"><span>Presentación</span><span>Cantidad</span><span></span></div>
+      <div formArrayName="items" class="load-lines">
+        @for (line of loadForm.controls.items.controls; track line; let index = $index) {
+          <div [formGroupName]="index" class="load-line">
+            <span class="presentation-select">
+              <select formControlName="unit" [attr.aria-label]="'Presentación ' + (index + 1)" required>
+                @for (unit of units(); track unit.id) { <option [value]="unit.id">{{ unit.label }}</option> }
+              </select>
+            </span>
+            <input type="text" formControlName="amount" inputmode="decimal" placeholder="0,5" [attr.aria-label]="'Cantidad ' + (index + 1)" required>
+            <button type="button" class="remove-line" (click)="removeLine(loadForm, index)" [disabled]="loadForm.controls.items.length === 1" [attr.aria-label]="'Quitar presentación ' + (index + 1)"><ion-icon name="trash-outline" aria-hidden="true" /></button>
+          </div>
+        }
+      </div>
+      <button type="button" class="secondary-action" (click)="addLine(loadForm)" [disabled]="loadForm.controls.items.length >= 20">+ Otra presentación</button>
+      <strong class="load-total">Total: {{ formEggs(loadForm) }} huevos</strong>
+      <small>Las presentaciones se convierten a huevos para inventario. Podés usar medios maples, por ejemplo 0,5.</small>
+      <button type="submit" class="primary-action" [disabled]="busy()">@if (busy()) { <ion-spinner name="crescent" aria-label="Guardando carga" /> } @else { Guardar carga }</button>
+    </form>
+  </section>
+}
+
+@if (selectedMetric() && delivery()?.status === 'active') {
+  <div class="sheet-backdrop" (click)="selectedMetric.set(null)" aria-hidden="true"></div>
+  <section #metricSheet class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="metric-sheet-title" tabindex="-1" (keydown.escape)="selectedMetric.set(null)">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-heading"><div><p class="eyebrow">DETALLE DEL REPARTO</p><h2 id="metric-sheet-title">{{ metricTitle() }}</h2></div><button type="button" class="sheet-close" (click)="selectedMetric.set(null)" aria-label="Cerrar detalle">×</button></div>
+    <strong class="metric-total">{{ metricEggs() }} huevos</strong>
+    <table class="unit-table">
+      <thead><tr><th scope="col">Presentación</th><th scope="col">{{ selectedMetric() === 'loaded' ? 'Total cargado' : selectedMetric() === 'delivered' ? 'Entregado' : 'En vehículo' }}</th></tr></thead>
+      <tbody>
+        @for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) {
+          <tr><th scope="row">{{ row.label }}</th><td>{{ metricUnitAmount(row) }}</td></tr>
+        } @empty { <tr><td colspan="2">No hay presentaciones registradas.</td></tr> }
+      </tbody>
+    </table>
+    @if ((delivery()?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0) { <p class="metric-note">{{ delivery()?.unit_balances?.unallocated_delivered_eggs }} huevos de entregas anteriores no tienen presentación registrada. El saldo por unidad no se puede mostrar con exactitud.</p> }
+  </section>
+}

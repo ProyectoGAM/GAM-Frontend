@@ -115,8 +115,13 @@ export class AdminPage {
   }
 
   async createUser(): Promise<void> {
-    if (this.userForm.invalid || !(await this.confirm())) {
+    if (this.userForm.invalid) {
       this.userForm.markAllAsTouched();
+      this.message.set(this.userFormError());
+      return;
+    }
+
+    if (!(await this.confirm())) {
       return;
     }
 
@@ -275,5 +280,17 @@ export class AdminPage {
     }
 
     return this.auth.confirmPassword(password);
+  }
+
+  private userFormError(): string {
+    if (this.userForm.controls.password.hasError('minlength')) {
+      return 'La contraseña inicial debe tener al menos 8 caracteres.';
+    }
+
+    if (this.userForm.controls.email.hasError('email')) {
+      return 'Ingresa un correo electrónico válido.';
+    }
+
+    return 'Completa los campos requeridos antes de crear el usuario.';
   }
 }

@@ -169,6 +169,20 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'planes') {
+                    return {
+                      path: 'planes',
+                      loadChildren: () => import('../management-plans/management-plans.routes').then((module) => module.managementPlansRoutes),
+                    };
+                  }
+
+                  if (group.id === 'repartos' && item.slug === 'repartos') {
+                    return {
+                      path: item.slug,
+                      loadComponent: () => import('../deliveries/admin-deliveries.page').then((module) => module.AdminDeliveriesPage),
+                    };
+                  }
+
                   return {
                     path: item.slug,
                     data: {

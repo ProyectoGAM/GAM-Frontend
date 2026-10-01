@@ -1,0 +1,36 @@
+<main class="plans-page">
+  <p class="breadcrumb">Manejo de Lotes / Planes</p>
+  <header class="heading"><div><h1>Plantillas de manejo</h1><p>Planes previstos reutilizables para nuevos lotes.</p></div>@if (canManage()) { <a class="button primary new-template-link" routerLink="/administracion/manejo-lotes/planes/plantillas/nueva"><span aria-hidden="true">＋</span> Nueva plantilla</a> }</header>
+  <nav class="tabs" aria-label="Vistas de planes"><a routerLink="/administracion/manejo-lotes/planes/plantillas" aria-current="page">Plantillas</a><a routerLink="/administracion/manejo-lotes/planes/lotes">Planes por lote</a></nav>
+
+  <section class="panel">
+    <div class="template-status-switch" [class.with-drafts]="canManage()" role="group" aria-label="Vistas de plantillas">
+      <button type="button" [attr.aria-pressed]="status() === 'active'" (click)="setStatus('active')">Activas</button>
+      @if (canManage()) { <button type="button" [attr.aria-pressed]="status() === 'draft'" (click)="setStatus('draft')">Borradores</button> }
+      <button type="button" class="retired-option" [attr.aria-pressed]="status() === 'retired'" (click)="setStatus('retired')">Retiradas</button>
+    </div>
+    @if (status() === 'retired') { <p class="retired-list-note">Estas plantillas ya no se asignan a nuevos lotes. Siguen disponibles para consulta.</p> }
+    @if (status() === 'draft') { <p class="retired-list-note">Plantillas con una versión pendiente de publicación, incluidas las retiradas.</p> }
+    <div class="filters">
+      <label>Buscar en esta página <input type="search" placeholder="Nombre o descripción" [value]="search()" (input)="setSearch($event)" /></label>
+    </div>
+    @if (state() === 'loading') { <p class="state" role="status">Cargando plantillas…</p> }
+    @else if (state() === 'error') { <div class="feedback" role="alert">No se pudieron cargar las plantillas. <button type="button" (click)="load()">Reintentar</button></div> }
+    @else if (!templates().length) { <p class="state">{{ status() === 'active' ? 'No hay plantillas activas.' : status() === 'draft' ? 'No hay borradores.' : 'No hay plantillas retiradas.' }}</p> }
+    @else {
+      <div class="template-list">
+        @for (template of visible(); track template.id) {
+          <article class="template-card">
+            <div class="template-main"><div><h2>{{ template.name }}</h2>@if (template.description) { <p>{{ template.description }}</p> }</div><div class="template-badges"><span class="badge" [class.retired]="template.status === 'retired'">{{ template.status === 'active' ? 'Activa' : 'Retirada' }}</span>@if (canManage() && hasDraft(template)) { <span class="badge draft">Borrador v{{ template.current_version }}</span> }</div></div>
+            <dl class="version-data"><div><dt>Versión actual</dt><dd>{{ template.current_version }}</dd></div><div><dt>Publicada</dt><dd>{{ template.published_version ?? '—' }}</dd></div></dl>
+            <div class="row-actions">
+              @if (template.published_version !== null) { <a class="button outline" [routerLink]="publishedPath(template)">Ver versión publicada</a> }
+              @if (canManage() && (template.published_version === null || template.current_version > template.published_version)) { <a class="button soft" [routerLink]="draftPath(template)" [queryParams]="{ version: template.current_version }">Abrir borrador v{{ template.current_version }}</a> }
+            </div>
+          </article>
+        } @empty { <p class="state">Ninguna plantilla coincide en esta página.</p> }
+      </div>
+      <div class="pagination"><button type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><button type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
+    }
+  </section>
+</main>

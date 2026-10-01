@@ -1,0 +1,54 @@
+<dialog #dialog class="filters-dialog" aria-labelledby="filters-title" (cancel)="onCancel($event)">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <div class="sheet-header">
+    <h2 id="filters-title">Filtros</h2>
+    <button class="sheet-close" type="button" aria-label="Cerrar filtros" (click)="close()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </div>
+  <div class="sheet-body">
+    <div class="filter-section">
+      <h3>Unidad productiva</h3>
+      @if (globalUnitId() !== null) {
+        <p class="global-unit-note">{{ globalUnitName() }} <span>Seleccionada en el filtro global</span></p>
+      } @else {
+        <label class="visually-hidden" for="house-unit-filter">Unidad productiva</label>
+        <select id="house-unit-filter" class="unit-select" [value]="draftUnitId() ?? ''" (change)="onUnitChange(unitSelect.value)" #unitSelect>
+          <option value="">Todas las UP</option>
+          @for (unit of availableUnits(); track unit.id) {
+            <option [value]="unit.id">{{ unit.name }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <fieldset class="filter-section">
+      <legend>Estado</legend>
+      <div class="choice-list">
+        @for (option of statusOptions; track option.value) {
+          <button class="choice-button" type="button" [attr.aria-pressed]="draftStatus() === option.value"
+            (click)="statusChanged.emit(option.value)">{{ option.label }}</button>
+        }
+      </div>
+    </fieldset>
+
+    @if (!isFeedList()) {
+      <fieldset class="filter-section">
+        <legend>Ocupación</legend>
+        <div class="choice-list">
+          @for (option of occupancyOptions; track option.value) {
+            <button class="choice-button" type="button" [attr.aria-pressed]="draftOccupancy() === option.value"
+              (click)="occupancyChanged.emit(option.value)">{{ option.label }}</button>
+          }
+        </div>
+        <p class="filter-help">Solo galpones con ocupación informada.</p>
+      </fieldset>
+    }
+  </div>
+  <div class="sheet-footer">
+    <button class="sheet-action secondary" type="button" (click)="clearRequested.emit()">Limpiar</button>
+    <button class="sheet-action primary" type="button" (click)="applyRequested.emit()">
+      Ver {{ draftResultCount() }} {{ draftResultCount() === 1 ? 'resultado' : 'resultados' }}
+    </button>
+  </div>
+</dialog>

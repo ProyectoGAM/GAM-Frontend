@@ -24,6 +24,9 @@
       <header class="topbar">
         <div><small>GAM · Gestión avícola</small><strong>Panel administrativo</strong></div>
         <div class="topbar-actions">
+          @if (hasDeliveryRole(auth.user())) {
+            <ion-button fill="outline" routerLink="/repartidor">Modo repartidor</ion-button>
+          }
           <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
             <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
           </ion-button>

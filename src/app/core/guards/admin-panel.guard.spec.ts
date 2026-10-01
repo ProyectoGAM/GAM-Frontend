@@ -29,11 +29,11 @@ describe('adminPanelGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('does not let management-plans.manage alone enter the panel shell', async () => {
+  it('lets management-plans.manage enter the panel shell for the plans section', async () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), { provide: AuthStore, useValue: { whenReady: async () => undefined, isAuthenticated: () => true, user: () => ({ roles: ['manager'], permissions: ['management-plans.manage'] }) } }],
     });
     const result = await TestBed.runInInjectionContext(() => adminPanelGuard({} as never, {} as never));
-    expect(TestBed.inject(Router).serializeUrl(result as ReturnType<Router['parseUrl']>)).toBe('/acceso-denegado');
+    expect(result).toBe(true);
   });
 });
