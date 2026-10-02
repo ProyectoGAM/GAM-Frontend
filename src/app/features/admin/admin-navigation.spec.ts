@@ -183,6 +183,16 @@ describe('admin navigation visibility', () => {
     ).toBe(false);
   });
 
+  it('loads the flock list from the existing Lotes navigation entry', async () => {
+    const lotsGroup = (adminRoutes[0]?.children ?? []).find((route) => route.path === 'lotes');
+    const lotsRoute = lotsGroup?.children?.find((route) => route.path === 'lotes');
+    const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
+    const flocksRoutes = await loader?.();
+
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', '']);
+    expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
+  });
+
   it('renders nested menu slugs as their existing URL segments', () => {
     const groups = visibleAdminNavigation({ roles: ['admin'] });
 

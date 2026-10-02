@@ -176,6 +176,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'lotes' && item.slug === 'lotes') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../flocks/flocks.routes').then((module) => module.flocksRoutes),
+                    };
+                  }
+
                   if (group.id === 'repartos' && item.slug === 'repartos') {
                     return {
                       path: item.slug,

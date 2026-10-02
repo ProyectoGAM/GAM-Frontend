@@ -33,7 +33,7 @@
     </div>
   } @else {
     <div class="empty-card"><div><h3>Galpón vacío</h3><p>No hay lotes activos alojados actualmente.</p></div>
-      <ion-button class="action" fill="outline" (click)="addLot.emit()">Agregar lote</ion-button>
+      @if (canAddLot()) { <ion-button class="action" fill="outline" (click)="addLot.emit()">Agregar lote</ion-button> }
     </div>
   }
 </section>

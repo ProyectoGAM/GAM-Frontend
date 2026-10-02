@@ -17,6 +17,7 @@ export class PoultryHouseDetailContentComponent {
   readonly occupancyPercent = input<number | null>(null);
   readonly flocks = input.required<HouseFlock[]>();
   readonly state = input.required<'loading' | 'success' | 'error'>();
+  readonly canAddLot = input(false);
   readonly addLot = output<void>();
   readonly retry = output<void>();
 
