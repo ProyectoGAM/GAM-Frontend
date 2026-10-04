@@ -20,9 +20,6 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .field-hint { margin: 6px 2px 0; color: var(--gam-color-text-muted); font-size: 0.8125rem; line-height: 1.4; }
 .locality-retry { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .locality-retry ion-button { --color: var(--gam-color-primary); margin: 0; }
-.geo-warning { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid var(--gam-color-warning); border-radius: 8px; background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
-.geo-warning ion-icon { flex: 0 0 auto; margin-top: 1px; font-size: 1.125rem; }
-.geo-warning p { margin: 0; font-size: 0.8125rem; line-height: 1.45; }
 .form-actions { display: flex; flex-direction: column-reverse; gap: 10px; margin-top: 22px; }
 .form-actions ion-button { min-height: 44px; --border-radius: 8px; }
 .submit-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); }

@@ -6,7 +6,8 @@
 h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; overflow-wrap: anywhere; }
 .location { display: flex; align-items: center; gap: 7px; margin: 9px 0 0; color: var(--gam-color-text-muted); }
 .unit-status { margin-top: 9px; }
-.map-hint { display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-radius: 8px; background: var(--gam-color-warning-soft); color: var(--gam-color-warning); font-size: .8125rem; }
+.unit-information { margin-top: 18px; }
+.location-unavailable { margin: 0; padding: 15px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); color: var(--gam-color-text-muted); }
 .actions { display: flex; align-items: center; gap: 9px; }
 .actions ion-button { min-height: 44px; margin: 0; --border-radius: 8px; }
 .edit-button, .state-panel ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); }
@@ -16,7 +17,6 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .reason-trigger { display: grid; place-items: center; width: 40px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--gam-color-text-muted); font-size: 1.25rem; cursor: help; }
 .tooltip { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 7px); width: min(270px, calc(100vw - 40px)); padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); font-size: .8125rem; line-height: 1.4; opacity: 0; visibility: hidden; pointer-events: none; }
 .status-action:hover .tooltip, .reason-trigger:focus-visible + .tooltip, .status-action.tooltip-open .tooltip { opacity: 1; visibility: visible; }
-.coordinates { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; font-size: .875rem; }
 .houses-section { margin-top: 26px; }
 .section-heading { margin-bottom: 13px; }
 .section-heading h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }

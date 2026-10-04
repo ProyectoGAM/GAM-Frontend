@@ -1,44 +1,56 @@
 <div class="heading">
-  <div><p>Panel administrativo / Repartos</p><h1>Seguimiento de repartos</h1></div>
+  <div>
+    <p>Panel administrativo / Repartos</p>
+    <h1>Seguimiento de repartos</h1>
+    @if (unitContext.selectedId() !== null) { <small>Unidad: {{ unitContext.selectedUnit()?.name ?? 'seleccionada' }}</small> }
+  </div>
   <ion-button fill="outline" (click)="load()" [disabled]="loading()"><ion-icon slot="start" name="refresh-outline" aria-hidden="true" />Actualizar</ion-button>
 </div>
 
-@if (error()) { <ion-text color="danger"><p>{{ error() }}</p></ion-text> }
+@if (error()) { <ion-text color="danger"><p class="page-error" role="alert">{{ error() }}</p></ion-text> }
 
 <div class="delivery-grid">
-  <section>
+  <section class="delivery-lists" aria-label="Listado de repartos">
     <ion-card>
       <ion-card-header><ion-card-title>Repartos actuales</ion-card-title></ion-card-header>
       <ion-card-content>
-        @if (loading() && active().length === 0) { <ion-spinner name="crescent" /> }
+        @if (loading() && active().length === 0) { <div class="loading-state" role="status"><ion-spinner name="crescent" /> Cargando repartos…</div> }
         @for (delivery of active(); track delivery.id) {
-          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)">
+          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
             <span class="status-dot active"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos · {{ delivery.stops_summary.total }} visitas</small></span>
           </button>
-        } @empty { <p class="muted">No hay repartos activos.</p> }
+        } @empty { @if (!loading()) { <p class="muted">No hay repartos activos para esta selección.</p> } }
       </ion-card-content>
     </ion-card>
     <ion-card>
       <ion-card-header><ion-card-title>Historial</ion-card-title></ion-card-header>
       <ion-card-content>
         @for (delivery of history(); track delivery.id) {
-          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)">
+          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
             <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>
           </button>
-        } @empty { <p class="muted">Todavía no hay repartos cerrados.</p> }
+        } @empty { @if (!loading()) { <p class="muted">Todavía no hay repartos cerrados.</p> } }
       </ion-card-content>
     </ion-card>
   </section>
 
-  <section>
-    <div #adminMap class="admin-map" aria-label="Ubicación del reparto seleccionado"></div>
+  <section class="map-and-detail" aria-label="Detalle del reparto seleccionado">
+    <div class="map-shell">
+      <div #adminMap class="admin-map" role="application" aria-label="Mapa de ubicaciones persistidas del reparto"></div>
+      @if (mapError()) { <p class="map-message" role="alert">{{ mapError() }}</p> }
+      @if (!mapReady() && !mapError()) { <p class="map-message" role="status"><ion-spinner name="crescent" /> Cargando mapa…</p> }
+    </div>
+
     @if (selected(); as delivery) {
       <ion-card class="detail-card">
         <ion-card-header><ion-card-title>Detalle del reparto</ion-card-title></ion-card-header>
         <ion-card-content>
+          @if (detailLoading()) { <p class="muted" role="status">Actualizando detalle…</p> }
+          @if (detailError()) { <p class="page-error" role="alert">{{ detailError() }}</p> }
           <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
           <p><strong>Unidad:</strong> {{ delivery.production_unit?.name ?? '—' }}</p>
           <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }}</p>
+          @if (!hasMapPoints()) { <p class="muted" role="status">Ubicación no disponible: el reparto no tiene puntos persistidos para mostrar.</p> }
           @if (delivery.loads?.length) {
             <div class="stops-detail"><strong>Cargas</strong>
               @for (load of delivery.loads; track load.id) {
@@ -60,6 +72,8 @@
           }
         </ion-card-content>
       </ion-card>
+    } @else if (!loading()) {
+      <p class="empty-selection" role="status">Seleccioná un reparto para ver sus ubicaciones guardadas.</p>
     }
   </section>
 </div>

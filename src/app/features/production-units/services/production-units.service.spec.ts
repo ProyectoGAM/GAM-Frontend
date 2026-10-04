@@ -59,6 +59,7 @@ describe('ProductionUnitsService', () => {
     const request = {
       locality_id: 8,
       name: 'Granja Norte',
+      address: 'Ruta 8, Las Piedras',
       latitude: -34.9,
       longitude: -56.2,
       status: 'active' as const,
@@ -284,24 +285,66 @@ describe('ProductionUnitsService', () => {
     }]);
   });
 
-  it('updates editable fields and switches between the two supported states', () => {
-    const fields = { name: 'Granja Actualizada', locality_id: 8, latitude: -34.9, longitude: -56.2 };
+  it('sends address, coordinates and a changed status together in the unit PATCH', () => {
+    const fields = { name: 'Granja Actualizada', locality_id: 8, address: 'Ruta 8, Las Piedras', latitude: -34.9, longitude: -56.2, status: 'inactive' as const };
     service.update(17, fields).subscribe();
     const update = http.expectOne('/api/v1/production-units/17');
     expect(update.request.method).toBe('PATCH');
     expect(update.request.body).toEqual(fields);
     update.flush({ data: { id: 17, name: fields.name } });
+  });
 
+  it('validates map selections against the backend before the frontend confirms them', () => {
+    service.validateLocation(-34.9, -56.2).subscribe();
+    const request = http.expectOne('/api/v1/production-units/validate-location');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ latitude: -34.9, longitude: -56.2 });
+    request.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
+  it('resolves a locality only from a unique exact department and locality catalog match', () => {
+    let localityId: number | null | undefined;
+    service.resolveLocalityId({ locality: 'Las Piedras', department: 'Canelones' }).subscribe((id) => (localityId = id));
+    http.expectOne('/api/v1/departments?page=1&per_page=100').flush({
+      data: [{ id: 3, name: 'Canelones' }], meta: { current_page: 1, last_page: 1 },
+    });
+    http.expectOne('/api/v1/departments/3/localities?page=1&per_page=100').flush({
+      data: [{ id: 8, department_id: 3, name: 'Las Piedras' }], meta: { current_page: 1, last_page: 1 },
+    });
+    expect(localityId).toBe(8);
+  });
+
+  it('returns null for ambiguous, unmatched, or rural Mapbox administrative context', () => {
+    let ambiguous: number | null | undefined;
+    service.resolveLocalityId({ locality: 'Pando', department: 'Canelones' }).subscribe((id) => (ambiguous = id));
+    http.expectOne('/api/v1/departments?page=1&per_page=100').flush({
+      data: [{ id: 3, name: 'Canelones' }], meta: { current_page: 1, last_page: 1 },
+    });
+    http.expectOne('/api/v1/departments/3/localities?page=1&per_page=100').flush({
+      data: [
+        { id: 8, department_id: 3, name: 'Pando' },
+        { id: 9, department_id: 3, name: 'Pando' },
+      ], meta: { current_page: 1, last_page: 1 },
+    });
+    expect(ambiguous).toBeNull();
+
+    let rural: number | null | undefined;
+    service.resolveLocalityId(null).subscribe((id) => (rural = id));
+    expect(rural).toBeNull();
+  });
+
+  it('keeps the standalone status endpoint for detail-screen transitions', () => {
+    const name = 'Granja Actualizada';
     service.updateStatus(17, 'inactive').subscribe();
     const updateStatus = http.expectOne('/api/v1/production-units/17/status');
     expect(updateStatus.request.method).toBe('PATCH');
     expect(updateStatus.request.body).toEqual({ status: 'inactive' });
-    updateStatus.flush({ data: { id: 17, name: fields.name, status: 'inactive' } });
+    updateStatus.flush({ data: { id: 17, name, status: 'inactive' } });
 
     service.updateStatus(17, 'active').subscribe();
     const reactivate = http.expectOne('/api/v1/production-units/17/status');
     expect(reactivate.request.method).toBe('PATCH');
     expect(reactivate.request.body).toEqual({ status: 'active' });
-    reactivate.flush({ data: { id: 17, name: fields.name, status: 'active' } });
+    reactivate.flush({ data: { id: 17, name, status: 'active' } });
   });
 });

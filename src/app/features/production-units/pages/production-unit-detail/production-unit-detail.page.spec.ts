@@ -4,13 +4,16 @@ import { AlertController } from '@ionic/angular';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
+import { MAPBOX_ACCESS_TOKEN } from '../../../../core/config/mapbox.config';
 import { PoultryHouse } from '../../interfaces/production-unit.interface';
+import { ProductionUnitGeocodingService } from '../../services/production-unit-geocoding.service';
 import { ProductionUnitsService } from '../../services/production-units.service';
 import { ProductionUnitDetailPage } from './production-unit-detail.page';
 
 describe('ProductionUnitDetailPage', () => {
   let fixture: ComponentFixture<ProductionUnitDetailPage>;
   let poultryHouses: ReturnType<typeof vi.fn>;
+  let getById: ReturnType<typeof vi.fn>;
 
   const houses: PoultryHouse[] = [
     { id: 1, name: 'Galpón Este', type: 'poultry', status: 'operational', bird_capacity: 2000, current_occupancy: 10 },
@@ -21,6 +24,12 @@ describe('ProductionUnitDetailPage', () => {
 
   beforeEach(() => {
     poultryHouses = vi.fn().mockReturnValue(of(houses));
+    getById = vi.fn().mockReturnValue(of({ data: {
+      id: 7,
+      name: 'Granja Norte',
+      status: 'active',
+      locality: { name: 'Pando', department: { name: 'Canelones' } },
+    } }));
     TestBed.configureTestingModule({
       imports: [ProductionUnitDetailPage],
       providers: [
@@ -30,15 +39,12 @@ describe('ProductionUnitDetailPage', () => {
         {
           provide: ProductionUnitsService,
           useValue: {
-            getById: vi.fn().mockReturnValue(of({ data: {
-              id: 7,
-              name: 'Granja Norte',
-              status: 'active',
-              locality: { name: 'Pando', department: { name: 'Canelones' } },
-            } })),
+            getById,
             poultryHouses,
           },
         },
+        { provide: ProductionUnitGeocodingService, useValue: { search: vi.fn().mockReturnValue(of([])), reverse: vi.fn().mockReturnValue(of([])) } },
+        { provide: MAPBOX_ACCESS_TOKEN, useValue: '' },
       ],
     });
   });
@@ -89,6 +95,42 @@ describe('ProductionUnitDetailPage', () => {
     const houseLink = fixture.nativeElement.querySelector('a.house-link');
     expect(houseLink.querySelector('.capacity')?.textContent).toContain('Capacidad: 900 aves');
     expect(houseLink.querySelector('.occupancy-bar')).toBeNull();
+  });
+
+  it('shows a persisted address and map for a valid historic point without an address', () => {
+    getById.mockReturnValue(of({ data: {
+      id: 7,
+      name: 'Granja Norte',
+      status: 'active',
+      address: null,
+      latitude: '-34.9',
+      longitude: '-56.2',
+      locality: { name: 'Pando', department: { name: 'Canelones' } },
+    } }));
+
+    render();
+
+    expect(fixture.nativeElement.querySelector('.map-canvas')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Punto seleccionado en el mapa');
+    expect(fixture.nativeElement.textContent).not.toContain('Latitud');
+    expect(fixture.nativeElement.textContent).not.toContain('Longitud');
+  });
+
+  it('does not draw a fallback point when historic coordinates are invalid', () => {
+    getById.mockReturnValue(of({ data: {
+      id: 7,
+      name: 'Granja Norte',
+      status: 'active',
+      address: 'Ruta 8',
+      latitude: 'Infinity',
+      longitude: '-56.2',
+      locality: { name: 'Pando', department: { name: 'Canelones' } },
+    } }));
+
+    render();
+
+    expect(fixture.nativeElement.textContent).toContain('Ubicación no disponible');
+    expect(fixture.nativeElement.querySelector('.map-canvas')).toBeNull();
   });
 
   it('requires plants as well as poultry houses to be inactive before disabling the unit', () => {

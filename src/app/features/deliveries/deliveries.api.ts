@@ -34,8 +34,8 @@ export class DeliveriesApi {
     return this.api.post<DeliveryEnvelope, AddDeliveryLoadInput>(`repartos/${id}/cargas`, body, this.commandOptions(idempotencyKey));
   }
 
-  current(): Observable<DeliveryListResponse> {
-    return this.api.get<DeliveryListResponse>('repartos/actuales');
+  current(params: Record<string, string | number | boolean | null | undefined> = {}): Observable<DeliveryListResponse> {
+    return this.api.get<DeliveryListResponse>('repartos/actuales', { params });
   }
 
   list(params: Record<string, string | number | boolean | null | undefined> = {}): Observable<DeliveryListResponse> {

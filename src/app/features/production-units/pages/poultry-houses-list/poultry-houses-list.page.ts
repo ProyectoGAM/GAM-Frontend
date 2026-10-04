@@ -132,7 +132,7 @@ export class PoultryHousesListPage implements OnInit {
       if (!query) return true;
       const unit = house.productionUnit;
       return searchable([
-        house.name, unit.name, unit.locality.name, unit.locality.department.name,
+        house.name, unit.name, unit.locality?.name ?? '', unit.locality?.department?.name ?? '', unit.address ?? '',
       ].join(' ')).includes(query);
     });
   }
