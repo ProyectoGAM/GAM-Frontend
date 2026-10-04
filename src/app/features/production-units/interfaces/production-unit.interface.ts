@@ -2,7 +2,8 @@ export interface ProductionUnit {
   id: number;
   name: string;
   status: 'active' | 'inactive';
-  locality_id?: number;
+  address?: string | null;
+  locality_id?: number | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
   locality: {
@@ -12,8 +13,21 @@ export interface ProductionUnit {
     department: {
       id: number;
       name: string;
-    };
-  };
+    } | null;
+  } | null;
+}
+
+export interface ProductionUnitAdministrativeContext {
+  locality: string | null;
+  department: string | null;
+}
+
+export interface ProductionUnitLocationValue {
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  isConfirmed: boolean;
+  administrativeContext?: ProductionUnitAdministrativeContext | null;
 }
 
 export type PoultryHouseStatus = 'operational' | 'maintenance' | 'out_of_service' | 'inactive';
@@ -106,11 +120,21 @@ export interface PaginatedResponse<T> {
 }
 
 export interface CreateProductionUnitRequest {
-  locality_id: number;
+  locality_id: number | null;
   name: string;
+  address: string;
   latitude: number;
   longitude: number;
   status: 'active' | 'inactive';
+}
+
+export interface UpdateProductionUnitRequest {
+  locality_id?: number | null;
+  name: string;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+  status?: 'active' | 'inactive';
 }
 
 export interface CreateProductionUnitResponse {

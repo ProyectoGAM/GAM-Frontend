@@ -7,8 +7,10 @@ import { arrowBackOutline, informationCircleOutline, locationOutline, pencilOutl
 import { AlertController, IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 
 import { ProductionUnitHouseCardComponent } from '../../components/production-unit-house-card/production-unit-house-card.component';
+import { ProductionUnitLocationPickerComponent } from '../../components/production-unit-location-picker/production-unit-location-picker.component';
 import { PoultryHouse, ProductionUnit } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { isValidProductionUnitPoint } from '../../types/production-unit-location.type';
 
 type PageState = 'loading' | 'success' | 'offline' | 'forbidden' | 'error';
 
@@ -16,7 +18,7 @@ type PageState = 'loading' | 'success' | 'offline' | 'forbidden' | 'error';
   selector: 'app-production-unit-detail-page',
   templateUrl: './production-unit-detail.page.html',
   styleUrl: './production-unit-detail.page.scss',
-  imports: [IonButton, IonIcon, IonSpinner, ProductionUnitHouseCardComponent, RouterLink],
+  imports: [IonButton, IonIcon, IonSpinner, ProductionUnitHouseCardComponent, ProductionUnitLocationPickerComponent, RouterLink],
 })
 export class ProductionUnitDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
@@ -25,6 +27,14 @@ export class ProductionUnitDetailPage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly state = signal<PageState>('loading');
   readonly unit = signal<ProductionUnit | null>(null);
+  readonly displayLocation = computed(() => {
+    const unit = this.unit();
+    if (!unit || unit.latitude == null || unit.longitude == null) return null;
+    const latitude = Number(unit.latitude);
+    const longitude = Number(unit.longitude);
+    if (!isValidProductionUnitPoint(latitude, longitude)) return null;
+    return { address: unit.address ?? null, latitude, longitude };
+  });
   readonly houses = signal<PoultryHouse[]>([]);
   readonly housesState = signal<'loading' | 'success' | 'empty' | 'error'>('loading');
   readonly houseGroups = computed(() => [

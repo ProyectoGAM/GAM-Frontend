@@ -35,6 +35,7 @@
     "@types/leaflet": "^1.9.22",
     "ionicons": "^8.1.0",
     "leaflet": "^1.9.4",
+    "mapbox-gl": "^3.24.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

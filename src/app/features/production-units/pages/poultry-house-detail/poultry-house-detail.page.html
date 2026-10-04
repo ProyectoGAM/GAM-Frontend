@@ -70,7 +70,7 @@
       <span class="unit-symbol" aria-hidden="true"><ion-icon name="business-outline" /></span>
       <div class="unit-copy">
         <h2>{{ currentHouse.production_unit.name }}</h2>
-        <p>{{ currentHouse.production_unit.locality.name }}, {{ currentHouse.production_unit.locality.department.name }}</p>
+        <p>{{ currentHouse.production_unit.locality?.name ?? currentHouse.production_unit.address ?? 'Ubicación no disponible' }}{{ currentHouse.production_unit.locality?.department?.name ? ', ' + currentHouse.production_unit.locality.department.name : '' }}</p>
       </div>
       <a class="unit-link" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit.id]">
         Ver unidad productiva <span aria-hidden="true">→</span>

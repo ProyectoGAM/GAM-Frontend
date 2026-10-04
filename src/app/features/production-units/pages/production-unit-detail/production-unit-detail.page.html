@@ -5,7 +5,13 @@
   } @else if (state() === 'success' && unit(); as selectedUnit) {
     <header class="page-heading">
       <div><p class="breadcrumb">Administración <span aria-hidden="true">/</span> Unidades productivas</p><h1 id="page-title">{{ selectedUnit.name }}</h1>
-        <p class="location"><ion-icon name="location-outline" aria-hidden="true" /> {{ selectedUnit.locality.name }}, {{ selectedUnit.locality.department.name }}</p>
+        @if (selectedUnit.locality; as locality) {
+          <p class="location"><ion-icon name="location-outline" aria-hidden="true" /> {{ locality.name }}@if (locality.department?.name) {, {{ locality.department.name }}}</p>
+        } @else if (selectedUnit.address) {
+          <p class="location"><ion-icon name="location-outline" aria-hidden="true" /> {{ selectedUnit.address }}</p>
+        } @else {
+          <p class="location"><ion-icon name="location-outline" aria-hidden="true" /> Ubicación no disponible</p>
+        }
         <span class="status unit-status" [attr.data-status]="selectedUnit.status === 'active' ? 'operational' : 'inactive'">{{ selectedUnit.status === 'active' ? 'Activa' : 'Inactiva' }}</span>
       </div>
       <div class="actions">
@@ -24,10 +30,12 @@
     @if (statusError()) { <p class="status-error" role="alert">{{ statusError() }}</p> }
 
     <section class="unit-information" aria-label="Ubicación de la unidad productiva">
-      <div class="coordinates"><span>Latitud</span><strong>{{ selectedUnit.latitude ?? 'No disponible' }}</strong><span>Longitud</span><strong>{{ selectedUnit.longitude ?? 'No disponible' }}</strong></div>
-      <p class="map-hint"><ion-icon name="location-outline" aria-hidden="true" /> En el futuro se mostrará un minimapa con Mapbox.</p>
+      @if (displayLocation(); as location) {
+        <app-production-unit-location-picker [initialLocation]="location" [readOnly]="true" />
+      } @else {
+        <p class="location-unavailable" role="status">Ubicación no disponible</p>
+      }
     </section>
-
     <section class="houses-section" aria-labelledby="houses-title">
       <div class="section-heading"><div><h2 id="houses-title">Galpones y plantas de ración</h2><p>Capacidad y ocupación avícola, junto con el estado de cada instalación.</p></div></div>
       @if (housesState() === 'loading') { <div class="state-panel" role="status"><ion-spinner name="crescent" /><span>Cargando instalaciones…</span></div> }

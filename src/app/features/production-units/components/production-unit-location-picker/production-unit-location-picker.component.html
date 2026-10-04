@@ -1,0 +1,108 @@
+<section class="location-picker" [class.read-only]="readOnly()" aria-label="Ubicación de la unidad productiva">
+  @if (readOnly()) {
+    <p class="address-display" aria-live="polite">
+      @if (addressText()) {
+        {{ addressText() }}
+      } @else if (labelState() === 'reverse') {
+        Buscando dirección para este punto…
+      } @else {
+        Dirección no disponible para este punto.
+      }
+    </p>
+  }
+
+  <div class="map-shell">
+    <div #mapHost class="map-canvas" role="application" aria-label="Mapa de ubicación de la unidad productiva"></div>
+
+    @if (!readOnly()) {
+      <div class="search-panel">
+        <label class="address-label" for="production-unit-address">Dirección <span aria-hidden="true">*</span></label>
+        <input
+          id="production-unit-address"
+          class="address-input"
+          type="search"
+          autocomplete="street-address"
+          maxlength="500"
+          placeholder="Calle, número y localidad"
+          [value]="addressText()"
+          [attr.aria-expanded]="suggestions().length > 0"
+          [attr.aria-invalid]="validationError() ? 'true' : null"
+          aria-controls="production-unit-address-suggestions"
+          aria-describedby="production-unit-location-guidance"
+          aria-autocomplete="list"
+          (input)="onNativeAddressInput($event)"
+          (keydown)="preventSearchSubmit($event)"
+        />
+
+        @if (isSearching() || suggestions().length || (searchQuery().length >= 3 && !searchError())) {
+          <div class="suggestion-panel" aria-live="polite">
+            @if (isSearching()) {
+              <p class="suggestion-status" role="status">Buscando direcciones…</p>
+            } @else if (suggestions().length) {
+              <ul id="production-unit-address-suggestions" role="listbox" aria-label="Direcciones sugeridas">
+                @for (place of suggestions(); track place.id) {
+                  <li role="presentation">
+                    <button type="button" role="option" [attr.aria-selected]="false"
+                      (pointerdown)="preserveSearchFocus($event)" (click)="chooseSuggestion(place)">
+                      {{ place.place_name }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="suggestion-status" role="status">Sin resultados. Podés elegir un punto directamente en el mapa.</p>
+            }
+          </div>
+        }
+
+        @if (location(); as currentLocation) {
+          @if (!currentLocation.isConfirmed && addressText().trim()) {
+            <button class="confirm-address" type="button" [disabled]="!canConfirmAddressForPoint()" (pointerdown)="preserveSearchFocus($event)" (click)="confirmAddressForPoint()">
+              Usar esta dirección para el punto marcado
+            </button>
+          }
+        }
+
+        @if (isValidating()) {
+          <p class="suggestion-status" role="status">Validando la ubicación…</p>
+        }
+        @if (searchError()) {
+          <p class="search-error" role="alert">{{ searchError() }}</p>
+        }
+        @if (selectionError()) {
+          <p class="search-error" role="alert">{{ selectionError() }}</p>
+        }
+      </div>
+    }
+
+    @if (!mapReady() && !mapError()) {
+      <div class="map-message" role="status" aria-live="polite"><span class="loading-dot" aria-hidden="true"></span> Cargando mapa…</div>
+    } @else if (mapError()) {
+      <div class="map-message map-error" role="alert">{{ mapError() }}</div>
+    }
+  </div>
+
+  @if (!readOnly()) {
+    @if (location()) {
+      @if (labelState() === 'reverse') {
+        <p class="location-help" role="status">Buscando una dirección para el punto. También podés arrastrar el marcador.</p>
+      } @else if (labelState() === 'not-found') {
+        <p class="location-help" role="status">No encontramos una dirección exacta. El punto sigue seleccionado; escribí una referencia y confirmala para guardar.</p>
+      } @else if (labelState() === 'unconfirmed') {
+        <p class="location-help" role="status">La dirección visible cambió. Elegí una sugerencia o confirmá que corresponda al punto marcado.</p>
+      } @else if (labelState() === 'ready') {
+        <p class="location-help" role="status">Punto seleccionado. Podés tocar el mapa o arrastrar el marcador para ajustarlo.</p>
+      } @else {
+        <p class="location-help" role="status">Elegí una sugerencia o tocá el mapa para marcar la ubicación.</p>
+      }
+    } @else {
+      <p class="location-help" role="status">Elegí una sugerencia o tocá el mapa para marcar la ubicación.</p>
+    }
+  } @else if (searchError()) {
+    <p class="location-help" role="status">{{ searchError() }}</p>
+  }
+  <span class="screen-reader-only" id="production-unit-location-guidance">Escribí una dirección, elegí una sugerencia o marcá el punto en el mapa.</span>
+  @if (validationError()) {
+    <p class="location-error" role="alert">{{ validationError() }}</p>
+  }
+</section>
