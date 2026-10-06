@@ -55,7 +55,7 @@
                 @if (selectedUnit(); as unit) {
                   <div class="unit-summary">
                     <ion-icon name="business-outline" aria-hidden="true" />
-                    <div><strong>{{ unit.name }}</strong><span>{{ unit.locality.name }}, {{ unit.locality.department.name }}</span></div>
+                    <div><strong>{{ unit.name }}</strong><span>{{ unit.locality ? unit.locality.name + (unit.locality.department?.name ? ', ' + unit.locality.department.name : '') : (unit.address ?? 'Ubicación no disponible') }}</span></div>
                   </div>
                 }
               } @else {
@@ -64,11 +64,11 @@
                     <ion-label position="stacked">Unidad productiva <span aria-hidden="true">*</span></ion-label>
                     <ion-select formControlName="unitId" interface="popover" placeholder="Seleccioná una unidad activa" aria-describedby="unit-error" (ionChange)="onUnitChanged($event.detail.value)">
                       @for (unit of units(); track unit.id) {
-                        <ion-select-option [value]="unit.id">{{ unit.name }} · {{ unit.locality.name }}, {{ unit.locality.department.name }}</ion-select-option>
+                        <ion-select-option [value]="unit.id">{{ unit.name }} · {{ unit.locality ? unit.locality.name + (unit.locality.department?.name ? ', ' + unit.locality.department.name : '') : (unit.address ?? 'Ubicación no disponible') }}</ion-select-option>
                       }
                     </ion-select>
                   </ion-item>
-                  @if (selectedUnit(); as unit) { <p class="field-hint">{{ unit.locality.name }}, {{ unit.locality.department.name }}</p> }
+                  @if (selectedUnit(); as unit) { <p class="field-hint">{{ unit.locality ? unit.locality.name + (unit.locality.department?.name ? ', ' + unit.locality.department.name : '') : (unit.address ?? 'Ubicación no disponible') }}</p> }
                   @if (fieldErrors().unitId) { <p class="field-error" id="unit-error" role="alert">{{ fieldErrors().unitId }}</p> }
                   @else if ((form.controls.unitId.touched || attempted()) && form.controls.unitId.invalid) { <p class="field-error" id="unit-error">Seleccioná una unidad productiva activa.</p> }
                 </div>

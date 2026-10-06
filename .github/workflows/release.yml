@@ -10,8 +10,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: frontend-production
+  group: gam-vps-production
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release:
@@ -87,7 +88,7 @@ jobs:
           chmod 644 "${HOME}/.ssh/known_hosts"
 
           printf -v REMOTE_COMMAND \
-            'bash %q %q %q' \
+            'flock -x "$HOME/.gam-vps-production.lock" bash %q %q %q' \
             "${DEPLOY_SCRIPT}" \
             "${RELEASE_TAG}" \
             "${RELEASE_SHA}"

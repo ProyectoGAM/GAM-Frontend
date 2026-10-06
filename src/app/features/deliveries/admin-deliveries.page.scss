@@ -1,20 +1,38 @@
+:host { display: block; min-width: 0; color: var(--gam-color-text); }
 .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .heading p { margin: 0 0 7px; color: var(--gam-color-text-muted); font-size: 12px; }
 .heading h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(23px, 3vw, 31px); }
-.delivery-grid { display: grid; grid-template-columns: minmax(18rem, .8fr) minmax(22rem, 1.2fr); gap: 18px; }
+.heading small { display: block; margin-top: 5px; color: var(--gam-color-text-muted); }
+.delivery-grid { display: grid; grid-template-columns: minmax(18rem, .8fr) minmax(22rem, 1.2fr); align-items: start; gap: 18px; }
 ion-card { margin: 0 0 16px; --background: var(--gam-color-surface); border: 1px solid var(--gam-color-border); border-radius: 8px; box-shadow: none; }
-.delivery-row { display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px 4px; border: 0; border-bottom: 1px solid var(--gam-color-border); background: transparent; color: var(--gam-color-text); text-align: left; cursor: pointer; }
+.delivery-row { display: flex; width: 100%; min-height: 50px; align-items: center; gap: 10px; padding: 11px 4px; border: 0; border-bottom: 1px solid var(--gam-color-border); background: transparent; color: var(--gam-color-text); text-align: left; cursor: pointer; }
 .delivery-row:last-child { border-bottom: 0; }
 .delivery-row.selected { color: var(--gam-color-primary); }
+.delivery-row:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
 .delivery-row span:not(.status-dot) { display: grid; gap: 3px; }
-.delivery-row small, .muted { color: var(--gam-color-text-muted); font-size: 12px; }
+.delivery-row small, .muted, .empty-selection { color: var(--gam-color-text-muted); font-size: 12px; }
 .status-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--gam-color-text-muted); }
 .status-dot.active { background: var(--gam-color-success, #3fa98d); }
-.admin-map { min-height: 21rem; border: 1px solid var(--gam-color-border); border-radius: 8px; overflow: hidden; }
+.map-shell { position: relative; min-height: 21rem; overflow: hidden; border: 1px solid var(--gam-color-border); border-radius: 8px; background: var(--gam-color-surface-alt); }
+.admin-map { width: 100%; height: clamp(21rem, 55vh, 38rem); min-height: 21rem; }
+.map-message { position: absolute; inset: auto 12px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin: 0; padding: 8px 12px; border: 1px solid var(--gam-color-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); font-size: 13px; text-align: center; }
+.map-message[role="alert"] { border-color: var(--gam-color-danger); color: var(--gam-color-danger); }
+.delivery-map-marker { width: 23px; height: 23px; border: 3px solid var(--gam-color-surface); border-radius: 50%; box-shadow: 0 1px 5px color-mix(in srgb, var(--gam-color-heading) 40%, transparent); cursor: default; }
+.delivery-map-marker.unit { background: var(--gam-color-primary); }
+.delivery-map-marker.stop { background: var(--gam-color-success, #3fa98d); }
+.delivery-map-marker.latest { width: 19px; height: 19px; background: var(--gam-color-danger); }
 .detail-card { margin-top: 16px; }
-.detail-card p { color: var(--gam-color-text-muted); }
+.detail-card p { color: var(--gam-color-text-muted); line-height: 1.45; }
 .stops-detail { display: grid; gap: 7px; margin-top: 14px; color: var(--gam-color-text); font-size: 12px; }
 .stops-detail > strong { color: var(--gam-color-heading); }
 .stops-detail div { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--gam-color-border); }
 .stops-detail small { color: var(--gam-color-text-muted); }
-@media (max-width: 760px) { .delivery-grid { grid-template-columns: 1fr; } .admin-map { min-height: 17rem; } }
+.loading-state { display: flex; align-items: center; gap: 9px; min-height: 48px; color: var(--gam-color-text-muted); font-size: 13px; }
+.page-error { margin: 8px 0; color: var(--gam-color-danger); }
+.empty-selection { padding: 0 4px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .delivery-grid { grid-template-columns: minmax(0, 1fr); }
+  .delivery-lists { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .map-shell { min-height: 18rem; }
+  .admin-map { height: clamp(18rem, 52vh, 28rem); min-height: 18rem; }
+}

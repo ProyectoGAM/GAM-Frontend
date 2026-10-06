@@ -13,6 +13,7 @@ import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
 import { API_CONFIG } from './app/core/config/api.config';
+import { MAPBOX_ACCESS_TOKEN } from './app/core/config/mapbox.config';
 import { authInterceptor } from './app/core/auth/auth.interceptor';
 import { AuthStore } from './app/core/auth/auth.store';
 import { ThemeService } from './app/core/theme/theme.service';
@@ -44,6 +45,11 @@ bootstrapApplication(AppComponent, {
       useValue: {
         baseUrl: environment.apiUrl,
       },
+    },
+
+    {
+      provide: MAPBOX_ACCESS_TOKEN,
+      useValue: environment.mapbox.accessToken,
     },
   ],
 });

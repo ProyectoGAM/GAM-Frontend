@@ -90,7 +90,7 @@ export interface Delivery {
   id: string;
   status: DeliveryStatus;
   driver: { id: number; name: string } | null;
-  production_unit: { id: number; name: string } | null;
+  production_unit: { id: number; name: string; latitude?: number | string | null; longitude?: number | string | null } | null;
   vehicle_reference: string | null;
   loaded_quantity: number;
   delivered_quantity: number;

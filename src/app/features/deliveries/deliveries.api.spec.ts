@@ -72,4 +72,16 @@ describe('DeliveriesApi', () => {
     expect(load.request.body).toEqual({ quantity: 30 });
     load.flush({ data: { id: 'delivery-1' } });
   });
+
+  it('filters both current and historical delivery requests by the selected production unit', () => {
+    api.current({ production_unit_id: 17 }).subscribe();
+    api.list({ per_page: 50, production_unit_id: 17 }).subscribe();
+
+    const current = http.expectOne('/api/v1/repartos/actuales?production_unit_id=17');
+    expect(current.request.method).toBe('GET');
+    current.flush({ data: [] });
+    const history = http.expectOne('/api/v1/repartos?per_page=50&production_unit_id=17');
+    expect(history.request.method).toBe('GET');
+    history.flush({ data: [] });
+  });
 });

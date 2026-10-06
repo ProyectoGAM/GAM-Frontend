@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { concatMap, from, map, of, toArray } from 'rxjs';
+import { catchError, concatMap, from, map, of, switchMap, toArray } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
 import {
@@ -13,12 +13,14 @@ import {
   HouseFlock,
   InventoryIngredient,
   PaginatedResponse,
+  ProductionUnitAdministrativeContext,
   PoultryHouse,
   PoultryHouseDetail,
   PoultryHouseListItem,
   PoultryHouseType,
   ProductionUnit,
   UpdatePoultryHouseRequest,
+  UpdateProductionUnitRequest,
 } from '../interfaces/production-unit.interface';
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +33,34 @@ export class ProductionUnitsService {
 
   localities(departmentId: number) {
     return this.allPages<GeographyLocality>(`departments/${departmentId}/localities`);
+  }
+
+  validateLocation(latitude: number, longitude: number) {
+    return this.api.post<void, { latitude: number; longitude: number }>(
+      'production-units/validate-location', { latitude, longitude },
+    );
+  }
+
+  resolveLocalityId(context: ProductionUnitAdministrativeContext | null | undefined) {
+    const localityName = this.catalogKey(context?.locality);
+    const departmentName = this.catalogKey(context?.department);
+    if (!localityName || !departmentName) return of(null);
+
+    return this.departments().pipe(
+      map((departments) => departments.filter((department) => this.catalogKey(department.name) === departmentName)),
+      switchMap((departments) => {
+        if (departments.length !== 1) return of(null);
+        return this.localities(departments[0].id).pipe(
+          map((localities) => {
+            const matches = localities.filter((locality) => this.catalogKey(locality.name) === localityName);
+            return matches.length === 1 && matches[0].department_id === departments[0].id
+              ? matches[0].id
+              : null;
+          }),
+        );
+      }),
+      catchError(() => of(null)),
+    );
   }
 
   create(request: CreateProductionUnitRequest) {
@@ -123,8 +153,8 @@ export class ProductionUnitsService {
     );
   }
 
-  update(id: number, request: Partial<Omit<CreateProductionUnitRequest, 'status'>>) {
-    return this.api.patch<{ data: ProductionUnit }, Partial<Omit<CreateProductionUnitRequest, 'status'>>>(
+  update(id: number, request: UpdateProductionUnitRequest) {
+    return this.api.patch<{ data: ProductionUnit }, UpdateProductionUnitRequest>(
       `production-units/${id}`,
       request,
     );
@@ -159,5 +189,9 @@ export class ProductionUnitsService {
         );
       }),
     );
+  }
+
+  private catalogKey(value: string | null | undefined): string {
+    return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('es-UY') ?? '';
   }
 }

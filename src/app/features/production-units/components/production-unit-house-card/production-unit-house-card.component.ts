@@ -68,7 +68,9 @@ export class ProductionUnitHouseCardComponent {
       occupancyPercent,
       occupancyLabel,
       locationLabel: productionUnit
-        ? `${productionUnit.locality.name}, ${productionUnit.locality.department.name}`
+        ? productionUnit.locality
+          ? `${productionUnit.locality.name}${productionUnit.locality.department ? `, ${productionUnit.locality.department.name}` : ''}`
+          : productionUnit.address ?? 'Ubicación no disponible'
         : null,
     };
   });

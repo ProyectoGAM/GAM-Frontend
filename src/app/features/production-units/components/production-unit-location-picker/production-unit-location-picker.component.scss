@@ -1,0 +1,37 @@
+:host { display: block; min-width: 0; }
+
+.location-picker { color: var(--gam-color-text); }
+.address-display { margin: 0 0 10px; color: var(--gam-color-heading); font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.map-shell { position: relative; overflow: visible; border: 1px solid var(--gam-color-control-border); border-radius: 12px; background: var(--gam-color-surface-alt); }
+.map-canvas { width: 100%; height: clamp(340px, 56vh, 460px); min-height: 340px; border-radius: 12px; }
+.search-panel { position: absolute; z-index: 3; inset: 12px 12px auto; width: min(100% - 24px, 520px); padding: 10px; border: 1px solid var(--gam-color-control-border); border-radius: 10px; background: var(--gam-color-surface); color: var(--gam-color-text); box-shadow: 0 3px 14px color-mix(in srgb, var(--gam-color-heading) 18%, transparent); }
+.address-label { display: block; margin: 0 0 5px; color: var(--gam-color-heading); font-size: .8125rem; font-weight: 650; }
+.address-input { display: block; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; font-size: .9375rem; }
+.address-input::placeholder { color: var(--gam-color-text-muted); opacity: 1; }
+.address-input:focus-visible, .suggestion-panel button:focus-visible, .confirm-address:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.suggestion-panel { max-height: min(38vh, 240px); margin-top: 6px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--gam-color-border); border-radius: 7px; background: var(--gam-color-surface); }
+.suggestion-panel ul { margin: 0; padding: 0; list-style: none; }
+.suggestion-panel li + li { border-top: 1px solid var(--gam-color-border); }
+.suggestion-panel button { display: block; width: 100%; min-height: 48px; padding: 10px 12px; border: 0; background: transparent; color: var(--gam-color-text); font: inherit; text-align: left; cursor: pointer; }
+.suggestion-panel button:hover { background: var(--gam-color-primary-soft); }
+.suggestion-status { margin: 0; padding: 11px 12px; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.4; }
+.confirm-address { width: 100%; min-height: 44px; margin-top: 7px; padding: 7px 10px; border: 1px solid var(--gam-color-primary); border-radius: 7px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.confirm-address:disabled { opacity: .55; cursor: not-allowed; }
+.search-error { margin: 7px 2px 0; color: var(--gam-color-danger); font-size: .8125rem; line-height: 1.4; }
+.map-message { position: absolute; z-index: 2; inset: auto 12px 12px; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 8px 12px; border: 1px solid var(--gam-color-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); font-size: .8125rem; text-align: center; }
+.map-error { border-color: var(--gam-color-danger); background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
+.loading-dot { width: 12px; height: 12px; border: 2px solid var(--gam-color-primary-soft); border-top-color: var(--gam-color-primary); border-radius: 50%; animation: location-loading .8s linear infinite; }
+.location-help { margin: 7px 2px 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.45; }
+.location-error { margin: 5px 2px 0; color: var(--gam-color-danger); font-size: .8125rem; line-height: 1.4; }
+.screen-reader-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+
+@keyframes location-loading { to { transform: rotate(360deg); } }
+
+@media (min-width: 680px) {
+  .map-canvas { height: clamp(400px, 55vh, 520px); }
+  .search-panel { inset: 14px 14px auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-dot { animation-duration: 2.5s; }
+}
