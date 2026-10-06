@@ -48,6 +48,7 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               },
             ]
           : [
+              ...(group.id === 'repartos' ? [{ path: 'catalogo-y-precios', pathMatch: 'full' as const, redirectTo: '/administracion/inventario/presentaciones-huevos' }] : []),
               ...(group.id === 'ubicaciones'
                 ? [
                     {

@@ -20,7 +20,7 @@ const demoClient: DeliveryClient = {
 
 const activeDelivery: Delivery = {
   id: 'delivery-1', status: 'active', driver: { id: 2, name: 'Repartidor' },
-  production_unit: null, vehicle_reference: null, loaded_quantity: 120,
+  production_unit: { id: 7, name: 'UP Norte' }, vehicle_reference: null, loaded_quantity: 120,
   delivered_quantity: 0, returned_quantity: 0, remaining_quantity: 120,
   stops_summary: { total: 0, pending: 0, delivered: 0, not_delivered: 0 },
   started_at: '2026-09-29T12:00:00Z', closed_at: null, latest_location: null, stops: [],
@@ -36,6 +36,7 @@ describe('DeliveryPage', () => {
     start: ReturnType<typeof vi.fn>;
     clients: ReturnType<typeof vi.fn>;
     units: ReturnType<typeof vi.fn>;
+    productionUnits: ReturnType<typeof vi.fn>;
     load: ReturnType<typeof vi.fn>;
     stop: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
@@ -48,6 +49,8 @@ describe('DeliveryPage', () => {
     list: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    saveReferences: ReturnType<typeof vi.fn>;
+    referencesFor: ReturnType<typeof vi.fn>;
   };
   let theme: { toggleLabel: ReturnType<typeof signal<string>>; toggleIcon: ReturnType<typeof signal<string>>; toggle: ReturnType<typeof vi.fn> };
 
@@ -56,9 +59,10 @@ describe('DeliveryPage', () => {
     api = {
       start: vi.fn(() => of({ data: activeDelivery })),
       clients: vi.fn(() => of({ data: [demoClient] })),
+      productionUnits: vi.fn(() => of({ data: [{ id: 7, name: 'UP Norte' }, { id: 8, name: 'UP Sur' }] })),
       units: vi.fn(() => of({ data: [
-        { id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1 },
-        { id: 'maple', label: 'Maples (30 huevos)', category: 'maples', eggs_per_unit: 30 },
+        { id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 },
+        { id: 'maple', label: 'Maples (30 huevos)', category: 'maples', eggs_per_unit: 30, default_unit_price: 100 },
       ] })),
       load: vi.fn(() => of({ data: { ...activeDelivery, loaded_quantity: 150, remaining_quantity: 150,
         unit_balances: { ...activeDelivery.unit_balances, rows: [
@@ -79,6 +83,8 @@ describe('DeliveryPage', () => {
       list: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
       remove: vi.fn().mockResolvedValue(undefined),
+      saveReferences: vi.fn().mockResolvedValue(undefined),
+      referencesFor: vi.fn().mockResolvedValue(null),
     };
     theme = { toggleLabel: signal('Cambiar a tema oscuro'), toggleIcon: signal('moon-outline'), toggle: vi.fn() };
     TestBed.configureTestingModule({
@@ -93,8 +99,11 @@ describe('DeliveryPage', () => {
       ],
     });
     page = TestBed.runInInjectionContext(() => new DeliveryPage());
-    page.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1 }, { id: 'maple', label: 'Maples (30 huevos)', category: 'maples', eggs_per_unit: 30 }]);
+    page.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }, { id: 'maple', label: 'Maples (30 huevos)', category: 'maples', eggs_per_unit: 30, default_unit_price: 100 }]);
     page.startForm.controls.items.at(0).controls.unit.setValue('huevo');
+    page.startForm.controls.production_unit_id.setValue(7);
+    page.loadForm.controls.production_unit_id.setValue(7);
+    page.productionUnits.set([{ id: 7, name: 'UP Norte' }, { id: 8, name: 'UP Sur' }]);
     page.startPin.setValue('0007');
     page.closePin.setValue('0007');
     page.delivery.set(activeDelivery);
@@ -115,6 +124,8 @@ describe('DeliveryPage', () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
+    fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     const form = root.querySelector('.idle-card .stock-form') as HTMLElement;
@@ -140,9 +151,12 @@ describe('DeliveryPage', () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
+    fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('#start-pin')).toBeNull();
+    fixture.componentInstance.startForm.controls.production_unit_id.setValue(7);
     root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
     fixture.detectChanges();
     expect(root.querySelector('#start-pin')?.closest('[role="dialog"]')).not.toBeNull();
@@ -166,9 +180,11 @@ describe('DeliveryPage', () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
     fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
+    fixture.componentInstance.startForm.controls.production_unit_id.setValue(7);
     root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
     fixture.detectChanges();
     fixture.componentInstance.startPin.setValue('0007');
@@ -180,6 +196,7 @@ describe('DeliveryPage', () => {
     fixture.componentInstance.selectPanel('summary');
     fixture.detectChanges();
     root.querySelector<HTMLButtonElement>('#summary-panel .close-button')?.click();
+    await fixture.whenStable();
     fixture.detectChanges();
     fixture.componentInstance.closePin.setValue('0007');
     root.querySelector<HTMLButtonElement>('.pin-dialog .danger-action')?.click();
@@ -193,6 +210,7 @@ describe('DeliveryPage', () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
     fixture.componentInstance.delivery.set({
       ...activeDelivery, loaded_quantity: 90, delivered_quantity: 30, remaining_quantity: 60,
       unit_balances: { rows: [
@@ -265,6 +283,7 @@ describe('DeliveryPage', () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
     fixture.componentInstance.delivery.set({
       ...activeDelivery, loaded_quantity: 35, remaining_quantity: 35,
       unit_balances: { rows: [
@@ -279,7 +298,7 @@ describe('DeliveryPage', () => {
     const mapleButtons = rows[1].querySelectorAll<HTMLButtonElement>('button');
     mapleButtons[1].click();
     fixture.detectChanges();
-    expect(rows[1].querySelector('output')?.textContent).toBe('1');
+    expect(rows[1].querySelector<HTMLInputElement>('.unit-stepper input')?.value).toBe('1');
     expect(mapleButtons[1].disabled).toBe(true);
     expect(fixture.componentInstance.selectedStopEggs()).toBe(30);
     mapleButtons[0].click();
@@ -303,7 +322,7 @@ describe('DeliveryPage', () => {
     page.stopSelections.set({ 'huevo|1': 12 });
     await page.saveStop();
     expect(api.stop).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
-      client_reference: client.id, status: 'delivered', items: [{ unit: 'huevo', amount: '12', eggs_per_unit: 1 }],
+      client_reference: client.id, status: 'delivered', items: [{ unit: 'huevo', amount: '12', eggs_per_unit: 1, unit_price: 100 }],
     }), expect.any(String));
     expect(page.delivery()?.remaining_quantity).toBe(108);
     expect(page.selectedClient()).toBeNull();
@@ -360,9 +379,10 @@ describe('DeliveryPage', () => {
 
   it('adds an online load to the current delivery', async () => {
     page.openLoad();
+    page.loadForm.controls.production_unit_id.setValue(7);
     page.loadForm.controls.items.at(0).patchValue({ unit: 'maple', amount: '1' });
     await page.addLoad();
-    expect(api.load).toHaveBeenCalledWith('delivery-1', { items: [
+    expect(api.load).toHaveBeenCalledWith('delivery-1', { production_unit_id: 7, items: [
       { unit: 'maple', amount: '1', eggs_per_unit: 30 },
     ] }, expect.any(String));
     expect(page.delivery()?.loaded_quantity).toBe(150);
@@ -373,24 +393,51 @@ describe('DeliveryPage', () => {
   it('queues an offline load and makes its eggs available locally', async () => {
     online.set(false);
     page.openLoad();
+    page.loadForm.controls.production_unit_id.setValue(7);
     page.loadForm.controls.items.at(0).patchValue({ unit: 'maple', amount: '1' });
     await page.addLoad();
     expect(api.load).not.toHaveBeenCalled();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'load', payload: { items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }] },
+      kind: 'load', payload: { production_unit_id: 7, items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }] },
     }));
     expect(page.delivery()?.loaded_quantity).toBe(150);
     expect(page.delivery()?.remaining_quantity).toBe(150);
     expect(page.loadedPresentations().maples).toBe(1);
     expect(page.delivery()?.unit_balances?.rows[1].remaining_amount).toBe('1');
+    expect(outbox.saveReferences).toHaveBeenLastCalledWith(expect.objectContaining({
+      actorId: 2, delivery: expect.objectContaining({ loaded_quantity: 150, remaining_quantity: 150 }),
+    }));
     page.openClient(demoClient);
     page.stopSelections.set({ 'maple|30': 1 });
     await page.saveStop();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'stop', payload: expect.objectContaining({ items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }] }),
+      kind: 'stop', payload: expect.objectContaining({ items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30, unit_price: 100 }] }),
     }));
     expect(page.delivery()?.unit_balances?.rows[1].remaining_amount).toBe('0');
     expect(page.delivery()?.remaining_quantity).toBe(120);
+    expect(outbox.saveReferences).toHaveBeenLastCalledWith(expect.objectContaining({
+      actorId: 2, delivery: expect.objectContaining({ loaded_quantity: 150, remaining_quantity: 120 }),
+    }));
+  });
+
+  it('restores the catalogue, clients, active delivery and queue count without a connection', async () => {
+    online.set(false);
+    outbox.referencesFor.mockResolvedValue({
+      actorId: 2, units: page.units(), productionUnits: page.productionUnits(), clients: [demoClient],
+      delivery: { ...activeDelivery, loaded_quantity: 150, remaining_quantity: 108 },
+    });
+    outbox.count.mockResolvedValue(2);
+    page.delivery.set(null);
+    page.units.set([]);
+    page.productionUnits.set([]);
+    await page.ngAfterViewInit();
+    expect(page.units()).toHaveLength(2);
+    expect(page.productionUnits()).toHaveLength(2);
+    expect(page.clients()).toEqual([demoClient]);
+    expect(page.delivery()?.remaining_quantity).toBe(108);
+    expect(page.pendingCount()).toBe(2);
+    expect(api.current).not.toHaveBeenCalled();
+    expect(api.units).not.toHaveBeenCalled();
   });
 
   it('accepts half a maple and combines it with loose eggs', async () => {
@@ -401,7 +448,7 @@ describe('DeliveryPage', () => {
     page.startForm.controls.items.at(1).patchValue({ unit: 'huevo', amount: '5' });
     expect(page.formEggs(page.startForm)).toBe(20);
     await page.startDelivery();
-    expect(api.start).toHaveBeenCalledWith({ pin: '0007', items: [
+    expect(api.start).toHaveBeenCalledWith({ pin: '0007', production_unit_id: 7, items: [
       { unit: 'maple', amount: '0.5', eggs_per_unit: 30 },
       { unit: 'huevo', amount: '5', eggs_per_unit: 1 },
     ] }, expect.any(String));
@@ -410,6 +457,7 @@ describe('DeliveryPage', () => {
 
   it('rejects a fraction that cannot become whole eggs', async () => {
     page.openLoad();
+    page.loadForm.controls.production_unit_id.setValue(7);
     page.loadForm.controls.items.at(0).patchValue({ unit: 'huevo', amount: '0,5' });
     await page.addLoad();
     expect(api.load).not.toHaveBeenCalled();
@@ -422,6 +470,7 @@ describe('DeliveryPage', () => {
       errors: { 'items.0.eggs_per_unit': ['La equivalencia cambió.'] },
     } })));
     page.openLoad();
+    page.loadForm.controls.production_unit_id.setValue(7);
     await page.addLoad();
     expect(page.error()).toBe('La equivalencia cambió.');
     expect(outbox.enqueue).not.toHaveBeenCalled();
@@ -470,7 +519,7 @@ describe('DeliveryPage', () => {
   it('sends the PIN to close, clears it, and never queues a rejected PIN', async () => {
     await page.closeDelivery();
     expect(api.close).toHaveBeenCalledWith('delivery-1', {
-      returned_quantity: 120, notes: 'Cierre desde modo repartidor', pin: '0007',
+      returned_items: [{ unit: 'huevo', amount: '120', eggs_per_unit: 1 }], return_production_unit_id: 7, notes: 'Cierre desde modo repartidor', pin: '0007',
     }, expect.any(String));
     expect(page.delivery()?.status).toBe('completed');
     expect(page.closePin.value).toBe('');
@@ -509,4 +558,86 @@ describe('DeliveryPage', () => {
     expect(page.delivery()?.status).toBe('active');
     expect(page.message()).toContain('PIN');
   });
+  it('requires a selected UP and sends the chosen recharge origin', async () => {
+    page.openLoad();
+    page.loadForm.controls.items.at(0).patchValue({ unit: 'maple', amount: '0.5' });
+    await page.addLoad();
+    expect(api.load).not.toHaveBeenCalled();
+    expect(page.error()).toContain('unidad productiva');
+    page.loadForm.controls.production_unit_id.setValue(8);
+    await page.addLoad();
+    expect(api.load).toHaveBeenCalledWith('delivery-1', {
+      production_unit_id: 8, items: [{ unit: 'maple', amount: '0.5', eggs_per_unit: 30 }],
+    }, expect.any(String));
+  });
+
+  it('accepts fractional units and integer price overrides without computing a server total', async () => {
+    page.units.set([{ id: 'crate', label: 'Cajón', category: 'custom', eggs_per_unit: 360, default_unit_price: 200 }]);
+    const row = { unit: 'crate', label: 'Cajón', eggs_per_unit: 360, loaded_amount: '1', delivered_amount: '0',
+      remaining_amount: '1', loaded_eggs: 360, delivered_eggs: 0 };
+    page.delivery.set({ ...activeDelivery, loaded_quantity: 360, remaining_quantity: 360,
+      unit_balances: { rows: [row], unallocated_delivered_eggs: 0, unallocated_returned_eggs: 0 } });
+    page.openClient(demoClient);
+    const input = document.createElement('input');
+    input.value = '0,125';
+    page.setStopAmount(row, { target: input } as unknown as Event);
+    page.priceControl(row).setValue('101');
+    expect(page.selectedStopEggs()).toBe(45);
+    await page.saveStop();
+    expect(api.stop).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
+      items: [{ unit: 'crate', amount: '0.125', eggs_per_unit: 360, unit_price: 101 }],
+    }), expect.any(String));
+    expect(api.stop.mock.calls[0][1]).not.toHaveProperty('total_amount');
+  });
+
+  it('rejects fractional unit prices before recording or queuing an operation', async () => {
+    const row = activeDelivery.unit_balances!.rows[0];
+    page.openClient(demoClient);
+    page.adjustStopUnit(row, 1);
+    page.priceControl(row).setValue('100.01');
+    await page.saveStop();
+    expect(api.stop).not.toHaveBeenCalled();
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(page.error()).toContain('pesos enteros');
+  });
+
+  it('rejects a comma quantity exceeding its presentation balance even with other eggs available', async () => {
+    online.set(false);
+    const row = { unit: 'maple', label: 'Maple', eggs_per_unit: 30, loaded_amount: '0.5', delivered_amount: '0',
+      remaining_amount: '0.5', loaded_eggs: 15, delivered_eggs: 0 };
+    page.delivery.set({ ...activeDelivery, unit_balances: { ...activeDelivery.unit_balances!, rows: [row] } });
+    page.openClient(demoClient);
+    const input = document.createElement('input');
+    input.value = '0,6';
+    page.setStopAmount(row, { target: input } as unknown as Event);
+    await page.saveStop();
+    expect(api.stop).not.toHaveBeenCalled();
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(page.error()).toContain('cantidades');
+  });
+
+  it('requires one return destination when multiple UPs participated', async () => {
+    page.delivery.set({ ...activeDelivery, loads: [
+      { id: 1, quantity: 60, type: 'initial', created_at: '', production_unit: { id: 7, name: 'UP Norte' } },
+      { id: 2, quantity: 60, type: 'additional', created_at: '', production_unit: { id: 8, name: 'UP Sur' } },
+    ] });
+    await page.closeDelivery();
+    expect(api.close).not.toHaveBeenCalled();
+    expect(page.error()).toContain('UP');
+    page.returnUnit.setValue(8);
+    await page.closeDelivery();
+    expect(api.close).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
+      return_production_unit_id: 8, returned_items: [{ unit: 'huevo', amount: '120', eggs_per_unit: 1 }],
+    }), expect.any(String));
+  });
+
+  it('keeps the delivery active when the final return omits leftover eggs', async () => {
+    await page.openCloseConfirmation();
+    page.returnAmounts.at(0).setValue('119');
+    await page.closeDelivery();
+    expect(api.close).not.toHaveBeenCalled();
+    expect(page.delivery()?.status).toBe('active');
+    expect(page.error()).toContain('todos los huevos sobrantes');
+  });
+
 });
