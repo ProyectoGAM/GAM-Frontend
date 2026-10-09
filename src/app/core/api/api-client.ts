@@ -80,6 +80,7 @@ export class ApiClient {
 
   delete<T>(path: string, options: ApiOptions = {}): Observable<T> {
     return this.http.delete<T>(this.url(path, options.baseUrl), {
+      body: options.body,
       headers: this.buildHeaders(options.headers),
       params: this.buildParams(options.params),
       context: options.context,

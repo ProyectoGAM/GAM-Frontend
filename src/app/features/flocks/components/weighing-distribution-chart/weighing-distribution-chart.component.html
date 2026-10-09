@@ -1,0 +1,29 @@
+@if (!distribution().available) {
+  <div class="chart-empty" role="status">La distribución requiere pesajes individuales.</div>
+} @else {
+  <div class="chart-range">
+    @if (weighing()?.expected_range; as range) {
+      <span>Rango objetivo configurado: {{ formatGrams(range.min_weight_g) }}–{{ formatGrams(range.max_weight_g) }} g</span>
+    } @else { <span>Rango objetivo no disponible</span> }
+    <span>Intervalos de {{ formatGrams(distribution().bin_width!) }} g · CV {{ cv() }}</span>
+  </div>
+  @if (distribution().reason === 'insufficient_sample') {
+    <p class="chart-note" role="status">No hay registros suficientes como para armar la campana. Hay una sola medición individual.</p>
+  } @else if (distribution().reason === 'zero_variance') {
+    <p class="chart-note" role="status">Todos los pesos individuales son iguales. La desviación es 0 g; se muestran las observaciones sin ajustar una campana.</p>
+  }
+}
+<div #chartHost class="chart-wrap" [hidden]="!histogram()"
+  role="img" [attr.aria-label]="distribution().available ? 'Histograma de ' + distribution().n + ' aves de la muestra individual. Media ' + formatGrams(distribution().mean!) + ' gramos.' : 'Sin pesajes individuales válidos'"></div>
+@if (histogram()) {
+  <div class="chart-legend">
+    <span><i class="legend-bar" aria-hidden="true"></i> Aves observadas</span>
+    <span><i class="legend-anomaly" aria-hidden="true"></i> Fuera del rango</span>
+    @if (histogram()?.expectedRange) { <span><i class="legend-limit" aria-hidden="true"></i> Límites del rango esperado</span> }
+    @if (distribution().curve) { <span><i class="legend-line" aria-hidden="true"></i> Curva normal estimada</span> }
+    @if (distribution().n > 1) { <span><i class="legend-uniformity" aria-hidden="true"></i> Banda de uniformidad ±10 %</span> }
+  </div>
+}
+@if (distribution().excluded_individual_count) {
+  <p class="group-note">{{ distribution().excluded_individual_count }} {{ distribution().excluded_individual_count === 1 ? 'registro individual excluido' : 'registros individuales excluidos' }} por peso o cantidad inválidos.</p>
+}

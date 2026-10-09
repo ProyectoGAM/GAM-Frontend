@@ -1,0 +1,22 @@
+@if (points().length === 0) {
+  <p class="empty" role="status">Sin registros de pesaje en este período.</p>
+} @else {
+  @if (points().length === 1) {
+    <p class="note" role="status">Hay un solo pesaje diario. Se necesitan al menos dos fechas para evaluar la tendencia.</p>
+  }
+  <div #chartHost class="chart" role="img" [attr.aria-label]="description()"></div>
+  <div class="legend">
+    <span><i class="mean" aria-hidden="true"></i>Promedio diario</span>
+    <span><i class="outside" aria-hidden="true"></i>Fuera del rango</span>
+    @if (hasRange()) { <span><i class="range" aria-hidden="true"></i>Rango esperado</span> }
+  </div>
+  <p class="note caption">Promedio diario ponderado por aves pesadas. Incluye ingresos individuales y grupales.</p>
+  @if (latest(); as point) {
+    <div class="latest" [class.anomalous]="point.outside">
+      <span>Último promedio del período</span>
+      <strong>{{ formatWeight(point.average) }} g/ave</strong>
+      <small>{{ formatDate(point.timestamp) }} · {{ point.birds }} aves{{ point.inProgress ? ' · En curso' : '' }}</small>
+      @if (point.outside) { <small>⚠ Fuera del rango esperado</small> }
+    </div>
+  }
+}

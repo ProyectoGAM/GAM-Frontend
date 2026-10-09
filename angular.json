@@ -114,7 +114,8 @@
           },
           "configurations": {
             "ci": {
-              "watch": false
+              "watch": false,
+              "isolate": true
             }
           }
         },

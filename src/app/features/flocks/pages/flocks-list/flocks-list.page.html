@@ -48,7 +48,7 @@
     <div class="flock-list" aria-label="Lotes">
       @for (flock of flocks(); track flock.id) {
         <article class="flock-card">
-          <button class="flock-card-button" type="button" (click)="showUpcoming()"
+          <a class="flock-card-button" [routerLink]="flock.id"
             [attr.aria-label]="'Ver detalle del lote ' + flock.code + (flock.is_grouped ? ', agrupado' : '')">
             <span class="card-copy">
               <span class="card-title">
@@ -74,7 +74,7 @@
               }
             </span>
             <ion-icon class="card-chevron" name="chevron-forward-outline" aria-hidden="true" />
-          </button>
+          </a>
         </article>
       }
     </div>
@@ -150,6 +150,3 @@
     </button>
   </div>
 </dialog>
-
-<ion-toast [isOpen]="!!notice()" [message]="notice()" [duration]="2500"
-  (didDismiss)="notice.set('')" />
