@@ -9,6 +9,7 @@ import {
   DeliveryEnvelope,
   DeliveryListResponse,
   DeliveryUnit,
+  DeliveryProductionUnit,
   LocationInput,
   StartDeliveryInput,
   StopInput,
@@ -28,6 +29,10 @@ export class DeliveriesApi {
 
   units(): Observable<{ data: DeliveryUnit[] }> {
     return this.api.get<{ data: DeliveryUnit[] }>('repartos/unidades');
+  }
+
+  productionUnits(): Observable<{ data: DeliveryProductionUnit[] }> {
+    return this.api.get<{ data: DeliveryProductionUnit[] }>('repartos/unidades-productivas', { params: { limit: 1000 } });
   }
 
   load(id: string, body: AddDeliveryLoadInput, idempotencyKey: string): Observable<DeliveryEnvelope> {

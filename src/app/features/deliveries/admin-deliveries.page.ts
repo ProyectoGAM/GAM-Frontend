@@ -1,3 +1,4 @@
+import { formatDeliveryMoney } from './delivery-money';
 import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -23,6 +24,7 @@ const URUGUAY_CENTER: [number, number] = [-56.1645, -34.9011];
   imports: [DatePipe, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText],
 })
 export class AdminDeliveriesPage {
+  readonly money = formatDeliveryMoney;
   private readonly api = inject(DeliveriesApi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly accessToken = inject(MAPBOX_ACCESS_TOKEN, { optional: true }) ?? '';

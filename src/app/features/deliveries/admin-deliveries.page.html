@@ -48,24 +48,32 @@
           @if (detailLoading()) { <p class="muted" role="status">Actualizando detalle…</p> }
           @if (detailError()) { <p class="page-error" role="alert">{{ detailError() }}</p> }
           <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
-          <p><strong>Unidad:</strong> {{ delivery.production_unit?.name ?? '—' }}</p>
+          <p><strong>UP inicial:</strong> {{ delivery.production_unit?.name ?? '—' }}</p>
           <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }}</p>
           @if (!hasMapPoints()) { <p class="muted" role="status">Ubicación no disponible: el reparto no tiene puntos persistidos para mostrar.</p> }
           @if (delivery.loads?.length) {
             <div class="stops-detail"><strong>Cargas</strong>
               @for (load of delivery.loads; track load.id) {
-                <div><span>{{ load.type === 'initial' ? 'Inicial' : 'Adicional' }} · {{ load.created_at | date:'short' }}
+                <div><span>{{ load.type === 'initial' ? 'Inicial' : 'Adicional' }} · {{ load.production_unit?.name ?? delivery.production_unit?.name }} · {{ load.created_at | date:'short' }}
                   @for (item of load.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} = {{ item.eggs }} huevos</small> }
                 </span><small>{{ load.quantity }} huevos</small></div>
               }
+            </div>
+          }
+          <p><strong>Valor entregado:</strong> {{ money(delivery.delivered_amount) }}</p>
+          @if (delivery.status === 'completed') {
+            <div class="stops-detail"><strong>Descarga final</strong>
+              <p>UP: {{ delivery.return_production_unit?.name ?? 'Sin descarga' }}</p>
+              @for (item of delivery.returned_items ?? []; track $index) { <div><span>{{ item.amount }} {{ item.label }}</span><small>{{ item.eggs }} huevos</small></div> }
+              @if (delivery.returned_items === null && delivery.returned_quantity > 0) { <p>Registro anterior: {{ delivery.returned_quantity }} huevos, sin desglose de presentaciones.</p> }
             </div>
           }
           <p><strong>Última ubicación:</strong> {{ delivery.latest_location ? (delivery.latest_location.captured_at | date:'medium') : 'Sin datos aún' }}</p>
           @if (delivery.stops?.length) {
             <div class="stops-detail"><strong>Visitas</strong>
               @for (stop of delivery.stops; track stop.id) {
-                <div><span>{{ stop.client_name }}
-                  @for (item of stop.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} · {{ item.eggs }} huevos</small> }
+                <div><span>{{ stop.client_name }} @if (stop.status === 'delivered') { <small>Valor: {{ money(stop.total_amount) }}</small> }
+                  @for (item of stop.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} · {{ item.eggs }} huevos @if (item.unit_price !== undefined) { · Precio: {{ money(item.unit_price) }} · Importe: {{ money(item.line_amount) }} }</small> }
                 </span><small>{{ stop.status === 'delivered' ? stop.delivered_quantity + ' huevos' : stop.status === 'not_delivered' ? 'Sin entrega' : 'Sin visita registrada' }}</small></div>
               }
             </div>
