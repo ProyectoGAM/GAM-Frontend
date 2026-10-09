@@ -23,7 +23,7 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-heigh
 .flock-list { display: grid; gap: 12px; }
 .flock-card, .state-panel { border: 1px solid var(--gam-color-border); border-radius: 11px; background: var(--gam-color-surface); }
 .flock-card { min-width: 0; }
-.flock-card-button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 114px; padding: 17px 16px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: left; }
+.flock-card-button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 114px; padding: 17px 16px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: left; text-decoration: none; }
 .card-copy { display: grid; min-width: 0; gap: 5px; }
 .card-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .flock-name { color: var(--gam-color-heading); font-size: 1.125rem; font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }

@@ -1,0 +1,41 @@
+<section class="record-page" aria-labelledby="record-title">
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a pesajes</a>
+  @if (state() === 'loading') {
+    <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando registro…</div>
+  } @else if (state() !== 'ready') {
+    <div class="page-state" role="alert"><h1 id="record-title">Registro de pesaje</h1>
+      @if (state() === 'not-found') { <p>Registro no encontrado para este lote.</p> }
+      @else if (state() === 'forbidden') { <p>No tenés permiso para consultar este registro.</p> }
+      @else if (state() === 'offline') { <p>Sin conexión. Revisá la conexión e intentá de nuevo.</p> }
+      @else { <p>No se pudo cargar el registro.</p> }
+      <button type="button" (click)="load()">Reintentar</button>
+    </div>
+  } @else if (record(); as item) {
+    <p class="breadcrumb">Lotes / Pesajes / Registro</p>
+    <h1 id="record-title">Registro de pesaje</h1>
+    <p class="subtitle">{{ date() }} · {{ item.status === 'in_progress' ? 'En curso' : 'Cerrado' }}</p>
+    <div class="summary-grid">
+      <div class="card"><span>Aves pesadas</span><strong>{{ item.represented_bird_count }}</strong></div>
+      <div class="card"><span>Promedio de la muestra</span><strong>{{ item.average_weight_g === null ? 'Sin registros' : average() + ' g' }}</strong></div>
+      <div class="card"><span>Rango esperado</span>
+        <strong>{{ item.expected_range ? formatGrams(item.expected_range.min_weight_g) + '–' + formatGrams(item.expected_range.max_weight_g) + ' g' : 'Dato no disponible' }}</strong></div>
+      <div class="card"><span>Datos anómalos</span><strong>{{ item.anomalous_entry_count }}</strong></div>
+    </div>
+    <section class="card measurement-card" aria-labelledby="measurements-title">
+      <h2 id="measurements-title">Ingresos del registro</h2>
+      @if (entries().length === 0) { <p>Sin ingresos activos.</p> }
+      @else {
+        <div class="table-scroll"><table><thead><tr><th scope="col">Hora</th><th scope="col">Modalidad</th>
+          <th scope="col">Aves</th><th scope="col">Peso ingresado</th><th scope="col">Promedio por ave</th><th scope="col">Estado</th></tr></thead>
+          <tbody>@for (row of rows(); track row.id) {
+            <tr><td>{{ row.time }}</td><td>{{ row.mode }}</td><td>{{ row.birds }}</td><td>{{ row.weight }} g</td><td>{{ row.average }} g</td>
+              <td [class.anomaly]="row.anomalous">{{ row.anomalous ? 'Fuera del rango' : 'Dentro del rango' }}</td></tr>
+          }</tbody>
+        </table></div>
+      }
+      @if (nextCursor()) { <button type="button" class="load-more" [disabled]="loadingMore()" (click)="loadMore()">
+        {{ loadingMore() ? 'Cargando…' : 'Cargar más ingresos' }}</button> }
+      @if (loadMoreError()) { <p role="alert">No se pudieron cargar más ingresos. Intentá de nuevo.</p> }
+    </section>
+  }
+</section>

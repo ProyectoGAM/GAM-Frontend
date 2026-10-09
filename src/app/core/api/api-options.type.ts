@@ -6,4 +6,5 @@ export type ApiOptions = {
   context?: HttpContext;
   withCredentials?: boolean;
   baseUrl?: string;
+  body?: unknown;
 };
