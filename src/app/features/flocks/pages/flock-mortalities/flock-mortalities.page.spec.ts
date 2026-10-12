@@ -159,6 +159,7 @@ describe('Mortality navigation', () => {
     expect(detail.querySelector('#mortality-title')?.textContent).toBe('Mortalidad acumulada');
     expect(detail.querySelectorAll('.metric-grid > .small-card')).toHaveLength(2);
     expect(detail.querySelector('.metric-grid')?.textContent).toContain('13 aves');
+    expect(detail.querySelector('[aria-labelledby="mortality-title"]')?.textContent).toContain('Aves vivas: 87');
     expect(detail.querySelector('app-flock-mortality-section')).toBeNull();
     expect(list).not.toHaveBeenCalled();
     const link = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a mortalidad'))!;

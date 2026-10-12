@@ -50,6 +50,8 @@
             @if (mortality().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
             @else if (mortality().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
             @else { <p class="metric-value">{{ mortalityText() }} aves</p> }
+            <p class="metric-note">Aves vivas: <strong>{{ liveBirdsText() }}</strong></p>
+            @if (negativeBalanceText(); as balance) { <p class="metric-note">Saldo registrado: {{ balance }} aves.</p> }
           </div>
           <div class="register-action">
             <a [routerLink]="mortalityLink()">Ir a mortalidad <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>

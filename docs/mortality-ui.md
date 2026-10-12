@@ -2,6 +2,8 @@
 
 El detalle conserva su tarjeta de **Mortalidad acumulada** junto a **Último pesaje**, con los mismos datos y distribución. La acción **Ir a mortalidad** abre la ruta lazy `/administracion/lotes/lotes/:id/mortalidad`, siguiendo el acceso **Ir a pesajes**. La gráfica, el historial y el formulario viven exclusivamente en esa pantalla, que incluye **Volver al lote** y mantiene el contexto del lote, galpón y unidad productiva.
 
+La tarjeta del detalle también muestra **Aves vivas** a partir de `current_quantity`, independientemente de la carga del acumulado de mortalidad. Conserva el criterio de saldo negativo acordado: muestra 0 aves vivas y aclara el saldo registrado real. No calcula el saldo restando la mortalidad a la cantidad inicial, porque el lote puede tener otros movimientos.
+
 La sección consulta todas las páginas de `GET /flocks/{id}/mortalities` con `status=recorded`. Las cancelaciones no entran en la gráfica ni en el historial. No presenta datos de ejemplo.
 
 El selector ofrece ventanas fijas, sin fechas personalizadas: **Día** muestra los últimos 7 días; **Semana**, las últimas 8 semanas de calendario (lunes a domingo); **Mes**, los últimos 6 meses de calendario. La semana o el mes actual está en curso. Las fechas se calculan en `America/Montevideo`. Los puntos representan cantidades por intervalo, incluidos los intervalos sin registros, unidos por segmentos rectos. No representan mortalidad acumulada. Las flechas permiten consultar cada punto mediante teclado sin depender del toque sobre la gráfica.
