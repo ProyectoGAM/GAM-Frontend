@@ -46,10 +46,16 @@ export class FlockDetailPage {
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
   readonly planLink = computed(() => `/administracion/manejo-lotes/planes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly weighingsLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/pesajes`);
+  readonly mortalityLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/mortalidad`);
   readonly statusText = computed(() => this.flock() ? this.statusLabel(this.flock()!.status) : '');
   readonly entryDateText = computed(() => this.flock() ? this.entryDate(this.flock()!.entry_date) : '');
   readonly dayNumber = computed(() => this.flock() ? this.flock()!.age_days + 1 : null);
   readonly mortalityText = computed(() => this.number(this.mortality().value ?? 0));
+  readonly liveBirdsText = computed(() => this.number(Math.max(0, this.flock()?.current_quantity ?? 0)));
+  readonly negativeBalanceText = computed(() => {
+    const balance = this.flock()?.current_quantity;
+    return balance !== undefined && balance < 0 ? this.number(balance) : null;
+  });
   readonly weighingText = computed(() => this.weighing().value ? this.weightKg(this.weighing().value!.average_weight_g) : '');
   readonly weighingDateText = computed(() => this.weighing().value ? this.shortDate(this.weighing().value!.date) : '');
   readonly lastEggDayText = computed(() => this.eggHistory().value?.latestDay

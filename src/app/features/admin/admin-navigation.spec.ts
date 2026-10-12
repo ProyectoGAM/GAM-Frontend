@@ -189,7 +189,7 @@ describe('admin navigation visibility', () => {
     const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
     const flocksRoutes = await loader?.();
 
-    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/pesajes/:weighingId', ':id/pesajes', ':id', '']);
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id', '']);
     expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.[1]?.loadComponent).toBeTypeOf('function');
   });

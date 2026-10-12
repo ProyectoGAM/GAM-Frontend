@@ -17,6 +17,11 @@ export const flocksRoutes: Routes = [
       .then((module) => module.FlockWeighingsPage),
   },
   {
+    path: ':id/mortalidad',
+    loadComponent: () => import('./pages/flock-mortalities/flock-mortalities.page')
+      .then((module) => module.FlockMortalitiesPage),
+  },
+  {
     path: ':id',
     loadComponent: () => import('./pages/flock-detail/flock-detail.page')
       .then((module) => module.FlockDetailPage),
