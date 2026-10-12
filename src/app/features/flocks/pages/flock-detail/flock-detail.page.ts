@@ -46,6 +46,7 @@ export class FlockDetailPage {
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
   readonly planLink = computed(() => `/administracion/manejo-lotes/planes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly weighingsLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/pesajes`);
+  readonly mortalityLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/mortalidad`);
   readonly statusText = computed(() => this.flock() ? this.statusLabel(this.flock()!.status) : '');
   readonly entryDateText = computed(() => this.flock() ? this.entryDate(this.flock()!.entry_date) : '');
   readonly dayNumber = computed(() => this.flock() ? this.flock()!.age_days + 1 : null);

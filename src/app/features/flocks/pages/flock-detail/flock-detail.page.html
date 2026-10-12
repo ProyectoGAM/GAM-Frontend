@@ -52,8 +52,7 @@
             @else { <p class="metric-value">{{ mortalityText() }} aves</p> }
           </div>
           <div class="register-action">
-            <button type="button" disabled aria-describedby="mortality-action-status">Registrar mortalidad</button>
-            <small id="mortality-action-status">Próximamente</small>
+            <a [routerLink]="mortalityLink()">Ir a mortalidad <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </section>
 

@@ -1,0 +1,147 @@
+<section class="mortality-card" aria-labelledby="mortality-section-title">
+  <header class="heading">
+    <div><h2 id="mortality-section-title">Mortalidad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
+    <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortalidad</button>
+  </header>
+
+  @if (state() === 'loading') {
+    <div class="page-state" role="status"><ion-spinner name="crescent" /> Cargando mortalidad…</div>
+  } @else if (state() !== 'ready') {
+    <div class="page-state" role="alert">
+      <p>{{ state() === 'forbidden' ? 'No tenés permiso para consultar la mortalidad.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : 'No se pudo cargar la mortalidad.' }}</p>
+      <button type="button" (click)="retry.emit()">Reintentar</button>
+    </div>
+  } @else {
+    <div class="summary-row">
+      <section class="leading-reason" aria-labelledby="leading-reason-title">
+        <h3 id="leading-reason-title">{{ leaders().length > 1 ? 'Motivos con más muertes · empate' : 'Motivo con más muertes' }}</h3>
+        @for (leader of leaders(); track leader.reason) {
+          <strong>{{ leader.reason }}</strong><span>{{ leader.quantity }} gallinas en el período mostrado</span>
+        } @empty { <strong>{{ windowRecords().length ? 'Motivo no informado' : 'Sin muertes registradas' }}</strong> }
+        @if (missingReasons()) { <small>{{ missingReasons() }} gallinas sin motivo informado; no se incluyen en este resumen.</small> }
+      </section>
+      <div class="period-filter">
+        <span id="mortality-group-label">Agrupar por</span>
+        <div class="segments" role="group" aria-labelledby="mortality-group-label">
+          <button type="button" [class.active]="period() === 'day'" [attr.aria-pressed]="period() === 'day'" (click)="changePeriod('day')">Día</button>
+          <button type="button" [class.active]="period() === 'week'" [attr.aria-pressed]="period() === 'week'" (click)="changePeriod('week')">Semana</button>
+          <button type="button" [class.active]="period() === 'month'" [attr.aria-pressed]="period() === 'month'" (click)="changePeriod('month')">Mes</button>
+        </div>
+        <small>{{ periodCaption() }}</small><small>{{ windowCaption() }}</small>
+      </div>
+    </div>
+
+    @if (windowRecords().length) {
+      <section class="chart-panel" aria-labelledby="mortality-chart-title">
+        <h3 id="mortality-chart-title">Muertes por fecha</h3>
+        <app-mortality-chart [points]="points()" [selected]="selected().key" (pointSelected)="selectPoint($event)" />
+        <div class="point-navigation" aria-label="Consultar períodos de la gráfica">
+          <button type="button" aria-label="Período anterior" [disabled]="selectedIndex() === 0" (click)="movePoint(-1)"><ion-icon name="chevron-back-outline" aria-hidden="true" /></button>
+          <span>{{ selected().description }}</span>
+          <button type="button" aria-label="Período siguiente" [disabled]="selectedIndex() === points().length - 1" (click)="movePoint(1)"><ion-icon name="chevron-forward-outline" aria-hidden="true" /></button>
+        </div>
+        <div class="selected-summary" aria-live="polite">
+          <strong>{{ selected().description }} · {{ selected().quantity }} gallinas</strong>
+          @for (reason of selectedReasons(); track reason.reason) { <span>{{ reason.quantity }} · {{ reason.reason }}</span> }
+          @if (!selected().quantity) { <span>Sin muertes registradas en este período.</span> }
+        </div>
+      </section>
+      <section class="history" aria-labelledby="mortality-history-title">
+        <h3 id="mortality-history-title">Registros de mortalidad</h3>
+        <p>Registros del período mostrado. Las filas resaltadas corresponden al punto seleccionado.</p>
+        <table>
+          <thead><tr><th scope="col">Fecha de muerte</th><th scope="col">Cantidad</th><th scope="col">Motivo</th><th scope="col">Acción</th></tr></thead>
+          <tbody>@for (record of history(); track record.id) {
+            <tr [class.selected-row]="selectedIds().has(record.id)">
+              <td><span class="mobile-label">Fecha de muerte</span>{{ record.dateText }}</td>
+              <td><span class="mobile-label">Cantidad</span>{{ record.quantity }} {{ record.quantity === 1 ? 'gallina' : 'gallinas' }}</td>
+              <td class="reason-cell"><span class="mobile-label">Motivo</span>{{ record.reason }}</td>
+              <td class="action-cell"><button type="button" class="undo-button" [disabled]="busy()" [attr.aria-label]="'Deshacer registro del ' + record.dateText + ', ' + record.quantity + ' gallinas, motivo: ' + record.reason" (click)="openCancellation(record)"><ion-icon name="arrow-undo-outline" aria-hidden="true" /> Deshacer</button></td>
+            </tr>
+          }</tbody>
+        </table>
+        @if (historyLimit() < windowRecords().length) { <button type="button" (click)="historyLimit.set(historyLimit() + 20)">Mostrar más registros</button> }
+      </section>
+    } @else { <p class="empty" role="status">No hay muertes registradas en este período.</p> }
+  }
+</section>
+
+<dialog #registrationDialog class="registration-dialog" aria-labelledby="mortality-form-title" (cancel)="onDialogCancel($event)">
+  <header class="dialog-heading"><div><h2 id="mortality-form-title">Registrar mortalidad</h2><p>Registrá cuándo murieron, cuántas y por qué.</p></div>
+    <button type="button" class="icon-button" aria-label="Cerrar registro de mortalidad" [disabled]="saving()" (click)="closeForm()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+  </header>
+  <div class="lot-context"><strong>Lote {{ flock().code }}</strong><span>{{ houseName() ?? 'Galpón no disponible' }}@if (unitName()) { · {{ unitName() }} }</span></div>
+  <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
+    <fieldset [disabled]="saving()">
+    <p class="required-note"><span aria-hidden="true">*</span> Todos los campos son obligatorios.</p>
+    <div class="field">
+      <label for="mortality-date">Fecha de muerte <span aria-hidden="true">*</span></label>
+      <input id="mortality-date" type="date" required [min]="minimumDate()" [max]="today()" formControlName="date" aria-describedby="mortality-date-hint mortality-date-error" [attr.aria-invalid]="(form.controls.date.touched && form.controls.date.invalid) || !!fieldErrors().date" />
+      <small id="mortality-date-hint">Fecha en que ocurrió la muerte. Se usará la hora actual para el día elegido.</small>
+      <small id="mortality-date-error" class="field-error">@if (fieldErrors().date) { {{ fieldErrors().date }} } @else if (form.controls.date.touched && form.controls.date.invalid) { Ingresá una fecha entre el establecimiento del lote y hoy. }</small>
+    </div>
+    <div class="field">
+      <label for="mortality-quantity">Cantidad de gallinas <span aria-hidden="true">*</span></label>
+      <input id="mortality-quantity" type="number" inputmode="numeric" required min="1" step="1" max="2147483647" formControlName="quantity" aria-describedby="mortality-quantity-hint mortality-quantity-error" [attr.aria-invalid]="(form.controls.quantity.touched && form.controls.quantity.invalid) || !!fieldErrors().quantity" />
+      <small id="mortality-quantity-hint">Cantidad fallecida por el motivo indicado.</small>
+      <small id="mortality-quantity-error" class="field-error">@if (fieldErrors().quantity) { {{ fieldErrors().quantity }} } @else if (form.controls.quantity.touched && form.controls.quantity.invalid) { Ingresá una cantidad entera entre 1 y 2.147.483.647. }</small>
+    </div>
+    <div class="field">
+      <label for="mortality-reason">Motivo de muerte <span aria-hidden="true">*</span></label>
+      <textarea id="mortality-reason" rows="3" required maxlength="5000" placeholder="Describí el motivo de la muerte" formControlName="reason" aria-describedby="mortality-reason-hint mortality-reason-error" [attr.aria-invalid]="(form.controls.reason.touched && form.controls.reason.invalid) || !!fieldErrors().reason"></textarea>
+      <small id="mortality-reason-hint">Indicá por qué murieron estas gallinas.</small>
+      <small id="mortality-reason-error" class="field-error">@if (fieldErrors().reason) { {{ fieldErrors().reason }} } @else if (form.controls.reason.touched && form.controls.reason.invalid) { Ingresá un motivo de hasta 5.000 caracteres; no puede quedar vacío. }</small>
+    </div>
+    </fieldset>
+    <p class="form-info"><ion-icon name="information-circle-outline" aria-hidden="true" /> Si hubo distintos motivos, registrá cada uno por separado.</p>
+    @if (saveError()) { <p class="save-error" role="alert">{{ saveError() }}</p> }
+    <footer class="dialog-actions"><button type="button" [disabled]="saving()" (click)="closeForm()">Cancelar</button><button type="submit" class="primary" [disabled]="saving() || form.invalid || flock().status === 'finished'">{{ saving() ? 'Guardando…' : 'Guardar registro' }}</button></footer>
+  </form>
+</dialog>
+
+<dialog #cancellationDialog class="registration-dialog confirmation-dialog cancellation-dialog" aria-labelledby="mortality-cancellation-title" (cancel)="onCancellationCancel($event)">
+  <h2 id="mortality-cancellation-title">Deshacer registro de mortalidad</h2>
+  @if (cancellationDetails(); as record) {
+    <p class="cancellation-context">Lote {{ flock().code }}</p>
+    <dl class="cancellation-record">
+      <div><dt>Fecha de muerte</dt><dd>{{ record.dateText }}</dd></div>
+      <div><dt>Cantidad</dt><dd>{{ record.quantity }} {{ record.quantity === 1 ? 'gallina' : 'gallinas' }}</dd></div>
+      <div><dt>Motivo de muerte</dt><dd>{{ record.reason }}</dd></div>
+    </dl>
+    <p class="confirmation-warning">Se anulará este registro y se sumarán <strong>{{ record.quantity }} {{ record.quantity === 1 ? 'gallina' : 'gallinas' }} al saldo del lote</strong>. La acción quedará auditada y se conservará el registro original.</p>
+    <form [formGroup]="cancellationForm" (ngSubmit)="submitCancellation()" novalidate>
+      <fieldset [disabled]="cancelling()">
+        <div class="field">
+          <label for="mortality-cancellation-reason">Motivo de anulación <span aria-hidden="true">*</span></label>
+          <textarea id="mortality-cancellation-reason" rows="3" required maxlength="500" formControlName="reason" placeholder="Explicá por qué deshacés este registro" aria-describedby="mortality-cancellation-hint mortality-cancellation-error" [attr.aria-invalid]="(cancellationForm.controls.reason.touched && cancellationForm.controls.reason.invalid) || !!cancellationReasonError()"></textarea>
+          <small id="mortality-cancellation-hint">Obligatorio. Hasta 500 caracteres. Quedará guardado en la auditoría.</small>
+          <small class="field-error" id="mortality-cancellation-error">@if (cancellationReasonError()) { {{ cancellationReasonError() }} } @else if (cancellationForm.controls.reason.touched && cancellationForm.controls.reason.invalid) { Ingresá un motivo de hasta 500 caracteres; no puede quedar vacío. }</small>
+        </div>
+        @if (cancellationNeedsReactivation()) {
+          <div class="reactivation-confirmation">
+            <p>Esta acción requiere reactivar el lote finalizado para devolverle aves.</p>
+            <label for="mortality-reactivation"><input id="mortality-reactivation" type="checkbox" formControlName="reactivate" /> Confirmo la reactivación del lote.</label>
+          </div>
+        }
+      </fieldset>
+      @if (cancellationReviewError() || cancellationError()) { <p class="save-error" role="alert">{{ cancellationReviewError() || cancellationError() }}</p> }
+      <footer class="dialog-actions">
+        <button type="button" autofocus [disabled]="cancelling()" (click)="closeCancellation()">Cancelar</button>
+        <button type="submit" class="primary" [disabled]="busy() || cancellationForm.invalid || (cancellationNeedsReactivation() && !cancellationForm.controls.reactivate.value)">{{ cancelling() ? 'Deshaciendo…' : 'Deshacer registro' }}</button>
+      </footer>
+    </form>
+  }
+</dialog>
+
+<dialog #excessDialog class="registration-dialog confirmation-dialog" aria-labelledby="mortality-excess-title" (cancel)="cancelExcess()">
+  <h2 id="mortality-excess-title">Superar cantidad viva</h2>
+  @if (pendingConfirmation(); as pending) {
+    <p class="confirmation-warning">Vas a registrar <strong>{{ pending.draft.quantity }} {{ pending.draft.quantity === 1 ? 'muerte' : 'muertes' }}</strong>, pero el lote tiene
+      <strong>{{ confirmationAlive() }} {{ confirmationAlive() === 1 ? 'gallina viva' : 'gallinas vivas' }}</strong>. Estás superando la cantidad viva en <strong>{{ confirmationExcess() }}</strong>.</p>
+    @if (pending.balance < 0) { <p>El saldo registrado del lote es <strong>{{ pending.balance }}</strong>.</p> }
+  }
+  <footer class="dialog-actions">
+    <button type="button" (click)="cancelExcess()">Cancelar</button>
+    <button type="button" class="primary" (click)="confirmExcess()">Registrar de todos modos</button>
+  </footer>
+</dialog>

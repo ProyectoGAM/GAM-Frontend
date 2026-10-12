@@ -1,0 +1,22 @@
+:host { display: block; color: var(--gam-color-text); }
+.mortalities-page { max-width: 1200px; margin-inline: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 10px; color: var(--gam-color-primary); font-weight: 700; text-decoration: none; }
+.back-link ion-icon { font-size: 1.25rem; }
+.page-heading { margin-bottom: 20px; }
+.save-success { padding: 14px; margin: 0 0 16px; border-radius: 8px; color: var(--gam-color-success); background: var(--gam-color-success-soft); }
+.breadcrumb { margin: 0 0 10px; color: var(--gam-color-text-muted); font-size: .875rem; }
+.breadcrumb span { margin-inline: 7px; }
+.heading-row { display: flex; flex-direction: column; align-items: start; gap: 10px; }
+h1 { margin: 0 0 5px; color: var(--gam-color-heading); font-size: clamp(1.875rem, 3vw, 2.35rem); font-weight: 750; line-height: 1.15; overflow-wrap: anywhere; }
+.subtitle { margin: 0; color: var(--gam-color-text-muted); font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.status-badge { padding: 8px 14px; border-radius: 999px; color: var(--gam-color-success); background: var(--gam-color-success-soft); font-weight: 700; white-space: nowrap; }
+.status-badge.quarantined { color: var(--gam-color-warning); background: var(--gam-color-warning-soft); }
+.status-badge.finished { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); }
+.page-state { display: grid; justify-items: center; gap: 12px; padding: 42px 20px; border: 1px solid var(--gam-color-border); border-radius: 11px; background: var(--gam-color-surface); text-align: center; }
+.page-state h1 { margin: 0; font-size: 1.5rem; }
+.page-state p { margin: 0; color: var(--gam-color-text-muted); }
+.page-state ion-spinner { color: var(--gam-color-primary); }
+.page-state button { min-height: 44px; padding: 8px 18px; border: 1px solid var(--gam-color-primary); border-radius: 8px; color: var(--gam-color-on-primary); background: var(--gam-color-primary); font: inherit; font-weight: 700; cursor: pointer; }
+.back-link:focus-visible, button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+@media (min-width: 500px) { .heading-row { flex-direction: row; justify-content: space-between; gap: 16px; } }
+@media (max-width: 900px) { :host { margin: -16px -16px 0; padding: 16px 16px 48px; background: var(--gam-color-surface-alt); } }
