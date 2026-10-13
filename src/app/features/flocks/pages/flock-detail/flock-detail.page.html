@@ -95,13 +95,12 @@
             <path d="M16 29V16m0 7c-4 0-6-2-6-5 4 0 6 2 6 5Zm0 3c4 0 6-2 6-5-4 0-6 2-6 5Z" />
           </svg>
           <div>
-            <h2 id="feeding-title">Alimentación actual</h2>
-            <p class="metric-note">Pendiente de implementación</p>
+            <h2 id="feeding-title">Alimentación</h2>
+            <p class="metric-note">Suministros de ración e historial del lote</p>
           </div>
         </div>
         <div class="feeding-action">
-          <button type="button" disabled aria-describedby="feeding-explanation">Cambiar</button>
-          <p id="feeding-explanation">Disponible cuando se implemente la alimentación del lote.</p>
+          <a [routerLink]="['/administracion/manejo-lotes/planes/lotes', item.id, 'alimentacion']">Registrar o consultar alimentación</a>
         </div>
       </section>
 
