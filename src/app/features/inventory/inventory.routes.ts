@@ -62,6 +62,6 @@ export const inventoryRoutes: Routes = [
   {
     path: 'donaciones',
     data: { title: 'Donaciones', groupLabel: 'Inventario' },
-    loadComponent: () => import('../admin/admin-placeholder.page').then((m) => m.AdminPlaceholderPage),
+    loadComponent: () => import('./pages/egg-donations/egg-donations.page').then((m) => m.EggDonationsPage),
   },
 ];

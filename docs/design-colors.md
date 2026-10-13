@@ -25,6 +25,8 @@ El panel administrativo actual usa un lienzo claro (`#eef2f6`), barra superior c
 | `--gam-color-primary` | Acción principal y enlaces destacados | `#17365d` | `#aecded` |
 | `--gam-color-on-primary` | Texto e iconos sobre acción principal | `#ffffff` | `#122436` |
 | `--gam-color-primary-soft` | Selección y énfasis de baja intensidad | `#dce8f4` | `#29445f` |
+| `--gam-color-secondary` | Acceso destacado alternativo, como Reportes exportados | `#146459` | `#9ad9cd` |
+| `--gam-color-on-secondary` | Texto e iconos sobre acceso secundario | `#ffffff` | `#102c26` |
 | `--gam-color-focus` | Indicador de foco visible | `#3375b3` | `#91b7dc` |
 | `--gam-color-nav` | Fondo de navegación administrativa | `#17365d` | `#10253e` |
 | `--gam-color-nav-hover` | Navegación al pasar o abrir grupo | `#23476d` | `#1f3b57` |
@@ -64,5 +66,7 @@ ion-button.primary-action {
 ```
 
 ## Contraste de referencia
+
+El acceso secundario usa `secondary` con `on-secondary`: contraste de 7.00:1 en claro y 9.35:1 en oscuro. Permite distinguir accesos por función sin usar los colores de estado como decoración.
 
 Los pares base se revisaron con WCAG: texto principal sobre superficie supera 10:1 en ambos temas; texto secundario sobre `canvas` supera 4.5:1; acción principal con su texto supera 9:1. Los pares de mensajes de éxito, advertencia y error superan 5:1. El borde de control supera 3:1 frente a las superficies de ambos temas. Cualquier nuevo par debe verificarse antes de incorporarlo.

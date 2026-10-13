@@ -227,6 +227,8 @@ export type EggStockMovementType =
   | 'collection_receipt'
   | 'manual_receipt'
   | 'distribution_preparation'
+  | 'distribution_return'
+  | 'donation'
   | 'loss';
 
 export type EggStockStatus = 'recorded' | 'cancelled';

@@ -17,6 +17,13 @@ describe('admin access policy', () => {
     expect(canAccessGroup(null, 'reportes')).toBe(false);
   });
 
+  it('grants reporting and egg inventory navigation from functional permissions', () => {
+    const reader = { roles: ['employee'], permissions: ['reports.view', 'egg-stock.view'] };
+    expect(canAccessGroup(reader, 'reportes')).toBe(true);
+    expect(canAccessGroup(reader, 'inventario')).toBe(true);
+    expect(canAccessGroup(reader, 'usuarios')).toBe(false);
+  });
+
   it('shows only the management plans group for a reader or manager permission', () => {
     const reader = { roles: ['employee'], permissions: ['management-plans.view'] };
     const manager = { roles: ['employee'], permissions: ['management-plans.manage'] };

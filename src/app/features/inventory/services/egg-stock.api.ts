@@ -37,6 +37,14 @@ export class EggStockApi {
     return this.api.get<ApiEnvelope<EggStockTransaction>>(`egg-stock/movements/${id}`);
   }
 
+  donationUnits(search = '', page = 1): Observable<{ data: { id: number; name: string }[]; meta: { current_page: number; last_page: number } }> {
+    return this.api.get('donaciones/unidades-productivas', { params: { search: search || undefined, page } });
+  }
+
+  donate(productionUnitId: number, body: EggStockReceiptInput, idempotencyKey: string): Observable<ApiEnvelope<EggCommandResult>> {
+    return this.command(`unidades-productivas/${productionUnitId}/donaciones`, body, idempotencyKey);
+  }
+
   receipt(productionUnitId: number, body: EggStockReceiptInput, idempotencyKey: string): Observable<ApiEnvelope<EggCommandResult>> {
     return this.command(`production-units/${productionUnitId}/egg-stock/receipts`, body, idempotencyKey);
   }
