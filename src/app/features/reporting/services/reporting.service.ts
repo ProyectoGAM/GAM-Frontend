@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, exhaustMap, takeWhile, timer } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import { FileDownloadService } from '../../../core/native/file-download.service';
-import { ReportEnvelope, ReportExport, ReportOptions, ReportPage, ReportPreset, ReportQuery, ReportResult, ReportSource } from '../interfaces/report';
+import { ReportEnvelope, ReportExport, ReportOptions, ReportPage, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
 
 @Injectable({ providedIn: 'root' })
 export class ReportingService {
@@ -34,8 +34,10 @@ export class ReportingService {
       takeWhile((response) => response.data.status === 'pending' || response.data.status === 'processing', true));
   }
   download(item: ReportExport): Promise<void> { return this.files.download('exportaciones-reportes/' + item.id + '/descarga', item.file_name); }
-  temporaryLink(id: number): Observable<{ url: string; expires_at: string }> {
-    return this.api.post('exportaciones-reportes/' + id + '/enlaces-temporales', { expires_in: 30 });
+  temporaryLink(id: number, minutes = 30): Observable<ReportTemporaryLink> {
+    return this.api.post('exportaciones-reportes/' + id + '/enlaces-temporales', { expires_in: minutes });
   }
-  shareLink(url: string): Promise<void> { return this.files.shareLink(url); }
+  canShareLink(): boolean { return this.files.canShareLink(); }
+  copyLink(url: string): Promise<void> { return this.files.copyLink(url); }
+  shareLink(url: string): Promise<boolean> { return this.files.shareLink(url); }
 }

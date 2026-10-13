@@ -1,6 +1,7 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Injectable, effect, inject } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import { Share } from '@capacitor/share';
@@ -103,11 +104,19 @@ export class FileDownloadService {
     }
   }
 
-  async shareLink(url: string): Promise<void> {
-    if (Capacitor.isNativePlatform() || typeof navigator.share === 'function') {
-      await Share.share({ title: 'Reporte GAM', url });
-    } else {
-      await navigator.clipboard.writeText(url);
+  canShareLink(): boolean { return Capacitor.isNativePlatform() || typeof navigator.share === 'function'; }
+
+  async copyLink(url: string): Promise<void> {
+    if (Capacitor.isNativePlatform()) await Clipboard.write({ string: url, label: 'Enlace del reporte' });
+    else await navigator.clipboard.writeText(url);
+  }
+
+  async shareLink(url: string): Promise<boolean> {
+    if (!this.canShareLink()) throw new Error('Compartir no está disponible. Puedes copiar el enlace y enviarlo.');
+    try { await Share.share({ title: 'Reporte GAM', url }); return true; }
+    catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return false;
+      throw error;
     }
   }
 }

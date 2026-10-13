@@ -75,6 +75,12 @@ export interface ReportOptions {
   pagination: { current_page: number; last_page: number; total: number };
 }
 
+export interface ReportTemporaryLink {
+  url: string;
+  expires_at: string;
+  file_expires_at?: string | null;
+}
+
 export interface ReportEnvelope<T> { data: T }
 export interface ReportPage<T> extends ReportEnvelope<T[]> {
   meta: { current_page: number; last_page: number; total: number };

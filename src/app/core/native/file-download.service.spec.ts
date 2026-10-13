@@ -2,6 +2,7 @@ import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 import { Filesystem } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import { Share } from '@capacitor/share';
@@ -14,6 +15,7 @@ import { FileDownloadService } from './file-download.service';
 vi.mock('@capacitor/filesystem', () => ({ Directory: { Cache: 'CACHE' }, Filesystem: { getUri: vi.fn(), deleteFile: vi.fn(), readdir: vi.fn() } }));
 vi.mock('@capacitor/file-transfer', () => ({ FileTransfer: { downloadFile: vi.fn() } }));
 vi.mock('@capacitor/share', () => ({ Share: { share: vi.fn() } }));
+vi.mock('@capacitor/clipboard', () => ({ Clipboard: { write: vi.fn() } }));
 
 describe('Authenticated file downloads', () => {
   const user = signal<{ id: number } | null>({ id: 1 });
@@ -59,5 +61,24 @@ describe('Authenticated file downloads', () => {
     api.getFile.mockReturnValue(of(new HttpResponse({ body: new Blob(['content']), headers: new HttpHeaders({ 'Content-Disposition': 'attachment; filename="postura-final.xlsx"' }) })));
     const files = TestBed.inject(FileDownloadService); TestBed.tick(); await files.download('exportaciones-reportes/7/descarga', 'fallback.xlsx');
     expect(click).toHaveBeenCalled(); expect(create).toHaveBeenCalled(); await vi.advanceTimersByTimeAsync(1000); expect(revoke).toHaveBeenCalledWith('blob:report'); expect(FileTransfer.downloadFile).not.toHaveBeenCalled();
+  });
+  it('copies native links to the clipboard without opening the share sheet', async () => {
+    vi.mocked(Clipboard.write).mockResolvedValue(undefined);
+    const files = TestBed.inject(FileDownloadService); await files.copyLink('https://gam.test/report');
+    expect(Clipboard.write).toHaveBeenCalledWith({ string: 'https://gam.test/report', label: 'Enlace del reporte' }); expect(Share.share).not.toHaveBeenCalled();
+  });
+  it('copies web links even when sharing is available', async () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
+    const writeText = vi.fn().mockResolvedValue(undefined); const share = vi.fn();
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard'); const shareDescriptor = Object.getOwnPropertyDescriptor(navigator, 'share');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } }); Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    try { await TestBed.inject(FileDownloadService).copyLink('https://gam.test/report'); expect(writeText).toHaveBeenCalledWith('https://gam.test/report'); expect(Share.share).not.toHaveBeenCalled(); expect(share).not.toHaveBeenCalled(); }
+    finally { if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor); else Reflect.deleteProperty(navigator, 'clipboard'); if (shareDescriptor) Object.defineProperty(navigator, 'share', shareDescriptor); else Reflect.deleteProperty(navigator, 'share'); }
+  });
+  it('shares native links without copying and does not copy when web sharing is unsupported', async () => {
+    const files = TestBed.inject(FileDownloadService); expect(await files.shareLink('https://gam.test/report')).toBe(true);
+    expect(Share.share).toHaveBeenCalledWith({ title: 'Reporte GAM', url: 'https://gam.test/report' }); expect(Clipboard.write).not.toHaveBeenCalled();
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
+    expect(files.canShareLink()).toBe(false); await expect(files.shareLink('https://gam.test/report')).rejects.toThrow('Puedes copiar'); expect(Clipboard.write).not.toHaveBeenCalled();
   });
 });

@@ -27,4 +27,8 @@ describe('Reporting service', () => {
     await vi.advanceTimersByTimeAsync(3000); http.expectOne('/api/v1/exportaciones-reportes/8').flush({ data: { status: 'completed' } });
     await vi.advanceTimersByTimeAsync(9000); http.expectNone('/api/v1/exportaciones-reportes/8'); expect(updates).toEqual(['processing', 'completed']); expect(subscription.closed).toBe(true);
   });
+  it('sends the chosen link duration in minutes and defaults to 30 minutes', () => {
+    api.temporaryLink(8).subscribe(); const standard = http.expectOne('/api/v1/exportaciones-reportes/8/enlaces-temporales'); expect(standard.request.body).toEqual({ expires_in: 30 }); standard.flush({ url: '', expires_at: '' });
+    api.temporaryLink(8, 43200).subscribe(); const longer = http.expectOne('/api/v1/exportaciones-reportes/8/enlaces-temporales'); expect(longer.request.body).toEqual({ expires_in: 43200 }); longer.flush({ url: '', expires_at: '' });
+  });
 });

@@ -11,18 +11,19 @@ import { EMPTY, Subject, Subscription, catchError, combineLatest, debounceTime, 
 import { AuthStore } from '../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../admin/services/admin-unit-context.service';
 import { ReportTableComponent } from '../components/report-table.component';
-import { ReportExport, ReportOptions, ReportPreset, ReportQuery, ReportResult, ReportSource } from '../interfaces/report';
+import { ReportExport, ReportOptions, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
 import { queryFromForm } from '../services/report-query';
 import { ReportingService } from '../services/reporting.service';
 import { ReportFieldPickerComponent } from '../components/report-field-picker.component';
 import { reportHelp, reportIcons, reportTopics } from '../services/report-presentation';
 import { ReportHelpComponent } from '../components/report-help.component';
+import { ReportShareDialogComponent } from '../components/report-share-dialog.component';
 import { reportFieldHelp, reportHelpText, reportOptionLabel } from '../services/report-help';
 
 type FilterForm = FormGroup<{ field: FormControl<string>; operator: FormControl<string>; value: FormControl<string> }>;
 
 @Component({
-  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, ReportHelpComponent],
+  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, ReportHelpComponent, ReportShareDialogComponent],
   templateUrl: './reports.page.html', styleUrl: './reports.page.scss',
 })
 export class ReportsPage {
@@ -61,6 +62,7 @@ export class ReportsPage {
   private polling = new Map<number, Subscription>();
   private requestKeys = new Map<string, string>();
   private sharedTimer: ReturnType<typeof setTimeout> | null = null;
+  private shareGeneration = 0;
   private identity: number | null = null;
   private epoch = 0;
   private sourceGeneration = 0;
@@ -87,7 +89,13 @@ export class ReportsPage {
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
   readonly pendingChanges = signal(false);
-  readonly sharedLink = signal<{ url: string; expires_at: string } | null>(null);
+  readonly sharedLink = signal<ReportTemporaryLink | null>(null);
+  readonly shareTrigger = signal<HTMLElement | null>(null);
+  readonly sharedExport = signal<ReportExport | null>(null);
+  readonly shareDuration = signal(30);
+  readonly linkBusy = signal(false);
+  readonly linkActionBusy = signal(false);
+  readonly linkSharingAvailable = computed(() => this.sharedLink() !== null && this.api.canShareLink());
   readonly presetName = new FormControl('', { nonNullable: true });
   readonly filters = new FormArray<FilterForm>([]);
   readonly form = new FormGroup({
@@ -456,17 +464,49 @@ export class ReportsPage {
     finally { this.actionBusy.set(false); }
   }
 
-  async share(item: ReportExport): Promise<void> {
-    const epoch = this.epoch; const contextGeneration = this.contextGeneration; this.actionBusy.set(true); this.error.set(null);
-    try { const link = await firstValueFrom(this.api.temporaryLink(item.id)); if (epoch !== this.epoch || contextGeneration !== this.contextGeneration) return; this.clearLink(); this.sharedLink.set(link); this.sharedTimer = setTimeout(() => this.clearLink(), Math.max(0, new Date(link.expires_at).getTime() - Date.now())); }
-    catch (error) { if (epoch === this.epoch) this.error.set(this.message(error)); }
-    finally { if (epoch === this.epoch) this.actionBusy.set(false); }
+  async share(item: ReportExport, event?: Event): Promise<void> {
+    const trigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.clearLink(); this.sharedExport.set(item); this.shareTrigger.set(trigger);
+    await this.updateShareDuration(30);
+  }
+
+  async updateShareDuration(minutes: number): Promise<void> {
+    const item = this.sharedExport(); if (!item || this.linkBusy()) return;
+    const epoch = this.epoch; const contextGeneration = this.contextGeneration; const generation = this.shareGeneration;
+    const previousDuration = this.shareDuration();
+    this.linkBusy.set(true); this.actionBusy.set(true); this.shareDuration.set(minutes); this.error.set(null); this.notice.set(null);
+    try {
+      const link = await firstValueFrom(this.api.temporaryLink(item.id, minutes));
+      if (epoch !== this.epoch || contextGeneration !== this.contextGeneration || generation !== this.shareGeneration) return;
+      if (this.sharedTimer) clearTimeout(this.sharedTimer);
+      this.sharedLink.set(link);
+      const fileExpiresAt = link.file_expires_at;
+      if (fileExpiresAt !== undefined) this.exports.update(items => items.map(entry => entry.id === item.id ? { ...entry, expires_at: fileExpiresAt } : entry));
+      this.scheduleLinkExpiry(link);
+    } catch (error) {
+      if (epoch === this.epoch && generation === this.shareGeneration) {
+        this.shareDuration.set(previousDuration);
+        this.error.set(this.message(error) + (this.sharedLink() ? ' Se mantiene el enlace anterior.' : ''));
+      }
+    } finally {
+      if (epoch === this.epoch && generation === this.shareGeneration) { this.linkBusy.set(false); this.actionBusy.set(false); }
+    }
   }
 
   async copyLink(): Promise<void> {
-    const link = this.sharedLink(); if (!link) return;
-    try { await this.api.shareLink(link.url); this.notice.set('Enlace compartido o copiado.'); }
-    catch { this.error.set('No se pudo copiar el enlace. Puedes seleccionarlo y copiarlo manualmente.'); }
+    const link = this.sharedLink(); if (!link || this.linkBusy() || this.linkActionBusy()) return;
+    this.linkActionBusy.set(true); this.error.set(null); this.notice.set(null);
+    try { await this.api.copyLink(link.url); if (this.sharedLink() === link) this.notice.set('Enlace copiado. Ya puedes pegarlo en un mensaje.'); }
+    catch { if (this.sharedLink() === link) this.error.set('No se pudo copiar el enlace. Puedes seleccionarlo y copiarlo manualmente.'); }
+    finally { if (this.sharedLink() === link) this.linkActionBusy.set(false); }
+  }
+
+  async shareLink(): Promise<void> {
+    const link = this.sharedLink(); if (!link || this.linkBusy() || this.linkActionBusy()) return;
+    this.linkActionBusy.set(true); this.error.set(null); this.notice.set(null);
+    try { const shared = await this.api.shareLink(link.url); if (shared && this.sharedLink() === link) this.notice.set('Se completó la opción de compartir.'); }
+    catch { if (this.sharedLink() === link) this.error.set('No se pudo compartir. Puedes copiar el enlace y enviarlo en un mensaje.'); }
+    finally { if (this.sharedLink() === link) this.linkActionBusy.set(false); }
   }
 
   canShare(item: ReportExport): boolean { return this.sources().some((source) => source.key === item.source_key && source.capabilities.share); }
@@ -474,7 +514,13 @@ export class ReportsPage {
   optionSearch(event: Event, field: string): void { void this.loadOptions(field, (event.target as HTMLInputElement).value); }
   readonly operatorLabels: Record<string, string> = { eq: 'Incluir esta opción', neq: 'Excluir esta opción', in: 'Incluir varias opciones', not_in: 'Excluir varias opciones' };
   exportStatus(item: ReportExport): string { return ({ pending: 'En preparación', processing: 'En preparación', completed: 'Listo para descargar', failed: 'No se pudo preparar', expired: 'Ya venció' })[item.status]; }
-  private clearLink(): void { if (this.sharedTimer) clearTimeout(this.sharedTimer); this.sharedTimer = null; this.sharedLink.set(null); }
+  private scheduleLinkExpiry(link: ReportTemporaryLink): void {
+    const remaining = new Date(link.expires_at).getTime() - Date.now();
+    if (remaining <= 0) { this.clearLink(); return; }
+    // Browser timers accept at most about 24 days; recheck longer links instead of overflowing.
+    this.sharedTimer = setTimeout(() => { if (this.sharedLink() === link) this.scheduleLinkExpiry(link); }, Math.min(remaining, 2147483647));
+  }
+  private clearLink(): void { this.shareGeneration++; if (this.sharedTimer) clearTimeout(this.sharedTimer); this.sharedTimer = null; this.sharedLink.set(null); this.shareTrigger.set(null); this.sharedExport.set(null); this.shareDuration.set(30); if (this.linkBusy()) this.actionBusy.set(false); this.linkBusy.set(false); this.linkActionBusy.set(false); }
   private stopPolling(): void { for (const subscription of this.polling.values()) subscription.unsubscribe(); this.polling.clear(); }
   private clearPrivateState(): void { this.epoch++; this.contextGeneration++; this.lastDashboardUnit = undefined; this.awaitingDashboardQuery = false; this.cancelRequests.next(); this.stopPolling(); this.clearLink(); this.requestKeys.clear(); this.sources.set([]); this.source.set(null); this.result.set(null); this.appliedQuery.set(null); this.presets.set([]); this.exports.set([]); this.options.set({}); this.selectedPreset.set(null); this.presetName.reset(); this.filters.clear({ emitEvent: false }); this.form.reset({}, { emitEvent: false }); this.error.set(null); this.notice.set(null); this.actionBusy.set(false); this.step.set(1); this.creationTopic.set(null); this.showSave.set(false); this.deleteCandidate.set(null); this.selectedLabels.set([]); }
   private message(error: unknown): string {
