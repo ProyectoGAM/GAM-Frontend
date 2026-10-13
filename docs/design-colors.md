@@ -33,6 +33,7 @@ El panel administrativo actual usa un lienzo claro (`#eef2f6`), barra superior c
 | `--gam-color-nav-muted` | Texto secundario de navegación | `#b8cce0` | `#b8cce0` |
 | `--gam-color-nav-focus` | Indicador de foco visible sobre navegación | `#91b7dc` | `#91b7dc` |
 | `--gam-color-success` | Texto/icono de éxito | `#176b45` | `#9be5bd` |
+| `--gam-color-chart-first-point` | Verde decorativo del primer punto histórico de recolección; no comunica un estado ni agrega leyendas | `#176b45` | `#9be5bd` |
 | `--gam-color-success-soft` | Fondo de mensaje de éxito | `#e6f5ec` | `#183a2c` |
 | `--gam-color-warning` | Texto/icono de advertencia | `#8a5a00` | `#f4cc7a` |
 | `--gam-color-warning-soft` | Fondo de advertencia | `#fff2d6` | `#44351d` |

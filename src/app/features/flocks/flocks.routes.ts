@@ -7,6 +7,11 @@ export const flocksRoutes: Routes = [
       .then((module) => module.FlockCreatePage),
   },
   {
+    path: ':id/recoleccion',
+    loadComponent: () => import('./pages/flock-collections/flock-collections.page')
+      .then((module) => module.FlockCollectionsPage),
+  },
+  {
     path: ':id/pesajes/:weighingId',
     loadComponent: () => import('./pages/flock-weighing-record/flock-weighing-record.page')
       .then((module) => module.FlockWeighingRecordPage),

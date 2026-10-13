@@ -80,37 +80,10 @@
           <ion-icon class="card-icon" name="egg-outline" aria-hidden="true" />
           <h2 id="production-title">Producción de huevo</h2>
           <div class="register-action">
-            <button type="button" disabled aria-describedby="eggs-action-status">Registrar recolección</button>
-            <small id="eggs-action-status">Próximamente</small>
+            <a [routerLink]="collectionsLink()">Ir a recolección <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </div>
-        <div class="production-metrics">
-          <div>
-            <h3>Último registro</h3>
-            @if (eggHistory().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggHistory().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggHistory().value?.latestDay) {
-              <p class="metric-value">{{ lastEggDayText() }} huevos</p>
-              <p class="metric-note">{{ lastEggDateText() }} · total del día</p>
-            } @else { <p class="metric-note">Sin registros</p> }
-          </div>
-          <div>
-            <h3>Promedio diario estimado</h3>
-            @if (eggAverage().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggAverage().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggAverage().value !== null) {
-              <p class="metric-value">{{ eggAverageText() }} huevos/día</p>
-              <p class="metric-note">Últimos 7 días</p>
-            } @else { <p class="metric-note">Sin registros en los últimos 7 días</p> }
-          </div>
-          <div>
-            <h3>Acumulado histórico</h3>
-            @if (eggHistory().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggHistory().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggHistory().value?.latestDay) { <p class="metric-value">{{ eggHistoryText() }} huevos</p> }
-            @else { <p class="metric-note">Sin registros</p> }
-          </div>
-        </div>
+        <app-collection-summary [metric]="eggs()" />
       </section>
 
       <section class="card feeding-card" aria-labelledby="feeding-title">
