@@ -16,6 +16,7 @@ import { Flock } from '../../interfaces/flock.interface';
 import { FlockMortality, MortalityOperation } from '../../interfaces/flock-mortality.interface';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockMortalitiesService } from '../../services/flock-mortalities.service';
+import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailPage } from '../flock-detail/flock-detail.page';
 import { FlockMortalitiesPage } from './flock-mortalities.page';
 
@@ -57,6 +58,7 @@ describe('Mortality navigation', () => {
         latestWeighing: () => of(null), eggHistory: () => of(null), eggAverageLastSevenDays: () => of(null),
       } },
       { provide: FlockMortalitiesService, useValue: { list, record: save, cancel } },
+      { provide: FlockCollectionsService, useValue: { summary: () => of(null) } },
       { provide: ProductionUnitsService, useValue: { getPoultryHouseById: () => of({ data: { name: 'Galpón 3' } }) } },
       { provide: AdminUnitContextService, useValue: { units: signal([{ id: 1, name: 'Unidad San José' }]) } },
     ] });

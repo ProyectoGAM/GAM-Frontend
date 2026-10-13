@@ -12,8 +12,11 @@ import { Observable } from 'rxjs';
 
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
-import { DetailMetric, EggHistorySummary, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
+import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
+import { CollectionSummary } from '../../interfaces/flock-collection.interface';
+import { DetailMetric, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
 import { Flock } from '../../interfaces/flock.interface';
+import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 
 type PageState = 'loading' | 'ready' | 'offline' | 'forbidden' | 'not-found' | 'error';
@@ -24,11 +27,12 @@ const loadingMetric = <T>(): DetailMetric<T> => ({ state: 'loading', value: null
   selector: 'app-flock-detail-page',
   templateUrl: './flock-detail.page.html',
   styleUrl: './flock-detail.page.scss',
-  imports: [IonIcon, IonSpinner, RouterLink],
+  imports: [IonIcon, IonSpinner, RouterLink, CollectionSummaryComponent],
 })
 export class FlockDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly detail = inject(FlockDetailService);
+  private readonly collections = inject(FlockCollectionsService);
   private readonly productionUnits = inject(ProductionUnitsService);
   private readonly unitContext = inject(AdminUnitContextService);
   private readonly destroyRef = inject(DestroyRef);
@@ -39,14 +43,14 @@ export class FlockDetailPage {
   readonly houseName = signal<string | null>(null);
   readonly mortality = signal<DetailMetric<number>>(loadingMetric());
   readonly weighing = signal<DetailMetric<FlockLatestWeighing>>(loadingMetric());
-  readonly eggHistory = signal<DetailMetric<EggHistorySummary>>(loadingMetric());
-  readonly eggAverage = signal<DetailMetric<number>>(loadingMetric());
+  readonly eggs = signal<DetailMetric<CollectionSummary>>(loadingMetric());
   readonly flockId = signal('');
   readonly unitName = computed(() => this.unitContext.units()
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
   readonly planLink = computed(() => `/administracion/manejo-lotes/planes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly weighingsLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/pesajes`);
   readonly mortalityLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/mortalidad`);
+  readonly collectionsLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}/recoleccion`);
   readonly statusText = computed(() => this.flock() ? this.statusLabel(this.flock()!.status) : '');
   readonly entryDateText = computed(() => this.flock() ? this.entryDate(this.flock()!.entry_date) : '');
   readonly dayNumber = computed(() => this.flock() ? this.flock()!.age_days + 1 : null);
@@ -58,12 +62,6 @@ export class FlockDetailPage {
   });
   readonly weighingText = computed(() => this.weighing().value ? this.weightKg(this.weighing().value!.average_weight_g) : '');
   readonly weighingDateText = computed(() => this.weighing().value ? this.shortDate(this.weighing().value!.date) : '');
-  readonly lastEggDayText = computed(() => this.eggHistory().value?.latestDay
-    ? this.number(this.eggHistory().value!.latestDay!.quantity) : '');
-  readonly lastEggDateText = computed(() => this.eggHistory().value?.latestDay
-    ? this.shortDate(this.eggHistory().value!.latestDay!.date) : '');
-  readonly eggAverageText = computed(() => this.eggAverage().value === null ? '' : this.number(this.eggAverage().value!, 1));
-  readonly eggHistoryText = computed(() => this.eggHistory().value ? this.number(this.eggHistory().value!.total) : '');
 
   constructor() {
     addIcons({
@@ -84,8 +82,7 @@ export class FlockDetailPage {
     this.houseName.set(null);
     this.mortality.set(loadingMetric());
     this.weighing.set(loadingMetric());
-    this.eggHistory.set(loadingMetric());
-    this.eggAverage.set(loadingMetric());
+    this.eggs.set(loadingMetric());
     if (!id) {
       this.state.set('not-found');
       return;
@@ -155,8 +152,7 @@ export class FlockDetailPage {
     const today = todayInLotsTimezone();
     this.loadMetric(this.mortality, this.detail.mortalityTotal(flock.id), version);
     this.loadMetric(this.weighing, this.detail.latestWeighing(flock.id), version);
-    this.loadMetric(this.eggHistory, this.detail.eggHistory(flock.id, flock.entry_date, today), version);
-    this.loadMetric(this.eggAverage, this.detail.eggAverageLastSevenDays(flock.id, today), version);
+    this.loadMetric(this.eggs, this.collections.summary(flock.id, flock.entry_date, today), version);
   }
 
   private loadMetric<T>(target: WritableSignal<DetailMetric<T>>, source: Observable<T | null>, version: number): void {
