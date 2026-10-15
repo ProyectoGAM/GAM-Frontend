@@ -11,6 +11,15 @@ La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
 [`flock-feeding.md`](flock-feeding.md) para endpoints, unidades, paginación,
 selección de recetas por UP y el nombre del responsable pendiente del backend.
 
+Las cards de lotes comparten el resumen de ingreso, estado, agrupación y aves.
+La mortalidad vigente se consulta de forma independiente y paginada; ver
+[`flock-cards.md`](flock-cards.md) para carga progresiva y permisos.
+
+El detalle del plan de manejo resalta todas las actividades previstas que
+coinciden con el día o semana actuales. Ver
+[`management-plan-progress.md`](management-plan-progress.md) para calendario,
+solapamientos y distinción entre planificación y ejecución.
+
 ## 2. Standard dependency flow
 
 ```text

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -26,6 +26,9 @@ import { ProductionUnitsService } from '../../../production-units/services/produ
 import { Flock, FlockListItem } from '../../interfaces/flock.interface';
 import { FlocksApi } from '../../services/flocks.api';
 import { formatFlockEntryDate } from '../../services/flock-entry-date';
+import { FlockCardComponent } from '../../components/flock-card/flock-card.component';
+import { FlockDetailService } from '../../services/flock-detail.service';
+import { DetailMetric } from '../../interfaces/flock-detail.interface';
 
 type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbidden' | 'context-error';
 
@@ -33,13 +36,14 @@ type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbid
   selector: 'app-flocks-list-page',
   templateUrl: './flocks-list.page.html',
   styleUrl: './flocks-list.page.scss',
-  imports: [IonButton, IonIcon, IonSpinner, RouterLink],
+  imports: [IonButton, IonIcon, IonSpinner, RouterLink, FlockCardComponent],
 })
 export class FlocksListPage {
   @ViewChild('filtersDialog', { static: true }) private readonly filtersDialog!: ElementRef<HTMLDialogElement>;
 
   private readonly api = inject(FlocksApi);
   private readonly productionUnits = inject(ProductionUnitsService);
+  private readonly detail = inject(FlockDetailService);
   readonly unitContext = inject(AdminUnitContextService);
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
@@ -51,6 +55,9 @@ export class FlocksListPage {
 
   readonly state = signal<ListState>('loading');
   readonly flocks = signal<readonly FlockListItem[]>([]);
+  readonly mortalities = toSignal(toObservable(this.flocks).pipe(
+    switchMap((flocks) => this.detail.mortalityTotals(flocks.map((flock) => flock.id))),
+  ), { initialValue: new Map<string, DetailMetric<number>>() });
   readonly searchQuery = signal('');
   readonly draftUnitId = signal<number | null>(null);
   readonly activeFilterCount = computed(() => this.unitContext.selectedId() === null ? 0 : 1);

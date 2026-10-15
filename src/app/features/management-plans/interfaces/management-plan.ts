@@ -15,6 +15,7 @@ export interface PlanActivityInput {
   condition: string | null;
   notes: string | null;
   catalog_ref: string | number | null;
+  grams_per_bird?: number;
 }
 
 export interface CreatePlanTemplateRequest {
@@ -46,8 +47,10 @@ export interface PlanActivity {
   conditional: boolean;
   condition: string | null;
   notes: string | null;
-  catalog_type: 'vaccine' | 'medicine' | 'product' | null;
+  catalog_type: 'vaccine' | 'medicine' | 'product' | 'feed_recipe' | null;
   catalog_snapshot: Record<string, unknown> | null;
+  feed_recipe_id?: number | null;
+  grams_per_bird?: number | null;
 }
 
 export interface PlanTemplate {
@@ -77,6 +80,11 @@ export interface FlockPlan {
   source_template: { id: string; version: number; name_at_assignment: string } | null;
   source_flock_id: string | null;
   revisions: PlanRevision[];
+}
+
+export interface PlanPosition {
+  day: number;
+  week: number;
 }
 
 export interface FlockSummary {

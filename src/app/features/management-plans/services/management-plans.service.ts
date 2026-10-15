@@ -54,10 +54,10 @@ export class ManagementPlansService {
     let lastPage = 1;
     do {
       if (type === 'ration_change') {
-        const result = await firstValueFrom(this.api.get<PlanPage<{ id: number; name: string }>>('products', {
-          params: { kind: 'finished_feed', status: 'active', page, per_page: 100 },
+        const result = await firstValueFrom(this.api.get<PlanPage<{ id: number; nombre: string }>>('recetas', {
+          params: { estado: 'active', page, por_pagina: 100 },
         }));
-        options.push(...result.data.map((item) => ({ value: String(item.id), label: item.name })));
+        options.push(...result.data.map((item) => ({ value: String(item.id), label: item.nombre })));
         lastPage = result.meta.last_page;
       } else if (type === 'vaccination') {
         const result = await firstValueFrom(this.api.get<PlanPage<{ id: string; nombre: string }>>('vacunas', {

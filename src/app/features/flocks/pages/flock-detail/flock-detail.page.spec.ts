@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
@@ -23,11 +23,13 @@ const overview: FlockFeedingOverview = {
 
 describe('FlockDetailPage feeding overview', () => {
   const loadOverview = vi.fn<FlockFeedingService['overview']>();
+  let queryParamMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   beforeEach(() => {
+    queryParamMap = new BehaviorSubject(convertToParamMap({}));
     loadOverview.mockReset().mockReturnValue(of(overview));
     TestBed.configureTestingModule({ imports: [FlockDetailPage], providers: [provideRouter([]),
-      { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: flock.id })) } },
+      { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: flock.id })), queryParamMap } },
       { provide: FlockDetailService, useValue: {
         flock: () => of(flock), mortalityTotal: () => of(0), latestWeighing: () => of(null),
       } },
@@ -53,6 +55,35 @@ describe('FlockDetailPage feeding overview', () => {
     expect(card.textContent).toContain('20 oct. 2026 · Día 20');
     expect(card.textContent).toContain('requieren volver a automático');
     expect(card.querySelector('a')?.getAttribute('href')).toContain('/lot-1/alimentacion');
+  });
+
+  it('preserves the flock origin when opening its management plan', async () => {
+    const { fixture } = await setup();
+    expect(fixture.nativeElement.querySelector('.plan-card')?.getAttribute('href'))
+      .toBe('/administracion/manejo-lotes/planes/lotes/lot-1?from=flock');
+  });
+
+  it('returns to the source house and keeps that origin when opening the plan', async () => {
+    queryParamMap.next(convertToParamMap({ lotFrom: 'house', unitId: '7', houseId: '22' }));
+    const { fixture } = await setup();
+    const back = fixture.nativeElement.querySelector('.back-link') as HTMLAnchorElement;
+    expect(back.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22');
+    expect(back.textContent).toContain('Volver al galpón');
+    expect(fixture.nativeElement.querySelector('.plan-card')?.getAttribute('href'))
+      .toBe('/administracion/manejo-lotes/planes/lotes/lot-1?from=flock&lotFrom=house&unitId=7&houseId=22');
+    queryParamMap.next(convertToParamMap({})); fixture.detectChanges();
+    expect(back.getAttribute('href')).toBe('/administracion/lotes/lotes');
+    expect(back.textContent).toContain('Volver a lotes');
+  });
+
+  it.each([
+    {}, { lotFrom: 'unknown', unitId: '7', houseId: '22' },
+    { lotFrom: 'house', unitId: '7' }, { lotFrom: 'house', unitId: '-1', houseId: '22' },
+    { lotFrom: 'house', unitId: '7', houseId: '0' }, { lotFrom: 'house', unitId: '7', houseId: '22/editar' },
+  ])('returns to the lot list for an absent or invalid source (%j)', async (params) => {
+    queryParamMap.next(convertToParamMap(params));
+    const { fixture } = await setup();
+    expect(fixture.nativeElement.querySelector('.back-link')?.getAttribute('href')).toBe('/administracion/lotes/lotes');
   });
 
   it('shows automatic mode and treats the future recipe availability as a forecast', async () => {

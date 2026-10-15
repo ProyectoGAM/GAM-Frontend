@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, WritableSignal, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -14,7 +14,7 @@ import { AdminUnitContextService } from '../../../admin/services/admin-unit-cont
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
 import { CollectionSummary } from '../../interfaces/flock-collection.interface';
-import { DetailMetric, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
+import { DetailMetric, FlockHouseOrigin, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
 import { FlockFeedingOverview } from '../../interfaces/flock-feeding.interface';
 import { Flock } from '../../interfaces/flock.interface';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
@@ -41,6 +41,24 @@ export class FlockDetailPage {
   private readonly unitContext = inject(AdminUnitContextService);
   private readonly destroyRef = inject(DestroyRef);
   private loadVersion = 0;
+  private readonly queryParams = toSignal(this.route.queryParamMap);
+  readonly returnHouse = computed<FlockHouseOrigin | null>(() => {
+    const params = this.queryParams();
+    const unit = params?.get('unitId') ?? '';
+    const house = params?.get('houseId') ?? '';
+    return params?.get('lotFrom') === 'house' && /^[1-9]\d*$/.test(unit) && /^[1-9]\d*$/.test(house)
+      && Number.isSafeInteger(Number(unit)) && Number.isSafeInteger(Number(house))
+      ? { unitId: Number(unit), houseId: Number(house) } : null;
+  });
+  readonly backLink = computed(() => {
+    const house = this.returnHouse();
+    return house ? ['/administracion/unidades-productivas', house.unitId, 'galpon', house.houseId]
+      : ['/administracion/lotes/lotes'];
+  });
+  readonly planQueryParams = computed(() => {
+    const house = this.returnHouse();
+    return house ? { from: 'flock', lotFrom: 'house', unitId: house.unitId, houseId: house.houseId } : { from: 'flock' };
+  });
 
   readonly state = signal<PageState>('loading');
   readonly flock = signal<Flock | null>(null);

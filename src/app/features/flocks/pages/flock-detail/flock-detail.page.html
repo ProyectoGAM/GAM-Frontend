@@ -1,6 +1,6 @@
 <section class="detail-page" aria-labelledby="flock-title">
-  <a class="back-link" routerLink="/administracion/lotes/lotes">
-    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a lotes
+  <a class="back-link" [routerLink]="backLink()">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ returnHouse() ? 'Volver al galpón' : 'Volver a lotes' }}
   </a>
 
   @if (state() === 'loading') {
@@ -119,7 +119,7 @@
         </div>
       </section>
 
-      <a class="card plan-card" [routerLink]="planLink()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
+      <a class="card plan-card" [routerLink]="planLink()" [queryParams]="planQueryParams()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
         <ion-icon class="card-icon" name="document-text-outline" aria-hidden="true" />
         <span class="plan-copy"><strong>Plan de manejo</strong><small>Actividades previstas para este lote</small></span>
         <span class="plan-action">Ver plan <ion-icon name="chevron-forward-outline" aria-hidden="true" /></span>
