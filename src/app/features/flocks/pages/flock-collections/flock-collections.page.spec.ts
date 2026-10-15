@@ -17,6 +17,7 @@ import { EggMetricDay } from '../../interfaces/flock-detail.interface';
 import { Flock } from '../../interfaces/flock.interface';
 import { collectionSummary } from '../../services/collection-summary';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
+import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { dateBefore, FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockDetailPage } from '../flock-detail/flock-detail.page';
 import { FlockCollectionsPage } from './flock-collections.page';
@@ -50,6 +51,7 @@ describe('Flock collection behavior', () => {
       provideRouter([{ path: 'administracion/lotes/lotes', children: flocksRoutes }]),
       { provide: AuthStore, useValue: { user, isAdmin: () => user().roles.includes('admin') } },
       { provide: FlockDetailService, useValue: { flock: getFlock, mortalityTotal: () => of(0), latestWeighing: () => of(null) } },
+      { provide: FlockFeedingService, useValue: { overview: () => of(null) } },
       { provide: FlockCollectionsService, useValue: { history, days, record: save, summary: () => of(collectionSummary(metricDays, flock.entry_date, today)) } },
       { provide: ProductionUnitsService, useValue: { getPoultryHouseById: () => of({ data: { name: 'Galpón 3' } }) } },
       { provide: AdminUnitContextService, useValue: { units: signal([{ id: 1, name: 'Unidad San José' }]) } },

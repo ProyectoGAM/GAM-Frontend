@@ -16,14 +16,14 @@ import { queryFromForm } from '../services/report-query';
 import { ReportingService } from '../services/reporting.service';
 import { ReportFieldPickerComponent } from '../components/report-field-picker.component';
 import { reportHelp, reportIcons, reportTopics } from '../services/report-presentation';
-import { ReportHelpComponent } from '../components/report-help.component';
+import { InfoHelpComponent } from '../../../shared/components/info-help.component';
 import { ReportShareDialogComponent } from '../components/report-share-dialog.component';
 import { reportFieldHelp, reportHelpText, reportOptionLabel } from '../services/report-help';
 
 type FilterForm = FormGroup<{ field: FormControl<string>; operator: FormControl<string>; value: FormControl<string> }>;
 
 @Component({
-  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, ReportHelpComponent, ReportShareDialogComponent],
+  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, InfoHelpComponent, ReportShareDialogComponent],
   templateUrl: './reports.page.html', styleUrl: './reports.page.scss',
 })
 export class ReportsPage {

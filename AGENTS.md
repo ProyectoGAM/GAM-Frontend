@@ -307,6 +307,11 @@ Before moving something to `shared/`, verify it is both reused and domain-indepe
 
 ## 12. Testing
 
+All dependency operations (install, update, remove, resolve, audit, npm/npx tooling)
+MUST run inside Docker, never on the host. Use
+`docker compose -f compose.dev.yaml exec -T frontend <command>` for npm/npx
+commands below. See `docs/development-workflow.md` for the mandatory workflow.
+
 Required before completing a task:
 
 ```bash

@@ -15,9 +15,12 @@ import { ProductionUnitsService } from '../../../production-units/services/produ
 import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
 import { CollectionSummary } from '../../interfaces/flock-collection.interface';
 import { DetailMetric, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
+import { FlockFeedingOverview } from '../../interfaces/flock-feeding.interface';
 import { Flock } from '../../interfaces/flock.interface';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
+import { feedingDate } from '../../services/feeding-summary';
+import { FlockFeedingService } from '../../services/flock-feeding.service';
 
 type PageState = 'loading' | 'ready' | 'offline' | 'forbidden' | 'not-found' | 'error';
 
@@ -33,6 +36,7 @@ export class FlockDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly detail = inject(FlockDetailService);
   private readonly collections = inject(FlockCollectionsService);
+  private readonly feedingService = inject(FlockFeedingService);
   private readonly productionUnits = inject(ProductionUnitsService);
   private readonly unitContext = inject(AdminUnitContextService);
   private readonly destroyRef = inject(DestroyRef);
@@ -44,6 +48,11 @@ export class FlockDetailPage {
   readonly mortality = signal<DetailMetric<number>>(loadingMetric());
   readonly weighing = signal<DetailMetric<FlockLatestWeighing>>(loadingMetric());
   readonly eggs = signal<DetailMetric<CollectionSummary>>(loadingMetric());
+  readonly feeding = signal<DetailMetric<FlockFeedingOverview>>(loadingMetric());
+  readonly nextFeedingDateText = computed(() => {
+    const next = this.feeding().value?.nextChange;
+    return next ? `${feedingDate(next.date)} · Día ${next.day}` : '';
+  });
   readonly flockId = signal('');
   readonly unitName = computed(() => this.unitContext.units()
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
@@ -83,6 +92,7 @@ export class FlockDetailPage {
     this.mortality.set(loadingMetric());
     this.weighing.set(loadingMetric());
     this.eggs.set(loadingMetric());
+    this.feeding.set(loadingMetric());
     if (!id) {
       this.state.set('not-found');
       return;
@@ -153,6 +163,7 @@ export class FlockDetailPage {
     this.loadMetric(this.mortality, this.detail.mortalityTotal(flock.id), version);
     this.loadMetric(this.weighing, this.detail.latestWeighing(flock.id), version);
     this.loadMetric(this.eggs, this.collections.summary(flock.id, flock.entry_date, today), version);
+    this.loadMetric(this.feeding, this.feedingService.overview(flock.id, flock.production_unit_id), version);
   }
 
   private loadMetric<T>(target: WritableSignal<DetailMetric<T>>, source: Observable<T | null>, version: number): void {

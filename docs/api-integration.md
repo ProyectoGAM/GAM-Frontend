@@ -6,6 +6,11 @@ Laravel API contracts are authoritative.
 
 The frontend must not guess undocumented fields, states or error semantics.
 
+La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
+`feed-recipes.yaml`, con consumos diarios y rectificaciones. Ver
+[`flock-feeding.md`](flock-feeding.md) para endpoints, unidades, paginación,
+selección de recetas por UP y el nombre del responsable pendiente del backend.
+
 ## 2. Standard dependency flow
 
 ```text

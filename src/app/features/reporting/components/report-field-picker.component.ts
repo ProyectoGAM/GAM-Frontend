@@ -3,18 +3,18 @@ import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowDownOutline, arrowUpOutline } from 'ionicons/icons';
 import { ReportField } from '../interfaces/report';
-import { ReportHelpComponent } from './report-help.component';
+import { InfoHelpComponent } from '../../../shared/components/info-help.component';
 import { reportFieldHelp } from '../services/report-help';
 
 @Component({
   selector: 'app-report-field-picker',
-  imports: [IonIcon, ReportHelpComponent],
+  imports: [IonIcon, InfoHelpComponent],
   template: `
-    <fieldset [attr.aria-label]="title()"><legend>{{ title() }}@if (helpText()) { <app-report-help [label]="title()" [text]="helpText()" /> }</legend><p>{{ hint() }}</p>
+    <fieldset [attr.aria-label]="title()"><legend>{{ title() }}@if (helpText()) { <app-info-help [label]="title()" [text]="helpText()" /> }</legend><p>{{ hint() }}</p>
       <div class="choices">@for (field of fields(); track field.key) {
         <div class="field-choice"><label><input type="checkbox" [checked]="selected().includes(field.key)" (change)="toggle(field.key)" />
           <span>{{ field.label }}@if (field.unit && field.unit !== 'base_unit') { <small>{{ field.unit }}</small> }</span>
-        </label>@if (fieldHelp()[field.key]; as help) { <app-report-help [label]="field.label" [text]="help" /> }</div>
+        </label>@if (fieldHelp()[field.key]; as help) { <app-info-help [label]="field.label" [text]="help" /> }</div>
       }</div>
     </fieldset>
     @if (ordered() && chosen().length) {
