@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { PoultryHouseDetail } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 import { PoultryHouseDetailPage } from './poultry-house-detail.page';
+import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
 
 describe('PoultryHouseDetailPage', () => {
   let fixture: ComponentFixture<PoultryHouseDetailPage>;
@@ -54,6 +55,7 @@ describe('PoultryHouseDetailPage', () => {
       imports: [PoultryHouseDetailPage],
       providers: [
         provideRouter([]),
+        { provide: FlockDetailService, useValue: { mortalityTotals: () => of(new Map()) } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: '7', houseId: '22' }) } } },
         { provide: ProductionUnitsService, useValue: { getPoultryHouseById, houseFlocks, feedStock, inventoryIngredients, createFeedIngredient, updatePoultryHouseStatus } },
         { provide: AlertController, useValue: { create: alertCreate } },
@@ -106,6 +108,23 @@ describe('PoultryHouseDetailPage', () => {
     render();
     expect(fixture.nativeElement.textContent).toContain('Galpón vacío');
     expect(fixture.nativeElement.textContent).not.toContain('Agregar lote');
+  });
+
+  it('uses the same lot card with admission, grouping, status, mortality and live birds inside a house', async () => {
+    houseFlocks.mockReturnValue(of([{ id: 'lot-1', code: 'LOTE-AGRUPADO', poultry_house_id: 22,
+      current_quantity: 750, current_week: 3, entry_date: '2026-10-01', is_grouped: true, status: 'quarantined' }]));
+    TestBed.overrideProvider(FlockDetailService, { useValue: {
+      mortalityTotals: () => of(new Map([['lot-1', { state: 'ready', value: 9 }]])),
+    } });
+    render(); await fixture.whenStable(); fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('app-flock-card') as HTMLElement;
+    expect(card.textContent).toContain('LOTE-AGRUPADO');
+    expect(card.querySelector('a')?.getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1?lotFrom=house&unitId=7&houseId=22');
+    expect(card.textContent).toContain('Ingreso: 01-10-2026');
+    expect(card.textContent).toContain('Agrupado');
+    expect(card.textContent).toContain('En cuarentena');
+    expect(card.querySelectorAll('dd')[0].textContent).toBe('9');
+    expect(card.querySelectorAll('dd')[1].textContent).toBe('750');
   });
 
   it('does not show a house when it does not belong to the unit in the route', () => {

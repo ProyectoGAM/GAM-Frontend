@@ -1,0 +1,68 @@
+<ion-modal [canDismiss]="!open() || (!saving() && !pending())" [isOpen]="open()" (didDismiss)="dismissed.emit()" aria-labelledby="feeding-editor-title">
+  <ng-template>
+    <ion-header><ion-toolbar>
+      <ion-title><span class="toolbar-title"><span id="feeding-editor-title">{{ title() }}</span><app-info-help placement="right" [label]="correction() ? 'Edición de consumo' : 'Cambio de alimentación'" [text]="correction() ? correctionHelp : generalHelp" /></span></ion-title>
+      <ion-buttons slot="end"><ion-button [disabled]="saving()" (click)="closeRequested.emit()">Cerrar</ion-button></ion-buttons>
+    </ion-toolbar></ion-header>
+    <ion-content>
+      <form id="feeding-editor-form" [formGroup]="form" (ngSubmit)="submit(confirmationDialog)">
+        <p class="context">{{ context() }}</p>
+        @if (correction()) {
+          <p class="note">Cantidad registrada: {{ formatKg(currentQuantity()) }} kg.</p>
+        } @else {
+          <fieldset class="mode-picker" [disabled]="saving()">
+            <legend>Modo de alimentación</legend>
+            <div class="mode-options">
+              <label class="mode-option automatic" [class.selected]="mode() === 'automatico'">
+                <input type="radio" name="feeding-mode" value="automatico" [checked]="mode() === 'automatico'" (change)="changeMode('automatico')" />
+                <span>Modo Automático</span>
+              </label>
+              <label class="mode-option manual" [class.selected]="mode() === 'manual'">
+                <input type="radio" name="feeding-mode" value="manual" [checked]="mode() === 'manual'" (change)="changeMode('manual')" />
+                <span>Modo manual</span>
+              </label>
+            </div>
+          </fieldset>
+          <p class="note mode-current">Modo actual: {{ currentMode() === 'automatico' ? 'Automático' : 'Manual' }}</p>
+        }
+        @if (automatic()) {
+          <p id="feeding-plan-note" class="note">Plan de manejo vigente · etapa aplicable a la edad actual</p>
+          <div class="label-with-help"><label for="feeding-plan-recipe">Ración</label><app-info-help placement="right" label="Ración" text="Se toma de la etapa del plan de manejo aplicable a la edad actual del lote." /></div>
+          <div class="locked-field"><input id="feeding-plan-recipe" disabled [value]="currentMode() === 'automatico' ? currentRecipe() : 'Según el plan vigente'" aria-describedby="feeding-plan-note" /><ion-icon name="lock-closed-outline" aria-hidden="true" /></div>
+          <div class="label-with-help"><label for="feeding-plan-quantity">Cantidad (kg)</label><app-info-help placement="right" label="Cantidad (kg)" text="El plan de manejo determina la cantidad diaria según la etapa y la cantidad de aves. Los valores se consultan al aplicar el modo automático." /></div>
+          <div class="quantity-field locked-field"><input id="feeding-plan-quantity" disabled [value]="currentMode() === 'automatico' ? formatKg(currentQuantity()) : 'Según el plan vigente'" aria-describedby="feeding-plan-note" /><ion-icon name="lock-closed-outline" aria-hidden="true" /><span aria-hidden="true">kg</span></div>
+          @if (currentMode() === 'manual') { <p class="note">La ración y la cantidad se consultarán al aplicar el modo automático.</p> }
+        } @else {
+          <fieldset [disabled]="saving()">
+            <div class="label-with-help"><label for="feeding-recipe">Ración</label><app-info-help placement="right" label="Ración" [text]="recipeHelp()" /></div>
+            <select id="feeding-recipe" formControlName="recipe">
+              <option value="">Conservar la ración actual ({{ currentRecipe() }})</option>
+              @for (option of options(); track option.id) {
+                <option [value]="option.id">{{ option.name }} · #{{ option.id }}{{ option.inactive ? ' · Inactiva' : '' }}{{ option.balance !== null ? ' · Stock: ' + formatKg(option.balance) + ' kg' : '' }}</option>
+              }
+            </select>
+            @if (state() === 'loading') { <p class="note" role="status">Cargando recetas…</p> }
+            @else if (state() !== 'ready') { <p role="alert">No se pudieron consultar las recetas. Podés modificar solo la cantidad.</p><button type="button" (click)="retry.emit()">Reintentar recetas</button> }
+            @else if (!options().length) { <p class="note" role="status">No hay recetas disponibles para seleccionar.</p> }
+            <div class="label-with-help"><label for="feeding-quantity">Cantidad (kg)</label><app-info-help placement="right" label="Cantidad (kg)" [text]="quantityHelp()" /></div>
+            <div class="quantity-field"><input id="feeding-quantity" type="text" inputmode="decimal" formControlName="quantity" [placeholder]="quantityPlaceholder()" /><span aria-hidden="true">kg</span></div>
+            @if (correction()) {
+              <label for="feeding-reason">Motivo de la edición (obligatorio)</label>
+              <textarea id="feeding-reason" formControlName="reason" maxlength="2000" rows="4" required></textarea>
+            }
+          </fieldset>
+        }
+        @if (validation() || error()) { <p class="error" role="alert">{{ validation() || error() }}</p> }
+      </form>
+      <dialog #confirmationDialog class="manual-confirmation" aria-labelledby="feeding-confirmation-title" aria-describedby="feeding-confirmation-description" (cancel)="cancelConfirmation($event)">
+        <h2 id="feeding-confirmation-title"><ion-icon name="warning-outline" aria-hidden="true" />¿Activar el modo manual?</h2>
+        <p class="confirmation-summary">{{ confirmationRecipe() }} · {{ confirmationQuantity() }} kg/día</p>
+        <p id="feeding-confirmation-description">La cantidad diaria quedará fija en {{ confirmationQuantity() }} kg. No se ajustará con la edad ni con la cantidad de aves. Para retomar los ajustes del plan y no actualizar la cantidad a mano, deberás volver al modo automático.</p>
+        <div class="confirmation-actions"><button autofocus type="button" (click)="cancelConfirmation()">Seguir en automático</button><button class="primary" type="button" (click)="confirmManual()">Confirmar modo manual</button></div>
+      </dialog>
+    </ion-content>
+    <ion-footer><ion-toolbar>
+      <ion-button expand="block" [disabled]="saving() || unchangedAutomatic()" (click)="submit(confirmationDialog)">{{ saving() ? 'Guardando…' : correction() ? 'Guardar edición' : 'Aplicar cambio' }}</ion-button>
+    </ion-toolbar></ion-footer>
+  </ng-template>
+</ion-modal>

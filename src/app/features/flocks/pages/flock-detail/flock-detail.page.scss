@@ -44,8 +44,11 @@ h1 { margin-bottom: 5px; color: var(--gam-color-heading); font-size: clamp(1.875
 .feeding-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 16px; padding: 20px 22px; }
 .feeding-main { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
 .feeding-main h2 { margin-bottom: 4px; }
+.feeding-main > div { min-width: 0; }
+.feeding-mode { display: inline-block; margin-top: 8px; padding: 5px 10px; border-radius: 16px; color: var(--gam-color-mode-automatic); background: var(--gam-color-mode-automatic-soft); font-size: .8125rem; }
+.feeding-mode.manual { color: var(--gam-color-mode-manual); background: var(--gam-color-mode-manual-soft); }
 .feeding-action { display: grid; justify-items: end; gap: 5px; text-align: right; }
-.feeding-action button { min-width: 125px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; color: var(--gam-color-text-muted); background: var(--gam-color-surface); font: inherit; font-weight: 700; cursor: not-allowed; }
+.feeding-action a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 10px; color: var(--gam-color-primary); font-weight: 700; text-decoration: none; }
 .feeding-action p { max-width: 275px; margin: 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.3; }
 .plan-card { display: flex; align-items: center; gap: 16px; min-height: 88px; margin-bottom: 16px; padding: 18px 22px; color: var(--gam-color-text); text-decoration: none; }
 .plan-copy { display: grid; gap: 4px; flex: 1; min-width: 0; }
@@ -63,7 +66,7 @@ h1 { margin-bottom: 5px; color: var(--gam-color-heading); font-size: clamp(1.875
 .page-state p { margin: 0; color: var(--gam-color-text-muted); }
 .page-state ion-spinner { color: var(--gam-color-primary); }
 .page-state button { min-height: 44px; padding: 8px 18px; border: 1px solid var(--gam-color-primary); border-radius: 8px; color: var(--gam-color-on-primary); background: var(--gam-color-primary); font: inherit; font-weight: 700; cursor: pointer; }
-.back-link:focus-visible, .plan-card:focus-visible, .register-action a:focus-visible, .page-state button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.back-link:focus-visible, .plan-card:focus-visible, .register-action a:focus-visible, .feeding-action a:focus-visible, .page-state button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
 
 @media (max-width: 900px) {
   :host { margin: -16px -16px 0; padding: 16px 16px 48px; background: var(--gam-color-surface-alt); }

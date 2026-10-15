@@ -1,6 +1,6 @@
 <section class="detail-page" aria-labelledby="flock-title">
-  <a class="back-link" routerLink="/administracion/lotes/lotes">
-    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a lotes
+  <a class="back-link" [routerLink]="backLink()">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ returnHouse() ? 'Volver al galpón' : 'Volver a lotes' }}
   </a>
 
   @if (state() === 'loading') {
@@ -96,15 +96,30 @@
           </svg>
           <div>
             <h2 id="feeding-title">Alimentación</h2>
-            <p class="metric-note">Suministros de ración e historial del lote</p>
+            @if (feeding().state === 'loading') { <p class="metric-note" role="status">Cargando alimentación…</p> }
+            @else if (feeding().state === 'unavailable') { <p class="metric-note">Alimentación no disponible</p> }
+            @else if (feeding().value; as overview) {
+              <p class="metric-note">Ración vigente</p>
+              <p class="metric-value">{{ overview.recipeName }}</p>
+              <span class="feeding-mode" [class.manual]="overview.current.modo === 'manual'">{{ overview.current.modo === 'manual' ? 'Manual' : 'Automático' }}</span>
+              @if (overview.current.finalizado || item.status === 'finished') {
+                <p class="metric-note">Lote finalizado · sin próximos cambios</p>
+              } @else {
+                @if (!overview.scheduleAvailable) { <p class="metric-note">Próximo cambio previsto: dato no disponible</p> }
+                @else if (overview.nextChange) { <p class="metric-note">Próximo cambio previsto: <strong>{{ nextFeedingDateText() }}</strong></p> }
+                @else { <p class="metric-note">Sin próximos cambios previstos en el plan</p> }
+                @if (overview.current.modo === 'manual') { <p class="metric-note">La ración y cantidad quedan fijas. Los cambios del plan requieren volver a automático.</p> }
+                @else if (overview.nextChange) { <p class="metric-note">Según el plan; sujeto a disponibilidad de la receta al llegar la fecha.</p> }
+              }
+            }
           </div>
         </div>
         <div class="feeding-action">
-          <a [routerLink]="['/administracion/manejo-lotes/planes/lotes', item.id, 'alimentacion']">Registrar o consultar alimentación</a>
+          <a [routerLink]="['/administracion/lotes/lotes', item.id, 'alimentacion']">Consultar alimentación <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
         </div>
       </section>
 
-      <a class="card plan-card" [routerLink]="planLink()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
+      <a class="card plan-card" [routerLink]="planLink()" [queryParams]="planQueryParams()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
         <ion-icon class="card-icon" name="document-text-outline" aria-hidden="true" />
         <span class="plan-copy"><strong>Plan de manejo</strong><small>Actividades previstas para este lote</small></span>
         <span class="plan-action">Ver plan <ion-icon name="chevron-forward-outline" aria-hidden="true" /></span>

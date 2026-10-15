@@ -84,6 +84,8 @@
         [available]="availableCapacityLabel()"
         [occupancyPercent]="occupancyPercent()"
         [flocks]="currentFlocks()"
+        [returnHouse]="{ unitId: currentHouse.production_unit_id, houseId: currentHouse.id }"
+        [mortalities]="mortalities()"
         [state]="flocksState()"
         [canAddLot]="canAddLot()"
         (addLot)="addLot()"

@@ -23,3 +23,8 @@ export interface EggHistorySummary {
   total: number;
   latestDay: EggMetricDay | null;
 }
+
+export interface FlockHouseOrigin {
+  unitId: number;
+  houseId: number;
+}

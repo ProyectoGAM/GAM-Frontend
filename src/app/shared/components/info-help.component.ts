@@ -6,7 +6,7 @@ import { informationCircleOutline } from 'ionicons/icons';
 let nextHelpId = 0;
 
 @Component({
-  selector: 'app-report-help',
+  selector: 'app-info-help',
   imports: [IonIcon],
   host: { '[class.fallback-open]': '!nativePopover && opened()' },
   template: `
@@ -14,7 +14,7 @@ let nextHelpId = 0;
       (pointerenter)="enter()" (pointerleave)="leave()" (focus)="focus()" (blur)="blur()" (click)="togglePinned()">
       <ion-icon name="information-circle-outline" aria-hidden="true" />
     </button>
-    <span #popup class="help-text" [class.inline-help]="!nativePopover" [attr.popover]="nativePopover ? 'auto' : null" [hidden]="!opened()" [id]="helpId" role="tooltip"
+    <span #popup class="help-text" [class.inline-help]="!nativePopover" [class.right-help]="placement() === 'right'" [attr.popover]="nativePopover ? 'auto' : null" [hidden]="!opened()" [id]="helpId" role="tooltip"
       (pointerenter)="enter()" (pointerleave)="leave()" (toggle)="popoverChanged()"><strong>{{ label() }}</strong><span>{{ text() }}</span></span>
   `,
   styles: `
@@ -25,12 +25,15 @@ let nextHelpId = 0;
     .help-text { position: fixed; inset: auto; margin: 0; padding: 1rem; box-sizing: border-box; border: 1px solid var(--gam-color-control-border); border-radius: .6rem; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; line-height: 1.5; max-height: calc(100dvh - 24px); overflow-y: auto; box-shadow: 0 4px 18px color-mix(in srgb, var(--gam-color-heading) 18%, transparent); }
     .help-text[hidden] { display: none; } .help-text strong, .help-text > span { display: block; } .help-text strong { color: var(--gam-color-heading); margin-bottom: .5rem; } .help-text > span { white-space: pre-line; }
     :host(.fallback-open) { max-width: 100%; } .inline-help { position: static; max-width: 100%; margin-top: .5rem; }
+    .right-help { overflow-wrap: anywhere; }
+    @media (max-width: 480px) { .right-help { padding: .75rem; } }
   `,
 })
-export class ReportHelpComponent {
+export class InfoHelpComponent {
   readonly label = input.required<string>();
   readonly text = input.required<string>();
-  readonly helpId = 'report-help-' + nextHelpId++;
+  readonly placement = input<'bottom' | 'right'>('bottom');
+  readonly helpId = 'info-help-' + nextHelpId++;
   readonly opened = signal(false);
   readonly nativePopover = typeof HTMLElement.prototype.showPopover === 'function';
   private readonly trigger = viewChild<ElementRef<HTMLElement>>('trigger');
@@ -66,7 +69,7 @@ export class ReportHelpComponent {
       if (!popup.matches(':popover-open')) popup.showPopover();
       this.position(popup, trigger);
     }
-    document.addEventListener('keydown', this.keyDown);
+    document.addEventListener('keydown', this.keyDown, true);
     document.addEventListener('pointerdown', this.outsidePointer, true);
     window.addEventListener('resize', this.dismiss);
     document.addEventListener('scroll', this.scroll, true);
@@ -77,15 +80,27 @@ export class ReportHelpComponent {
     this.closeTimer = setTimeout(() => { if (!this.hovered && !this.focused && !this.pinned) this.close(); }, 180);
   }
   private position(popup: HTMLElement, trigger: HTMLElement): void {
-    const margin = 12; const width = Math.min(380, window.innerWidth - margin * 2);
+    const margin = 12; const gap = 8;
+    const onRight = this.placement() === 'right';
+    const anchor = onRight ? trigger.querySelector('ion-icon') ?? trigger : trigger;
+    const box = anchor.getBoundingClientRect();
+    const width = Math.min(380, Math.max(0, onRight ? window.innerWidth - box.right - gap - margin : window.innerWidth - margin * 2));
     popup.style.width = width + 'px';
-    const box = trigger.getBoundingClientRect(); const height = popup.getBoundingClientRect().height;
-    const left = Math.max(margin, Math.min(box.left, window.innerWidth - width - margin));
-    const top = box.bottom + height + 8 <= window.innerHeight - margin ? box.bottom + 8 : Math.max(margin, box.top - height - 8);
+    const height = popup.getBoundingClientRect().height;
+    const left = onRight ? box.right + gap : Math.max(margin, Math.min(box.left, window.innerWidth - width - margin));
+    const top = onRight ? Math.max(margin, Math.min(box.bottom + gap, window.innerHeight - height - margin))
+      : box.bottom + height + gap <= window.innerHeight - margin ? box.bottom + gap : Math.max(margin, box.top - height - gap);
     popup.style.left = left + 'px'; popup.style.top = top + 'px';
   }
   private clearTimer(): void { if (this.closeTimer !== null) clearTimeout(this.closeTimer); this.closeTimer = null; }
-  private readonly keyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape' && this.opened()) { event.stopPropagation(); this.close(); } };
+  private readonly keyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && this.opened()) {
+      event.stopImmediatePropagation();
+      // Native popovers must consume the browser's close request themselves.
+      // Removing one here could pass that same request to the containing modal.
+      if (!this.nativePopover) { event.preventDefault(); this.close(); }
+    }
+  };
   private readonly outsidePointer = (event: PointerEvent): void => {
     if (!(event.target instanceof Node)) return;
     if (!this.trigger()?.nativeElement.contains(event.target) && !this.popup()?.nativeElement.contains(event.target)) this.close();
@@ -106,7 +121,7 @@ export class ReportHelpComponent {
     const popup = this.popup()?.nativeElement;
     if (this.nativePopover && popup?.isConnected && popup.matches(':popover-open')) popup.hidePopover();
     if (popup) popup.hidden = true;
-    document.removeEventListener('keydown', this.keyDown);
+    document.removeEventListener('keydown', this.keyDown, true);
     document.removeEventListener('pointerdown', this.outsidePointer, true);
     window.removeEventListener('resize', this.dismiss);
     document.removeEventListener('scroll', this.scroll, true);

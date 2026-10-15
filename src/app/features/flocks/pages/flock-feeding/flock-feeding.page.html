@@ -1,0 +1,87 @@
+<section class="feeding-page" aria-labelledby="feeding-title">
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote</a>
+  @if (state() === 'loading') {
+    <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando alimentación…</div>
+  } @else if (state() !== 'ready') {
+    <div class="page-state" role="alert">
+      <h1 id="feeding-title">Alimentación</h1>
+      <p>{{ state() === 'forbidden' ? 'No tenés acceso a este lote.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá nuevamente.' : state() === 'not-found' ? 'Lote no encontrado.' : 'No se pudo cargar el lote.' }}</p>
+      <button type="button" (click)="load()">Reintentar</button>
+    </div>
+  } @else {
+    <header class="page-heading">
+      <p class="breadcrumb">Lotes <span aria-hidden="true">/</span> {{ flock()?.code }} <span aria-hidden="true">/</span> Alimentación</p>
+      <h1 id="feeding-title">Alimentación</h1>
+      <p class="subtitle">Lote {{ flock()?.code }} · {{ houseName() ?? 'Cargando galpón…' }}@if (unitName()) { · {{ unitName() }} }</p>
+    </header>
+    @if (success()) { <p class="success" role="status">{{ success() }}</p> }
+    <section class="card current-card" aria-labelledby="feeding-current-title">
+      <header class="section-heading"><h2 id="feeding-current-title">Alimentación vigente</h2>
+        @if (currentState() === 'ready') { <span class="mode-tag" [class.manual]="feeding()?.modo === 'manual'">{{ modeLabel() }}</span> }
+      </header>
+      @if (currentState() === 'loading') { <p class="empty" role="status">Cargando alimentación vigente…</p> }
+      @else if (currentState() !== 'ready') {
+        <div role="alert"><p>{{ currentState() === 'not-found' ? 'Este lote no tiene una configuración de alimentación disponible.' : currentState() === 'offline' ? 'Sin conexión. No se pudo consultar la alimentación vigente.' : 'No se pudo consultar la alimentación vigente.' }}</p><button type="button" (click)="loadCurrent()">Reintentar alimentación</button></div>
+      } @else if (feeding(); as current) {
+        <div class="current-body">
+          <dl class="current-metrics"><div><dt>Ración actual</dt><dd>{{ currentRecipe() }}</dd></div><div><dt>Cantidad diaria</dt><dd>{{ formatKg(current.cantidad_diaria_g) }} <span>kg/día</span></dd></div></dl>
+          <div class="change-action"><button type="button" class="primary" [disabled]="!canChange() || saving()" (click)="openManual()">Cambiar ración y cantidad</button><p class="note">Recetas activas con stock en esta UP</p></div>
+        </div>
+        @if (current.finalizado || flock()?.status === 'finished') { <p class="note">El lote está finalizado. Se puede consultar y editar su historial de consumo.</p> }
+      }
+    </section>
+    <div class="overview-grid" [attr.aria-busy]="historyState() === 'loading'">
+      <section class="card chart-card" aria-labelledby="feeding-chart-title">
+        <header class="section-heading"><h2 id="feeding-chart-title">Consumo diario</h2>
+          <div class="chart-filters">
+            <label for="feeding-chart-recipe">Ración<select id="feeding-chart-recipe" #recipeSelect [value]="recipeId() ?? ''" [disabled]="historyState() !== 'ready' || !summary().length" (change)="changeRecipe(recipeSelect.value)">
+              @if (!summary().length) { <option value="">Sin raciones registradas</option> }
+              @for (recipe of summary(); track recipe.recipeId) { <option [value]="recipe.recipeId">{{ recipe.name }} · #{{ recipe.recipeId }}</option> }
+            </select></label>
+            <label for="feeding-chart-period">Período<select id="feeding-chart-period" #periodSelect [value]="period()" (change)="changePeriod(periodSelect.value)"><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="all">Todo el historial</option></select></label>
+          </div>
+        </header>
+        @if (historyState() === 'loading') { <p class="empty" role="status">Cargando consumos…</p> }
+        @else if (historyState() !== 'ready') { <p class="empty">Gráfica no disponible. Reintentá la carga del historial.</p> }
+        @else {
+          <p class="note">{{ recipeId() ? selectedRecipeName() + ' · ' : '' }}{{ rangeText() }}</p>
+          @if (points().length) { <app-feed-consumption-chart [points]="points()" [recipeName]="selectedRecipeName()" /> }
+          @else { <p class="empty" role="status">No hay consumos registrados para esta ración en el período seleccionado.</p> }
+          <p class="period-total" aria-live="polite">Total del período: <strong>{{ periodTotal() }} kg</strong></p>
+          <p class="note">Una ración a la vez. Los días sin cierre no se consideran consumo cero.</p>
+        }
+      </section>
+      <section class="card summary-card" aria-labelledby="feeding-summary-title">
+        <h2 id="feeding-summary-title">Acumulado por ración</h2><p class="note">Todo el lote · desde el ingreso</p>
+        @if (historyState() === 'loading') { <p class="empty" role="status">Cargando acumulados…</p> }
+        @else if (historyState() !== 'ready') { <p class="empty">Acumulados no disponibles.</p> }
+        @else {
+          <dl class="summary-list">@for (recipe of summary(); track recipe.recipeId) {
+            <div><dt>{{ recipe.name }} <small>#{{ recipe.recipeId }}</small></dt><dd>{{ recipe.quantityText }} kg</dd></div>
+          } @empty { <p class="note">Todavía no hay consumos registrados.</p> }</dl>
+          <div class="summary-total"><span>Total consumido</span><strong>{{ total() }} kg</strong></div>
+        }
+      </section>
+    </div>
+    <section class="card history-card" aria-labelledby="feeding-history-title">
+      <h2 id="feeding-history-title">Historial de consumo</h2><p class="note">Consumos diarios registrados · más recientes primero</p>
+      @if (historyState() === 'loading') { <p class="empty" role="status">Cargando historial…</p> }
+      @else if (historyState() !== 'ready') {
+        <div role="alert"><p>{{ historyState() === 'offline' ? 'Sin conexión.' : historyState() === 'forbidden' ? 'No tenés permiso para consultar los consumos.' : 'No se pudo consultar el historial completo.' }}</p><button type="button" (click)="loadHistory()">Reintentar historial</button></div>
+      } @else if (!records().length) { <p class="empty" role="status">Este lote todavía no tiene consumos diarios registrados.</p> }
+      @else {
+        <table class="history-table">
+          <caption class="visually-hidden">Historial de consumo del lote {{ flock()?.code }}</caption>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Ración</th><th scope="col">Cantidad</th><th scope="col">Acción</th></tr></thead>
+          <tbody>@for (record of historyRows(); track record.id) {
+            <tr><td class="record-date">{{ record.dateText }}@if (record.corrected) { <small>Editado</small> }</td><td class="record-recipe">{{ record.name }} <small>#{{ record.receta_id }}</small></td><td class="record-quantity">{{ record.quantityText }} kg</td><td class="record-action"><button class="edit-button" type="button" [disabled]="saving()" [attr.aria-label]="'Editar consumo del ' + record.dateText + ', ' + record.name" (click)="openEdit(record)"><ion-icon name="create-outline" aria-hidden="true" /> Editar</button></td></tr>
+          }</tbody>
+        </table>
+        <footer class="history-footer"><p class="note">Las ediciones conservan el historial y requieren un motivo.</p><nav class="pagination" aria-label="Páginas del historial de consumo"><button type="button" [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button><span aria-live="polite">{{ page() }} de {{ lastPage() }}</span><button type="button" [disabled]="page() >= lastPage()" (click)="changePage(page() + 1)">Siguiente</button></nav></footer>
+      }
+    </section>
+  }
+  @if (editor()) {
+    <app-feeding-editor [open]="editorOpen()" [correction]="editor() === 'correction'" [context]="editorContext()" [currentMode]="feeding()?.modo ?? 'manual'" [currentRecipe]="recipeNames().get(editing()?.receta_id ?? feeding()?.receta_id ?? -1) ?? 'Receta #' + (editing()?.receta_id ?? feeding()?.receta_id)" [currentQuantity]="editing()?.cantidad_g ?? feeding()?.cantidad_diaria_g ?? '0'" [options]="editorOptions()" [state]="editor() === 'manual' ? balanceState() : editorState()" [saving]="saving()" [error]="saveError()" (submitted)="save($event)" (closeRequested)="closeEditor()" (dismissed)="editorDismissed()" (retry)="editor() === 'manual' ? loadBalances() : loadEditorBalances()" />
+  }
+</section>

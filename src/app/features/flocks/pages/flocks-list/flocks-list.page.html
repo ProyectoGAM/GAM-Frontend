@@ -47,35 +47,7 @@
     <p class="result-count" role="status">{{ flocks().length }} {{ flocks().length === 1 ? 'resultado' : 'resultados' }}</p>
     <div class="flock-list" aria-label="Lotes">
       @for (flock of flocks(); track flock.id) {
-        <article class="flock-card">
-          <a class="flock-card-button" [routerLink]="flock.id"
-            [attr.aria-label]="'Ver detalle del lote ' + flock.code + (flock.is_grouped ? ', agrupado' : '')">
-            <span class="card-copy">
-              <span class="card-title">
-                <span class="flock-name">{{ flock.code }}</span>
-                @if (flock.is_grouped) {
-                  <span class="grouped-badge">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                  <path d="M7 9C5.1 8.6 3.7 7.4 3 5.6c-.2 2.2.5 4.2 2.1 5.3" />
-                  <path d="M6.2 10.2A6.8 6.8 0 0 1 13 7.1V5.5a2.5 2.5 0 0 1 5 0v2.1l2 1.2-2 1.1c-.2 4.8-3.2 8.1-7.2 8.1A6.8 6.8 0 0 1 4 11.4" />
-                  <path d="M13.4 3.8 13 2l1.8 1 1-1.5 1 1.6M9 18v3m4-3v3m-5.5 0h3m1 0h3" />
-                  <circle cx="16.4" cy="6.2" r=".5" fill="currentColor" stroke="none" />
-                </svg>
-                Agrupado
-                  </span>
-                }
-              </span>
-              <span class="house-name">{{ flock.poultry_house_name }}</span>
-              @if (flock.entry_date_display; as entryDate) {
-                <span class="entry-date">{{ entryDate }}</span>
-              } @else {
-                <span class="entry-date">Fecha no disponible</span>
-              }
-            </span>
-            <ion-icon class="card-chevron" name="chevron-forward-outline" aria-hidden="true" />
-          </a>
-        </article>
+        <app-flock-card [flock]="flock" [houseName]="flock.poultry_house_name" [mortality]="mortalities().get(flock.id) ?? { state: 'loading', value: null }" />
       }
     </div>
   } @else if (state() === 'empty') {

@@ -10,7 +10,13 @@
   @else if (editing && loadState() === 'error') { <div class="feedback" role="alert">No se pudo cargar la plantilla. <button type="button" (click)="loadForEdit()">Reintentar</button></div> }
   @else if (editing && sourceRetired()) { <p class="feedback" role="status">Esta plantilla fue desactivada y solo puede consultarse. El backend no admite nuevas revisiones después del retiro.</p> }
   @else {
-  @if (submitError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
+  @if (submitError(); as message) {
+    <section #errorSummary class="feedback error-summary" role="alert" tabindex="-1" aria-labelledby="submit-error-title" aria-describedby="submit-error-message">
+      <h2 id="submit-error-title">No se guardó la plantilla</h2>
+      <p id="submit-error-message">{{ message }}</p>
+      @if (hasFieldErrors()) { <button type="button" (click)="reviewFirstError()">Revisar primer campo con error</button> }
+    </section>
+  }
   @if (latestTemplate(); as latest) {
     <section class="conflict-card" aria-label="Cambios recientes">
       <h2>Versión actual: {{ latest.current_version }}</h2>
@@ -20,7 +26,7 @@
     </section>
   }
 
-  <form (submit)="$event.preventDefault(); submit()" novalidate>
+  <form #editorForm tabindex="-1" (submit)="$event.preventDefault(); submit()" novalidate>
     <section class="create-card details-card" aria-labelledby="template-data-heading">
       <h2 id="template-data-heading">Datos de la plantilla</h2>
       <div class="field">
@@ -39,15 +45,17 @@
 
     <section class="create-card activities-card" aria-labelledby="activities-heading">
       <div class="activities-heading"><div><h2 id="activities-heading">Actividades previstas <span class="count">{{ activities().length }} de 100</span></h2><p>Se conservarán en este orden. Podés moverlas con los botones.</p></div><p class="timing-help">Día 1 = ingreso del lote</p></div>
+      <p class="feeding-plan-help">El plan requiere una ración inicial en día 1 o semana 1. Cada etapa de ración debe tener una fecha de inicio diferente.</p>
       @if (fieldError('activities'); as message) { <p class="field-error" role="alert">{{ message }}</p> }
 
       <div class="activity-list">
         @for (activity of activities(); track activity.clientId; let index = $index) {
-          <article class="activity-editor" [attr.aria-label]="'Actividad ' + (index + 1)">
+          <article class="activity-editor" [class.has-errors]="invalidActivityIds().has(activity.clientId)" [attr.aria-label]="'Actividad ' + (index + 1)">
             <div class="activity-head">
               <span class="order-number">{{ index + 1 < 10 ? '0' : '' }}{{ index + 1 }}</span>
               <button class="activity-toggle" type="button" [attr.aria-expanded]="expandedId() === activity.clientId" (click)="expandedId.set(expandedId() === activity.clientId ? null : activity.clientId)">
                 <strong>{{ activity.title.trim() || 'Nueva actividad' }}</strong><small>{{ timingSummary(activity) }}</small>
+                @if (invalidActivityIds().has(activity.clientId)) { <span class="activity-error-hint">Revisar actividad: contiene errores</span> }
               </button>
               <span class="chevron" aria-hidden="true">{{ expandedId() === activity.clientId ? '⌃' : '⌄' }}</span>
             </div>
@@ -79,7 +87,7 @@
                   <select [id]="'activity-timing-' + activity.clientId" required (change)="changeTiming(activity.clientId, $event)"
                     [attr.aria-invalid]="activityError(index, 'timing_kind') ? 'true' : null">
                     <option value="" [selected]="!activity.timingKind">Seleccioná un momento</option>
-                    @for (timing of timingKinds; track timing.value) { <option [value]="timing.value" [selected]="activity.timingKind === timing.value" [disabled]="activity.type === 'ration_change' && timing.value !== 'week' && timing.value !== 'week_range'">{{ timing.label }}</option> }
+                    @for (timing of timingKinds; track timing.value) { <option [value]="timing.value" [selected]="activity.timingKind === timing.value" [disabled]="activity.type === 'ration_change' && timing.value !== 'day' && timing.value !== 'week' && timing.value !== 'week_range'">{{ timing.label }}</option> }
                   </select>
                   @if (activityError(index, 'timing_kind'); as message) { <span class="field-error" role="alert">{{ message }}</span> }
                 </div>
@@ -126,23 +134,38 @@
                 @if (activity.timingKind === 'unscheduled') { <p class="field-hint">Esta actividad se planifica sin una fecha relativa al ingreso.</p> }
 
                 @if (hasCatalog(activity.type)) {
-                  <div class="field catalog-field"><label [for]="'activity-catalog-' + activity.clientId">{{ catalogLabel(activity.type) }} <span class="optional">(opcional)</span></label>
-                    <select [id]="'activity-catalog-' + activity.clientId" [disabled]="catalogStateFor(activity.type) === 'loading' || catalogStateFor(activity.type) === 'error'" (change)="patchActivity(activity.clientId, { catalogRef: inputValue($event) })" [attr.aria-invalid]="activityError(index, 'catalog_ref') ? 'true' : null">
-                      <option value="" [selected]="!activity.catalogRef">Sin referencia de catálogo</option>
+                  <div class="field catalog-field"><label [for]="'activity-catalog-' + activity.clientId">{{ catalogLabel(activity.type) }} @if (activity.type === 'ration_change') { <span class="required">*</span> } @else { <span class="optional">(opcional)</span> }</label>
+                    <select [id]="'activity-catalog-' + activity.clientId" [required]="activity.type === 'ration_change'" [disabled]="catalogStateFor(activity.type) === 'loading' || catalogStateFor(activity.type) === 'error'" (change)="patchActivity(activity.clientId, { catalogRef: inputValue($event) })" [attr.aria-invalid]="activityError(index, 'catalog_ref') ? 'true' : null">
+                      @if (activity.type === 'ration_change') { <option value="" disabled [selected]="!activeRecipeIds().has(activity.catalogRef)">Seleccioná una receta activa</option> }
+                      @else { <option value="" [selected]="!activity.catalogRef">Sin referencia de catálogo</option> }
                       @for (option of optionsFor(activity.type); track option.value) { <option [value]="option.value" [selected]="activity.catalogRef === option.value">{{ option.label }}</option> }
                     </select>
                     @if (catalogStateFor(activity.type) === 'loading') { <span class="field-hint">Cargando catálogo…</span> }
-                    @else if (catalogStateFor(activity.type) === 'error') { <span class="field-hint">No se pudo consultar el catálogo. Podés guardar la actividad sin referencia.</span> }
-                    @else if (catalogStateFor(activity.type) === 'ready' && !optionsFor(activity.type).length) { <span class="field-hint">No hay opciones disponibles en este catálogo.</span> }
+                    @else if (catalogStateFor(activity.type) === 'error') {
+                      <span class="field-hint">{{ activity.type === 'ration_change' ? 'No se pudieron cargar las recetas. Se requiere una receta activa para guardar la ración.' : 'No se pudo consultar el catálogo. Podés guardar la actividad sin referencia.' }}</span>
+                      <button class="button outline catalog-retry" type="button" (click)="retryCatalog(activity.type)">Reintentar catálogo</button>
+                    }
+                    @else if (catalogStateFor(activity.type) === 'ready' && !optionsFor(activity.type).length) { <span class="field-hint">{{ activity.type === 'ration_change' ? 'No hay recetas activas disponibles. Se requiere una para guardar la ración.' : 'No hay opciones disponibles en este catálogo.' }}</span> }
                     @if (activityError(index, 'catalog_ref'); as message) { <span class="field-error" role="alert">{{ message }}</span> }
+                    @if (activity.type === 'ration_change') {
+                      <div class="field ration-quantity">
+                        <label [for]="'activity-grams-' + activity.clientId">Cantidad por ave (g) <span class="required">*</span></label>
+                        <div class="quantity-input"><input [id]="'activity-grams-' + activity.clientId" type="number" inputmode="numeric" min="1" max="999999999999" step="1" required [value]="activity.gramsPerBird" (input)="patchActivity(activity.clientId, { gramsPerBird: inputValue($event) })" [attr.aria-invalid]="activityError(index, 'grams_per_bird') ? 'true' : null" [attr.aria-describedby]="'activity-grams-hint-' + activity.clientId + (activityError(index, 'grams_per_bird') ? ' activity-grams-error-' + activity.clientId : '')" /><span aria-hidden="true">g</span></div>
+                        <span class="field-hint" [id]="'activity-grams-hint-' + activity.clientId">Gramos enteros que consume cada ave por día.</span>
+                        @if (activityError(index, 'grams_per_bird'); as message) { <span class="field-error" [id]="'activity-grams-error-' + activity.clientId" role="alert">{{ message }}</span> }
+                      </div>
+                      <p class="field-hint">La ración se programa sin condición y se mantiene hasta la siguiente etapa disponible.</p>
+                    }
                   </div>
                 }
 
+                @if (activity.type !== 'ration_change') {
                 <label class="conditional-control"><input type="checkbox" [checked]="activity.conditional" (change)="patchActivity(activity.clientId, { conditional: checked($event), condition: checked($event) ? activity.condition : '' })" /><span><strong>Actividad condicional</strong><small>Solo se prevé si se cumple una condición; no genera trabajo automáticamente.</small></span></label>
                 @if (activity.conditional) {
                   <div class="field"><label [for]="'activity-condition-' + activity.clientId">Condición <span class="required">*</span></label>
                     <textarea [id]="'activity-condition-' + activity.clientId" rows="2" maxlength="1000" [value]="activity.condition" (input)="patchActivity(activity.clientId, { condition: inputValue($event) })" [attr.aria-invalid]="activityError(index, 'condition') ? 'true' : null"></textarea>
                     @if (activityError(index, 'condition'); as message) { <span class="field-error" role="alert">{{ message }}</span> }</div>
+                }
                 }
                 <details class="notes-details" [open]="!!activityError(index, 'notes')"><summary>Notas (opcional)</summary><div class="field"><label [for]="'activity-notes-' + activity.clientId">Notas</label><textarea [id]="'activity-notes-' + activity.clientId" rows="3" maxlength="5000" [value]="activity.notes" (input)="patchActivity(activity.clientId, { notes: inputValue($event) })" [attr.aria-invalid]="activityError(index, 'notes') ? 'true' : null"></textarea>@if (activityError(index, 'notes'); as message) { <span class="field-error" role="alert">{{ message }}</span> }</div></details>
               </div>
@@ -153,6 +176,9 @@
       <button class="add-activity" type="button" [disabled]="activities().length >= 100" (click)="addActivity()">＋ Agregar actividad</button>
     </section>
 
+    @if (submitError()) {
+      <div class="submit-feedback"><span>No se guardó la plantilla.</span><button type="button" (click)="focusSubmitError()">Ver error</button></div>
+    }
     <div class="create-actions"><a class="button outline" [routerLink]="detailPath()">Cancelar</a><button class="button primary" type="submit" [disabled]="saving() || !!latestTemplate() || (editing && sourceRetired())">{{ saving() ? 'Guardando…' : editing ? 'Guardar nueva versión' : 'Crear borrador' }}</button></div>
   </form>
   }

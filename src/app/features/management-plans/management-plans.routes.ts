@@ -8,6 +8,6 @@ export const managementPlansRoutes: Routes = [
   { path: 'plantillas/:id/editar', canActivate: [managementPlansManageGuard], loadComponent: () => import('./pages/template-create.page').then((m) => m.TemplateCreatePage) },
   { path: 'plantillas/:id', canActivate: [managementPlansGuard], loadComponent: () => import('./pages/template-detail.page').then((m) => m.TemplateDetailPage) },
   { path: 'lotes', canActivate: [managementPlansGuard], loadComponent: () => import('./pages/flock-plans.page').then((m) => m.FlockPlansPage) },
-  { path: 'lotes/:id/alimentacion', canActivate: [managementPlansGuard], loadComponent: () => import('./pages/feed-supplies.page').then((m) => m.FeedSuppliesPage) },
+  { path: 'lotes/:id/alimentacion', redirectTo: ({ params }) => `/administracion/lotes/lotes/${encodeURIComponent(params['id'])}/alimentacion` },
   { path: 'lotes/:id', canActivate: [managementPlansGuard], loadComponent: () => import('./pages/flock-plan-detail.page').then((m) => m.FlockPlanDetailPage) },
 ];
