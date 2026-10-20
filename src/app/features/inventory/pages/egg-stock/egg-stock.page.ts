@@ -112,7 +112,7 @@ export class EggStockPage {
   }
 
   selectOperation(operation: 'receipt' | 'issue'): void { this.activeOperation.set(operation); this.error.set(null); this.success.set(null); }
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso de producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida' } satisfies Record<EggStockMovementType, string>)[type]; }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso de producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida', donation: 'Donación', distribution_return: 'Retorno de reparto' } satisfies Record<EggStockMovementType, string>)[type]; }
   statusLabel(status: EggStockStatus): string { return status === 'recorded' ? 'Registrado' : 'Cancelado'; }
   date(value: string): string { return new Intl.DateTimeFormat('es-UY', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
   quantity(value: number): string { return `${formatQuantity(String(value))} huevos`; }

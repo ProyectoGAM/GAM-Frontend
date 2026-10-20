@@ -1,0 +1,24 @@
+<section class="presentations-page">
+  <div class="heading"><div><p>Inventario</p><h1>Presentaciones de huevos</h1><p>Catálogo común a todas las unidades productivas. Precios de venta en pesos uruguayos.</p></div><button type="button" (click)="load()" [disabled]="loading()">Actualizar</button></div>
+  @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+  @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
+  @if (locked()) { <p class="feedback warning" role="status">Hay repartos activos. El catálogo completo se podrá modificar cuando todos hayan finalizado.</p> }
+  <div class="catalog-layout">
+    <section class="card" aria-label="Catálogo de presentaciones">
+      <h2>Tipos y precios predeterminados</h2>
+      @if (loading()) { <p role="status">Cargando presentaciones…</p> }
+      @for (item of items(); track item.id) {
+        <article class="presentation-row"><div><strong>{{ item.label }}</strong><small>{{ item.eggs_per_unit }} huevos por unidad</small><span>Precio: @if (item.default_unit_price !== null) { $ {{ item.default_unit_price }} UYU } @else { Sin configurar }</span></div><button type="button" (click)="edit(item)" [disabled]="locked() || saving()" [attr.aria-label]="'Editar ' + item.label">Editar</button></article>
+      } @empty { @if (!loading()) { <p>Todavía no hay presentaciones.</p> } }
+    </section>
+    <section class="card" aria-labelledby="presentation-form-title">
+      <h2 id="presentation-form-title">{{ editing() ? 'Editar presentación' : 'Nueva presentación' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <label for="presentation-name">Nombre</label><input id="presentation-name" formControlName="name" maxlength="160" autocomplete="off">
+        <label for="presentation-eggs">Huevos por unidad</label><input id="presentation-eggs" formControlName="eggs_per_unit" type="number" inputmode="numeric" min="1" max="2147483647" step="1">
+        <label for="presentation-price">Precio predeterminado (UYU)</label><input id="presentation-price" formControlName="default_unit_price" type="number" inputmode="numeric" min="0" max="2147483647" step="1" aria-describedby="presentation-price-hint"><small id="presentation-price-hint">Pesos enteros. El repartidor puede ajustar el precio para cada entrega.</small>
+        <div class="actions"><button type="submit" [disabled]="locked() || saving() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar presentación' }}</button>@if (editing()) { <button type="button" (click)="clear()" [disabled]="saving()">Cancelar edición</button> }</div>
+      </form>
+    </section>
+  </div>
+</section>

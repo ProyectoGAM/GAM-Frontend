@@ -29,6 +29,9 @@
           <p class="eyebrow">REPARTO FINALIZADO</p>
           <h1>¡Buen trabajo!</h1>
           <p>Entregaste {{ delivery()?.delivered_quantity }} huevos. El resumen queda disponible para administración.</p>
+          <p>Valor entregado: {{ money(delivery()?.delivered_amount) }}</p>
+          @if (delivery()?.return_production_unit; as unit) { <p>Descarga final en {{ unit.name }}</p> }
+          @for (item of delivery()?.returned_items ?? []; track $index) { <p>{{ item.amount }} {{ item.label }}</p> }
         </section>
       }
       <section class="idle-card">
@@ -37,6 +40,8 @@
         <h1>Prepará tu reparto</h1>
         <p>Indicá lo que cargás en la camioneta. Después elegís libremente a qué clientes visitar.</p>
         <form [formGroup]="startForm" (ngSubmit)="openStartConfirmation()" class="stock-form">
+      <label for="start-up">Unidad productiva de origen</label>
+      <select id="start-up" formControlName="production_unit_id" required><option [ngValue]="null">Seleccioná una UP</option>@for (unit of productionUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
           <div class="load-head" aria-hidden="true"><span>Presentación</span><span>Cantidad</span><span></span></div>
           <div formArrayName="items" class="load-lines">
             @for (line of startForm.controls.items.controls; track line; let index = $index) {
@@ -97,11 +102,11 @@
         <section class="route-panel" id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
           <div class="section-heading"><div><p class="eyebrow">REPARTO DE HOY</p><h2>Resumen</h2></div></div>
           <article class="summary-card"><small>Huevos en vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong><span>de {{ delivery()?.loaded_quantity }} cargados en este reparto</span></article>
-          <article class="balance-card"><h3>Balance de carga</h3><dl><div><dt>Cargados en {{ delivery()?.loads?.length ?? 0 }} carga(s)</dt><dd>{{ delivery()?.loaded_quantity }} huevos</dd></div><div><dt>Maples cargados</dt><dd>{{ loadedPresentations().maples }}</dd></div><div><dt>Cajones cargados</dt><dd>{{ loadedPresentations().cajones }}</dd></div><div><dt>Cajas cargadas</dt><dd>{{ loadedPresentations().cajas }}</dd></div><div><dt>Entregados</dt><dd>{{ delivery()?.delivered_quantity }} huevos</dd></div><div><dt>En vehículo</dt><dd>{{ delivery()?.remaining_quantity }} huevos</dd></div><div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div></dl></article>
+          <article class="balance-card"><h3>Balance de carga</h3><dl><div><dt>Cargados en {{ delivery()?.loads?.length ?? 0 }} carga(s)</dt><dd>{{ delivery()?.loaded_quantity }} huevos</dd></div>@for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) { <div><dt>{{ row.label }}</dt><dd>{{ displayUnitAmount(row.loaded_amount) }}</dd></div> }<div><dt>Entregados</dt><dd>{{ delivery()?.delivered_quantity }} huevos</dd></div><div><dt>En vehículo</dt><dd>{{ delivery()?.remaining_quantity }} huevos</dd></div><div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div><div><dt>Valor entregado</dt><dd>{{ money(delivery()?.delivered_amount) }}</dd></div></dl></article>
           @if (delivery()?.loads?.length) {
             <article class="balance-card"><h3>Cargas registradas</h3><dl>
               @for (load of delivery()?.loads; track load.id) {
-                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.created_at | date:'short' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · } </small></dt><dd>{{ load.quantity }} huevos</dd></div>
+                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.production_unit?.name ?? delivery()?.production_unit?.name }} · {{ load.created_at | date:'short' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · } </small></dt><dd>{{ load.quantity }} huevos</dd></div>
               }
             </dl></article>
           }
@@ -111,7 +116,7 @@
           @if (closePending()) {
             <div class="sync-card" role="status">El cierre está guardado y se enviará cuando vuelva la conexión.</div>
           } @else {
-            <button type="button" class="secondary-action close-button" (click)="closeConfirmation.set(true); error.set(null)" [disabled]="busy() || !canOperate">Finalizar reparto</button>
+            <button type="button" class="secondary-action close-button" (click)="openCloseConfirmation()" [disabled]="busy() || !canOperate">Finalizar reparto</button>
           }
         </section>
       }
@@ -148,7 +153,20 @@
   <div class="sheet-backdrop" (click)="closeConfirmation.set(false); closePin.reset()" aria-hidden="true"></div>
   <section #pinSheet class="client-sheet pin-sheet pin-dialog" role="dialog" aria-modal="true" aria-labelledby="close-pin-title" tabindex="-1" (keydown.escape)="closeConfirmation.set(false); closePin.reset()">
     <h2 id="close-pin-title">¿Finalizar este reparto?</h2>
-    <p>Se registrarán {{ delivery()?.remaining_quantity }} huevos como devueltos. Esta acción no se puede deshacer.</p>
+    <p>Confirmá las presentaciones que descargás y su unidad productiva de destino.</p>
+    @if (returnLegacy()) {
+      <label for="return-legacy">Huevos a devolver</label><input id="return-legacy" [formControl]="returnLegacyQuantity" inputmode="numeric"><small>Este reparto anterior no permite reconstruir el desglose de presentaciones.</small>
+    } @else {
+      <div class="return-lines">@for (row of returnRows(); track balanceKey(row); let index = $index) {
+        <label [for]="'return-' + index">{{ row.label }}</label><input [id]="'return-' + index" type="text" inputmode="decimal" [formControl]="returnAmounts.at(index)" aria-label="Cantidad a descargar">
+      } @empty { <p>No quedan presentaciones para devolver.</p> }</div>
+    }
+    @if ((delivery()?.remaining_quantity ?? 0) > 0) {
+      @if (returnOrigins().length > 1) {
+        <label for="return-up">UP de descarga</label><select id="return-up" [formControl]="returnUnit"><option [ngValue]="null">Seleccioná dónde descargar</option>@for (unit of returnOrigins(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
+      } @else { <p>Descarga en {{ returnOrigins()[0]?.name }}.</p> }
+    }
+    <label for="return-notes">Observaciones de cierre</label><textarea id="return-notes" [formControl]="returnNotes" rows="2" maxlength="5000"></textarea>
     <form (submit)="closeDelivery(); $event.preventDefault()" class="pin-form">
       <label for="close-pin">Tu PIN de repartidor</label>
       <input id="close-pin" type="password" [formControl]="closePin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4 dígitos">
@@ -172,14 +190,7 @@
         <strong>¿Qué presentaciones entregaste?</strong>
         <div class="delivery-units" role="group" aria-label="Presentaciones entregadas">
           @for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) {
-            <div class="delivery-unit-row">
-              <span>{{ row.label }}</span>
-              <div class="unit-stepper">
-                <button type="button" (click)="adjustStopUnit(row, -1)" [disabled]="selectedUnitAmount(row) === 0" [attr.aria-label]="'Restar ' + row.label"><ion-icon name="remove-outline" aria-hidden="true" /></button>
-                <output [attr.aria-label]="row.label + ': ' + displayUnitAmount(selectedUnitAmount(row))">{{ displayUnitAmount(selectedUnitAmount(row)) }}</output>
-                <button type="button" (click)="adjustStopUnit(row, 1)" [disabled]="!canIncrementStopUnit(row)" [attr.aria-label]="'Sumar ' + row.label"><ion-icon name="add-outline" aria-hidden="true" /></button>
-              </div>
-            </div>
+            <app-delivery-unit-row [row]="row" [quantity]="quantityControl(row)" [price]="priceControl(row)" [canIncrease]="canIncrementStopUnit(row)" [canDecrease]="selectedUnitAmount(row) > 0" (increase)="adjustStopUnit(row, 1)" (decrease)="adjustStopUnit(row, -1)" (amountChanged)="setStopAmount(row, $event)" />
           } @empty { <small>Primero cargá huevos para poder registrar una entrega.</small> }
         </div>
         @if ((delivery()?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0) { <small class="field-error">Este reparto anterior no tiene saldo por presentación verificable. Para entregar por unidades, iniciá uno nuevo.</small> }
@@ -200,6 +211,8 @@
     <div class="sheet-heading"><div><p class="eyebrow">DURANTE EL REPARTO</p><h2 id="load-sheet-title">Agregar carga</h2><p>Registrá los huevos que subís ahora al vehículo.</p></div><button type="button" class="sheet-close" (click)="loadOpen.set(false)" aria-label="Cerrar carga">×</button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     <form [formGroup]="loadForm" (ngSubmit)="addLoad()" class="stock-form">
+      <label for="load-up">Unidad productiva de origen</label>
+      <select id="load-up" formControlName="production_unit_id" required><option [ngValue]="null">Seleccioná una UP</option>@for (unit of productionUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
       <div class="load-head" aria-hidden="true"><span>Presentación</span><span>Cantidad</span><span></span></div>
       <div formArrayName="items" class="load-lines">
         @for (line of loadForm.controls.items.controls; track line; let index = $index) {

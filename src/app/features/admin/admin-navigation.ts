@@ -41,6 +41,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     section: 'unit',
     items: [
       { label: 'Existencias', slug: 'existencias' },
+      { label: 'Presentaciones y precios', slug: 'presentaciones-huevos' },
       { label: 'Ubicaciones de stock', slug: 'existencias/ubicaciones' },
       { label: 'Movimientos', slug: 'movimientos' },
       { label: 'Donaciones', slug: 'donaciones' },
@@ -114,7 +115,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     section: 'global',
     items: [
       { label: 'Repartos', slug: 'repartos' },
-      { label: 'Catálogo y precios', slug: 'catalogo-y-precios' },
+
     ],
   },
   {

@@ -2,6 +2,11 @@ import { Routes } from '@angular/router';
 
 export const inventoryRoutes: Routes = [
   {
+    path: 'presentaciones-huevos',
+    data: { title: 'Presentaciones de huevos', groupLabel: 'Inventario' },
+    loadComponent: () => import('./pages/egg-presentations/egg-presentations.page').then((m) => m.EggPresentationsPage),
+  },
+  {
     path: 'existencias',
     children: [
       {
@@ -57,6 +62,6 @@ export const inventoryRoutes: Routes = [
   {
     path: 'donaciones',
     data: { title: 'Donaciones', groupLabel: 'Inventario' },
-    loadComponent: () => import('../admin/admin-placeholder.page').then((m) => m.AdminPlaceholderPage),
+    loadComponent: () => import('./pages/egg-donations/egg-donations.page').then((m) => m.EggDonationsPage),
   },
 ];

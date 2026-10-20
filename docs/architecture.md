@@ -20,6 +20,7 @@ It intentionally avoids ceremonial Clean Architecture layers unless real complex
 Angular                 22.2.x
 Ionic Angular            9.x
 Capacitor                8.5.x
+Gráficas                 Apache ECharts 6.1.0 (ADR 008)
 TypeScript               6.x
 RxJS                     7.8.x
 Vitest                   4.x

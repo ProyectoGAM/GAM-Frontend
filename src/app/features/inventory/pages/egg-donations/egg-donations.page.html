@@ -1,0 +1,13 @@
+<section class="page"><h1>Donaciones de huevos</h1><p>Registra las entregas a donación con su motivo o destinatario. Se descuentan del stock de la unidad productiva.</p>
+@if (error(); as message) { <p class="error" role="alert">{{ message }}</p> } @if (notice(); as message) { <p role="status">{{ message }}</p> }
+<label for="donation-unit-search">Buscar unidad productiva</label><input id="donation-unit-search" type="search" (change)="searchUnits($event)" />
+<label for="donation-unit">Unidad productiva</label><select id="donation-unit" (change)="selectUnit($event)"><option value="" [selected]="unit() === null">Seleccionar</option>@for (option of units(); track option.id) { <option [value]="option.id" [selected]="unit() === option.id">{{ option.name }}</option> }</select>
+@if (unitPage() < unitLastPage()) { <button type="button" (click)="loadUnits('', unitPage() + 1)">Más unidades</button> }
+@if (canMove()) { <form [formGroup]="form" (ngSubmit)="save()"><h2>Registrar donación</h2><label for="donation-quantity">Cantidad de huevos</label><input id="donation-quantity" inputmode="numeric" formControlName="quantity" />
+<label for="donation-date">Fecha y hora</label><input id="donation-date" type="datetime-local" formControlName="date" />
+<label for="donation-reason">Motivo o destinatario</label><input id="donation-reason" formControlName="reason" maxlength="500" />
+<label for="donation-notes">Comentarios</label><textarea id="donation-notes" formControlName="notes" maxlength="5000"></textarea>
+<button type="submit" [disabled]="busy() || !unit()">{{ busy() ? 'Registrando…' : 'Registrar donación' }}</button></form> }
+@if (canRead()) { <section class="history"><h2>Historial de donaciones</h2>@for (item of records(); track item.id) { <article><strong>{{ item.quantity }} huevos · {{ item.reason }}</strong><p>{{ item.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · {{ item.status === 'recorded' ? 'Registrada' : 'Anulada' }}</p><p>{{ item.notes }}</p><a [routerLink]="['/administracion/inventario/existencias/huevos/movimientos', item.id]">Ver detalle y correcciones</a></article> } @empty { <p>No hay donaciones registradas para esta unidad.</p> }
+<div class="actions"><button type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">Anterior</button><span>{{ page() }} / {{ lastPage() }}</span><button type="button" [disabled]="page() >= lastPage()" (click)="load(page() + 1)">Siguiente</button></div></section> }
+</section>

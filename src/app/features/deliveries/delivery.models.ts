@@ -1,6 +1,11 @@
 export type DeliveryStatus = 'active' | 'completed' | 'cancelled';
 export type DeliveryStopStatus = 'pending' | 'delivered' | 'not_delivered';
 
+export interface DeliveryProductionUnit {
+  id: number;
+  name: string;
+}
+
 export interface DeliveryClient {
   id: string;
   name: string;
@@ -19,6 +24,8 @@ export interface DeliveryStop {
   sequence: number;
   status: DeliveryStopStatus;
   delivered_quantity: number;
+  total_amount?: string | null;
+  currency?: 'UYU';
   items?: DeliveryStopItem[] | null;
   visit_reason: string | null;
   notes: string | null;
@@ -41,6 +48,7 @@ export interface DeliveryLoad {
   idempotency_key?: string;
   quantity: number;
   items?: DeliveryLoadItem[];
+  production_unit?: DeliveryProductionUnit | null;
   type: string;
   created_at: string;
 }
@@ -50,6 +58,8 @@ export interface DeliveryUnit {
   label: string;
   category: string;
   eggs_per_unit: number;
+  default_unit_price?: number | null;
+  currency?: 'UYU';
 }
 
 export interface DeliveryLoadItemInput {
@@ -64,7 +74,12 @@ export interface DeliveryLoadItem extends DeliveryLoadItemInput {
   eggs: number;
 }
 
-export interface DeliveryStopItem extends DeliveryLoadItemInput {
+export interface DeliveryStopItemInput extends DeliveryLoadItemInput {
+  unit_price?: number;
+}
+
+export interface DeliveryStopItem extends DeliveryStopItemInput {
+  line_amount?: string | null;
   label: string;
   eggs: number;
 }
@@ -75,6 +90,7 @@ export interface DeliveryUnitBalanceRow {
   eggs_per_unit: number;
   loaded_amount: string;
   delivered_amount: string;
+  returned_amount?: string;
   remaining_amount: string | null;
   loaded_eggs: number;
   delivered_eggs: number;
@@ -95,6 +111,10 @@ export interface Delivery {
   loaded_quantity: number;
   delivered_quantity: number;
   returned_quantity: number;
+  returned_items?: DeliveryStopItem[] | null;
+  return_production_unit?: DeliveryProductionUnit | null;
+  delivered_amount?: string | null;
+  currency?: 'UYU';
   remaining_quantity: number;
   stops_summary: { total: number; pending: number; delivered: number; not_delivered: number };
   started_at: string;
@@ -114,6 +134,7 @@ export interface DeliveryListResponse {
 
 export interface DeliveryEnvelope {
   data: Delivery;
+  catalog?: DeliveryUnit[];
 }
 
 export interface StartDeliveryInput {
@@ -125,6 +146,7 @@ export interface StartDeliveryInput {
 }
 
 export interface AddDeliveryLoadInput {
+  production_unit_id?: number; // Operaciones anteriores de la cola no incluyen origen.
   quantity?: number; // Compatibilidad con operaciones ya encoladas.
   items?: DeliveryLoadItemInput[];
 }
@@ -132,7 +154,7 @@ export interface AddDeliveryLoadInput {
 export interface StopInput {
   client_reference: string;
   status: DeliveryStopStatus;
-  items?: DeliveryLoadItemInput[];
+  items?: DeliveryStopItemInput[];
   visit_reason?: string;
   notes?: string;
 }
@@ -148,6 +170,8 @@ export interface LocationInput {
 
 export interface CloseDeliveryInput {
   pin: string;
-  returned_quantity: number;
+  returned_quantity?: number; // Compatibilidad con cierres anteriores sin desglose.
+  returned_items?: DeliveryLoadItemInput[];
+  return_production_unit_id?: number;
   notes?: string;
 }

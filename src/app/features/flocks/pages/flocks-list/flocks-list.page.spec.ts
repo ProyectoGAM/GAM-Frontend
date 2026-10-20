@@ -10,6 +10,7 @@ import { PoultryHouseListItem } from '../../../production-units/interfaces/produ
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { Flock } from '../../interfaces/flock.interface';
 import { FlocksApi } from '../../services/flocks.api';
+import { FlockDetailService } from '../../services/flock-detail.service';
 import { FlocksListPage } from './flocks-list.page';
 
 describe('FlocksListPage', () => {
@@ -72,6 +73,7 @@ describe('FlocksListPage', () => {
       providers: [
         provideRouter([]),
         { provide: FlocksApi, useValue: { list: listFlocks } },
+        { provide: FlockDetailService, useValue: { mortalityTotals: () => of(new Map()) } },
         { provide: ProductionUnitsService, useValue: { listAllPoultryHouses } },
         { provide: AuthStore, useValue: { isAdmin: signal(true) } },
         {

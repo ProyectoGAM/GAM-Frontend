@@ -89,7 +89,7 @@ export class EggMovementDetailPage {
     } catch (error) { this.mutation.set('error'); this.error.set(inventoryErrorMessage(error, 'No se pudo cancelar. Recarga para ver si alguien ya modificó este movimiento.')); }
   }
   selectAction(action: 'correct' | 'cancel'): void { this.activeAction.set(action); this.error.set(null); this.success.set(null); }
-  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida' } satisfies Record<EggStockMovementType, string>)[type]; }
+  typeLabel(type: EggStockMovementType): string { return ({ collection_receipt: 'Ingreso por producción', manual_receipt: 'Ingreso manual', distribution_preparation: 'Preparación de reparto', loss: 'Pérdida', donation: 'Donación', distribution_return: 'Retorno de reparto' } satisfies Record<EggStockMovementType, string>)[type]; }
   sourceLabel(item: EggStockTransaction): string { return item.type === 'collection_receipt' || item.reference?.type === 'egg_collection' ? 'Producción' : item.reference ? 'Otro registro' : 'Registro manual'; }
   revisionQuantities(item: EggStockRevision): string | null {
     const previous = item.before['quantity'];

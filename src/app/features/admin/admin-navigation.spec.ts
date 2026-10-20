@@ -189,8 +189,10 @@ describe('admin navigation visibility', () => {
     const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
     const flocksRoutes = await loader?.();
 
-    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', '']);
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id', '']);
     expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
+    expect(flocksRoutes?.[1]?.loadComponent).toBeTypeOf('function');
+    expect(flocksRoutes?.find((route) => route.path === ':id/alimentacion')?.loadComponent).toBeTypeOf('function');
   });
 
   it('renders nested menu slugs as their existing URL segments', () => {

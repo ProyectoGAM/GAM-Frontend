@@ -1,12 +1,12 @@
 :host { display: block; color: var(--gam-color-text); }
 .flocks-page { max-width: 980px; margin-inline: auto; }
 .page-heading { margin-bottom: 20px; }
-.breadcrumb, .intro, .house-name, .entry-date, .result-count, .state-panel p { color: var(--gam-color-text-muted); }
+.breadcrumb, .intro, .result-count, .state-panel p { color: var(--gam-color-text-muted); }
 .breadcrumb { margin: 0 0 12px; font-size: .875rem; }
 .breadcrumb span { margin-inline: 8px; }
 h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-height: 1.15; font-weight: 750; }
 .intro { margin: 7px 0 0; font-size: 1rem; line-height: 1.35; }
-.create-button, .filter-button, .filter-chip, .flock-card-button, .sheet-close, .unit-choices button, .sheet-action { cursor: pointer; font: inherit; }
+.create-button, .filter-button, .filter-chip, .sheet-close, .unit-choices button, .sheet-action { cursor: pointer; font: inherit; }
 .create-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; margin-bottom: 16px; border: 0; border-radius: 9px; background: var(--gam-color-primary); color: var(--gam-color-on-primary); font-weight: 700; text-decoration: none; }
 .create-button ion-icon { font-size: 1.5rem; }
 .list-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-bottom: 12px; }
@@ -21,15 +21,7 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-heigh
 .filter-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); font-size: .875rem; }
 .result-count { margin: 0 0 12px; font-size: .875rem; }
 .flock-list { display: grid; gap: 12px; }
-.flock-card, .state-panel { border: 1px solid var(--gam-color-border); border-radius: 11px; background: var(--gam-color-surface); }
-.flock-card { min-width: 0; }
-.flock-card-button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 114px; padding: 17px 16px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: left; }
-.card-copy { display: grid; min-width: 0; gap: 5px; }
-.card-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.flock-name { color: var(--gam-color-heading); font-size: 1.125rem; font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
-.grouped-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); font-size: .75rem; font-weight: 600; white-space: nowrap; }
-.house-name, .entry-date { display: block; line-height: 1.35; }
-.card-chevron { flex: 0 0 auto; color: var(--gam-color-primary); font-size: 1.4rem; }
+.state-panel { border: 1px solid var(--gam-color-border); border-radius: 11px; background: var(--gam-color-surface); }
 .state-panel { display: grid; justify-items: center; gap: 10px; padding: 36px 20px; text-align: center; }
 .state-panel h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
 .state-panel p { margin: 0; line-height: 1.5; }
@@ -52,7 +44,7 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-heigh
 .sheet-action { flex: 1; min-height: 48px; padding: 8px; border: 1px solid var(--gam-color-primary); border-radius: 8px; font-weight: 700; }
 .sheet-action.secondary { background: var(--gam-color-surface); color: var(--gam-color-heading); }
 .sheet-action.primary { background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
-.create-button:focus-visible, .filter-button:focus-visible, .filter-chip:focus-visible, .flock-card-button:focus-visible, .sheet-close:focus-visible, .sheet-body select:focus-visible, .unit-choices button:focus-visible, .sheet-action:focus-visible, .search-field:focus-within { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.create-button:focus-visible, .filter-button:focus-visible, .filter-chip:focus-visible, .sheet-close:focus-visible, .sheet-body select:focus-visible, .unit-choices button:focus-visible, .sheet-action:focus-visible, .search-field:focus-within { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 @media (max-width: 900px) { :host { margin: -16px -16px 0; padding: 24px 16px 48px; background: var(--gam-color-surface-alt); } }
 @media (min-width: 640px) { .flock-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .create-button { max-width: 260px; } .filters-dialog { bottom: 24px; border-radius: 18px; } }

@@ -1,0 +1,28 @@
+@if (metric().state === 'loading') {
+  <p class="state" role="status">Cargando producción…</p>
+} @else if (metric().state === 'unavailable') {
+  <p class="state" role="status">Producción no disponible.</p>
+} @else if (view(); as summary) {
+  <div class="metrics">
+    <section>
+      <h3>Recolección diaria</h3>
+      @if (summary.latestText !== null) {
+        <strong>{{ summary.latestText }}</strong>
+        <p>huevos · {{ summary.latestDate }}</p>
+        <small>Última jornada con registros</small>
+      } @else { <p>Sin registros</p> }
+    </section>
+    <section>
+      <h3>Promedio diario</h3>
+      @if (summary.averageText !== null) { <strong>{{ summary.averageText }}</strong><p>huevos/día</p> }
+      @else { <p>Sin registros en el período</p> }
+      <span class="trend" [class.up]="summary.trend === 'up'" [class.down]="summary.trend === 'down'">{{ summary.trendText }}</span>
+      <small>En los últimos 7 días</small>
+    </section>
+    <section class="historical">
+      <h3>Acumulado histórico</h3>
+      <strong>{{ summary.totalText }} <span>huevos</span></strong>
+      <p>Desde el ingreso del lote</p>
+    </section>
+  </div>
+}

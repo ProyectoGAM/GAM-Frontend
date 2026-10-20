@@ -23,10 +23,12 @@ import { NetworkService } from '../../core/native/network.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.service';
 import { DeliveriesApi } from './deliveries.api';
-import { AddDeliveryLoadInput, Delivery, DeliveryClient, DeliveryLoadItemInput, DeliveryStop, DeliveryUnit, DeliveryUnitBalanceRow, LocationInput, StartDeliveryInput, StopInput } from './delivery.models';
+import { DeliveryUnitRowComponent } from './components/delivery-unit-row.component';
+import { formatDeliveryMoney } from './delivery-money';
+import { AddDeliveryLoadInput, Delivery, DeliveryClient, DeliveryLoadItemInput, DeliveryStop, DeliveryUnit, DeliveryUnitBalanceRow, DeliveryProductionUnit, DeliveryStopItemInput, CloseDeliveryInput, LocationInput, StartDeliveryInput, StopInput } from './delivery.models';
 
 type LoadLineForm = FormGroup<{ unit: FormControl<string>; amount: FormControl<string> }>;
-type LoadForm = FormGroup<{ items: FormArray<LoadLineForm> }>;
+type LoadForm = FormGroup<{ items: FormArray<LoadLineForm>; production_unit_id: FormControl<number | null> }>;
 type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
 
 @Component({
@@ -34,7 +36,7 @@ type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
   templateUrl: './delivery.page.html',
   styleUrl: './delivery.page.scss',
   imports: [
-    DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, ReactiveFormsModule, RouterLink,
+    DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, ReactiveFormsModule, RouterLink,
   ],
 })
 export class DeliveryPage implements AfterViewInit, OnDestroy {
@@ -72,6 +74,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private readonly network = inject(NetworkService);
   readonly clients = signal<readonly DeliveryClient[]>([]);
   readonly units = signal<readonly DeliveryUnit[]>([]);
+  readonly productionUnits = signal<readonly DeliveryProductionUnit[]>([]);
+  readonly money = formatDeliveryMoney;
   readonly defaultUnitId = computed(() => this.units().find((unit) => unit.id === 'huevo')?.id ?? this.units()[0]?.id ?? '');
   readonly delivery = signal<Delivery | null>(null);
   readonly pendingCount = signal(0);
@@ -113,15 +117,36 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly closePin = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[0-9]{4}$/)] });
   readonly lastPosition = signal<LocationInput | null>(null);
   readonly startForm = new FormGroup({
+    production_unit_id: new FormControl<number | null>(null, Validators.required),
     items: new FormArray<LoadLineForm>([this.loadLine('120')]),
   });
   readonly loadForm = new FormGroup({
+    production_unit_id: new FormControl<number | null>(null, Validators.required),
     items: new FormArray<LoadLineForm>([this.loadLine('1')]),
   });
   readonly stopForm = new FormGroup({
     reason: new FormControl('', { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
   });
+
+  readonly returnUnit = new FormControl<number | null>(null);
+  readonly returnAmounts = new FormArray<FormControl<string>>([]);
+  readonly returnRows = signal<DeliveryUnitBalanceRow[]>([]);
+  readonly returnLegacy = signal(false);
+  readonly returnLegacyQuantity = new FormControl('0', { nonNullable: true });
+  readonly returnNotes = new FormControl('', { nonNullable: true });
+  readonly returnOrigins = computed(() => {
+    const delivery = this.delivery();
+    const origins = new Map<number, DeliveryProductionUnit>();
+    for (const load of delivery?.loads ?? []) {
+      if (load.production_unit) origins.set(load.production_unit.id, load.production_unit);
+    }
+    if (!origins.size && delivery?.production_unit) origins.set(delivery.production_unit.id, delivery.production_unit);
+    return [...origins.values()];
+  });
+  private closePrepared = false;
+  private readonly quantityControls = new Map<string, FormControl<string>>();
+  private readonly priceControls = new Map<string, FormControl<string>>();
 
   private map: L.Map | null = null;
   private readonly markers = new Map<string, L.CircleMarker>();
@@ -142,8 +167,23 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   async ngAfterViewInit(): Promise<void> {
-    await Promise.all([this.refreshUnits(), this.refreshClients()]);
+    const actorId = this.auth.user()?.id;
+    if (actorId && typeof this.outbox.referencesFor === 'function') {
+      try {
+        const cached = await this.outbox.referencesFor(actorId);
+        if (cached) {
+          this.units.set(cached.units);
+          this.productionUnits.set(cached.productionUnits);
+          this.clients.set(cached.clients ?? []);
+          if (cached.delivery?.status === 'active') this.delivery.set(cached.delivery);
+        }
+      } catch {
+        this.error.set('No se pudo leer el catálogo local. Conectate para actualizarlo.');
+      }
+    }
+    await Promise.all([this.refreshUnits(), this.refreshProductionUnits(), this.refreshClients()]);
     await this.refreshActiveDelivery();
+    await this.refreshQueue();
   }
 
   ngOnDestroy(): void {
@@ -151,6 +191,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (this.reconnectTimer) clearInterval(this.reconnectTimer);
     if (this.clientSearchTimer) clearTimeout(this.clientSearchTimer);
     this.map?.remove();
+    this.map = null;
   }
 
   openStartConfirmation(): void {
@@ -186,6 +227,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       // TODO(M16): permitir seleccionar el vehículo cuando exista el catálogo de flota.
       const response = await firstValueFrom(this.api.start({ ...payload, pin: this.startPin.value }, this.newId()));
       this.delivery.set(response.data);
+      if (response.catalog) this.units.set(response.catalog);
+      await this.saveReferences();
       this.startConfirmation.set(false);
       this.panel.set('map');
       this.message.set('Reparto iniciado. Puedes comenzar a visitar los clientes.');
@@ -205,6 +248,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.selectedClient.set(client);
     this.stopMode.set('delivered');
     this.stopSelections.set({});
+    this.quantityControls.clear();
+    this.priceControls.clear();
     this.stopForm.reset({ reason: '', notes: '' });
   }
 
@@ -220,6 +265,32 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     return this.unitAmountFormatter.format(Number(amount));
   }
 
+  quantityControl(row: DeliveryUnitBalanceRow): FormControl<string> {
+    const key = this.balanceKey(row);
+    if (!this.quantityControls.has(key)) this.quantityControls.set(key, new FormControl(String(this.selectedUnitAmount(row)), {
+      nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{1,10}(?:[.,]\d{1,3})?$/), Validators.min(0), Validators.max(Number(row.remaining_amount ?? 0))],
+    }));
+    return this.quantityControls.get(key)!;
+  }
+
+  priceControl(row: DeliveryUnitBalanceRow): FormControl<string> {
+    const key = this.balanceKey(row);
+    if (!this.priceControls.has(key)) {
+      const price = this.units().find((unit) => unit.id === row.unit && unit.eggs_per_unit === row.eggs_per_unit)?.default_unit_price;
+      this.priceControls.set(key, new FormControl(price === null || price === undefined ? '' : String(price), {
+        nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d+$/), Validators.min(0), Validators.max(2147483647)],
+      }));
+    }
+    return this.priceControls.get(key)!;
+  }
+
+  setStopAmount(row: DeliveryUnitBalanceRow, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.quantityControl(row).setValue(value);
+    const amount = /^\d{1,10}(?:[.,]\d{1,3})?$/.test(value) ? Number(value.replace(',', '.')) : NaN;
+    this.stopSelections.update((selections) => ({ ...selections, [this.balanceKey(row)]: amount }));
+  }
+
   canIncrementStopUnit(row: DeliveryUnitBalanceRow): boolean {
     if (row.remaining_amount === null) return false;
     const current = this.selectedUnitAmount(row);
@@ -232,13 +303,14 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const current = this.selectedUnitAmount(row);
     const available = Number(row.remaining_amount ?? 0);
     const next = direction === 1 ? Math.min(available, current + 1) : Math.max(0, current - 1);
+    this.quantityControl(row).setValue(String(Math.round(next * 1000) / 1000));
     this.stopSelections.update((selections) => ({ ...selections, [this.balanceKey(row)]: Math.round(next * 1000) / 1000 }));
   }
 
-  private selectedStopItems(): DeliveryLoadItemInput[] {
+  private selectedStopItems(): DeliveryStopItemInput[] {
     return (this.delivery()?.unit_balances?.rows ?? []).flatMap((row) => {
       const amount = this.selectedUnitAmount(row);
-      return amount > 0 ? [{ unit: row.unit, eggs_per_unit: row.eggs_per_unit, amount: String(amount) }] : [];
+      return amount > 0 ? [{ unit: row.unit, eggs_per_unit: row.eggs_per_unit, amount: String(amount), unit_price: Number(this.priceControl(row).value) }] : [];
     });
   }
 
@@ -259,6 +331,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   openLoad(): void {
     if (!this.canOperate || this.closePending()) return;
     this.clearFeedback();
+    this.loadForm.controls.production_unit_id.reset();
     this.loadForm.controls.items.clear();
     this.loadForm.controls.items.push(this.loadLine('1', this.defaultUnitId()));
     this.loadOpen.set(true);
@@ -279,12 +352,14 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       if (!this.online()) throw new HttpErrorResponse({ status: 0 });
       const response = await firstValueFrom(this.api.load(delivery.id, payload, idempotencyKey));
       this.delivery.set(response.data);
+      await this.saveReferences();
       this.loadOpen.set(false);
       this.message.set(`Se agregaron ${quantity} huevos al reparto.`);
     } catch (error) {
       if (this.isNetworkFailure(error)) {
         await this.outbox.enqueue({ kind: 'load', deliveryId: delivery.id, payload, idempotencyKey });
-        this.updateLocalLoad(quantity, idempotencyKey, payload.items);
+        this.updateLocalLoad(quantity, idempotencyKey, payload.items, payload.production_unit_id);
+        await this.saveReferences();
         this.loadOpen.set(false);
         await this.refreshQueue();
         this.message.set('Carga guardada en este dispositivo. Se enviará cuando vuelva la conexión.');
@@ -310,6 +385,12 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (!this.canOperate || !delivery || !client || this.busy() || this.closePending() || this.statusFor(client) !== 'pending') return;
 
     const delivered = this.stopMode() === 'delivered';
+    if (delivered && (this.delivery()?.unit_balances?.rows ?? []).some((row) =>
+      this.quantityControl(row).invalid || this.selectedUnitAmount(row) > Number(row.remaining_amount ?? 0)
+      || this.selectedUnitAmount(row) > 0 && this.priceControl(row).invalid)) {
+      this.error.set('Revisá las cantidades y los precios: usá pesos enteros para cada presentación elegida.');
+      return;
+    }
     const items = delivered ? this.selectedStopItems() : [];
     const quantity = delivered ? this.selectedStopEggs() : 0;
     const reason = this.stopForm.controls.reason.value.trim();
@@ -346,12 +427,50 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         await this.outbox.enqueue({ kind: 'stop', deliveryId: delivery.id, payload, idempotencyKey });
         this.selectedClient.set(null);
         this.updateLocalStop(client, payload, quantity);
+        await this.saveReferences();
         await this.refreshQueue();
         this.message.set('Visita guardada en este dispositivo. Se enviará cuando vuelva la conexión.');
       } else this.error.set(this.errorMessage(error, 'No se pudo registrar la visita.'));
     } finally {
       this.busy.set(false);
     }
+  }
+
+  async openCloseConfirmation(): Promise<void> {
+    if (this.busy() || !this.canOperate) return;
+    if (!this.online()) {
+      this.error.set('Necesitás conexión para sincronizar y confirmar la descarga final.');
+      return;
+    }
+    this.busy.set(true);
+    this.clearFeedback();
+    try {
+      await this.flushOutbox();
+      if (this.pendingCount() > 0) {
+        this.error.set('Sincronizá las operaciones pendientes antes de finalizar.');
+        return;
+      }
+      await this.refreshActiveDelivery();
+      if (!this.delivery()) return;
+      this.prepareReturn();
+      this.closeConfirmation.set(true);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  private prepareReturn(): void {
+    const delivery = this.delivery();
+    this.returnLegacy.set((delivery?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0 || !delivery?.unit_balances);
+    this.returnLegacyQuantity.setValue(String(delivery?.remaining_quantity ?? 0));
+    this.returnAmounts.clear();
+    const rows = (delivery?.unit_balances?.rows ?? []).filter((row) => Number(row.remaining_amount ?? 0) > 0);
+    this.returnRows.set(rows);
+    for (const row of rows) this.returnAmounts.push(new FormControl(row.remaining_amount ?? '0', { nonNullable: true }));
+    const origins = this.returnOrigins();
+    this.returnUnit.setValue(origins.length === 1 ? origins[0].id : null);
+    this.returnNotes.reset();
+    this.closePrepared = true;
   }
 
   async closeDelivery(): Promise<void> {
@@ -368,8 +487,29 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const returnedQuantity = Math.max(0, delivery.remaining_quantity);
-    const payload = { returned_quantity: returnedQuantity, notes: 'Cierre desde modo repartidor', pin: this.closePin.value };
+    if (!this.closePrepared) this.prepareReturn();
+    let payload: CloseDeliveryInput;
+    if (this.returnLegacy()) {
+      const value = this.returnLegacyQuantity.value;
+      if (!/^\d+$/.test(value)) { this.error.set('Indicá los huevos a devolver como un entero.'); return; }
+      payload = { returned_quantity: Number(value), pin: this.closePin.value };
+    } else {
+      const items = this.returnRows().flatMap((row, index) => {
+        const amount = this.returnAmounts.at(index).value.replace(',', '.').trim();
+        return Number(amount) === 0 ? [] : [{ unit: row.unit, amount, eggs_per_unit: row.eggs_per_unit }];
+      });
+      if (items.some((item) => this.itemEggs(item) < 1)) {
+        this.error.set('Cada presentación devuelta debe equivaler a huevos enteros.');
+        return;
+      }
+      payload = { returned_items: items, pin: this.closePin.value };
+    }
+    const quantity = payload.returned_items?.reduce((total, item) => total + this.itemEggs(item), 0) ?? payload.returned_quantity ?? 0;
+    if (quantity > delivery.remaining_quantity) { this.error.set('La descarga supera los huevos disponibles.'); return; }
+    if (quantity < delivery.remaining_quantity) { this.error.set('La descarga final debe incluir todos los huevos sobrantes.'); return; }
+    if (quantity > 0 && !this.returnUnit.value) { this.error.set('Seleccioná la UP donde descargar todos los sobrantes.'); return; }
+    if (quantity > 0 && this.returnUnit.value) payload.return_production_unit_id = this.returnUnit.value;
+    payload.notes = this.returnNotes.value.trim() || 'Cierre desde modo repartidor';
     const idempotencyKey = this.newId();
     this.busy.set(true);
     this.clearFeedback();
@@ -386,6 +526,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       const response = await firstValueFrom(this.api.close(delivery.id, payload, idempotencyKey));
       this.delivery.set(response.data);
       this.closeConfirmation.set(false);
+      this.closePrepared = false;
+      await this.saveReferences();
       this.message.set('Reparto cerrado correctamente.');
       await this.refreshQueue();
     } catch (error) {
@@ -522,7 +664,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     }
     if (!entry.idempotencyKey) throw new Error('La cola no tiene una clave de idempotencia.');
     if (entry.kind === 'load') {
-      return (await firstValueFrom(this.api.load(entry.deliveryId, entry.payload as AddDeliveryLoadInput, entry.idempotencyKey))).data;
+      return (await firstValueFrom(this.api.load(entry.deliveryId, { ...(entry.payload as AddDeliveryLoadInput), production_unit_id: (entry.payload as AddDeliveryLoadInput).production_unit_id ?? this.delivery()?.production_unit?.id }, entry.idempotencyKey))).data;
     }
     if (entry.kind === 'stop') {
       await firstValueFrom(this.api.stop(entry.deliveryId, entry.payload as StopInput, entry.idempotencyKey));
@@ -534,7 +676,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private async refreshActiveDelivery(): Promise<void> {
     if (!this.online()) return;
     try {
-      const response = await firstValueFrom(this.api.current());
+      const response = await firstValueFrom(this.api.current({ driver_id: this.auth.user()?.id }));
       const active = response.data[0] ?? null;
       if (active) {
         const detail = (await firstValueFrom(this.api.detail(active.id))).data;
@@ -545,7 +687,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
           if (entry.kind === 'load' && entry.idempotencyKey
             && !detail.loads?.some((load) => load.idempotency_key === entry.idempotencyKey)) {
             const payload = entry.payload as AddDeliveryLoadInput;
-            this.updateLocalLoad(this.loadEggs(payload), entry.idempotencyKey, payload.items);
+            this.updateLocalLoad(this.loadEggs(payload), entry.idempotencyKey, payload.items, payload.production_unit_id ?? detail.production_unit?.id);
           }
           if (entry.kind === 'stop') {
             const payload = entry.payload as StopInput;
@@ -558,6 +700,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       }
       else if (this.delivery()?.status === 'active') this.delivery.set(null);
       await this.refreshQueue();
+      await this.saveReferences();
     } catch (error) {
       if (!this.delivery()) this.error.set(this.errorMessage(error, 'No se pudo consultar el reparto actual.'));
     }
@@ -579,6 +722,25 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       this.fitMapToClients();
     } catch (error) {
       if (request === this.clientSearchRequest) this.error.set(this.errorMessage(error, 'No se pudo cargar la lista de clientes.'));
+    }
+  }
+
+  private async saveReferences(): Promise<void> {
+    const actorId = this.auth.user()?.id;
+    if (!actorId || typeof this.outbox.saveReferences !== 'function') return;
+    try {
+      await this.outbox.saveReferences({ actorId, units: this.units(), productionUnits: this.productionUnits(), clients: this.clients(), delivery: this.delivery() });
+    } catch {
+      this.error.set('La operación está registrada, pero no se pudo guardar el catálogo local. Volvé a conectarte antes de operar sin conexión.');
+    }
+  }
+
+  private async refreshProductionUnits(): Promise<void> {
+    if (!this.online()) return;
+    try {
+      this.productionUnits.set((await firstValueFrom(this.api.productionUnits())).data);
+    } catch (error) {
+      this.error.set(this.errorMessage(error, 'No se pudieron consultar las unidades productivas para cargar.'));
     }
   }
 
@@ -628,7 +790,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     (sum, line) => sum + this.lineEggs(line.controls.unit.value, line.controls.amount.value), 0,
   );
 
-  private loadPayload(form: LoadForm): { items: DeliveryLoadItemInput[] } | null {
+  private loadPayload(form: LoadForm): { items: DeliveryLoadItemInput[]; production_unit_id: number } | null {
     const items = form.controls.items.controls.map((line) => {
       const unit = this.units().find((entry) => entry.id === line.controls.unit.value);
       return unit ? { unit: unit.id, amount: line.controls.amount.value.replace(',', '.').trim(), eggs_per_unit: unit.eggs_per_unit } : null;
@@ -636,11 +798,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const total = items.reduce((sum, item) => sum + (item ? this.itemEggs(item) : 0), 0);
     if (form.invalid || items.some((item) => !item || this.itemEggs(item) < 1) || total < 1 || total > 2147483647) {
       form.markAllAsTouched();
-      this.error.set('Revisá las unidades y cantidades: cada línea debe equivaler a huevos enteros.');
+      this.error.set(!form.controls.production_unit_id.value ? 'Seleccioná la unidad productiva de origen de esta carga.' : 'Revisá las unidades y cantidades: cada línea debe equivaler a huevos enteros.');
       return null;
     }
 
-    return { items: items as DeliveryLoadItemInput[] };
+    if (!form.controls.production_unit_id.value) {
+      this.error.set('Seleccioná la unidad productiva de origen de esta carga.');
+      return null;
+    }
+    return { items: items as DeliveryLoadItemInput[], production_unit_id: form.controls.production_unit_id.value };
   }
 
   private loadEggs(payload: AddDeliveryLoadInput | StartDeliveryInput): number {
@@ -719,6 +885,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         delivered_quantity: quantity, visit_reason: null, notes: null, visited_at: new Date().toISOString(),
       }],
       delivered_quantity: delivery.delivered_quantity + quantity,
+      delivered_amount: null,
       remaining_quantity: Math.max(0, delivery.remaining_quantity - quantity),
       unit_balances: delivery.unit_balances && {
         ...delivery.unit_balances,
@@ -738,7 +905,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.updateMapMarkers();
   }
 
-  private updateLocalLoad(quantity: number, idempotencyKey: string, items?: DeliveryLoadItemInput[]): void {
+  private updateLocalLoad(quantity: number, idempotencyKey: string, items?: DeliveryLoadItemInput[], productionUnitId?: number): void {
     const loadedItems = items ?? [{ unit: 'huevo', amount: String(quantity), eggs_per_unit: 1 }];
     this.delivery.update((delivery) => {
       if (!delivery) return delivery;
@@ -767,6 +934,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       remaining_quantity: delivery.remaining_quantity + quantity,
       loads: [...(delivery.loads ?? []), {
         id: -Date.now(), idempotency_key: idempotencyKey, quantity, type: 'additional',
+        production_unit: this.productionUnits().find((unit) => unit.id === productionUnitId) ?? (productionUnitId === delivery.production_unit?.id ? delivery.production_unit : null),
         items: loadedItems.map((item) => ({ ...item, label: this.unitLabel(item.unit),
           category: this.units().find((unit) => unit.id === item.unit)?.category ?? '', eggs: this.itemEggs(item) })),
         created_at: new Date().toISOString(),

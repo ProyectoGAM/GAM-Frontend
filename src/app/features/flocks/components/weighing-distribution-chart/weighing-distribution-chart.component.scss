@@ -1,0 +1,14 @@
+:host { display: block; min-width: 0; color: var(--gam-color-text); }
+.chart-range { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; color: var(--gam-color-text-muted); font-size: .75rem; }
+.chart-wrap { width: 100%; height: 322px; min-width: 0; }
+.chart-wrap[hidden] { display: none; }
+.chart-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 17px; color: var(--gam-color-text-muted); font-size: .75rem; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-bar { width: 10px; height: 10px; border-radius: 2px; background: var(--gam-color-focus); }
+.legend-line { width: 17px; border-top: 3px solid var(--gam-color-heading); }
+.legend-anomaly { width: 10px; height: 10px; border-radius: 2px; background: var(--gam-color-danger); }
+.legend-limit { width: 17px; border-top: 2px dashed var(--gam-color-danger); }
+.legend-uniformity { width: 14px; height: 10px; border-radius: 2px; background: var(--gam-color-primary-soft); }
+.group-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--gam-color-border); color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+.chart-note { margin: 0 0 8px; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+.chart-empty { display: grid; place-items: center; min-height: 270px; padding: 16px; color: var(--gam-color-text-muted); text-align: center; }

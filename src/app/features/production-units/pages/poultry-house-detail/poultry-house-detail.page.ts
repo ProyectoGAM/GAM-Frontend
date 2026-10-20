@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { switchMap } from 'rxjs';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
@@ -28,6 +29,8 @@ import {
   PoultryHouseDetail as PoultryHouseDetailData,
 } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
+import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface';
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
 type RelatedState = 'loading' | 'success' | 'error';
@@ -51,6 +54,7 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
 })
 export class PoultryHouseDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly flockDetail = inject(FlockDetailService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -98,6 +102,9 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly currentFlocks = computed(() => this.flocks().filter(
     (flock) => flock.status === 'active' || flock.status === 'quarantined',
   ));
+  readonly mortalities = toSignal(toObservable(this.currentFlocks).pipe(
+    switchMap((flocks) => this.flockDetail.mortalityTotals(flocks.map((flock) => flock.id))),
+  ), { initialValue: new Map<string, DetailMetric<number>>() });
   readonly canAddLot = computed(() => {
     const house = this.house();
     return house?.type === 'poultry' && house.status === 'operational'

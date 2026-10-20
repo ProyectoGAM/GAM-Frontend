@@ -1,6 +1,6 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpResponse, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, from, mergeMap, throwError } from 'rxjs';
 
 import { API_CONFIG } from '../config/api.config';
 import { ApiOptions } from './api-options.type';
@@ -25,6 +25,23 @@ export class ApiClient {
       context: options.context,
       withCredentials: options.withCredentials,
     });
+  }
+
+  getFile(path: string, options: ApiOptions = {}): Observable<HttpResponse<Blob>> {
+    return this.http.get(this.url(path, options.baseUrl), {
+      headers: this.buildHeaders({ Accept: 'application/octet-stream', ...options.headers }),
+      params: this.buildParams(options.params), context: options.context,
+      withCredentials: options.withCredentials, responseType: 'blob', observe: 'response',
+    }).pipe(catchError((error: unknown) => {
+      if (error instanceof HttpErrorResponse && error.error instanceof Blob && error.error.type.includes('json')) {
+        return from(error.error.text()).pipe(mergeMap((text) => {
+          let problem: unknown;
+          try { problem = JSON.parse(text); } catch { return throwError(() => error); }
+          return throwError(() => new HttpErrorResponse({ error: problem, status: error.status, statusText: error.statusText, headers: error.headers, url: error.url ?? undefined }));
+        }));
+      }
+      return throwError(() => error);
+    }));
   }
 
   post<TResponse, TBody = unknown>(
@@ -80,6 +97,7 @@ export class ApiClient {
 
   delete<T>(path: string, options: ApiOptions = {}): Observable<T> {
     return this.http.delete<T>(this.url(path, options.baseUrl), {
+      body: options.body,
       headers: this.buildHeaders(options.headers),
       params: this.buildParams(options.params),
       context: options.context,
