@@ -16,14 +16,18 @@ import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-de
 import { FlockMortalitiesService } from '../../services/flock-mortalities.service';
 import { buildMortalityRequest } from '../../services/mortality-record-form';
 import { MortalityLoadState } from '../../types/mortality-state.type';
+import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
 
 @Component({
   selector: 'app-flock-mortalities-page',
   imports: [RouterLink, IonIcon, IonSpinner, FlockMortalitySectionComponent],
   templateUrl: './flock-mortalities.page.html',
   styleUrl: './flock-mortalities.page.scss',
+  providers: [FlockHouseTaskContext],
 })
 export class FlockMortalitiesPage {
+  readonly houseTask = inject(FlockHouseTaskContext);
+  readonly houseMismatch = computed(() => !this.houseTask.matches(this.flock()));
   private readonly route = inject(ActivatedRoute);
   private readonly detail = inject(FlockDetailService);
   private readonly mortalitiesApi = inject(FlockMortalitiesService);
@@ -55,7 +59,7 @@ export class FlockMortalitiesPage {
   readonly cancelledSequence = signal(0);
   readonly unitName = computed(() => this.unitContext.units()
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
-  readonly backLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
+  readonly backLink = computed(() => this.houseTask.backLink() ?? `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly statusText = computed(() => this.flock()
     ? { active: 'Activo', quarantined: 'En cuarentena', finished: 'Finalizado' }[this.flock()!.status] : '');
 
@@ -91,7 +95,7 @@ export class FlockMortalitiesPage {
         if (version !== this.loadVersion) return;
         this.flock.set(flock);
         this.state.set('ready');
-        this.loadHistory();
+        if (!this.houseTask.isTask()) this.loadHistory();
         this.productionUnits.getPoultryHouseById(flock.poultry_house_id)
           .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
             next: (response) => { if (version === this.loadVersion) this.houseName.set(response.data.name); },
@@ -117,7 +121,7 @@ export class FlockMortalitiesPage {
 
   saveMortality(submission: MortalitySubmission): void {
     const flock = this.flock();
-    if (!flock || this.saving() || this.cancelling()) return;
+    if (!flock || this.saving() || this.cancelling() || this.houseMismatch() || flock.status === 'finished') return;
     this.clearSaveErrors();
     const { draft, excessConfirmation } = submission;
     if (draft.quantity > Math.max(0, flock.current_quantity)
@@ -141,7 +145,8 @@ export class FlockMortalitiesPage {
         this.flock.update((current) => current ? { ...current, ...response.flock } : null);
         this.success.set('Mortalidad registrada.');
         this.savedSequence.update((sequence) => sequence + 1);
-        this.loadHistory();
+        if (this.houseTask.isTask()) this.houseTask.returnToHouse('Mortalidad registrada.');
+        else this.loadHistory();
       },
       error: (error: unknown) => {
         if (version !== this.saveVersion) return;

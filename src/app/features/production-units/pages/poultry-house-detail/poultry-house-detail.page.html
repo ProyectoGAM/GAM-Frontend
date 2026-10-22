@@ -65,6 +65,7 @@
 
     @if (deleteError()) { <p class="feedback error" role="alert">{{ deleteError() }}</p> }
     @if (statusError()) { <p class="feedback error" role="alert">{{ statusError() }}</p> }
+    @if (taskMessage) { <p class="feedback task-feedback" role="status">{{ taskMessage }}</p> }
 
     <section class="unit-card" aria-label="Unidad productiva donde está alojada">
       <span class="unit-symbol" aria-hidden="true"><ion-icon name="business-outline" /></span>

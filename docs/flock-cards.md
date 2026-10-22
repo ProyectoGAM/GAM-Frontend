@@ -36,7 +36,30 @@ interfaz `HouseFlock` incluye `entry_date` e `is_grouped` de ese contrato.
 Las páginas coordinan consultas y cancelación; el componente no accede a la API.
 No se modifican backend, dependencias ni configuración nativa.
 
-Validación: lint, 614 pruebas en 91 archivos y build aprobados dentro de Docker.
+## Tareas desde el galpón
+
+En el detalle del galpón, cuando hay un único lote alojado, la tarjeta conserva
+sus datos y agrega tres accesos: Registrar pesaje, Registrar mortalidad y Cambiar
+ración. Este último usa `leaf-outline`, igual que las plantas de ración. Los
+accesos son hermanos del enlace al detalle: no hay enlaces o botones anidados.
+El listado general de lotes no incorpora estas acciones.
+
+Los enlaces incluyen el origen validado y `task=entry`. Pesajes abre el ingreso
+directamente y permite continuar después de cada pesada. Mortalidad abre su
+formulario existente y Alimentación su editor vigente; ambos regresan al mismo
+galpón al cerrar o guardar. Las consultas de gráficas e historiales se omiten
+en este recorrido. El regreso tras guardar vuelve a consultar los datos del
+galpón y muestra una confirmación. El encabezado, los botones administrativos,
+la unidad productiva y capacidad/ocupación conservan su composición actual.
+
+El contexto de navegación no concede permisos. Las páginas verifican que la
+asignación consultada del lote coincida con UP y galpón de origen antes de
+permitir el registro; si cambió, solicitan volver al galpón. Los lotes
+finalizados no admiten nuevas tareas. Una relación inesperada con varios lotes
+no elige el primero para mostrar acciones. Se conservan las validaciones,
+confirmaciones y errores de los formularios y la autorización de la API.
+
+Validación: lint, 629 pruebas en 93 archivos y build aprobados dentro de Docker.
 Se comprobaron Listado → PESAJE-TEST → Listado y Galpón Test Pesaje → PESAJE-TEST
 → Galpón Test Pesaje (UP 1, galpón 15), también conservando el origen al recargar
 y pasar por el plan de manejo. Las pruebas cubren enlaces de las cards,
@@ -46,3 +69,13 @@ real cero frente a carga/error, consultas progresivas con concurrencia limitada
 y la integración de la card en el galpón. Revisión con datos reales en ambos
 listados, en móvil y escritorio y temas claro/oscuro. El build conserva los
 avisos SCSS/CommonJS existentes.
+
+Los accesos del galpón se revisaron en el navegador integrado con PESAJE-TEST
+(UP 1, galpón 15) y LOT-FEED-TEST (UP 1, galpón 18): ingreso individual/grupal,
+validación sin peso, apertura del registro de mortalidad, cancelación/regreso,
+apertura del editor de alimentación, cambio visual de modo y cierre/regreso.
+También se verificó el aviso cuando no existe configuración de alimentación.
+Estas comprobaciones de navegador no guardaron registros de negocio. Los
+guardados y la protección frente a un lote trasladado se cubren con pruebas.
+Se revisaron 320 y 390 px y escritorio a 1280 px, temas claro/oscuro, foco,
+targets de 60 px, hoja `leaf-outline` y ausencia de desbordamiento horizontal.

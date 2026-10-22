@@ -1,5 +1,5 @@
 <section class="weighings-page" aria-labelledby="weighings-title">
-  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote</a>
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ houseTask.backLabel() }}</a>
 
   @if (flockState() === 'loading') {
     <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando pesajes…</div>
@@ -11,6 +11,8 @@
       @else { <p>No se pudo cargar el lote.</p> }
       <button type="button" (click)="load()">Reintentar</button>
     </div>
+  } @else if (houseMismatch()) {
+    <div class="page-state" role="alert"><h1 id="weighings-title">El lote cambió de galpón</h1><p>Volvé al galpón para consultar el lote alojado actualmente.</p></div>
   } @else {
     <header class="page-heading">
       <p class="breadcrumb">Lotes <span aria-hidden="true">/</span> {{ flock()?.code }} <span aria-hidden="true">/</span> Pesajes</p>
@@ -18,12 +20,14 @@
       <p>{{ flock()?.code }}</p>
     </header>
 
+    @if (!houseTask.isTask()) {
     <div class="tabs" role="tablist" aria-label="Secciones de pesajes">
       <button type="button" role="tab" id="summary-tab" [attr.aria-selected]="tab() === 'summary'"
         [class.active]="tab() === 'summary'" aria-controls="summary-panel" (click)="setTab('summary')">Gráficas</button>
       <button type="button" role="tab" id="entry-tab" [attr.aria-selected]="tab() === 'entry'"
         [class.active]="tab() === 'entry'" aria-controls="entry-panel" (click)="setTab('entry')">Pesaje</button>
     </div>
+    }
 
     @if (tab() === 'summary') {
       <div id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
@@ -158,7 +162,7 @@
         }
       </div>
     } @else {
-      <div id="entry-panel" role="tabpanel" aria-labelledby="entry-tab">
+      <div id="entry-panel" [attr.role]="houseTask.isTask() ? null : 'tabpanel'" [attr.aria-labelledby]="houseTask.isTask() ? 'entry-title' : 'entry-tab'">
         <div class="entry-grid">
           <section class="card entry-card" aria-labelledby="entry-title">
             <div class="card-heading">
@@ -173,7 +177,8 @@
               <button type="button" [class.active]="entryMode() === 'individual'" [attr.aria-pressed]="entryMode() === 'individual'" (click)="setEntryMode('individual')">Individual</button>
               <button type="button" [class.active]="entryMode() === 'group'" [attr.aria-pressed]="entryMode() === 'group'" (click)="setEntryMode('group')">Grupal</button>
             </div>
-            <fieldset [disabled]="todayState() !== 'ready' || savingEntry()">
+            @if (flock()?.status === 'finished') { <p class="availability-note">Este lote ya no admite nuevos pesajes.</p> }
+            <fieldset [disabled]="todayState() !== 'ready' || savingEntry() || flock()?.status === 'finished'">
               @if (entryMode() === 'individual') {
                 <label>Peso del ave (g)<input type="text" inputmode="decimal" autocomplete="off" [formControl]="individualWeight" /></label>
                 <button type="button" class="primary-button" (click)="submitEntry()">{{ savingEntry() ? 'Guardando…' : 'Agregar ave' }}</button>
