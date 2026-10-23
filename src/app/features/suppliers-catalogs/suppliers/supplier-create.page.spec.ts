@@ -1,11 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { GeographyDepartment, GeographyLocality } from '../../production-units/interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
 import { SuppliersApi } from './suppliers.api';
+import { SupplierFormComponent } from './components/supplier-form/supplier-form.component';
 import { Supplier } from './suppliers.models';
 import { SupplierCreatePage } from './supplier-create.page';
 
@@ -42,7 +44,7 @@ describe('Supplier create page', () => {
   it('loads geography through ProductionUnitsService and creates without an invented locality ID', async () => {
     const { fixture, create, departmentsRequest, navigateByUrl } = createFixture();
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.form.setValue({ name: '  Distribuidora Sur  ', address: '  Ruta 8 km 28  ' });
 
     await page.submit();
@@ -53,8 +55,6 @@ describe('Supplier create page', () => {
     expect(navigateByUrl).toHaveBeenCalledWith('/administracion/proveedores/proveedores', {
       state: { supplierCreated: true },
     });
-    expect((fixture.nativeElement as HTMLElement).querySelector('a[routerlink]')?.getAttribute('href'))
-      .toBe('/administracion/proveedores/proveedores');
     fixture.destroy();
   });
 
@@ -72,10 +72,10 @@ describe('Supplier create page', () => {
     const locality = host.querySelector('#supplier-locality') as HTMLSelectElement;
     locality.value = '603';
     locality.dispatchEvent(new Event('change', { bubbles: true }));
-    fixture.componentInstance.form.setValue({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28' });
-    await fixture.componentInstance.submit();
+    (fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent).form.setValue({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28' });
+    await (fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent).submit();
 
-    expect(fixture.componentInstance.selectedLocalityId()).toBe(603);
+    expect((fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent).selectedLocalityId()).toBe(603);
     expect(create).toHaveBeenCalledWith({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28', locality_id: 603 });
     fixture.destroy();
   });
@@ -87,7 +87,7 @@ describe('Supplier create page', () => {
     })));
     const { fixture } = createFixture(create);
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.form.setValue({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28' });
 
     await page.submit();
@@ -101,12 +101,12 @@ describe('Supplier create page', () => {
   });
 
   it('provides a cancel path back to the supplier list', async () => {
-    const { fixture } = createFixture();
+    const { fixture, navigateByUrl } = createFixture();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('a[routerlink]')?.getAttribute('href'))
-      .toBe('/administracion/proveedores/proveedores');
+    (fixture.nativeElement.querySelector('.button.secondary') as HTMLButtonElement).click();
+    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/proveedores/proveedores');
     fixture.destroy();
   });
 });

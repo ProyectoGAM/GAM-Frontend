@@ -1,13 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
-import { AlertController } from '@ionic/angular';
-import { of } from 'rxjs';
+import { AlertController, IonModal } from '@ionic/angular';
+import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import { PoultryHouseDetail } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
 import { PoultryHouseDetailPage } from './poultry-house-detail.page';
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
+import { AuthStore } from '../../../../core/auth/auth.store';
+import { FeedAdjustmentService } from '../../services/feed-adjustment.service';
 
 describe('PoultryHouseDetailPage', () => {
   let fixture: ComponentFixture<PoultryHouseDetailPage>;
@@ -59,6 +62,8 @@ describe('PoultryHouseDetailPage', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: '7', houseId: '22' }) } } },
         { provide: ProductionUnitsService, useValue: { getPoultryHouseById, houseFlocks, feedStock, inventoryIngredients, createFeedIngredient, updatePoultryHouseStatus } },
         { provide: AlertController, useValue: { create: alertCreate } },
+        { provide: AuthStore, useValue: { user: () => ({ id: 1 }), session: () => null } },
+        { provide: FeedAdjustmentService, useValue: { readPending: () => null } },
       ],
     });
   });
@@ -162,7 +167,7 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.querySelector('.back-link')?.getAttribute('href'))
       .toBe('/administracion/unidades-productivas/7');
     expect(fixture.nativeElement.textContent).toContain('Stock de ingredientes');
-    expect(fixture.nativeElement.querySelector('.add-trigger')?.getAttribute('aria-label')).toBe('Agregar ingrediente');
+    expect(fixture.nativeElement.querySelector('.product-trigger')?.textContent).toContain('Agregar Producto');
     expect(fixture.nativeElement.textContent).not.toContain('Ubicación');
   });
 
@@ -181,20 +186,24 @@ describe('PoultryHouseDetailPage', () => {
     expect(navigate).toHaveBeenCalledWith(['/administracion/unidades-productivas', 7, 'galpon', 22, 'elaborar']);
   });
 
-  it('opens the ingredient form from the header plus, exposes its state and cancels without writing stock', async () => {
+  it('opens the product modal above Elaborar and cancels without writing stock', async () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
     render();
-    const trigger = fixture.nativeElement.querySelector('.section-heading button') as HTMLButtonElement;
-    expect(trigger.getAttribute('aria-label')).toBe('Agregar ingrediente');
+    const trigger = fixture.nativeElement.querySelector('.product-trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Agregar Producto');
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(fixture.nativeElement.querySelector('.ingredient-form')).toBeNull();
     trigger.click(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     expect(inventoryIngredients).toHaveBeenCalledOnce();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    expect(trigger.getAttribute('aria-controls')).toBe('ingredient-form');
-    expect(trigger.getAttribute('aria-label')).toBe('Cerrar formulario de ingrediente');
+    expect(trigger.getAttribute('aria-controls')).toBe('ingredient-modal');
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger.textContent).toContain('Agregar Producto');
+    const modal = fixture.debugElement.query(By.directive(IonModal));
+    expect(modal.componentInstance.isOpen).toBe(true);
     const form = fixture.nativeElement.querySelector('.ingredient-form') as HTMLFormElement;
-    expect(form.nextElementSibling?.querySelector('.manufacture-button')).not.toBeNull();
+    expect(form.closest('ion-modal')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.stock-layout .ingredient-form')).toBeNull();
     const cancel = form.querySelector('ion-button[type="button"]') as HTMLElement;
     expect(cancel.textContent).toContain('Cancelar');
     cancel.click(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
@@ -202,6 +211,57 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.querySelector('.ingredient-form')).toBeNull();
     expect(createFeedIngredient).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('shows both stock actions above Elaborar and opens the adjustment modal without catalog or stock writes', async () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
+    render();
+    const actions = fixture.nativeElement.querySelector('.stock-actions') as HTMLElement;
+    expect(actions.textContent).toContain('Agregar Producto');
+    expect(actions.textContent).toContain('Ajustar Stock');
+    expect(actions.nextElementSibling?.querySelector('.manufacture-button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.add-trigger')).toBeNull();
+    const stockRequests = feedStock.mock.calls.length;
+    (actions.querySelector('.adjustment-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    const modal = fixture.debugElement.query(By.css('#stock-adjustment-modal'));
+    expect(modal.componentInstance.isOpen).toBe(true);
+    expect(modal.nativeElement.textContent).toContain('Esta planta no tiene materias primas registradas para ajustar.');
+    expect(inventoryIngredients).not.toHaveBeenCalled();
+    expect(createFeedIngredient).not.toHaveBeenCalled();
+    expect(feedStock).toHaveBeenCalledTimes(stockRequests);
+    (modal.nativeElement.querySelector('button[aria-label="Cerrar ajuste de stock"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(modal.componentInstance.isOpen).toBe(false);
+    modal.triggerEventHandler('didDismiss', undefined);
+    expect(document.activeElement).toBe(actions.querySelector('.adjustment-trigger'));
+  });
+
+  it('keeps the modal open while saving and synchronizes dismissal without reopening it after success', async () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
+    inventoryIngredients.mockReturnValue(of([
+      { id: 2, sku: 'SOJA-1', name: 'Harina de soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true },
+    ]));
+    const response = new Subject<object>();
+    createFeedIngredient.mockReturnValue(response);
+    render();
+    fixture.componentInstance.toggleIngredientForm();
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    const modal = fixture.debugElement.query(By.directive(IonModal));
+    fixture.componentInstance.ingredientForm.setValue({ productId: 2, quantity: '50', unit: 'kg' });
+    fixture.componentInstance.addIngredient(); fixture.detectChanges();
+    expect(modal.componentInstance.canDismiss).toBe(false);
+    fixture.componentInstance.toggleIngredientForm();
+    expect(fixture.componentInstance.ingredientFormOpen()).toBe(true);
+    response.next({}); fixture.detectChanges();
+    expect(modal.componentInstance.isOpen).toBe(false);
+    expect(modal.componentInstance.canDismiss).toBe(true);
+    modal.triggerEventHandler('didDismiss'); fixture.detectChanges();
+    expect(fixture.componentInstance.ingredientFormOpen()).toBe(false);
+    expect(createFeedIngredient).toHaveBeenCalledOnce();
+    fixture.componentInstance.toggleIngredientForm(); fixture.detectChanges();
+    modal.triggerEventHandler('didDismiss'); fixture.detectChanges();
+    expect(fixture.componentInstance.ingredientFormOpen()).toBe(false);
   });
 
   it('disables Elaborar for nonoperational plants and explains why', () => {

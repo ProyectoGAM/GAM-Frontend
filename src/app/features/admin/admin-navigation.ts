@@ -156,8 +156,14 @@ export function firstVisibleAdminPath(user: (Pick<AuthUser, 'roles'> & Partial<P
 }
 
 export function activeAdminGroup(path: string): AdminGroup | null {
-  const groupId = path.split('?')[0]?.split('/')[2];
-  if (groupId === 'ubicaciones' && path.split('?')[0]?.split('/')[3] === 'unidades-productivas') {
+  const segments = path.split(/[?#]/)[0]?.split('/') ?? [];
+  const groupId = segments[2];
+  const isLegacyUnitRoute = groupId === 'ubicaciones' && segments[3] === 'unidades-productivas';
+  if (groupId === 'unidades-productivas' || isLegacyUnitRoute) {
+    const unitIndex = isLegacyUnitRoute ? 4 : 3;
+    if (segments[unitIndex + 1] === 'galpon' && segments[unitIndex + 2]) {
+      return 'ubicaciones';
+    }
     return 'unidades-productivas';
   }
   return ADMIN_NAVIGATION.find((group) => group.id === groupId)?.id ?? null;

@@ -94,8 +94,10 @@
       />
     } @else {
       <app-feed-stock-detail
+        [plantId]="currentHouse.id"
         [canManufacture]="currentHouse.status === 'operational'"
         (manufacture)="elaborate()"
+        (adjusted)="retryRelated()"
         [rows]="stockRows()"
         [state]="feedStockState()"
         [formOpen]="ingredientFormOpen()"

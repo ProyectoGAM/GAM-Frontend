@@ -1,21 +1,24 @@
-import { Component, inject, signal, ViewChild } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, computed, ElementRef, inject, signal, ViewChild, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
+import { IonIcon, IonModal } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { addOutline, closeOutline, createOutline, locationOutline, powerOutline, searchOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 
 import { InventoryConfirmationDialogComponent } from '../../inventory/components/confirmation-dialog/confirmation-dialog.component';
 import { Supplier, SupplierListFilters, SupplierListResponse, SupplierStatus } from './suppliers.models';
 import { SuppliersApi } from './suppliers.api';
+import { SupplierFormComponent } from './components/supplier-form/supplier-form.component';
 
 type PageState = 'loading' | 'empty' | 'success' | 'error';
 
 const PAGE_SIZE = 25;
-const SUPPLIERS_PATH = '/administracion/proveedores/proveedores';
 
 @Component({
   selector: 'app-suppliers-list',
   templateUrl: './suppliers-list.page.html',
   styleUrl: './suppliers-list.page.scss',
-  imports: [InventoryConfirmationDialogComponent, RouterLink],
+  imports: [InventoryConfirmationDialogComponent, IonIcon, IonModal, SupplierFormComponent],
 })
 export class SuppliersListPage {
   private readonly api = inject(SuppliersApi);
@@ -30,9 +33,27 @@ export class SuppliersListPage {
   readonly statusMutation = signal<'idle' | 'submitting' | 'error'>('idle');
   readonly statusChangeError = signal<string | null>(null);
   readonly statusFeedback = signal<string | null>(null);
+  readonly editor = signal<{ supplier: Supplier | null } | null>(null);
+  readonly editorOpen = signal(false);
+  readonly editorBusy = signal(false);
+  readonly editorTitle = computed(() => this.editor()?.supplier ? 'Editar proveedor' : 'Nuevo proveedor');
+  private readonly editorHeading = viewChild<ElementRef<HTMLHeadingElement>>('editorHeading');
   readonly search = signal('');
-  readonly status = signal<SupplierStatus | ''>('');
-  readonly filters = signal<SupplierListFilters>({ per_page: PAGE_SIZE });
+  readonly status = signal<SupplierStatus | ''>('active');
+  readonly filters = signal<SupplierListFilters>({ status: 'active', per_page: PAGE_SIZE });
+  readonly resultSummary = computed(() => {
+    const total = this.meta()?.total ?? 0;
+    const plural = total !== 1;
+    const status = this.filters().status;
+    const qualifier = status === 'active' ? (plural ? ' activos' : ' activo')
+      : status === 'inactive' ? (plural ? ' inactivos' : ' inactivo') : '';
+    return `${total} ${plural ? 'proveedores' : 'proveedor'}${qualifier}`;
+  });
+  readonly emptyMessage = computed(() => this.filters().search
+    ? 'No hay proveedores que coincidan con la búsqueda.'
+    : this.filters().status === 'active' ? 'No hay proveedores activos para mostrar.'
+      : this.filters().status === 'inactive' ? 'No hay proveedores inactivos para mostrar.'
+        : 'No hay proveedores para mostrar.');
   readonly createdFeedback = signal(
     this.router.getCurrentNavigation()?.extras.state?.['supplierCreated'] === true,
   );
@@ -42,6 +63,7 @@ export class SuppliersListPage {
   @ViewChild(InventoryConfirmationDialogComponent) private statusDialog!: InventoryConfirmationDialogComponent;
 
   constructor() {
+    addIcons({ addOutline, closeOutline, createOutline, locationOutline, powerOutline, searchOutline });
     void this.load();
   }
 
@@ -52,6 +74,10 @@ export class SuppliersListPage {
     try {
       const response = await firstValueFrom(this.api.list(filters, page));
       if (requestId !== this.requestId) return;
+      if (!response.data.length && page > Math.max(1, response.meta.last_page)) {
+        await this.load(Math.max(1, response.meta.last_page), filters);
+        return;
+      }
       this.suppliers.set(response.data);
       this.meta.set(response.meta);
       this.state.set(response.data.length ? 'success' : 'empty');
@@ -73,8 +99,8 @@ export class SuppliersListPage {
 
   clearFilters(): void {
     this.search.set('');
-    this.status.set('');
-    this.filters.set({ per_page: PAGE_SIZE });
+    this.status.set('active');
+    this.filters.set({ status: 'active', per_page: PAGE_SIZE });
     void this.load(1);
   }
 
@@ -95,7 +121,36 @@ export class SuppliersListPage {
   }
 
   editSupplier(supplier: Supplier): void {
-    void this.router.navigate([SUPPLIERS_PATH, supplier.id, 'editar'], { state: { supplier } });
+    this.openEditor(supplier);
+  }
+
+  openEditor(supplier: Supplier | null = null): void {
+    if (this.editor()) return;
+    this.editor.set({ supplier });
+    this.editorOpen.set(true);
+  }
+
+  closeEditor(): void {
+    if (!this.editorBusy()) this.editorOpen.set(false);
+  }
+
+  editorPresented(): void {
+    this.editorHeading()?.nativeElement.focus();
+  }
+
+  editorDismissed(): void {
+    this.editorOpen.set(false);
+    this.editor.set(null);
+    this.editorBusy.set(false);
+  }
+
+  editorSaved(): void {
+    const editing = !!this.editor()?.supplier;
+    this.createdFeedback.set(!editing);
+    this.updatedFeedback.set(editing);
+    this.statusFeedback.set(null);
+    this.closeEditor();
+    void this.load(this.meta()?.current_page ?? 1);
   }
 
   requestStatusChange(event: Event, supplier: Supplier): void {

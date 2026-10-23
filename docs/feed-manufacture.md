@@ -1,10 +1,34 @@
 # Elaborar desde una planta de ración
 
-El detalle de una planta muestra un botón **+** junto a **Stock de ingredientes**,
-con nombre accesible y ayuda “Agregar ingrediente”. Abre un formulario debajo de
-la lista, con título y Cancelar; el botón pasa a cerrar (×) mientras está abierto.
-El foco va al título del formulario al abrir y vuelve al botón al cerrar.
-**Elaborar** queda al final, debajo del formulario cuando está abierto.
+Debajo de la lista de ingredientes se muestran **Agregar Producto** y **Ajustar
+Stock**, encima de **Elaborar**. El primero abre un modal Ionic adaptable con el
+formulario actual de ingredientes, los errores y los estados del catálogo.
+**Ajustar Stock** abre un modal para seleccionar una materia prima ya registrada,
+ingresar kg y elegir **Sumar**, **Restar** o **Fijar stock** desde un selector
+de operación, con vista previa. Operación y cantidad comparten fila desde 360 px;
+en teléfonos más angostos se apilan para conservar controles legibles.
+El motivo es obligatorio por contrato. Las cantidades admiten coma o punto y hasta
+tres decimales de kg; establecer permite cero, sumar/restar exigen un valor positivo.
+Se conservan los seis decimales de gramos de los saldos existentes mediante BigInt.
+Se rechazan resultados negativos o fuera del rango del inventario.
+
+El guardado usa `POST plantas-racion/{planta}/ingredientes/{producto}/ajustes`,
+definido en `contracts/openapi/feed-recipes.yaml`, con `{accion, valor_g, motivo}`
+y `Idempotency-Key`. Requiere una planta operativa; el servidor verifica producto,
+estado, saldo y contexto de autenticación. Todavía no exige un permiso funcional
+específico. No usa los ajustes genéricos de Inventario ni modifica alimento.
+La vista previa utiliza el saldo consultado; el servidor aplica sumar/restar al saldo
+vigente y devuelve el resultado real, que se muestra tras guardar y refrescar el stock.
+
+Durante el envío se bloquean edición, doble submit y cierre. Si la respuesta es
+incierta (red/timeout/5xx), se conserva exactamente el cuerpo y la clave originales
+para reintentar sin duplicar el movimiento. El pendiente se guarda en memoria y
+sessionStorage por usuario/sesión/planta, sin secretos, y se recupera al reabrir o
+recargar; cambiar identidad descarta el pendiente abierto y las respuestas tardías.
+Los rechazos definitivos permiten corregir; 409/404 también actualizan el stock.
+Se cierra con Cancelar, ×, Escape o el fondo; durante el guardado se bloquea el
+cierre. El foco va al título al abrir y vuelve al botón al cerrar.
+**Elaborar** queda al final de la lista de ingredientes.
 Conserva los controles de editar, estado y eliminar. La
 acción requiere una planta operativa; su ruta comprueba el tipo y la pertenencia
 a la UP. El servidor sigue siendo la autoridad para permisos, estado y stock.
@@ -58,6 +82,25 @@ estado y conexión se presentan dentro del flujo.
 No hay cambios de plugins, configuración o integraciones nativas. Se utilizan
 controles Ionic, el scroll existente de `ion-content`, áreas seguras y tokens
 GAM compartidos para claro y oscuro.
+
+## Verificación del ajuste de ingredientes — 23/10/2026
+
+Lint y build de producción aprobados en Docker. La suite completa pasó con
+700 pruebas en 102 archivos usando dos procesos de Vitest para evitar la
+saturación local; la configuración temporal no modifica la del proyecto.
+La auditoría de dependencias de producción no detectó vulnerabilidades.
+
+El navegador integrado comprobó las tres vistas previas (120 kg con 25 kg da
+145, 95 o 25 kg), rechazo de saldo negativo y motivo vacío, apertura/cierre,
+Escape y retorno del foco. Se revisaron 320, 390 y 1280 px, claro y oscuro, sin
+desbordamiento horizontal ni errores de consola. El modal permite scroll cuando
+su contenido supera el alto disponible.
+
+Se registró contra la API local un ajuste `establecer` de 120 kg sobre los
+120 kg existentes, con motivo explícito de verificación. La respuesta confirmó
+el registro y la recarga mantuvo Maíz en 120 kg y Soja en 150 kg. Queda el
+historial de esa prueba sin modificar las existencias. No se probó dispositivo
+Android/iOS físico.
 
 ## Verificación local del 22/10/2026
 
