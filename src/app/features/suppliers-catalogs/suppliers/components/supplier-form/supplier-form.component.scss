@@ -1,0 +1,21 @@
+:host { display: block; color: var(--gam-color-text); font-size: 1rem; }
+.supplier-form { display: grid; gap: 16px; }
+.field { display: grid; align-content: start; min-width: 0; gap: 7px; }
+label { color: var(--gam-color-heading); font-weight: 600; font-size: .875rem; }
+.optional, .field-hint { color: var(--gam-color-text-muted); font-size: .8125rem; font-weight: 400; line-height: 1.45; }
+input, select, textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
+textarea { resize: vertical; }
+input:read-only, select:disabled, textarea:read-only { opacity: .65; }
+.field-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.field-error { color: var(--gam-color-danger); font-size: .875rem; }
+.feedback.error { margin: 0 0 16px; padding: 12px; border-radius: 8px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); line-height: 1.5; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.button { box-sizing: border-box; display: inline-flex; flex: 1 1 160px; min-height: 46px; align-items: center; justify-content: center; padding: 10px 14px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; color: var(--gam-color-primary); background: var(--gam-color-surface); font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.button.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
+.button:disabled { opacity: .55; cursor: default; }
+.inline-button { min-height: 44px; padding: 6px 10px; border: 1px solid var(--gam-color-control-border); border-radius: 6px; color: var(--gam-color-primary); background: var(--gam-color-surface); font: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+@media (min-width: 640px) {
+  .supplier-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .field:first-child, .field:nth-child(4), .form-actions { grid-column: 1 / -1; }
+}

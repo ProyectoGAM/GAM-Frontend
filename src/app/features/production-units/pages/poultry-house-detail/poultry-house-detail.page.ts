@@ -123,6 +123,7 @@ export class PoultryHouseDetailPage implements OnInit {
         id: item.product_id,
         name: item.product.name,
         sku: item.product.sku,
+        stockGrams: quantity,
         quantity: quantityFormatter.format(unit === 'kg' ? amountInKg : Number(quantity)),
         unit,
         negative: Number(quantity) < 0,
@@ -271,6 +272,7 @@ export class PoultryHouseDetailPage implements OnInit {
   }
 
   toggleIngredientForm(): void {
+    if (this.isAddingIngredient()) return;
     this.ingredientFormOpen.update((open) => !open);
     this.ingredientMessage.set(null);
     if (this.ingredientFormOpen()) this.loadInventoryIngredients();

@@ -1,11 +1,11 @@
 <section class="suppliers-page" aria-labelledby="page-title">
   <header class="page-heading">
     <div>
-      <p class="eyebrow">Proveedores</p>
+      <p class="eyebrow">Administración / Proveedores</p>
       <h1 id="page-title">Proveedores</h1>
-      <p class="lead">Proveedores registrados para la operación.</p>
+      <p class="lead">Gestioná tus proveedores.</p>
     </div>
-    <a class="button primary" routerLink="/administracion/proveedores/proveedores/nuevo">Nuevo proveedor</a>
+    <button class="button primary" type="button" aria-haspopup="dialog" (click)="openEditor()"><ion-icon name="add-outline" aria-hidden="true" />Nuevo proveedor</button>
   </header>
 
   @if (createdFeedback()) {
@@ -20,21 +20,24 @@
 
   <form class="filters card" (submit)="$event.preventDefault(); applyFilters()">
     <div class="field search-field">
-      <label for="supplier-search">Buscar</label>
-      <input #searchInput id="supplier-search" type="search" [value]="search()"
-        (input)="setSearch(searchInput.value)" placeholder="Nombre del proveedor" autocomplete="off">
+      <label for="supplier-search">Buscar proveedor</label>
+      <div class="search-control">
+        <ion-icon name="search-outline" aria-hidden="true" />
+        <input #searchInput id="supplier-search" type="search" [value]="search()"
+          (input)="setSearch(searchInput.value)" placeholder="Nombre del proveedor" autocomplete="off">
+      </div>
     </div>
     <div class="field">
       <label for="supplier-status">Estado</label>
       <select #statusSelect id="supplier-status" [value]="status()" (change)="setStatus(statusSelect.value)">
         <option value="">Todos</option>
-        <option value="active">Activo</option>
-        <option value="inactive">Inactivo</option>
+        <option value="active">Activos</option>
+        <option value="inactive">Inactivos</option>
       </select>
     </div>
     <div class="filter-actions">
       <button class="button primary" type="submit">Buscar</button>
-      <button class="button secondary" type="button" (click)="clearFilters()">Limpiar filtros</button>
+      <button class="button secondary" type="button" (click)="clearFilters()">Restablecer</button>
     </div>
   </form>
 
@@ -47,33 +50,34 @@
     </div>
   }
   @if (state() === 'empty') {
-    <div class="state card"><strong>No hay proveedores para mostrar.</strong></div>
+    <div class="state card"><strong>{{ emptyMessage() }}</strong><p>Podés cambiar los filtros o registrar un nuevo proveedor.</p></div>
   }
   @if (state() === 'success') {
-    <div class="supplier-list" aria-label="Listado de proveedores">
+    <p class="result-summary" role="status">{{ resultSummary() }}</p>
+    <ul class="supplier-list" aria-label="Listado de proveedores">
       @for (supplier of suppliers(); track supplier.id) {
-        <article class="supplier-card card">
+        <li class="supplier-card card">
           <div class="supplier-heading">
             <h2>{{ supplier.name }}</h2>
             <span class="status" [class.inactive]="supplier.status === 'inactive'">{{ statusLabel(supplier.status) }}</span>
           </div>
-          <dl class="supplier-details">
-            <div><dt>Localidad / ubicación</dt><dd>{{ locationLabel(supplier) }}</dd></div>
-            <div><dt>Dirección</dt><dd>{{ supplier.address }}</dd></div>
-          </dl>
-          <div class="supplier-actions">
-            <button class="button secondary" type="button" (click)="editSupplier(supplier)">Editar</button>
-            <button class="button secondary" type="button"
-              [attr.aria-label]="(supplier.status === 'active' ? 'Desactivar proveedor ' : 'Activar proveedor ') + supplier.name"
-              (click)="requestStatusChange($event, supplier)">{{ supplier.status === 'active' ? 'Desactivar' : 'Activar' }}</button>
+          <div class="supplier-details">
+            <p class="supplier-address">{{ supplier.address }}</p>
+            <p class="supplier-location"><ion-icon name="location-outline" aria-hidden="true" /><span>{{ locationLabel(supplier) }}</span></p>
           </div>
-        </article>
+          <div class="supplier-actions">
+            <button class="card-action" type="button" [attr.aria-label]="'Editar proveedor ' + supplier.name" (click)="editSupplier(supplier)"><ion-icon name="create-outline" aria-hidden="true" />Editar</button>
+            <button class="card-action" [class.deactivate]="supplier.status === 'active'" type="button"
+              [attr.aria-label]="(supplier.status === 'active' ? 'Desactivar proveedor ' : 'Activar proveedor ') + supplier.name"
+              (click)="requestStatusChange($event, supplier)"><ion-icon name="power-outline" aria-hidden="true" />{{ supplier.status === 'active' ? 'Desactivar' : 'Activar' }}</button>
+          </div>
+        </li>
       }
-    </div>
+    </ul>
     <nav class="pagination" aria-label="Paginación de proveedores">
       <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page <= 1"
         (click)="load(meta()!.current_page - 1)">Anterior</button>
-      <span aria-live="polite">Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} proveedores</span>
+      <span aria-live="polite">Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span>
       <button class="button secondary" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page"
         (click)="load(meta()!.current_page + 1)">Siguiente</button>
     </nav>
@@ -88,3 +92,21 @@
     (dismissed)="dismissStatusChange()">
   </app-inventory-confirmation-dialog>
 </section>
+
+<ion-modal class="supplier-editor-modal" [isOpen]="editorOpen()" [canDismiss]="!editorBusy()" [keepContentsMounted]="true"
+  (didPresent)="editorPresented()" (didDismiss)="editorDismissed()" aria-labelledby="supplier-editor-title" aria-describedby="supplier-editor-description">
+  <ng-template>
+    @if (editor(); as current) {
+      <div class="supplier-editor-dialog">
+        <header class="editor-heading">
+          <h2 id="supplier-editor-title" #editorHeading tabindex="-1">{{ editorTitle() }}</h2>
+          <button class="editor-close" type="button" aria-label="Cerrar formulario de proveedor" [disabled]="editorBusy()" (click)="closeEditor()">
+            <ion-icon name="close-outline" aria-hidden="true" />
+          </button>
+        </header>
+        <p id="supplier-editor-description">{{ current.supplier ? 'Actualizá los datos del proveedor.' : 'Completá los datos del proveedor.' }} La localidad es opcional.</p>
+        <app-supplier-form [supplier]="current.supplier" (busyChanged)="editorBusy.set($event)" (saved)="editorSaved()" (cancelled)="closeEditor()" />
+      </div>
+    }
+  </ng-template>
+</ion-modal>

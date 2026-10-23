@@ -16,6 +16,8 @@ export interface Supplier {
   updated_at: string;
 }
 
+export type SupplierEditSeed = Pick<Supplier, 'id' | 'name' | 'address' | 'locality'>;
+
 export interface SupplierListFilters {
   search?: string;
   status?: SupplierStatus;

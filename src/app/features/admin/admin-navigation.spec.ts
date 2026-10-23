@@ -373,6 +373,27 @@ describe('admin navigation visibility', () => {
     expect(activeAdminGroup('/auth')).toBeNull();
   });
 
+  it.each([
+    '/administracion/unidades-productivas/1/galpon/10',
+    '/administracion/unidades-productivas/1/galpon/11?tab=ingredientes',
+    '/administracion/unidades-productivas/1/galpon/10/editar',
+    '/administracion/unidades-productivas/1/galpon/11/elaborar#cantidad',
+    '/administracion/ubicaciones/unidades-productivas/1/galpon/10',
+    '/administracion/ubicaciones/unidades-productivas/1/galpon/11/elaborar',
+  ])('selects Instalaciones for facility route %s', (path) => {
+    expect(activeAdminGroup(path)).toBe('ubicaciones');
+  });
+
+  it.each([
+    '/administracion/unidades-productivas/1',
+    '/administracion/unidades-productivas/1/editar',
+    '/administracion/unidades-productivas/nueva',
+    '/administracion/ubicaciones/unidades-productivas/1',
+    '/administracion/unidades-productivas/1?returnTo=/galpon/10',
+  ])('keeps Unidades productivas selected for unit route %s', (path) => {
+    expect(activeAdminGroup(path)).toBe('unidades-productivas');
+  });
+
   it('redirects the empty panel URL to the first visible route', () => {
     TestBed.configureTestingModule({
       providers: [
