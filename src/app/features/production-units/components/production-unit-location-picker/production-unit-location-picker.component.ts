@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, map, of, switchMap, timer } from 'rxjs';
-import mapboxgl from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl/esm';
 import type { Map as MapboxMap, MapMouseEvent, Marker as MapboxMarker } from 'mapbox-gl';
 
 import { MAPBOX_ACCESS_TOKEN } from '../../../../core/config/mapbox.config';

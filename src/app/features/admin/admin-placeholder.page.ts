@@ -4,7 +4,7 @@ import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle } from 
 
 @Component({
   selector: 'app-admin-placeholder',
-  template: `<div class="heading"><div><p>Panel administrativo / {{ groupLabel }}</p><h1>{{ title }}</h1></div><span>Módulo pendiente de implementación</span></div><ion-card><ion-card-header><ion-card-title>{{ title }}</ion-card-title></ion-card-header><ion-card-content><p>Módulo pendiente de implementación.</p><ion-button fill="outline" routerLink="/home">Volver al inicio</ion-button></ion-card-content></ion-card>`,
+  template: `<div class="heading"><div><p>Panel administrativo / {{ groupLabel }}</p><h1>{{ title }}</h1></div><span>Módulo pendiente de implementación</span></div><ion-card><ion-card-header><ion-card-title>{{ title }}</ion-card-title></ion-card-header><ion-card-content><p>Módulo pendiente de implementación.</p><ion-button fill="outline" routerLink="/administracion">Volver al panel</ion-button></ion-card-content></ion-card>`,
   styles: [`
     .heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:0 0 22px}
     .heading p{margin:0 0 7px;color:var(--gam-color-text-muted);font-size:12px}

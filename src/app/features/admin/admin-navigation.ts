@@ -61,8 +61,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     icon: 'people-outline',
     section: 'global',
     items: [
-      { label: 'Usuarios', slug: 'usuarios' },
-      { label: 'Nuevo usuario', slug: 'nuevo-usuario' },
+      { label: 'Usuarios', slug: '' },
     ],
   },
   {

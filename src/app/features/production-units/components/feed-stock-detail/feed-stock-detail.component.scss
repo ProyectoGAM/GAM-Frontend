@@ -2,10 +2,19 @@
 .section { margin-top: 24px; }
 h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.section-heading p { margin: 5px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; }
+.section-heading h2 { min-width: 0; }
+.section-description { margin: 5px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; }
+.add-trigger { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid var(--gam-color-control-border); border-radius: 9px; background: var(--gam-color-surface); color: var(--gam-color-primary); cursor: pointer; }
+.add-trigger ion-icon { font-size: 24px; }
+.add-trigger:hover:not(:disabled) { background: var(--gam-color-primary-soft); }
+.add-trigger:disabled { opacity: .55; cursor: default; }
+.add-trigger:focus-visible, .form-heading h3:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 3px; }
 .stock-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 18px; margin-top: 14px; }
-.add-section { display: grid; justify-items: start; gap: 8px; margin-top: 24px; }
-.add-section h3 { margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
+.manufacture-action { display: grid; gap: 10px; }
+.manufacture-button { min-height: 48px; margin: 0; --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); --border-radius: 9px; }
+.form-heading { display: flex; align-items: center; gap: 12px; }
+.form-heading h3 { flex: 1; min-width: 0; margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
+.form-heading ion-button { flex-shrink: 0; margin: 0; }
 .action { min-height: 44px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-primary); }
 .stock-list, .ingredient-form, .empty-card, .inline-state { border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); }
 .stock-list { display: grid; gap: 0; margin-top: 14px; overflow: hidden; }
@@ -28,11 +37,7 @@ h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
 .catalog-state { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--gam-color-text-muted); }
 .catalog-state ion-spinner { color: var(--gam-color-primary); }
 .error-state { justify-content: space-between; }
-@media (max-width: 760px) {
-  .section-heading { align-items: flex-start; }
-}
 @media (max-width: 420px) {
-  .section-heading { display: grid; }
   .stock-row { flex-direction: column; }
   .stock-quantity { justify-items: start; text-align: left; }
   .quantity-fields { grid-template-columns: minmax(0, 1fr) 90px; }

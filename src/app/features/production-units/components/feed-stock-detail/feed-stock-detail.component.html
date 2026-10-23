@@ -1,5 +1,15 @@
 <section class="section" aria-labelledby="stock-title">
-  <div class="section-heading"><div><h2 id="stock-title">Stock de ingredientes</h2><p>Existencias registradas en esta planta de ración.</p></div></div>
+  <div class="section-heading">
+    <h2 id="stock-title">Stock de ingredientes</h2>
+    <button #ingredientTrigger class="add-trigger" type="button"
+      [attr.aria-label]="formOpen() ? 'Cerrar formulario de ingrediente' : 'Agregar ingrediente'"
+      [title]="formOpen() ? 'Cerrar formulario de ingrediente' : 'Agregar ingrediente'"
+      [attr.aria-expanded]="formOpen()" [attr.aria-controls]="formOpen() ? 'ingredient-form' : null"
+      [disabled]="state() !== 'success' || saving()" (click)="toggleForm.emit()">
+      <ion-icon [name]="formOpen() ? 'close-outline' : 'add-outline'" aria-hidden="true" />
+    </button>
+  </div>
+  <p class="section-description">Existencias registradas en esta planta de ración.</p>
   @if (message()) { <p class="feedback" role="status">{{ message() }}</p> }
   <div class="stock-layout">
     <div class="stock-content">
@@ -21,11 +31,12 @@
     </div>
 
     <div class="add-content">
-      <div class="add-section"><h3>Agregar ingrediente</h3>
-        <ion-button class="action" fill="outline" [disabled]="state() !== 'success' || saving()" (click)="toggleForm.emit()">{{ formOpen() ? 'Cancelar' : 'Agregar ingrediente' }}</ion-button>
-      </div>
       @if (formOpen()) {
-        <form class="ingredient-form" [formGroup]="form()" (ngSubmit)="saveIngredient.emit()" aria-label="Agregar ingrediente">
+        <form id="ingredient-form" class="ingredient-form" [formGroup]="form()" (ngSubmit)="saveIngredient.emit()" aria-labelledby="ingredient-form-title">
+          <div class="form-heading">
+            <h3 id="ingredient-form-title" #ingredientFormTitle tabindex="-1">Agregar ingrediente</h3>
+            <ion-button class="action" type="button" fill="outline" [disabled]="saving()" (click)="toggleForm.emit()">Cancelar</ion-button>
+          </div>
           @if (catalogState() === 'loading') {
             <div class="catalog-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /><span>Cargando ingredientes…</span></div>
           } @else if (catalogState() === 'error') {
@@ -51,6 +62,12 @@
           }
         </form>
       }
+      <div class="manufacture-action">
+        <ion-button class="manufacture-button" expand="block" [disabled]="!canManufacture() || saving()" (click)="manufacture.emit()">
+          <ion-icon name="leaf-outline" slot="start" aria-hidden="true" />Elaborar
+        </ion-button>
+        @if (!canManufacture()) { <p class="form-hint">La planta debe estar operativa para elaborar ración.</p> }
+      </div>
     </div>
   </div>
 </section>

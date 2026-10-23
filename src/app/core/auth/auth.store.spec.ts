@@ -7,6 +7,31 @@ import { AuthStore } from './auth.store';
 import { CredentialStorage } from '../native/credential-storage.service';
 
 describe('AuthStore', () => {
+  it('keeps the current identity on a wrong confirmation password, but clears a real unauthorized session', async () => {
+    const user = { id: 1, name: 'Admin', email: 'admin@example.test', roles: ['admin'], permissions: [], deleted_at: null };
+    const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }) };
+    const storage = { isNative: () => false, setMode: async () => undefined, removePersonalToken: async () => undefined };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    await store.login('admin@example.test', 'example-only');
+    const invalid = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_CREDENTIALS' } });
+    store.handleHttpError(invalid, 'https://api.example.test/api/v1/auth/web/confirm-password');
+    store.handleHttpError(invalid, '/api/v1/auth/confirm-password?test=1');
+    expect(store.user()).toEqual(user); expect(store.isAuthenticated()).toBe(true);
+    store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), '/api/v1/auth/web/confirm-password');
+    expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('does not exempt other unauthorized requests with the same error code', async () => {
+    const api = { csrf: async () => undefined, webLogin: () => of({ user: { id: 1, roles: ['admin'] }, session: null }) };
+    const storage = { isNative: () => false, setMode: async () => undefined, removePersonalToken: async () => undefined };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    await store.login('admin@example.test', 'example-only');
+    store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'INVALID_CREDENTIALS' } }), '/api/v1/users');
+    expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
+  });
+
   it('gets a CSRF cookie before web device pairing', async () => {
     const calls: string[] = [];
     const api = {

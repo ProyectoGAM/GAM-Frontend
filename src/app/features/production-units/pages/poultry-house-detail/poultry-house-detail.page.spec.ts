@@ -162,8 +162,53 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.querySelector('.back-link')?.getAttribute('href'))
       .toBe('/administracion/unidades-productivas/7');
     expect(fixture.nativeElement.textContent).toContain('Stock de ingredientes');
-    expect(fixture.nativeElement.textContent).toContain('Agregar ingrediente');
+    expect(fixture.nativeElement.querySelector('.add-trigger')?.getAttribute('aria-label')).toBe('Agregar ingrediente');
     expect(fixture.nativeElement.textContent).not.toContain('Ubicación');
+  });
+
+  it('keeps Elaborar at the end and opens the selected operational plant', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
+    feedStock.mockReturnValue(of({ data: { scope: 'plant', scope_id: 22, items: [
+      { product_id: 1, product: { id: 1, sku: 'MAIZ-1', name: 'Maíz' }, total_g: '1000', is_negative: false, details: [] },
+    ] } }));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    render();
+    const actions = fixture.nativeElement.querySelector('.add-content') as HTMLElement;
+    const button = actions.querySelector('.manufacture-button') as HTMLElement;
+    expect(actions.lastElementChild?.contains(button)).toBe(true);
+    expect(button.textContent).toContain('Elaborar');
+    button.click();
+    expect(navigate).toHaveBeenCalledWith(['/administracion/unidades-productivas', 7, 'galpon', 22, 'elaborar']);
+  });
+
+  it('opens the ingredient form from the header plus, exposes its state and cancels without writing stock', async () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
+    render();
+    const trigger = fixture.nativeElement.querySelector('.section-heading button') as HTMLButtonElement;
+    expect(trigger.getAttribute('aria-label')).toBe('Agregar ingrediente');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('.ingredient-form')).toBeNull();
+    trigger.click(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(inventoryIngredients).toHaveBeenCalledOnce();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.getAttribute('aria-controls')).toBe('ingredient-form');
+    expect(trigger.getAttribute('aria-label')).toBe('Cerrar formulario de ingrediente');
+    const form = fixture.nativeElement.querySelector('.ingredient-form') as HTMLFormElement;
+    expect(form.nextElementSibling?.querySelector('.manufacture-button')).not.toBeNull();
+    const cancel = form.querySelector('ion-button[type="button"]') as HTMLElement;
+    expect(cancel.textContent).toContain('Cancelar');
+    cancel.click(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('.ingredient-form')).toBeNull();
+    expect(createFeedIngredient).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('disables Elaborar for nonoperational plants and explains why', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed' } }));
+    render();
+    expect(fixture.nativeElement.querySelector('.manufacture-button')?.disabled).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('La planta debe estar operativa');
   });
 
   it('loads initial stock only from a selected inventory ingredient without editable SKU or name', () => {

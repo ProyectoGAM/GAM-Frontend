@@ -111,6 +111,7 @@ export class AuthStore {
   }
 
   async confirmPassword(password: string): Promise<boolean> {
+    this.errorState.set(null);
     try {
       await firstValueFrom(this.api.confirmPassword(password, !this.storage.isNative()));
       return true;
@@ -224,6 +225,11 @@ export class AuthStore {
     }
 
     const problem = this.problem(error);
+    const path = requestUrl.split(/[?#]/)[0];
+    if (problem.code === 'INVALID_CREDENTIALS'
+      && /(?:^|\/)auth\/(?:web\/)?confirm-password\/?$/.test(path)) {
+      return;
+    }
     if (problem.code === 'SHARED_DEVICE_UNAUTHORIZED') {
       void this.clearShared(true);
       return;

@@ -47,7 +47,7 @@
             <ion-card-subtitle>{{ auth.user()?.name }}</ion-card-subtitle>
           </ion-card-header>
           <ion-card-content>
-            <ion-button routerLink="/home" expand="block">Continuar</ion-button>
+            <ion-button [routerLink]="continuationPath()" expand="block">Continuar</ion-button>
             <ion-button fill="outline" color="medium" expand="block" (click)="auth.finishSharedSession()">
               Terminar sesión
             </ion-button>

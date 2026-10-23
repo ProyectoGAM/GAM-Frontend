@@ -162,6 +162,12 @@ export class PoultryHouseDetailPage implements OnInit {
     this.load();
   }
 
+  elaborate(): void {
+    const house = this.house();
+    if (!house || house.type !== 'feed' || house.status !== 'operational' || this.isAddingIngredient()) return;
+    void this.router.navigate(['/administracion/unidades-productivas', house.production_unit_id, 'galpon', house.id, 'elaborar']);
+  }
+
   retry(): void {
     this.load();
   }

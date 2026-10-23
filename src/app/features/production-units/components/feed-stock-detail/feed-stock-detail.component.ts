@@ -1,6 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { afterRenderEffect, Component, ElementRef, input, output, viewChild } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { IonButton, IonInput, IonSelect, IonSelectOption, IonSpinner } from '@ionic/angular';
+import { IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { addOutline, closeOutline, leafOutline } from 'ionicons/icons';
 
 import { InventoryIngredient } from '../../interfaces/production-unit.interface';
 
@@ -17,9 +19,14 @@ export interface FeedStockRow {
   selector: 'app-feed-stock-detail',
   templateUrl: './feed-stock-detail.component.html',
   styleUrl: './feed-stock-detail.component.scss',
-  imports: [IonButton, IonInput, IonSelect, IonSelectOption, IonSpinner, ReactiveFormsModule],
+  imports: [IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner, ReactiveFormsModule],
 })
 export class FeedStockDetailComponent {
+  private readonly ingredientTrigger = viewChild<ElementRef<HTMLButtonElement>>('ingredientTrigger');
+  private readonly ingredientFormTitle = viewChild<ElementRef<HTMLElement>>('ingredientFormTitle');
+  private wasFormOpen = false;
+  readonly canManufacture = input(false);
+  readonly manufacture = output<void>();
   readonly rows = input.required<FeedStockRow[]>();
   readonly state = input.required<'loading' | 'success' | 'error'>();
   readonly formOpen = input.required<boolean>();
@@ -32,4 +39,15 @@ export class FeedStockDetailComponent {
   readonly saveIngredient = output<void>();
   readonly retry = output<void>();
   readonly retryCatalog = output<void>();
+
+  constructor() {
+    addIcons({ addOutline, closeOutline, leafOutline });
+    afterRenderEffect(() => {
+      const open = this.formOpen();
+      if (open === this.wasFormOpen) return;
+      this.wasFormOpen = open;
+      if (open) this.ingredientFormTitle()?.nativeElement.focus();
+      else this.ingredientTrigger()?.nativeElement.focus();
+    });
+  }
 }

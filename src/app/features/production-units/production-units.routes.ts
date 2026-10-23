@@ -2,6 +2,11 @@ import { Routes } from '@angular/router';
 
 export const productionUnitsRoutes: Routes = [
   {
+    path: ':id/galpon/:houseId/elaborar',
+    loadComponent: () => import('./pages/feed-manufacture/feed-manufacture.page')
+      .then((module) => module.FeedManufacturePage),
+  },
+  {
     path: ':id/editar',
     loadComponent: () => import('./pages/production-unit-edit/production-unit-edit.page')
       .then((module) => module.ProductionUnitEditPage),
