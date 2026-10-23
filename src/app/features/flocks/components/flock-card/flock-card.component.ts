@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { calendarOutline, chevronForwardOutline } from 'ionicons/icons';
+import { calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, scaleOutline } from 'ionicons/icons';
 
 import { DetailMetric, FlockHouseOrigin } from '../../interfaces/flock-detail.interface';
 import { Flock } from '../../interfaces/flock.interface';
@@ -18,6 +18,13 @@ export class FlockCardComponent {
   readonly flock = input.required<Pick<Flock, 'id' | 'code' | 'status' | 'is_grouped' | 'entry_date' | 'current_quantity'>>();
   readonly houseName = input<string | null>(null);
   readonly returnHouse = input<FlockHouseOrigin | null>(null);
+  readonly showTasks = input(false);
+  readonly tasks = [
+    { path: 'pesajes', label: 'Registrar pesaje', description: 'Individual o grupal', icon: 'scale-outline' },
+    { path: 'mortalidad', label: 'Registrar mortalidad', description: 'Fecha, cantidad y motivo', icon: 'clipboard-outline' },
+    { path: 'alimentacion', label: 'Cambiar ración', description: 'Ración y cantidad diaria', icon: 'leaf-outline' },
+  ];
+  readonly taskQueryParams = computed(() => ({ ...this.originQueryParams(), task: 'entry' }));
   readonly originQueryParams = computed(() => {
     const house = this.returnHouse();
     return house ? { lotFrom: 'house', unitId: house.unitId, houseId: house.houseId } : null;
@@ -34,7 +41,7 @@ export class FlockCardComponent {
       : metric.state === 'unavailable' || metric.value === null ? 'No disponible' : this.count(metric.value);
   });
 
-  constructor() { addIcons({ calendarOutline, chevronForwardOutline }); }
+  constructor() { addIcons({ calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, scaleOutline }); }
 
   private count(value: number): string { return new Intl.NumberFormat('es-UY').format(value); }
 }

@@ -1,8 +1,10 @@
 <section class="mortalities-page" aria-labelledby="mortalities-title">
-  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote</a>
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ houseTask.backLabel() }}</a>
 
   @if (state() === 'loading') {
     <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando mortalidad del lote…</div>
+  } @else if (houseMismatch()) {
+    <div class="page-state" role="alert"><h1 id="mortalities-title">El lote cambió de galpón</h1><p>Volvé al galpón para consultar el lote alojado actualmente.</p></div>
   } @else if (state() === 'ready') {
     @if (flock(); as item) {
       <header class="page-heading">
@@ -15,7 +17,9 @@
         </div>
       </header>
       @if (success()) { <p class="save-success" role="status">{{ success() }}</p> }
+      @if (houseTask.isTask() && item.status === 'finished') { <p role="status">Este lote ya no admite nuevos registros de mortalidad.</p> }
       <app-flock-mortality-section [flock]="item" [records]="records()" [state]="historyState()"
+        [registrationOnly]="houseTask.isTask()" (formClosed)="houseTask.isTask() && houseTask.returnToHouse()"
         [houseName]="houseName()" [unitName]="unitName()" [today]="today()" (retry)="loadHistory()"
         [saving]="saving()" [saveError]="saveError()" [fieldErrors]="fieldErrors()" [savedSequence]="savedSequence()"
         [cancelling]="cancelling()" [cancellationError]="cancellationError()" [cancellationReasonError]="cancellationReasonError()" [cancelledSequence]="cancelledSequence()"

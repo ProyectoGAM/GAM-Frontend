@@ -1,4 +1,4 @@
-<article class="flock-card">
+<article class="flock-card" [class.with-tasks]="showTasks() && returnHouse() && flock().status !== 'finished'">
   <a class="flock-card-button" [routerLink]="detailLink()" [queryParams]="originQueryParams()" [attr.aria-label]="'Ver detalle del lote ' + flock().code + (flock().is_grouped ? ', agrupado' : '')"
     [attr.aria-describedby]="'flock-status-' + flock().id + ' flock-entry-' + flock().id + ' flock-counts-' + flock().id">
     <div class="card-heading">
@@ -24,4 +24,16 @@
     @if (negativeBalance(); as balance) { <p class="balance-note">Saldo registrado: {{ balance }} aves</p> }
     <span class="card-chevron" aria-hidden="true"><ion-icon name="chevron-forward-outline" /></span>
   </a>
+  @if (showTasks() && returnHouse() && flock().status !== 'finished') {
+    <section class="flock-tasks" [attr.aria-label]="'Tareas del lote ' + flock().code">
+      <h4>Tareas del lote</h4>
+      @for (task of tasks; track task.path) {
+        <a class="task-link" [routerLink]="['/administracion/lotes/lotes', flock().id, task.path]" [queryParams]="taskQueryParams()">
+          <span class="task-icon"><ion-icon [name]="task.icon" aria-hidden="true" /></span>
+          <span class="task-copy"><strong>{{ task.label }}</strong><small>{{ task.description }}</small></span>
+          <ion-icon name="chevron-forward-outline" aria-hidden="true" />
+        </a>
+      }
+    </section>
+  }
 </article>

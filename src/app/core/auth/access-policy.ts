@@ -37,12 +37,10 @@ export function hasDeliveryRole(user: Pick<AuthUser, 'roles'> | null): boolean {
   return normalizedRoles(user).has('delivery');
 }
 
-export function postLoginPath(user: Pick<AuthUser, 'roles'> | null): string {
-  const roles = normalizedRoles(user);
-
-  if (roles.has('delivery') && roles.size === 1) return '/repartidor';
-
-  return isAdminUser(user) ? '/administracion' : '/home';
+export function postLoginPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string {
+  if (ADMIN_GROUP_IDS.some((group) => canAccessGroup(user, group))) return '/administracion';
+  if (hasDeliveryRole(user)) return '/repartidor';
+  return '/acceso-denegado';
 }
 
 export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, permission: 'view' | 'manage'): boolean {

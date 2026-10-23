@@ -71,6 +71,8 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly deleteError = signal<string | null>(null);
   readonly isChangingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
+  private readonly navigationFeedback: unknown = this.router.currentNavigation()?.extras.state?.['flockTaskMessage'];
+  readonly taskMessage = typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null;
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -158,6 +160,12 @@ export class PoultryHouseDetailPage implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  elaborate(): void {
+    const house = this.house();
+    if (!house || house.type !== 'feed' || house.status !== 'operational' || this.isAddingIngredient()) return;
+    void this.router.navigate(['/administracion/unidades-productivas', house.production_unit_id, 'galpon', house.id, 'elaborar']);
   }
 
   retry(): void {

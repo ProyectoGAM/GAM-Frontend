@@ -96,7 +96,9 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(28);
+    ).toBe(27);
+
+    expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
     expect(supplierItems).toEqual([
       { label: 'Proveedores', slug: 'proveedores' },

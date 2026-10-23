@@ -18,14 +18,19 @@ import { dailyFeedPoints, feedingDate, feedSummary, formatFeedKg, snapshotRecipe
 import { FlockDetailService, dateBefore, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { FeedingLoadState, FeedingPeriod } from '../../types/feeding-state.type';
+import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
 
 @Component({
   selector: 'app-flock-feeding-page',
   imports: [RouterLink, IonIcon, IonSpinner, FeedConsumptionChartComponent, FeedingEditorComponent],
   templateUrl: './flock-feeding.page.html',
   styleUrl: './flock-feeding.page.scss',
+  providers: [FlockHouseTaskContext],
 })
 export class FlockFeedingPage {
+  readonly houseTask = inject(FlockHouseTaskContext);
+  readonly houseMismatch = computed(() => !this.houseTask.matches(this.flock()));
+  private returnAfterDismiss = false;
   private readonly api = inject(FlockFeedingService);
   private readonly detail = inject(FlockDetailService);
   private readonly units = inject(ProductionUnitsService);
@@ -58,7 +63,7 @@ export class FlockFeedingPage {
   readonly pageSize = 20;
   readonly lastPage = computed(() => Math.max(1, Math.ceil(this.records().length / this.pageSize)));
   readonly unitName = computed(() => this.unitContext.units().find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
-  readonly backLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
+  readonly backLink = computed(() => this.houseTask.backLink() ?? `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly recipeNames = computed(() => {
     const names = new Map<number, string>();
     const current = this.feeding();
@@ -97,7 +102,7 @@ export class FlockFeedingPage {
       name: this.recipeNames().get(record.receta_id) ?? `Receta #${record.receta_id}`,
       corrected: record.cantidad_g !== record.original.cantidad_g || record.receta_id !== record.original.receta_id })));
   readonly canChange = computed(() => !!this.auth.user() && this.currentState() === 'ready' && !!this.feeding()
-    && !this.feeding()?.finalizado && this.flock()?.status !== 'finished');
+    && !this.feeding()?.finalizado && this.flock()?.status !== 'finished' && !this.houseMismatch());
   readonly editor = signal<'manual' | 'correction' | null>(null);
   readonly editorOpen = signal(false);
   readonly editing = signal<FeedConsumption | null>(null);
@@ -109,7 +114,7 @@ export class FlockFeedingPage {
   readonly editorContext = computed(() => {
     const record = this.editing();
     return record ? `${feedingDate(record.fecha)} · ${this.recipeNames().get(record.receta_id) ?? 'Receta #' + record.receta_id}`
-      : `Lote ${this.flock()?.code ?? ''} · ${this.currentRecipe()}`;
+      : `Lote ${this.flock()?.code ?? ''} · ${this.houseName() ?? 'Cargando galpón…'} · ${this.currentRecipe()}`;
   });
   readonly editorOptions = computed<FeedingRecipeOption[]>(() => {
     const record = this.editing();
@@ -143,6 +148,7 @@ export class FlockFeedingPage {
 
   load(authenticated = !!this.auth.user()): void {
     const epoch = ++this.epoch;
+    this.returnAfterDismiss = false;
     this.currentVersion++; this.historyVersion++; this.balanceVersion++; this.editorVersion++;
     this.flock.set(null); this.feeding.set(null); this.records.set([]); this.balances.set([]); this.changes.set([]);
     this.saving.set(false); this.closeEditor();
@@ -155,7 +161,8 @@ export class FlockFeedingPage {
       next: (flock) => {
         if (epoch !== this.epoch) return;
         this.flock.set(flock); this.state.set('ready');
-        this.loadCurrent(); this.loadHistory(); this.loadBalances();
+        this.loadCurrent();
+        if (!this.houseTask.isTask()) { this.loadHistory(); this.loadBalances(); }
         this.units.getPoultryHouseById(flock.poultry_house_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (response) => { if (epoch === this.epoch) this.houseName.set(response.data.name); },
           error: () => { if (epoch === this.epoch) this.houseName.set('Galpón no disponible'); },
@@ -172,6 +179,7 @@ export class FlockFeedingPage {
       next: (feeding) => {
         if (epoch !== this.epoch || version !== this.currentVersion) return;
         this.feeding.set(feeding); this.currentState.set('ready');
+        if (this.houseTask.isTask()) this.openManual();
         if (feeding.modo === 'manual') this.api.latestChanges(this.flockId()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (changes) => { if (epoch === this.epoch && version === this.currentVersion) this.changes.set(changes); },
           error: () => { /* The actor name is optional; never block feeding consultation. */ },
@@ -217,6 +225,7 @@ export class FlockFeedingPage {
     if (!this.canChange() || this.saving() || this.editor()) return;
     this.editing.set(null); this.editor.set('manual'); this.saveError.set(null); this.success.set(null);
     this.editorOpen.set(true);
+    this.returnAfterDismiss = this.houseTask.isTask();
     this.loadBalances();
   }
 
@@ -246,6 +255,10 @@ export class FlockFeedingPage {
   editorDismissed(): void {
     this.editorOpen.set(false);
     this.editorVersion++; this.editor.set(null); this.editing.set(null); this.editorBalances.set([]); this.saveError.set(null);
+    if (this.returnAfterDismiss) {
+      this.returnAfterDismiss = false;
+      this.houseTask.returnToHouse(this.success() ?? undefined);
+    }
   }
 
   save(submission: FeedingSubmission): void {
@@ -273,7 +286,7 @@ export class FlockFeedingPage {
         if (epoch !== this.epoch) return;
         this.attempt = null; this.saving.set(false); this.closeEditor();
         this.success.set(automatic ? 'Alimentación actualizada en modo automático según el plan vigente.' : mode === 'manual' ? 'Alimentación actualizada en modo manual desde hoy.' : 'Consumo editado. Se conservó el historial original.');
-        this.loadCurrent(); this.loadHistory(); this.loadBalances();
+        if (!this.houseTask.isTask()) { this.loadCurrent(); this.loadHistory(); this.loadBalances(); }
       },
       error: (error: unknown) => {
         if (epoch !== this.epoch) return;

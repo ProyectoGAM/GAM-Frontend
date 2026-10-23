@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import * as L from 'leaflet';
+import * as L from 'leaflet/dist/leaflet-src.esm.js';
 import {
   IonContent,
   IonHeader,
@@ -16,7 +16,7 @@ import {
 import { addIcons } from 'ionicons';
 import { addOutline, checkmarkCircleOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline } from 'ionicons/icons';
 
-import { normalizedRoles, postLoginPath } from '../../core/auth/access-policy';
+import { postLoginPath } from '../../core/auth/access-policy';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LocationSample, LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
@@ -65,8 +65,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly auth = inject(AuthStore);
   readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
-  readonly canLeaveDelivery = computed(() => normalizedRoles(this.auth.user()).size > 1);
   readonly otherViewPath = computed(() => postLoginPath(this.auth.user()));
+  readonly canLeaveDelivery = computed(() => this.otherViewPath() === '/administracion');
   readonly driverInitials = computed(() => (this.auth.user()?.name ?? 'R').split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join(''));
   private readonly api = inject(DeliveriesApi);
   private readonly outbox = inject(DeliveryOutboxService);

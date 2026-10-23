@@ -40,6 +40,23 @@ describe('FlockCardComponent', () => {
     expect(card.textContent).toContain('Finalizado');
   });
 
+  it('adds separate task links only for an enabled house context and keeps the leaf icon', () => {
+    const fixture = TestBed.createComponent(FlockCardComponent);
+    fixture.componentRef.setInput('flock', flock);
+    fixture.componentRef.setInput('returnHouse', { unitId: 7, houseId: 22 });
+    fixture.detectChanges();
+    const card = fixture.nativeElement as HTMLElement;
+    expect(card.querySelector('.flock-tasks')).toBeNull();
+    fixture.componentRef.setInput('showTasks', true); fixture.detectChanges();
+    const links = [...card.querySelectorAll<HTMLAnchorElement>('.task-link')];
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['pesajes', 'mortalidad', 'alimentacion']
+      .map((path) => `/administracion/lotes/lotes/lot-1/${path}?lotFrom=house&unitId=7&houseId=22&task=entry`));
+    expect(card.querySelector('.flock-card-button .task-link')).toBeNull();
+    expect((links[2].querySelector('ion-icon') as HTMLElement & { name: string }).name).toBe('leaf-outline');
+    fixture.componentRef.setInput('flock', { ...flock, status: 'finished' }); fixture.detectChanges();
+    expect(card.querySelector('.flock-tasks')).toBeNull();
+  });
+
   it('distinguishes pending or unavailable mortality from a genuine zero', () => {
     const fixture = TestBed.createComponent(FlockCardComponent);
     fixture.componentRef.setInput('flock', flock);

@@ -1,4 +1,4 @@
-<section class="mortality-card" aria-labelledby="mortality-section-title">
+<section class="mortality-card" aria-labelledby="mortality-section-title" [hidden]="registrationOnly()">
   <header class="heading">
     <div><h2 id="mortality-section-title">Mortalidad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
     <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortalidad</button>

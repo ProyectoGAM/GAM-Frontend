@@ -11,7 +11,9 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   canActivate: [authGuard, adminGroupGuard],
   data: { group: group.id },
   children:
-    group.id === 'inventario'
+    group.id === 'usuarios'
+      ? [{ path: '', loadChildren: () => import('../users/users.routes').then((module) => module.usersRoutes) }]
+      : group.id === 'inventario'
       ? [
           {
             path: '',

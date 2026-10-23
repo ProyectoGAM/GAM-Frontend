@@ -1,0 +1,124 @@
+<section class="users-page" aria-labelledby="users-title">
+  <header class="page-heading">
+    <div><p class="eyebrow">Administración</p><h1 #pageTitle id="users-title" tabindex="-1">Usuarios</h1><p>Gestioná las cuentas, sus accesos y los dispositivos compartidos.</p></div>
+    <span class="context">Unidad productiva <span class="badge pending">Por implementar</span></span>
+  </header>
+  <nav class="tabs" aria-label="Secciones de usuarios">
+    @for (item of tabs; track item.id) {
+      <a [routerLink]="item.path" [class.active]="tab === item.id" [attr.aria-current]="tab === item.id ? 'page' : null">{{ item.label }}</a>
+    }
+  </nav>
+  <div class="scope-note">La pertenencia y el filtrado por UP están por implementar. La API actual muestra cuentas y dispositivos de todas las unidades.</div>
+  <details class="security-note"><summary><ion-icon name="lock-closed-outline" aria-hidden="true" /> Confirmación de cambios</summary><p>Te pediremos tu contraseña al realizar cada cambio. La exigencia de esta confirmación en el servidor para todas las acciones de usuarios está <strong>por implementar</strong>; actualmente solo protege de esa forma las acciones de dispositivos.</p></details>
+  @if (!canChange()) { <p class="notice">Ingresá con una cuenta administrativa en modo personal para gestionar los accesos.</p> }
+  @if (message()) { <p class="success" role="status">{{ message() }}</p> }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+  @switch (tab) {
+    @case ('users') {
+      @if (selected(); as user) {
+        <button class="back" type="button" (click)="back()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a usuarios</button>
+        <article class="panel account">
+          <div class="card-heading"><span class="avatar" aria-hidden="true">{{ user.name.slice(0, 1).toUpperCase() }}</span><div><h2 #accountTitle tabindex="-1">{{ user.name }}</h2><p>{{ user.email }}</p></div><span class="badge" [class.disabled]="user.deleted_at">{{ user.deleted_at ? 'Deshabilitado' : 'Habilitado' }}</span></div>
+          <p>Roles: @for (role of user.roles; track role; let last = $last) { {{ roleLabel(role) }}{{ last ? '' : ', ' }} }</p>
+          <p class="muted">Unidad productiva: por implementar</p>
+          @if (isOwn(user)) { <p class="notice">Esta es tu cuenta. Otro administrador debe cambiar tus roles o deshabilitarla.</p> }
+          <h3>Acceso de la cuenta</h3>
+          <div class="action-grid">
+            <button type="button" [disabled]="!canChange() || busy() || isOwn(user) || !!user.deleted_at" (click)="openEditor('roles')">Cambiar roles</button>
+            <button type="button" [disabled]="!canChange() || busy() || !!user.deleted_at" (click)="openEditor('password')">Cambiar contraseña</button>
+            <button type="button" [disabled]="!canChange() || busy()" (click)="userAction('sessions')">Cerrar sesiones</button>
+            <button type="button" [class.danger]="!user.deleted_at" [disabled]="!canChange() || busy() || isOwn(user)" (click)="userAction('status')">{{ user.deleted_at ? 'Habilitar usuario' : 'Deshabilitar usuario' }}</button>
+          </div>
+          <h3>Acceso con PIN</h3>
+          <p class="muted">El estado del PIN está por implementar: la API no lo informa.</p>
+          @if (canManagePin(user)) {
+            <div class="action-grid">
+              <button type="button" [disabled]="!canChange() || busy()" (click)="openEditor('pin')">Configurar PIN</button>
+              <button type="button" [disabled]="!canChange() || busy()" (click)="userAction('unlockPin')">Desbloquear PIN</button>
+              <button type="button" class="danger" [disabled]="!canChange() || busy()" (click)="userAction('deletePin')">Eliminar PIN</button>
+            </div>
+          } @else { <p>El PIN está disponible para cuentas habilitadas sin rol de administrador.</p> }
+          <p class="muted">Editar nombre y correo: por implementar.</p>
+        </article>
+        @if (editor(); as kind) {
+          <form class="panel form-panel" (submit)="$event.preventDefault(); saveEditor()">
+            <h2 #editorTitle tabindex="-1">{{ kind === 'roles' ? 'Cambiar roles' : kind === 'pin' ? 'Configurar PIN' : 'Cambiar contraseña' }}</h2>
+            @if (kind === 'roles') {
+              <fieldset [formGroup]="rolesForm"><legend>Roles de {{ user.name }}</legend>
+                @for (role of roles; track role.id) { <label class="check"><input type="checkbox" [formControlName]="role.id" /><span>{{ role.label }}<small>{{ role.description }}</small></span></label> }
+              </fieldset>
+            } @else {
+              <div [formGroup]="credentialForm" class="fields">
+                <label for="credential">{{ kind === 'pin' ? 'Nuevo PIN (4 dígitos)' : 'Nueva contraseña (mínimo 8 caracteres)' }}</label>
+                <input id="credential" formControlName="value" type="password" [attr.inputmode]="kind === 'pin' ? 'numeric' : null" [attr.maxlength]="kind === 'pin' ? 4 : null" autocomplete="new-password" />
+                <label for="credential-confirmation">{{ kind === 'pin' ? 'Repetir PIN' : 'Repetir contraseña' }}</label>
+                <input id="credential-confirmation" formControlName="confirmation" type="password" [attr.inputmode]="kind === 'pin' ? 'numeric' : null" [attr.maxlength]="kind === 'pin' ? 4 : null" autocomplete="new-password" />
+              </div>
+            }
+            <div class="form-actions"><button class="primary" type="submit" [disabled]="!canChange() || busy()">Guardar cambios</button><button type="button" (click)="editor.set(null); credentialForm.reset()">Cancelar</button></div>
+          </form>
+        }
+      } @else {
+        <div class="section-heading"><div><h2>Cuentas de acceso</h2><p>Personas que pueden iniciar sesión en GAM.</p></div><a class="primary button" routerLink="/administracion/usuarios/crear"><ion-icon name="add-outline" aria-hidden="true" /> Crear usuario</a></div>
+        <div class="filters">
+          <label>Buscar en esta página<input #search type="search" placeholder="Nombre o correo" [value]="query()" (input)="query.set(search.value)" /></label>
+          <label>Estado<select #state [value]="statusFilter()" (change)="statusFilter.set(state.value)"><option value="all">Todos</option><option value="enabled">Habilitados</option><option value="disabled">Deshabilitados</option></select></label>
+        </div>
+        @if (loading()) { <p class="loading" role="status"><ion-spinner name="crescent" /> Cargando usuarios…</p> }
+        @else {
+          <p class="muted">{{ visibleUsers().length }} usuarios en esta página</p>
+          <div class="cards">
+            @for (user of visibleUsers(); track user.id) {
+              <button type="button" class="user-card panel" (click)="openUser(user)">
+                <span class="avatar" aria-hidden="true">{{ user.name.slice(0, 1).toUpperCase() }}</span><span class="user-copy"><strong>{{ user.name }}</strong><span>{{ user.email }}</span><span class="role-label">@for (role of user.roles; track role; let last = $last) { {{ roleLabel(role) }}{{ last ? '' : ', ' }} }</span><span class="badge" [class.disabled]="user.deleted_at">{{ user.deleted_at ? 'Deshabilitado' : 'Habilitado' }}</span></span><ion-icon name="chevron-forward-outline" aria-hidden="true" />
+              </button>
+            } @empty { <div class="panel empty"><ion-icon name="people-outline" aria-hidden="true" /><h3>No hay usuarios para mostrar</h3><p>Probá otra búsqueda o revisá la página anterior.</p></div> }
+          </div>
+        }
+        <div class="pagination"><button type="button" [disabled]="loading() || page() === 1" (click)="load(page() - 1)">Anterior</button><span>Página {{ page() }}@if (lastPage()) { de {{ lastPage() }} }</span><button type="button" [disabled]="loading() || !canNext()" (click)="load(page() + 1)">Siguiente</button></div>
+        <button class="back" type="button" [disabled]="loading()" (click)="load()">Actualizar lista</button>
+      }
+    }
+    @case ('create') {
+      <div class="section-heading"><div><h2>Crear usuario</h2><p>Una nueva cuenta para acceder a GAM.</p></div></div>
+      <form class="panel form-panel" [formGroup]="createForm" (ngSubmit)="create()">
+        <h3>Datos de la cuenta</h3>
+        <div class="fields"><label for="new-name">Nombre completo</label><input id="new-name" formControlName="name" autocomplete="name" maxlength="255" required />
+          <label for="new-email">Correo electrónico</label><input id="new-email" type="email" formControlName="email" autocomplete="email" maxlength="255" required />
+          <label for="new-password">Contraseña inicial</label><input id="new-password" type="password" formControlName="password" autocomplete="new-password" minlength="8" required /><small>Mínimo 8 caracteres.</small>
+          <label for="new-password-confirmation">Repetir contraseña inicial</label><input id="new-password-confirmation" type="password" formControlName="password_confirmation" autocomplete="new-password" required />
+          <label for="new-role">Rol</label><select id="new-role" formControlName="role">@for (role of roles; track role.id) { <option [value]="role.id">{{ role.label }}</option> }</select>
+          <label for="new-unit">Unidad productiva</label><input id="new-unit" value="Por implementar" disabled /><small>La asignación de una cuenta a una UP todavía no está disponible.</small>
+        </div>
+        <p class="muted"><ion-icon name="lock-closed-outline" aria-hidden="true" /> Al crear la cuenta te pediremos tu contraseña para confirmar.</p>
+        <button class="primary" type="submit" [disabled]="!canChange() || busy()">Crear usuario</button>
+      </form>
+    }
+    @case ('devices') {
+      <div class="section-heading"><div><h2>Dispositivos compartidos</h2><p>Equipos donde el personal ingresa con su PIN.</p></div></div>
+      <section class="panel form-panel" aria-labelledby="pair-title"><h3 id="pair-title">Vincular un dispositivo</h3><p>Generá un código e ingresalo en el equipo que querés vincular.</p>
+        @if (pairing(); as code) {
+          <div class="pairing" role="status"><span>Código de vinculación</span><strong>{{ code.code }}</strong><p>Vence a las {{ code.expires_at | date:'HH:mm' }} ({{ remaining() }} min).</p><small>Se oculta al vencer o salir de esta pestaña. Tratá este código como una credencial.</small></div>
+        } @else {
+          <form (submit)="$event.preventDefault(); generateCode()" class="fields"><label for="device-name">Nombre del dispositivo</label><input id="device-name" [formControl]="deviceName" placeholder="Ej.: Tablet de clasificación" maxlength="100" autocomplete="off" />
+            @if (deviceName.touched && deviceName.invalid) { <small class="error">Ingresá un nombre de hasta 100 caracteres.</small> }
+            <button class="primary" type="submit" [disabled]="!canChange() || busy()">Generar código</button></form>
+        }
+      </section>
+      <div class="section-heading"><h3>Dispositivos registrados</h3><button type="button" [disabled]="loading()" (click)="load()">Actualizar</button></div>
+      @if (loading()) { <p class="loading" role="status"><ion-spinner name="crescent" /> Cargando dispositivos…</p> }
+      @else {
+        <div class="cards">@for (device of devices(); track device.id) {
+          <article class="panel device"><div class="card-heading"><ion-icon name="phone-portrait-outline" aria-hidden="true" /><div><h3>{{ device.name }}</h3><span class="badge" [class.disabled]="!deviceActive(device)">{{ deviceActive(device) ? 'Vinculado' : device.revoked_at ? 'Desvinculado' : 'Vencido' }}</span></div></div>
+            <p class="muted">Última actividad: {{ device.last_seen_at ? (device.last_seen_at | date:'dd/MM/yyyy HH:mm') : 'Sin actividad informada' }}</p>
+            <p class="muted">Unidad productiva: por implementar</p>
+            @if (deviceActive(device)) { <button class="danger" type="button" [disabled]="!canChange() || busy()" (click)="revokeDevice(device)">Desvincular</button> }
+          </article>
+        } @empty { <p class="panel empty">No hay dispositivos registrados.</p> }</div>
+      }
+    }
+    @case ('roles') { <app-user-roles-panel /> }
+  }
+</section>
+<app-user-password-confirmation [action]="confirmation()" [busy]="busy()" [error]="confirmationError()" [operator]="auth.user()?.name ?? ''" (confirm)="confirm($event)" (cancelled)="cancelConfirmation()" />

@@ -49,7 +49,7 @@ describe('FlockFeedingPage', () => {
     latestChanges.mockReset().mockReturnValue(of([{ id: 10, modo: 'manual', created_by: 4, etapas_copiadas: [] }]));
     params.next(convertToParamMap({ id: 'lot-1' })); user.set({ id: 4, name: 'Ana Pérez' });
     TestBed.configureTestingModule({ imports: [FlockFeedingPage], providers: [provideRouter([]),
-      { provide: ActivatedRoute, useValue: { paramMap: params } },
+      { provide: ActivatedRoute, useValue: { paramMap: params, queryParamMap: of(convertToParamMap({})) } },
       { provide: AuthStore, useValue: { user } },
       { provide: FlockFeedingService, useValue: { current, consumptions, balances, change, correct, automatic, latestChanges } },
       { provide: FlockDetailService, useValue: { flock: () => of(flock) } },

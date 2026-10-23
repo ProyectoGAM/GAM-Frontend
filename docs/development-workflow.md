@@ -119,6 +119,10 @@ Do not:
 
 ## Before finishing
 
+Los presupuestos de compilación y los entry points ESM de los mapas se explican en
+[Advertencias de compilación y presupuestos](build-budgets.md). El límite por
+componente permanece en 12 KB y el CSS global tiene presupuesto propio.
+
 Run:
 
 ```bash

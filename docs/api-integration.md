@@ -1,8 +1,14 @@
 # API Integration
 
+La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de UP, roles/permisos y exigencia de contraseña reciente en servidor.
+
 ## 1. Contract-first
 
 Laravel API contracts are authoritative.
+
+La elaboración desde plantas de ración usa el catálogo, cálculo y registro de
+`feed-recipes.yaml`; ver [`feed-manufacture.md`](feed-manufacture.md) para el
+recorrido, las unidades exactas y la recuperación idempotente de pendientes.
 
 The frontend must not guess undocumented fields, states or error semantics.
 
