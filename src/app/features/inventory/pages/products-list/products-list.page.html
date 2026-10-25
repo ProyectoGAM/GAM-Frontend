@@ -1,18 +1,22 @@
-<section class="products-page">
-  <div class="page-heading">
-    <div><p class="eyebrow">Proveedores</p><h1 #productsHeading tabindex="-1">Productos</h1><p class="lead">Productos e insumos disponibles para la operación.</p></div>
-    <a class="button primary" routerLink="/administracion/proveedores/productos/nuevo">Nuevo producto</a>
-  </div>
-
+<section class="catalog-page products-page">
+  <app-inventory-catalog-header active="products" />
+  <h2 #productsHeading tabindex="-1" class="catalog-title">Catálogo de productos</h2>
+  <p class="catalog-description">Los productos son globales. El stock se registra luego en cada ubicación.</p>
+  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+    <div class="field"><label for="catalog-search">Buscar producto</label><input id="catalog-search" type="search" formControlName="search" placeholder="Nombre del producto" maxlength="120"></div>
+    <div class="field"><label for="catalog-kind">Tipo</label><select id="catalog-kind" formControlName="kind"><option value="">Todos</option>@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select></div>
+    <div class="field"><label for="catalog-status">Estado</label><select id="catalog-status" formControlName="status"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
+    <div class="filter-actions"><button class="button primary" type="submit">Buscar</button><button class="button" type="button" (click)="clearFilters()">Restablecer</button></div>
+  </form>
   @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando productos…</div> }
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button secondary" type="button" (click)="load()">Reintentar</button></div> }
   @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
-  @if (state() === 'empty') { <div class="state card"><strong>No hay productos registrados.</strong></div> }
+  @if (state() === 'empty') { <div class="state card"><strong>No hay productos que coincidan con los filtros.</strong></div> }
   @if (state() === 'success') {
-    <div class="product-list">
+    <p class="muted" role="status">{{ meta()?.total }} productos encontrados</p><div class="product-list">
       @for (product of products(); track product.id) {
         <article class="product-card card">
-          <div class="product-heading"><div><h2>{{ product.name }}</h2><p class="muted">Código {{ product.sku }}</p></div><span class="status">{{ statusLabel(product.status) }}</span></div>
+          <div class="product-heading"><div><h2>{{ product.name }}</h2><p class="muted">Código {{ product.sku }}</p></div><span class="status" [class.inactive]="product.status === 'inactive'">{{ statusLabel(product.status) }}</span></div>
           <dl class="product-details">
             <div><dt>Tipo</dt><dd>{{ kindLabel(product.kind) }}</dd></div>
             <div><dt>Unidad base</dt><dd>{{ unitLabel(product.base_unit) }}</dd></div>

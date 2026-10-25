@@ -5,7 +5,7 @@
   .back-link { display: inline-flex; min-height: 44px; align-items: center; margin-bottom: 18px; color: var(--gam-color-primary); font-weight: 700; }
   .page-heading { margin-bottom: 22px; }
   .eyebrow { margin: 0 0 8px; color: var(--gam-color-text-muted); font-weight: 700; }
-  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); }
+  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); font-weight: 700; }
   .lead { margin: 10px 0 0; color: var(--gam-color-text-muted); }
   .editor, .state, .feedback { padding: 22px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
   .editor { display: grid; gap: 18px; }

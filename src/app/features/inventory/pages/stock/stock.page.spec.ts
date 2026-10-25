@@ -6,8 +6,9 @@ import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { InventoryApi } from '../../services/inventory.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
-import { StockBalance } from '../../interfaces/inventory';
+import { StockBalance, StockLocation } from '../../interfaces/inventory';
 import { stubNativeDialog } from '../../testing/native-dialog-test';
+import { StockLocationsApi } from '../../services/stock-locations.api';
 import { StockPage } from './stock.page';
 
 const emptyBalances = {
@@ -52,10 +53,11 @@ describe('Existencias page', () => {
   beforeEach(() => { restoreNativeDialog = stubNativeDialog(); });
   afterEach(() => { restoreNativeDialog(); });
 
-  const createFixture = (permissions: string[], inventoryApi: Partial<InventoryApi> = {}) => TestBed.configureTestingModule({
+  const createFixture = (permissions: string[], inventoryApi: Partial<InventoryApi> = {}, locations: StockLocation[] = []) => TestBed.configureTestingModule({
     imports: [StockPage],
     providers: [
       provideRouter([]),
+      { provide: StockLocationsApi, useValue: { list: () => of({ ...emptyBalances, data: locations }) } },
       { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
       { provide: InventoryApi, useValue: {
         balances: () => of(emptyBalances),
@@ -65,6 +67,43 @@ describe('Existencias page', () => {
       { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
     ],
   }).createComponent(StockPage);
+
+  it('shows the current plant name and links through its actual UP without exposing the technical name', async () => {
+    const location: StockLocation = {
+      id: 2, name: 'Planta de ración #42', status: 'active', system_managed: true,
+      poultry_house_id: 42, poultry_house_name: 'Planta Norte',
+      production_unit: { id: 7, name: 'Granja El Ombú' },
+    };
+    const plantBalance = { ...balance, stock_location: { ...location, production_unit: undefined } };
+    const fixture = createFixture(['products.manage'], {
+      balances: () => of({ ...emptyBalances, data: [plantBalance], meta: { ...emptyBalances.meta, total: 81, last_page: 4 } }),
+    }, [location]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Planta Norte');
+    expect(element.textContent).toContain('Granja El Ombú');
+    expect(element.textContent).not.toContain('Planta de ración #42');
+    expect(element.querySelector('.plant-link')?.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/42');
+    expect(element.querySelector('.summary-card strong')?.textContent).toBe('81');
+    expect(element.querySelector('.summary-card.warning')?.textContent).toContain('En esta página');
+    expect(element.querySelector('a[href$="/productos/nuevo"]')).not.toBeNull();
+    expect(element.querySelector('.actions-cell a')?.getAttribute('href')).toContain('product_id=4');
+    fixture.destroy();
+  });
+
+  it('keeps a named plant readable without inventing a route when its UP is unavailable', async () => {
+    const fixture = createFixture([], {
+      balances: () => of({ ...emptyBalances, data: [{ ...balance, stock_location: {
+        ...balance.stock_location, poultry_house_id: 42, poultry_house_name: 'Planta Norte',
+      } }] }),
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Planta Norte');
+    expect(fixture.nativeElement.querySelector('.plant-link')).toBeNull();
+    fixture.destroy();
+  });
 
   it('offers movement registration only to users with an existing movement permission', async () => {
     const allowed = createFixture(['inventory.move']);
@@ -118,6 +157,7 @@ describe('Existencias page', () => {
       imports: [StockPage],
       providers: [
         provideRouter([]),
+        { provide: StockLocationsApi, useValue: { list: () => of(emptyBalances) } },
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: [] }) } },
         { provide: InventoryApi, useValue: { balances, setMinimumStock: () => of({ data: {} }) } },
         { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
@@ -171,6 +211,7 @@ describe('Existencias page', () => {
       imports: [StockPage],
       providers: [
         provideRouter([]),
+        { provide: StockLocationsApi, useValue: { list: () => of(emptyBalances) } },
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: [] }) } },
         { provide: InventoryApi, useValue: {
           balances: () => of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }),

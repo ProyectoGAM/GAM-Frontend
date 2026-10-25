@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
@@ -24,6 +24,7 @@ const TYPE_LABELS: Record<InventoryMovementType, string> = {
   imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
 })
 export class MovementsPage {
+  private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthStore);
   readonly unitContext = inject(AdminUnitContextService, { optional: true });
   private readonly api = inject(InventoryApi);
@@ -47,6 +48,13 @@ export class MovementsPage {
   });
 
   constructor() {
+    const query = this.route.snapshot.queryParamMap;
+    const product = query.get('product_id') ?? '';
+    const location = query.get('stock_location_id') ?? '';
+    this.filters.patchValue({
+      product_id: /^[1-9]\d*$/.test(product) ? product : '',
+      stock_location_id: /^[1-9]\d*$/.test(location) ? location : '',
+    });
     void this.loadReferences();
     void this.load();
   }

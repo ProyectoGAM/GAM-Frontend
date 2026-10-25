@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { API_CONFIG } from '../../../core/config/api.config';
 import { ProductsApi } from './products.api';
-import { Product, ProductInput } from './products.models';
+import { Product, ProductInput } from '../interfaces/products.models';
 
 const product: Product = {
   id: 17,
@@ -36,6 +36,17 @@ describe('Products API contract', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('sends only the global catalog search, kind and status filters', () => {
+    api.list(1, { search: 'Maíz', kind: 'raw_material', status: 'active' }).subscribe();
+    const request = http.expectOne((req) => req.url === '/api/v1/products');
+    expect(request.request.params.get('search')).toBe('Maíz');
+    expect(request.request.params.get('kind')).toBe('raw_material');
+    expect(request.request.params.get('status')).toBe('active');
+    expect(request.request.params.has('production_unit_id')).toBe(false);
+    expect(request.request.params.has('stock_location_id')).toBe(false);
+    request.flush({ data: [], meta: { total: 0 } });
+  });
 
   it('loads the paginated products collection with GET /products', () => {
     api.list().subscribe((response) => expect(response.data).toEqual([product]));

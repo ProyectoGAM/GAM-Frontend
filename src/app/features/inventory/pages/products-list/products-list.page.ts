@@ -1,10 +1,12 @@
 import { Component, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { CatalogHeaderComponent } from '../../components/catalog-header/catalog-header.component';
 
-import { InventoryConfirmationDialogComponent } from '../../inventory/components/confirmation-dialog/confirmation-dialog.component';
-import { ProductsApi } from './products.api';
-import { baseUnitLabel, PaginatedProducts, Product, ProductStatus, productKindLabel, productStatusLabel, stockTrackedLabel } from './products.models';
+import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
+import { ProductsApi } from '../../services/products.api';
+import { baseUnitLabel, PaginatedProducts, Product, ProductStatus, ProductKind, PRODUCT_KINDS, productKindLabel, productStatusLabel, stockTrackedLabel } from '../../interfaces/products.models';
 
 type PageState = 'loading' | 'empty' | 'success' | 'error';
 
@@ -12,9 +14,16 @@ type PageState = 'loading' | 'empty' | 'success' | 'error';
   selector: 'app-products-list',
   templateUrl: './products-list.page.html',
   styleUrl: './products-list.page.scss',
-  imports: [InventoryConfirmationDialogComponent, RouterLink],
+  imports: [InventoryConfirmationDialogComponent, RouterLink, ReactiveFormsModule, CatalogHeaderComponent],
 })
 export class ProductsListPage {
+  readonly kinds = PRODUCT_KINDS;
+  readonly filters = new FormGroup({
+    search: new FormControl('', { nonNullable: true }),
+    kind: new FormControl<ProductKind | ''>('', { nonNullable: true }),
+    status: new FormControl<ProductStatus | ''>('', { nonNullable: true }),
+  });
+  private loadVersion = 0;
   private readonly api = inject(ProductsApi);
   private readonly router = inject(Router);
   readonly state = signal<PageState>('loading');
@@ -37,17 +46,30 @@ export class ProductsListPage {
   }
 
   async load(page = 1): Promise<void> {
+    const version = ++this.loadVersion;
     this.state.set('loading');
     this.error.set(null);
     try {
-      const response = await firstValueFrom(this.api.list(page));
+      const filters = this.filters.getRawValue();
+      const response = await firstValueFrom(this.api.list(page, {
+        search: filters.search.trim() || undefined,
+        kind: filters.kind || undefined,
+        status: filters.status || undefined,
+      }));
+      if (version !== this.loadVersion) return;
       this.products.set(response.data);
       this.meta.set(response.meta);
       this.state.set(response.data.length ? 'success' : 'empty');
     } catch {
+      if (version !== this.loadVersion) return;
       this.state.set('error');
       this.error.set('No se pudieron cargar los productos. Intentá nuevamente.');
     }
+  }
+
+  clearFilters(): void {
+    this.filters.reset();
+    void this.load();
   }
 
   kindLabel = productKindLabel;
@@ -56,7 +78,7 @@ export class ProductsListPage {
   stockTrackedLabel = stockTrackedLabel;
 
   editPath(product: Product): string {
-    return `/administracion/proveedores/productos/${encodeURIComponent(String(product.id))}/editar`;
+    return `/administracion/inventario/existencias/productos/${encodeURIComponent(String(product.id))}/editar`;
   }
 
   requestStatusChange(event: Event, product: Product, status: ProductStatus): void {

@@ -39,6 +39,8 @@ export interface StockLocation {
   id: number;
   name: string;
   system_managed: boolean;
+  poultry_house_id?: number | null;
+  poultry_house_name?: string | null;
   production_unit?: StockLocationProductionUnitSummary | null;
   status: StockLocationStatus;
   created_at?: string;

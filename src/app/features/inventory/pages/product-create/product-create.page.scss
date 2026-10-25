@@ -4,8 +4,18 @@
   font-size: 16px;
 
   .page-heading { margin-bottom: 20px; }
+  .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+  .lead { margin: 8px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
+  .close-button { flex: 0 0 44px; min-height: 44px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font-size: 24px; cursor: pointer; }
+  .form-help { margin: 0; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .stock-note { margin: 0; padding: 14px; border-radius: 7px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); font-size: .875rem; }
+  .created-card { padding: 22px; border: 1px solid var(--gam-color-success); border-radius: 10px; background: var(--gam-color-success-soft); color: var(--gam-color-text); }
+  .created-card h2 { margin-top: 0; color: var(--gam-color-success); font-size: 1.25rem; }
+  .created-card p { line-height: 1.5; }
+  :disabled { opacity: .65; }
+  .product-form { padding-bottom: max(22px, env(safe-area-inset-bottom)); }
   .eyebrow { margin: 0 0 8px; color: var(--gam-color-text-muted); font-weight: 700; }
-  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); }
+  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); font-weight: 700; }
   .product-form { display: grid; grid-template-columns: 1fr; gap: 18px; padding: 22px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
   .field { display: grid; gap: 7px; }
   .field label { font-weight: 700; }

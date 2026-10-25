@@ -1,13 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { AuthStore } from '../../../../core/auth/auth.store';
 
-import { ProductsApi } from './products.api';
-import { BASE_UNITS, PRODUCT_KINDS, BaseUnit, ProductInput, ProductKind } from './products.models';
+import { ProductsApi } from '../../services/products.api';
+import { BASE_UNITS, PRODUCT_KINDS, BaseUnit, Product, ProductInput, ProductKind } from '../../interfaces/products.models';
 
-const PRODUCTS_PATH = '/administracion/proveedores/productos';
+const PRODUCTS_PATH = '/administracion/inventario/existencias/productos';
 
 export function safeReturnTo(value: string | null): string | null {
   if (!value || !value.startsWith('/') || value.startsWith('//')
@@ -23,6 +24,10 @@ export function safeReturnTo(value: string | null): string | null {
   imports: [ReactiveFormsModule],
 })
 export class ProductCreatePage {
+  private readonly auth = inject(AuthStore);
+  readonly createdProduct = signal<Product | null>(null);
+  private readonly createdHeading = viewChild<ElementRef<HTMLElement>>('createdHeading');
+  readonly canRegisterReceipt = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.move') === true);
   private readonly api = inject(ProductsApi);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -37,6 +42,10 @@ export class ProductCreatePage {
     base_unit: new FormControl<BaseUnit | ''>('', { nonNullable: true, validators: [Validators.required] }),
     stock_tracked: new FormControl(true, { nonNullable: true }),
   });
+
+  constructor() {
+    effect(() => this.createdHeading()?.nativeElement.focus());
+  }
 
   kindChanged(): void {
     if (this.form.controls.kind.value === 'raw_material') {
@@ -59,7 +68,9 @@ export class ProductCreatePage {
   }
 
   async submit(): Promise<void> {
-    if (this.saving()) return;
+    if (this.saving() || this.createdProduct()) return;
+    this.form.controls.name.setValue(this.form.controls.name.value.trim());
+    this.form.controls.sku.setValue(this.form.controls.sku.value.trim());
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -76,8 +87,8 @@ export class ProductCreatePage {
       stock_tracked: value.stock_tracked,
     };
     try {
-      await firstValueFrom(this.api.create(body));
-      await this.router.navigateByUrl(this.returnPath());
+      const response = await firstValueFrom(this.api.create(body));
+      this.createdProduct.set(response.data);
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 422) {
         this.applyValidationErrors(error);
@@ -90,7 +101,13 @@ export class ProductCreatePage {
     }
   }
 
-  cancel(): void { void this.router.navigateByUrl(this.returnPath()); }
+  cancel(): void { if (!this.saving()) void this.router.navigateByUrl(this.returnPath()); }
+
+  registerReceipt(): void {
+    const product = this.createdProduct();
+    if (!product || !this.canRegisterReceipt()) return;
+    void this.router.navigateByUrl(`/administracion/inventario/ajustes-y-perdidas?product_id=${product.id}`);
+  }
 
   private returnPath(): string {
     return safeReturnTo(this.route.snapshot.queryParamMap.get('returnTo')) ?? PRODUCTS_PATH;

@@ -2,10 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
-import { ProductsApi } from './products.api';
-import { Product } from './products.models';
+import { AuthStore } from '../../../../core/auth/auth.store';
+
+import { ProductsApi } from '../../services/products.api';
+import { Product } from '../../interfaces/products.models';
 import { ProductsListPage } from './products-list.page';
-import { stubNativeDialog } from '../../inventory/testing/native-dialog-test';
+import { stubNativeDialog } from '../../testing/native-dialog-test';
 
 const product: Product = {
   id: 987654,
@@ -42,6 +44,7 @@ const createFixture = (options: {
     imports: [ProductsListPage],
     providers: [
       provideRouter([]),
+      { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
       { provide: ProductsApi, useValue: { list, setStatus } },
     ],
   }).createComponent(ProductsListPage);
@@ -50,6 +53,18 @@ const createFixture = (options: {
 };
 
 describe('Products list page', () => {
+  it('filters the global catalog on the server without sending UP or location fields', async () => {
+    const { fixture, list } = createFixture();
+    await settle(fixture);
+    fixture.componentInstance.filters.setValue({ search: '  Maíz  ', kind: 'raw_material', status: 'active' });
+    await fixture.componentInstance.load();
+    expect(list).toHaveBeenLastCalledWith(1, { search: 'Maíz', kind: 'raw_material', status: 'active' });
+    expect(fixture.nativeElement.querySelector('[name="production_unit_id"]')).toBeNull();
+    fixture.componentInstance.clearFilters();
+    await settle(fixture);
+    expect(list).toHaveBeenLastCalledWith(1, { search: undefined, kind: undefined, status: undefined });
+    fixture.destroy();
+  });
   let restoreDialog: () => void;
   beforeEach(() => { restoreDialog = stubNativeDialog(); });
   afterEach(() => { restoreDialog(); document.body.innerHTML = ''; });
@@ -77,19 +92,19 @@ describe('Products list page', () => {
       .mockReturnValueOnce(of(pageResponse([product])));
     const { fixture } = createFixture({ list });
     await settle(fixture);
-    expect(list).toHaveBeenNthCalledWith(1, 1);
+    expect(list).toHaveBeenNthCalledWith(1, 1, expect.any(Object));
     const buttons = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.pagination button'));
     const next = buttons().find((button) => button.textContent?.trim() === 'Siguiente') as HTMLButtonElement;
     expect(next.disabled).toBe(false);
     next.click();
     await settle(fixture);
-    expect(list).toHaveBeenNthCalledWith(2, 2);
+    expect(list).toHaveBeenNthCalledWith(2, 2, expect.any(Object));
     expect(fixture.nativeElement.textContent).toContain('Ración crecimiento');
     const previous = buttons().find((button) => button.textContent?.trim() === 'Anterior') as HTMLButtonElement;
     expect(previous.disabled).toBe(false);
     previous.click();
     await settle(fixture);
-    expect(list).toHaveBeenNthCalledWith(3, 1);
+    expect(list).toHaveBeenNthCalledWith(3, 1, expect.any(Object));
     fixture.destroy();
   });
 
@@ -105,7 +120,7 @@ describe('Products list page', () => {
     const edit = element.querySelector('.row-actions a') as HTMLAnchorElement;
     expect(element.textContent).toContain('Vacuna');
     expect(edit.textContent).toContain('Editar');
-    expect(edit.getAttribute('href')).toBe('/administracion/proveedores/productos/987654/editar');
+    expect(edit.getAttribute('href')).toBe('/administracion/inventario/existencias/productos/987654/editar');
     expect(element.textContent).toContain('Desactivar');
     expect(element.textContent).not.toContain('Gestionar vacuna');
     expect(element.innerHTML).not.toContain('/administracion/proveedores/vacunas');
@@ -178,7 +193,7 @@ describe('Products list page', () => {
     const setStatus = vi.fn().mockReturnValue(of({ data: { ...product, status: 'inactive' } }));
     const { fixture } = createFixture({ setStatus });
     await settle(fixture);
-    (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('.row-actions button') as HTMLButtonElement).click();
     fixture.detectChanges();
     const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
     expect(dialog.open).toBe(true);

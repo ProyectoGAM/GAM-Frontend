@@ -2,14 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
-import { PaginatedProducts, Product, ProductInput, ProductStatus } from './products.models';
+import { PaginatedProducts, Product, ProductFilters, ProductInput, ProductStatus } from '../interfaces/products.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductsApi {
   private readonly api = inject(ApiClient);
 
-  list(page = 1): Observable<PaginatedProducts> {
-    return this.api.get<PaginatedProducts>('products', { params: { page } });
+  list(page = 1, filters: ProductFilters = {}): Observable<PaginatedProducts> {
+    return this.api.get<PaginatedProducts>('products', { params: { page, ...filters } });
   }
 
   get(id: number | string): Observable<{ data: Product }> {

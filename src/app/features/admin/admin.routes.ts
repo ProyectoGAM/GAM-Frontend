@@ -156,25 +156,6 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
-                  if (
-                    group.id === 'proveedores' &&
-                    item.slug === 'productos'
-                  ) {
-                    return {
-                      path: item.slug,
-                      data: {
-                        title: item.label,
-                        groupLabel: group.label,
-                      },
-                      loadChildren: () =>
-                        import(
-                          '../suppliers-catalogs/products/products.routes'
-                        ).then(
-                          (module) => module.productsRoutes,
-                        ),
-                    };
-                  }
-
                   if (group.id === 'manejo-lotes' && item.slug === 'planes') {
                     return {
                       path: 'planes',
@@ -220,6 +201,9 @@ export const adminRoutes: Routes = [
         (module) => module.AdminShellPage,
       ),
     children: [
+      { path: 'proveedores/productos/nuevo', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/nuevo' },
+      { path: 'proveedores/productos/:id/editar', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/:id/editar' },
+      { path: 'proveedores/productos', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos' },
       {
         path: '',
         pathMatch: 'full',

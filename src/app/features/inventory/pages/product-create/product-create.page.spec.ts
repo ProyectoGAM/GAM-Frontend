@@ -3,8 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
-import { ProductsApi } from './products.api';
-import { Product } from './products.models';
+import { AuthStore } from '../../../../core/auth/auth.store';
+
+import { ProductsApi } from '../../services/products.api';
+import { Product } from '../../interfaces/products.models';
 import { ProductCreatePage, safeReturnTo } from './product-create.page';
 
 const product: Product = {
@@ -25,6 +27,7 @@ const createFixture = (create: ReturnType<typeof vi.fn>, returnTo: string | null
   const fixture = TestBed.configureTestingModule({
     imports: [ProductCreatePage],
     providers: [
+      { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: ['inventory.move'] }) } },
       { provide: ProductsApi, useValue: { create } },
       { provide: Router, useValue: { navigateByUrl } },
       { provide: ActivatedRoute, useValue: {
@@ -59,7 +62,12 @@ describe('Product create page', () => {
     expect(create).toHaveBeenCalledWith({
       sku: 'AL-17', name: 'Alimento inicial', kind: 'raw_material', base_unit: 'g', stock_tracked: true,
     });
-    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/inventario/existencias');
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    expect(page.createdProduct()?.id).toBe(product.id);
+    page.registerReceipt();
+    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/inventario/ajustes-y-perdidas?product_id=17');
+    await page.submit();
+    expect(create).toHaveBeenCalledTimes(1);
     fixture.destroy();
   });
 
@@ -116,14 +124,15 @@ describe('Product create page', () => {
     fixture.destroy();
   });
 
-  it('falls back to the Products list after success when returnTo is unsafe', async () => {
+  it('offers the catalog after success when returnTo is unsafe', async () => {
     const create = vi.fn().mockReturnValue(of({ data: product }));
     const { fixture, navigateByUrl } = createFixture(create, '//evil.example');
     const page = fixture.componentInstance;
     page.form.setValue({ sku: 'AL-17', name: 'Alimento inicial', kind: 'supply', base_unit: 'kg', stock_tracked: true });
 
     await page.submit();
-    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/proveedores/productos');
+    fixture.componentInstance.cancel();
+    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/inventario/existencias/productos');
     fixture.destroy();
   });
 

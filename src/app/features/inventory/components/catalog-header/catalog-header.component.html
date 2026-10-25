@@ -1,0 +1,18 @@
+<header class="catalog-heading">
+  <div>
+    <p class="eyebrow">Administración / Inventario</p>
+    <h1>Existencias</h1>
+    <p class="lead">Stock y productos en un mismo lugar.</p>
+  </div>
+  @if (canCreate()) {
+    <a class="create-product" routerLink="/administracion/inventario/existencias/productos/nuevo"><ion-icon name="add-outline" aria-hidden="true" />Nuevo producto</a>
+  }
+</header>
+<nav class="catalog-tabs" aria-label="Vistas de existencias">
+  @if (canViewStock() || active() === 'stock') {
+    <a routerLink="/administracion/inventario/existencias" [class.selected]="active() === 'stock'" [attr.aria-current]="active() === 'stock' ? 'page' : null"><ion-icon name="cube-outline" aria-hidden="true" />Stock por ubicación</a>
+  }
+  @if (canViewProducts() || active() === 'products') {
+    <a routerLink="/administracion/inventario/existencias/productos" [class.selected]="active() === 'products'" [attr.aria-current]="active() === 'products' ? 'page' : null"><ion-icon name="documents-outline" aria-hidden="true" /><span class="desktop-label">Catálogo de productos</span><span class="mobile-label">Productos</span></a>
+  }
+</nav>

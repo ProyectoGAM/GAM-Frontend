@@ -7,6 +7,14 @@
   margin: 0 auto;
 }
 
+.locations-page td strong a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--gam-color-primary);
+  text-underline-offset: 3px;
+}
+
 .back {
   display: inline-block;
   min-height: 44px;

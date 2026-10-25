@@ -4,11 +4,11 @@ import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validator
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
-import { ProductsApi } from './products.api';
-import { BASE_UNITS, PRODUCT_KINDS, BaseUnit, Product, ProductEditableField, ProductInput, ProductKind } from './products.models';
+import { ProductsApi } from '../../services/products.api';
+import { BASE_UNITS, PRODUCT_KINDS, BaseUnit, Product, ProductEditableField, ProductInput, ProductKind } from '../../interfaces/products.models';
 
 type PageState = 'loading' | 'success' | 'error';
-const PRODUCTS_PATH = '/administracion/proveedores/productos';
+const PRODUCTS_PATH = '/administracion/inventario/existencias/productos';
 const EDITABLE_FIELDS: readonly ProductEditableField[] = ['sku', 'name', 'kind', 'base_unit', 'stock_tracked'];
 
 @Component({

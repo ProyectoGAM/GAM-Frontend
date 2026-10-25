@@ -53,6 +53,12 @@ export interface ProductInput {
   stock_tracked: boolean;
 }
 
+export interface ProductFilters {
+  search?: string;
+  kind?: ProductKind;
+  status?: ProductStatus;
+}
+
 export interface PaginatedProducts {
   data: Product[];
   links: { first: string | null; last: string | null; prev: string | null; next: string | null };

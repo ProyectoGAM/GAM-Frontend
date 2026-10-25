@@ -3,8 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
-import { ProductsApi } from './products.api';
-import { Product } from './products.models';
+import { ProductsApi } from '../../services/products.api';
+import { Product } from '../../interfaces/products.models';
 import { ProductEditPage } from './product-edit.page';
 
 const product: Product = {
@@ -79,7 +79,7 @@ describe('Product edit page', () => {
     await fixture.componentInstance.submit();
 
     expect(update).toHaveBeenCalledExactlyOnceWith(product.id, { name: 'Alimento actualizado' });
-    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/proveedores/productos', {
+    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/inventario/existencias/productos', {
       state: { productUpdated: true },
     });
     fixture.destroy();
@@ -102,7 +102,7 @@ describe('Product edit page', () => {
     fixture.componentInstance.cancel();
 
     expect(update).not.toHaveBeenCalled();
-    expect(navigateByUrl).toHaveBeenCalledExactlyOnceWith('/administracion/proveedores/productos');
+    expect(navigateByUrl).toHaveBeenCalledExactlyOnceWith('/administracion/inventario/existencias/productos');
     fixture.destroy();
   });
 

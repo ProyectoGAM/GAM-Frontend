@@ -37,6 +37,17 @@ export function formatQuantityInput(value: string): string {
   return `${negative ? '-' : ''}${integer}${fraction ? `,${fraction}` : ''}`;
 }
 
+/** Presenta gramos en kilogramos sin redondear ni convertir el decimal a Number. */
+export function formatStockQuantity(value: string, unit: BaseUnit): string {
+  const unsigned = value.replace(/^[+-]/, '');
+  if (unit !== 'g' || decimalCompare(unsigned, '1000') < 0) return formatQuantity(value, unit);
+  const [integer, fraction = ''] = unsigned.split('.');
+  const digits = integer.padStart(4, '0');
+  const kilograms = digits.slice(0, -3);
+  const decimals = digits.slice(-3) + fraction;
+  return formatQuantity(`${value.startsWith('-') ? '-' : ''}${kilograms}.${decimals}`, 'kg');
+}
+
 export function signedQuantity(value: string, unit?: BaseUnit | string): string {
   const sign = value.startsWith('-') ? '' : '+';
   return `${sign}${formatQuantity(value, unit)}`;
