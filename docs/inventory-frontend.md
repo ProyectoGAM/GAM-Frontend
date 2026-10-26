@@ -58,7 +58,7 @@ Dentro de Docker pasaron `npm run lint`, las 707 pruebas de `npm run test:ci` y 
 
 La revisión en el navegador integrado comprobó el filtro real de bajo mínimo, apertura/cancelación del diálogo con su unidad de registro, el enlace a la planta correcta, catálogo y formulario globales, y claro/oscuro. Se revisó el diseño en 320, 390 y 1440 píxeles, sin desbordamiento horizontal. No se modificaron plugins ni configuración nativa; no se probó un dispositivo físico.
 
-Pendiente de dependencias: `npm audit --omit=dev` reporta una vulnerabilidad alta en `zod@4.6.5` ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)). La actualización compatible `npm update zod` no cambia el lockfile; Angular CLI 22.2.1 exige esa versión exacta. No se cambiaron dependencias ni se aplicaron overrides para esta implementación.
+La vulnerabilidad de `zod@4.6.5` detectada durante esta implementación se corrigió posteriormente mediante la actualización oficial de Angular CLI 22.2.4, que incorpora Zod 4.6.6. La auditoría de producción vuelve a reportar cero vulnerabilidades; ver [Seguridad de dependencias](security.md#corrección-de-zod--26-de-octubre-de-2026).
 
 ## Arquitectura
 
@@ -200,7 +200,7 @@ Los filtros de tipo, estado y fechas sólo afectan al historial. Se aplican expl
 
 Se utilizan los tokens GAM para claro/oscuro, sin modificar dependencias ni integración nativa. La referencia de producción sólo incluye el identificador de recolección: se presenta su origen y el detalle de EggStock, sin inventar un enlace a un lote que no devuelve el contrato.
 
-Validación del rediseño de huevos (25/10/2026): lint aprobado, 716 pruebas de la suite completa aprobadas (13 específicas de la pantalla) y compilación de producción aprobada sin advertencias. El navegador integrado verificó ambas UP con sus saldos reales, filtrado de pérdidas sin alterar el saldo, foco y cierre del modal, formularios independientes para ingreso/salida y presentación en escritorio/móvil con ambos temas; a 320 px no hubo desbordamiento horizontal. Los guardados y reintentos se comprobaron con pruebas de componente, sin crear movimientos en la base local. No se probó un dispositivo físico. La corrección de Zod sigue pendiente por decisión del usuario y no forma parte de este cambio.
+Validación del rediseño de huevos (25/10/2026): lint aprobado, 716 pruebas de la suite completa aprobadas (13 específicas de la pantalla) y compilación de producción aprobada sin advertencias. El navegador integrado verificó ambas UP con sus saldos reales, filtrado de pérdidas sin alterar el saldo, foco y cierre del modal, formularios independientes para ingreso/salida y presentación en escritorio/móvil con ambos temas; a 320 px no hubo desbordamiento horizontal. Los guardados y reintentos se comprobaron con pruebas de componente, sin crear movimientos en la base local. No se probó un dispositivo físico. La corrección posterior de Zod se documenta en [Seguridad de dependencias](security.md#corrección-de-zod--26-de-octubre-de-2026).
 
 EggStock es un subdominio especializado por Unidad Productiva y no se modifica mediante `/inventory/receipts` ni otros comandos genéricos. El frontend usa:
 
