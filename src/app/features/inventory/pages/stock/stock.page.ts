@@ -1,14 +1,16 @@
-import { Component, ElementRef, computed, inject, signal, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, signal, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline } from 'ionicons/icons';
+import { cubeOutline, warningOutline, locationOutline, funnelOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline } from 'ionicons/icons';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { CatalogHeaderComponent } from '../../components/catalog-header/catalog-header.component';
 import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
+import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 import { StockLocationsApi } from '../../services/stock-locations.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
@@ -31,13 +33,13 @@ const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {
   selector: 'app-inventory-stock',
   templateUrl: './stock.page.html',
   styleUrl: './stock.page.scss',
-  imports: [ReactiveFormsModule, RouterLink, IonIcon, CatalogHeaderComponent, SearchableSelectComponent],
+  imports: [ReactiveFormsModule, RouterLink, IonIcon, CatalogHeaderComponent, SearchableSelectComponent, FilterDialogComponent],
 })
 export class StockPage {
+  private readonly destroyRef = inject(DestroyRef);
   readonly auth = inject(AuthStore);
   private readonly locationsApi = inject(StockLocationsApi);
   readonly locations = signal<StockLocation[]>([]);
-  readonly filtersOpen = signal(false);
   readonly belowMinimumCount = computed(() => this.balances().filter((balance) => decimalCompare(balance.available_quantity, balance.minimum_quantity) < 0).length);
   readonly locationCount = computed(() => new Set(this.balances().map((balance) => balance.stock_location_id)).size);
   readonly resultSummary = computed(() => this.meta()?.total === 1 ? '1 saldo encontrado' : `${this.meta()?.total ?? 0} saldos encontrados`);
@@ -80,18 +82,25 @@ export class StockPage {
   private minimumReturnFocusTo: HTMLElement | null = null;
   @ViewChild('minimumDialog', { static: true }) private readonly minimumDialog!: ElementRef<HTMLDialogElement>;
   @ViewChild('minimumInput', { static: true }) private readonly minimumInput!: ElementRef<HTMLInputElement>;
+  @ViewChild(FilterDialogComponent, { static: true }) private readonly filterDialog!: FilterDialogComponent;
   readonly filters = new FormGroup({
     product_id: new FormControl('', { nonNullable: true }),
     stock_location_id: new FormControl('', { nonNullable: true }),
     below_minimum: new FormControl(false, { nonNullable: true }),
   });
+  private readonly appliedFilters = signal(this.filters.getRawValue());
+  readonly activeFilterCount = computed(() => Number(Boolean(this.appliedFilters().stock_location_id))
+    + Number(this.appliedFilters().below_minimum));
   readonly canManage = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.manage') === true);
   readonly canRegisterMovement = computed(() => this.auth.isAdmin()
     || this.auth.user()?.permissions.some((permission) => permission === 'inventory.move' || permission === 'inventory.adjust') === true);
   private loadVersion = 0;
 
   constructor() {
-    addIcons({ cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline });
+    addIcons({ cubeOutline, warningOutline, locationOutline, funnelOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline });
+    this.filters.controls.product_id.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      void this.applyProductFilter();
+    });
     void this.loadReferences();
     void this.loadLocations();
     void this.load();
@@ -104,12 +113,12 @@ export class StockPage {
     this.success.set(null);
     try {
       const response = await firstValueFrom(this.api.balances(this.filterValues(page)));
-      if (version !== this.loadVersion) return;
+      if (version !== this.loadVersion || this.destroyRef.destroyed) return;
       this.balances.set(response.data);
       this.meta.set(response.meta);
       this.state.set(response.data.length ? 'success' : 'empty');
     } catch (error) {
-      if (version !== this.loadVersion) return;
+      if (version !== this.loadVersion || this.destroyRef.destroyed) return;
       this.state.set('error');
       this.error.set(inventoryErrorMessage(error, 'No se pudieron cargar las existencias.'));
     }
@@ -145,8 +154,31 @@ export class StockPage {
   }
 
   clearFilters(): void {
-    this.filters.reset({ product_id: '', stock_location_id: '', below_minimum: false });
-    void this.load();
+    this.filters.reset({ product_id: '', stock_location_id: '', below_minimum: false }, { emitEvent: false });
+    void this.applyFilters();
+  }
+
+  openFilters(trigger: HTMLElement): void {
+    const applied = this.appliedFilters();
+    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum });
+    this.filterDialog.open(trigger);
+  }
+
+  clearDraftFilters(): void {
+    this.filters.patchValue({ stock_location_id: '', below_minimum: false });
+  }
+
+  async applyFilters(): Promise<void> {
+    this.appliedFilters.set(this.filters.getRawValue());
+    this.filterDialog.close();
+    await this.load();
+  }
+
+  async applyProductFilter(): Promise<void> {
+    const applied = this.appliedFilters();
+    if (this.filters.controls.product_id.value === applied.product_id && this.state() !== 'error') return;
+    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum });
+    await this.applyFilters();
   }
 
   editMinimum(balance: StockBalance, event: Event): void {
@@ -210,7 +242,7 @@ export class StockPage {
         : input.replace(',', '.');
       const response = await firstValueFrom(this.api.setMinimumStock(balance.id, minimum));
       this.balances.update((items) => items.map((item) => item.id === balance.id ? response.data : item));
-      if (this.filters.controls.below_minimum.value && decimalCompare(response.data.available_quantity, response.data.minimum_quantity) >= 0) {
+      if (this.appliedFilters().below_minimum && decimalCompare(response.data.available_quantity, response.data.minimum_quantity) >= 0) {
         await this.load(this.meta()?.current_page ?? 1);
       }
       this.success.set('Stock mínimo actualizado.');
@@ -224,7 +256,7 @@ export class StockPage {
   }
 
   hasActiveFilters(): boolean {
-    const value = this.filters.getRawValue();
+    const value = this.appliedFilters();
     return Boolean(value.product_id || value.stock_location_id || value.below_minimum);
   }
 
@@ -254,7 +286,7 @@ export class StockPage {
   }
 
   private filterValues(page: number): InventoryBalanceFilters {
-    const value = this.filters.getRawValue();
+    const value = this.appliedFilters();
     return {
       product_id: value.product_id ? Number(value.product_id) : undefined,
       stock_location_id: value.stock_location_id ? Number(value.stock_location_id) : undefined,

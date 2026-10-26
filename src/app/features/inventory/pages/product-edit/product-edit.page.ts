@@ -1,11 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { ProductsApi } from '../../services/products.api';
-import { BASE_UNITS, PRODUCT_KINDS, BaseUnit, Product, ProductEditableField, ProductInput, ProductKind } from '../../interfaces/products.models';
+import { BASE_UNITS, CREATABLE_PRODUCT_KINDS, PRODUCT_KINDS, BaseUnit, Product, ProductEditableField, ProductInput, ProductKind } from '../../interfaces/products.models';
 
 type PageState = 'loading' | 'success' | 'error';
 const PRODUCTS_PATH = '/administracion/inventario/existencias/productos';
@@ -23,7 +23,7 @@ export class ProductEditPage {
   private readonly router = inject(Router);
   private readonly productId = this.route.snapshot.paramMap.get('id');
 
-  readonly kinds = PRODUCT_KINDS;
+  readonly kinds = computed(() => this.product()?.kind === 'finished_feed' ? PRODUCT_KINDS : CREATABLE_PRODUCT_KINDS);
   readonly units = BASE_UNITS;
   readonly state = signal<PageState>('loading');
   readonly product = signal<Product | null>(null);
@@ -32,7 +32,8 @@ export class ProductEditPage {
   readonly form = new FormGroup({
     sku: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(80)] }),
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(160)] }),
-    kind: new FormControl<ProductKind | ''>('', { nonNullable: true, validators: [Validators.required] }),
+    kind: new FormControl<ProductKind | ''>('', { nonNullable: true, validators: [Validators.required,
+      (control) => control.value === 'finished_feed' && this.product()?.kind !== 'finished_feed' ? { unavailableKind: true } : null] }),
     base_unit: new FormControl<BaseUnit | ''>('', { nonNullable: true, validators: [Validators.required] }),
     stock_tracked: new FormControl(false, { nonNullable: true }),
   });
@@ -97,6 +98,7 @@ export class ProductEditPage {
     if (typeof server === 'string') return server;
     if (control.touched && control.hasError('required')) return 'Completa este campo.';
     if (control.touched && control.hasError('maxlength')) return 'El valor supera el máximo permitido.';
+    if (control.hasError('unavailableKind')) return 'Las raciones se gestionan desde recetas y stock de raciones.';
     return null;
   }
 

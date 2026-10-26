@@ -1,6 +1,8 @@
 @use '../../catalog-ui';
+@use '../../../../shared/ui/filter-dialog/filter-controls';
 
 .products-page {
+  @include filter-controls.controls;
   .catalog-title { margin: 0 0 8px; font-size: 1.125rem; color: var(--gam-color-heading); }
   .catalog-description { margin: 0 0 20px; color: var(--gam-color-text-muted); font-size: .875rem; }
   .product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
@@ -18,13 +20,5 @@
   .row-actions .button { flex: 1; padding-inline: 8px; }
   .confirm-summary { padding: 12px; border: 1px solid var(--gam-color-border); border-radius: 7px; }
   .confirm-summary p { margin: 0; }
-  @media (min-width: 760px) {
-    .filters { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr) minmax(0, .6fr); align-items: end; }
-    .filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
-    .filter-actions .button { flex: 0 1 auto; }
-  }
-  @media (min-width: 1200px) {
-    .filters { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr) minmax(0, .6fr) auto; }
-    .filter-actions { grid-column: auto; }
-  }
+
 }

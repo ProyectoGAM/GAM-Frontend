@@ -14,6 +14,27 @@ Los productos nunca se filtran ni se crean por UP. El catálogo consulta `GET /p
 
 Crear un producto no registra existencias. Después de guardar se muestra una confirmación y se impide repetir el alta. Para productos con control de stock, quienes tienen `inventory.move` pueden continuar a **Registrar ingreso**, con el producto preseleccionado y la ubicación pendiente de elegir. El formulario conserva gramos y control de stock obligatorios para materias primas, los errores por campo y la validación del servidor.
 
+El alta se diseña primero para teléfono: dos tarjetas en una columna, **Datos del
+producto** y **Control de existencias**, con campos táctiles de 48 px y tokens GAM
+en claro y oscuro. La información de alcance global se resume en el encabezado.
+**Crear producto** es la única acción principal y permanece en una barra inferior
+con espacio reservado en el contenido, área segura y ajuste al viewport visual del
+teclado. En escritorio el botón se alinea al final del formulario, sin cubrir la
+navegación lateral. No se agrega otro contenedor de scroll a `ion-content`.
+
+**Volver a productos** reemplaza Cancelar y la ×. El guard de salida confirma los
+datos pendientes al volver o navegar a otra ruta; **Seguir editando** conserva los
+valores y **Descartar cambios** permite la salida. Un formulario vacío o un alta
+exitosa no pide confirmación. Recargar/cerrar usa la protección nativa del navegador
+cuando hay datos pendientes; no se persisten borradores. La salida por fin de sesión
+no queda bloqueada por esta confirmación.
+
+El envío inválido permanece disponible para explicar los campos pendientes y
+enfocar el primero. Los errores de validación del servidor también enfocan el campo
+afectado. Durante **Creando…** se bloquean edición, salida y envíos repetidos. Tras
+el éxito desaparece la barra de creación y se conserva Registrar ingreso según
+permiso y control de stock. No cambian el contrato de alta ni los plugins nativos.
+
 La pantalla usa tarjetas compactas en teléfonos y tabletas, y tabla en escritorio. El total de saldos proviene de `meta.total`; los indicadores Bajo mínimo y Ubicaciones muestran explícitamente **En esta página**, porque el API no ofrece agregados globales. No se suman unidades incompatibles ni se descargan todos los saldos para obtener esas cifras.
 
 Las ubicaciones técnicas conservan su nombre e ID. Se presenta `poultry_house_name` cuando está disponible y se enlaza al detalle real mediante `poultry_house_id` y la UP de la ubicación. El listado paginado de ubicaciones proporciona ese contexto cuando el saldo no incluye la UP. Si esa consulta falla, se conserva el nombre del saldo sin inventar un enlace. Las opciones de referencia del backend ya contienen nombres de plantas y UP.
@@ -75,6 +96,10 @@ POST  /inventory/movements/{inventoryMovement}/reversals
 
 Los filtros de existencias (`product_id`, `stock_location_id`, `below_minimum`) y movimientos (`type`, producto, ubicación, proveedor, fechas) se envían al backend. No se descargan todas las páginas para filtrar en memoria. El selector de tipo de producto no se presenta como filtro server-side de balances porque ese endpoint no acepta `kind`.
 
+En **Stock por ubicación**, el selector con búsqueda de producto permanece visible y aplica la selección al elegir una opción. El botón **Filtros** abre el mismo diálogo centrado del resto de listados para elegir ubicación y **Solo bajo mínimo**, con contador de filtros aplicados. **Limpiar** cambia el borrador; **Ver resultados** consulta el backend y cierra el modal. Cerrar con X o Escape conserva la consulta anterior. La paginación, la selección de otro producto y la actualización de mínimos usan los filtros aplicados, incluso después de cancelar un borrador distinto. El estilo compartido permite omitir las reglas de controles que la pantalla no usa, sin ampliar el presupuesto de CSS.
+
+Validación de filtros de Stock por ubicación (26/10/2026): lint, 769 pruebas de la suite completa, 15 pruebas específicas finales y build aprobados. El navegador integrado comprobó el modal y la cancelación del borrador en móvil de 320/390 px, ambos temas y escritorio de 1366 px; **Solo bajo mínimo** devolvió el único saldo bajo mínimo de la base local. No se modificaron existencias ni mínimos.
+
 El stock mínimo conserva el valor decimal como string. Los estados se derivan de los datos reales:
 
 - `Sin stock`: saldo igual a cero.
@@ -83,13 +108,23 @@ El stock mínimo conserva el valor decimal como string. Los estados se derivan d
 
 ## Productos y unidades
 
-El modelo frontend contempla todos los `ProductKind` actuales: `raw_material`, `supply`, `finished_feed`, `egg`, `medicine`, `vaccine` y `other`. También conserva `stock_tracked` y `status` para que el backend siga siendo la autoridad sobre productos utilizables.
+El modelo de lectura contempla `raw_material`, `supply`, `finished_feed`, `egg`, `medicine`, `vaccine` y `other`. Las altas ofrecen únicamente `raw_material`, `supply`, `egg`, `medicine`, `vaccine` y `other`, según `CreatableKind` de `products.yaml`; `finished_feed` queda reservado a registros históricos. El editor no ofrece convertir otros productos a ese tipo, pero conserva su etiqueta y clasificación al editar metadata de uno que ya era ración. La validación del formulario también rechaza nuevas altas y conversiones con el valor retirado. Se conservan `stock_tracked`, `status` y las capacidades del backend como autoridad sobre productos utilizables.
 
 Las unidades técnicas son `unit`, `kg`, `g`, `l`, `ml` y `dose`. Se muestran como unidades, kg, g, L, ml y dosis. Las cantidades se formatean desde strings sin convertirlas a `number` para enviarlas ni redondearlas destructivamente.
 
 ## Ubicaciones
 
-`StockLocation` puede tener `production_unit` nula. La pantalla permite listado paginado, búsqueda, filtros por estado y UP, alta, edición y cambio entre `active` e `inactive`. El selector de UP usa las opciones compactas de `/reference/options` y no modifica la feature de Unidades Productivas.
+`StockLocation` puede tener `production_unit` nula. La pantalla permite listado paginado y búsqueda visible junto a un botón **Filtros**, con contador de filtros aplicados. El estado y la UP se eligen dentro del modal compartido con el catálogo de productos, instalaciones y lotes. **Limpiar** modifica el borrador y **Ver resultados** aplica la selección; cerrar con la X o Escape no aplica los cambios. El catálogo ofrece tipo y estado, sin filtro de UP porque los productos son globales.
+
+La búsqueda responde al escribir (250 ms) y admite Enter. Abrir el modal procesa primero una búsqueda pendiente para que su temporizador no interrumpa la selección. La paginación conserva los filtros aplicados y descarta respuestas anteriores si hay una consulta más reciente. La UP seleccionada desde la navegación bloquea ese filtro. Las opciones de UP se cargan con `ProductionUnitsService.listAll()`; su fallo no oculta el listado de ubicaciones.
+
+El alta y la edición se abren en un diálogo modal con foco inicial en el nombre y devolución del foco al cancelar o cerrar con Escape. Durante el guardado se bloquean campos, cierre y envíos duplicados; un error conserva los valores y se muestra dentro del modal. El nombre se normaliza antes de validar para rechazar valores compuestos sólo por espacios. Las ubicaciones gestionadas por el sistema conservan sus acciones bloqueadas. La composición parte de teléfono, con controles de 44 px, filas como tarjetas y tokens GAM para ambos temas.
+
+El listado de ubicaciones muestra **Tipo** según su vínculo existente: **Planta de ración** cuando tiene `poultry_house_id`, **Unidad productiva** cuando tiene `production_unit` y no está vinculada a una planta, y **Depósito general** cuando no tiene ninguno de esos vínculos. La relación con la planta tiene prioridad aunque también exista una UP. La etiqueta describe a qué pertenece la ubicación; no clasifica los productos almacenados ni se deduce del nombre o de `system_managed`.
+
+Validación de filtros y modales (26/10/2026): lint, las 761 pruebas de la suite y la compilación de producción aprobados. Se verificaron búsqueda real, creación/edición en modal, cancelación, Escape y devolución del foco en el navegador integrado, con teléfono de 320 px y escritorio de 1366 px, en ambos temas. Los guardados y sus errores se validaron mediante pruebas de componente, sin crear ni modificar ubicaciones en la base local. No hubo cambios de integración nativa ni pruebas en dispositivo físico.
+
+Validación del patrón compartido de filtros (26/10/2026): lint, las 767 pruebas de la suite y build aprobados. El navegador integrado comprobó centrado en instalaciones, lotes, ubicaciones y productos; teléfono de 320/390 px, escritorio de 1366 px y altura reducida de 360 px, con cuerpo desplazable y pie accesible. Se verificaron claro/oscuro, cancelación del borrador y aplicación real de tipo/estado en productos (tres materias primas activas), sin escrituras en la base de datos. La regresión de una búsqueda pendiente al abrir el modal está cubierta por una prueba de componente.
 
 ## Movimientos e idempotencia
 
@@ -134,7 +169,7 @@ El saldo de EggStock puede ser negativo según el backend y se muestra con adver
 La UI lee solamente `AuthUser.permissions` y no cambia `GROUP_ROLE_GRANTS` ni inventa roles. Las acciones se condicionan a `inventory.view`, `inventory.move`, `inventory.adjust`, `inventory.manage`, `egg-stock.view`, `egg-stock.move` y `egg-stock.adjust`; el backend sigue autorizando cada request.
 
 - Vacunas: una vacuna se relaciona con `Product`; si ese producto está `stock_tracked`, participa del inventario genérico. No hay un saldo frontend separado de vacunas.
-- Raciones: los productos `finished_feed` se tratan como cualquier producto stockeable. Este feature no implementa planes, consumo planificado ni cambios de ración de Manejo.
+- Raciones: los productos históricos `finished_feed` siguen consultables en catálogo, filtros y stock genérico; no se crean nuevos ni se convierten otros productos a ese tipo. Las recetas y sus saldos por UP pertenecen a Stock de raciones y no se eliminan ni se mezclan con estas cuentas históricas.
 - Medicamentos: `MedicineStockBalance` y `MedicineStockMovement` pertenecen a Manejo y usan medicamento, cantidad entera, versión y permisos `management-plans.*`. No se combinan con `StockBalance` ni se suman al inventario físico genérico.
 - Huevos: usan la cuenta técnica EggStock y sus propios movimientos.
 

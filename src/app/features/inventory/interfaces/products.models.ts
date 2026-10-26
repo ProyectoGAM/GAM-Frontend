@@ -18,6 +18,12 @@ export const BASE_UNITS = [
 ] as const;
 
 export type ProductKind = typeof PRODUCT_KINDS[number]['value'];
+export type CreatableProductKind = Exclude<ProductKind, 'finished_feed'>;
+export const CREATABLE_PRODUCT_KINDS = PRODUCT_KINDS.filter((kind) => kind.value !== 'finished_feed');
+
+export function isCreatableProductKind(value: unknown): value is CreatableProductKind {
+  return CREATABLE_PRODUCT_KINDS.some((kind) => kind.value === value);
+}
 export type BaseUnit = typeof BASE_UNITS[number]['value'];
 export type ProductStatus = 'active' | 'inactive';
 export type ProductEditableField = 'sku' | 'name' | 'kind' | 'base_unit' | 'stock_tracked';
@@ -51,6 +57,10 @@ export interface ProductInput {
   kind: ProductKind;
   base_unit: BaseUnit;
   stock_tracked: boolean;
+}
+
+export interface CreateProductInput extends Omit<ProductInput, 'kind'> {
+  kind: CreatableProductKind;
 }
 
 export interface ProductFilters {

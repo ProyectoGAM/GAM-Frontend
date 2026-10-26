@@ -2,11 +2,9 @@
   <app-inventory-catalog-header active="products" />
   <h2 #productsHeading tabindex="-1" class="catalog-title">Catálogo de productos</h2>
   <p class="catalog-description">Los productos son globales. El stock se registra luego en cada ubicación.</p>
-  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
-    <div class="field"><label for="catalog-search">Buscar producto</label><input id="catalog-search" type="search" formControlName="search" placeholder="Nombre del producto" maxlength="120"></div>
-    <div class="field"><label for="catalog-kind">Tipo</label><select id="catalog-kind" formControlName="kind"><option value="">Todos</option>@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select></div>
-    <div class="field"><label for="catalog-status">Estado</label><select id="catalog-status" formControlName="status"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
-    <div class="filter-actions"><button class="button primary" type="submit">Buscar</button><button class="button" type="button" (click)="clearFilters()">Restablecer</button></div>
+  <form class="filter-toolbar" [formGroup]="filters" (ngSubmit)="searchProducts()" aria-label="Búsqueda de productos">
+    <label class="filter-search"><ion-icon name="search-outline" aria-hidden="true" /><input id="catalog-search" type="search" formControlName="search" aria-label="Buscar producto" placeholder="Buscar producto" maxlength="120" autocomplete="off"></label>
+    <button #filtersTrigger class="filter-trigger" type="button" aria-haspopup="dialog" [attr.aria-label]="activeFilterCount() ? 'Filtros, ' + activeFilterCount() + ' aplicados' : 'Filtros'" (click)="openFilters(filtersTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (activeFilterCount()) { <span class="filter-count">{{ activeFilterCount() }}</span> }</button>
   </form>
   @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando productos…</div> }
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button secondary" type="button" (click)="load()">Reintentar</button></div> }
@@ -56,4 +54,14 @@
     (dismissed)="dismissStatusChange()">
     @if (pendingStatusProduct(); as product) { <div class="confirm-summary"><p><strong>{{ product.name }}</strong></p></div> }
   </app-inventory-confirmation-dialog>
+  <app-filter-dialog titleId="catalog-filters-title" (clearRequested)="clearDraftFilters()" (applyRequested)="applyFilters()">
+    <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <div class="filter-section"><label for="catalog-kind">Tipo de producto</label><select id="catalog-kind" formControlName="kind"><option value="">Todos los tipos</option>@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select></div>
+      <fieldset class="filter-section"><legend>Estado</legend><div class="filter-choices">
+        <button type="button" [attr.aria-pressed]="filters.controls.status.value === ''" (click)="filters.controls.status.setValue('')">Todos</button>
+        <button type="button" [attr.aria-pressed]="filters.controls.status.value === 'active'" (click)="filters.controls.status.setValue('active')">Activos</button>
+        <button type="button" [attr.aria-pressed]="filters.controls.status.value === 'inactive'" (click)="filters.controls.status.setValue('inactive')">Inactivos</button>
+      </div></fieldset>
+    </form>
+  </app-filter-dialog>
 </section>

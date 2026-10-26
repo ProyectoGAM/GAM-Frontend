@@ -53,11 +53,73 @@ const createFixture = (options: {
 };
 
 describe('Products list page', () => {
+  it('discards cancelled modal changes, applies on request and keeps applied filters when paginating', async () => {
+    const { fixture, list } = createFixture();
+    await settle(fixture);
+    const page = fixture.componentInstance;
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    page.filters.patchValue({ kind: 'medicine', status: 'inactive' });
+    (dialog.querySelector('.sheet-close') as HTMLButtonElement).click();
+    expect(list).toHaveBeenCalledTimes(1);
+    trigger.click();
+    expect(page.filters.controls.kind.value).toBe('');
+    expect(page.filters.controls.status.value).toBe('');
+    page.filters.patchValue({ kind: 'vaccine', status: 'active' });
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
+    await settle(fixture);
+    expect(dialog.open).toBe(false);
+    expect(list).toHaveBeenLastCalledWith(1, { search: undefined, kind: 'vaccine', status: 'active' });
+    expect(trigger.querySelector('.filter-count')?.textContent).toBe('2');
+    page.filters.controls.kind.setValue('other');
+    await page.load(2);
+    expect(list).toHaveBeenLastCalledWith(2, { search: undefined, kind: 'vaccine', status: 'active' });
+    trigger.click();
+    (dialog.querySelector('.sheet-action.secondary') as HTMLButtonElement).click();
+    expect(page.filters.controls.kind.value).toBe('');
+    expect(page.filters.controls.status.value).toBe('');
+    expect(page.activeFilterCount()).toBe(2);
+    fixture.destroy();
+  });
+
+  it('searches while typing using applied filters instead of a cancelled modal draft', async () => {
+    const { fixture, list } = createFixture();
+    await settle(fixture);
+    const page = fixture.componentInstance;
+    page.filters.controls.status.setValue('inactive');
+    const input = fixture.nativeElement.querySelector('#catalog-search') as HTMLInputElement;
+    input.value = '  Maíz  ';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(list).toHaveBeenLastCalledWith(1, { search: 'Maíz', kind: undefined, status: undefined }));
+    expect(list).toHaveBeenCalledTimes(2);
+    fixture.destroy();
+  });
+
+  it('keeps the filter modal open when typing immediately before opening it', async () => {
+    const { fixture, list } = createFixture();
+    await settle(fixture);
+    const input = fixture.nativeElement.querySelector('#catalog-search') as HTMLInputElement;
+    input.value = 'Maíz';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    (fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement).click();
+    fixture.componentInstance.filters.controls.status.setValue('inactive');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(fixture.componentInstance.filters.controls.status.value).toBe('inactive');
+    expect(list).toHaveBeenLastCalledWith(1, { search: 'Maíz', kind: undefined, status: undefined });
+    expect(list).toHaveBeenCalledTimes(2);
+    fixture.destroy();
+  });
+
   it('filters the global catalog on the server without sending UP or location fields', async () => {
     const { fixture, list } = createFixture();
     await settle(fixture);
     fixture.componentInstance.filters.setValue({ search: '  Maíz  ', kind: 'raw_material', status: 'active' });
-    await fixture.componentInstance.load();
+    await fixture.componentInstance.applyFilters();
     expect(list).toHaveBeenLastCalledWith(1, { search: 'Maíz', kind: 'raw_material', status: 'active' });
     expect(fixture.nativeElement.querySelector('[name="production_unit_id"]')).toBeNull();
     fixture.componentInstance.clearFilters();

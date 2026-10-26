@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { IonButton, IonIcon, IonSpinner } from '@ionic/angular';
@@ -29,6 +29,7 @@ import { formatFlockEntryDate } from '../../services/flock-entry-date';
 import { FlockCardComponent } from '../../components/flock-card/flock-card.component';
 import { FlockDetailService } from '../../services/flock-detail.service';
 import { DetailMetric } from '../../interfaces/flock-detail.interface';
+import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 
 type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbidden' | 'context-error';
 
@@ -36,10 +37,10 @@ type ListState = 'loading' | 'success' | 'empty' | 'error' | 'offline' | 'forbid
   selector: 'app-flocks-list-page',
   templateUrl: './flocks-list.page.html',
   styleUrl: './flocks-list.page.scss',
-  imports: [IonButton, IonIcon, IonSpinner, RouterLink, FlockCardComponent],
+  imports: [IonButton, IonIcon, IonSpinner, RouterLink, FlockCardComponent, FilterDialogComponent],
 })
 export class FlocksListPage {
-  @ViewChild('filtersDialog', { static: true }) private readonly filtersDialog!: ElementRef<HTMLDialogElement>;
+  @ViewChild(FilterDialogComponent, { static: true }) private readonly filtersDialog!: FilterDialogComponent;
 
   private readonly api = inject(FlocksApi);
   private readonly productionUnits = inject(ProductionUnitsService);
@@ -48,7 +49,6 @@ export class FlocksListPage {
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadCount = signal(0);
-  private returnFocusTo: HTMLElement | null = null;
   private readonly poultryHouses$ = this.productionUnits.listAllPoultryHouses().pipe(
     shareReplay({ bufferSize: 1, refCount: false }),
   );
@@ -123,19 +123,11 @@ export class FlocksListPage {
 
   openFilters(trigger: HTMLElement): void {
     this.draftUnitId.set(this.unitContext.selectedId());
-    this.returnFocusTo = trigger;
-    if (!this.filtersDialog.nativeElement.open) this.filtersDialog.nativeElement.showModal();
+    this.filtersDialog.open(trigger);
   }
 
   closeFilters(): void {
-    if (this.filtersDialog.nativeElement.open) this.filtersDialog.nativeElement.close();
-    if (this.returnFocusTo?.isConnected) this.returnFocusTo.focus();
-    this.returnFocusTo = null;
-  }
-
-  onFilterCancel(event: Event): void {
-    event.preventDefault();
-    this.closeFilters();
+    this.filtersDialog.close();
   }
 
   setDraftUnit(value: string): void {

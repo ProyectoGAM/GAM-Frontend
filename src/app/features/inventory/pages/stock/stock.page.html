@@ -10,17 +10,12 @@
   @if (referencesState() === 'loading') { <div class="state card" aria-live="polite">Cargando opciones para los filtros…</div> }
   @if (referencesState() === 'empty') { <div class="state card" role="status">No hay productos o ubicaciones para filtrar. Las existencias siguen disponibles.</div> }
   @if (referencesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="loadReferences()">Reintentar filtros</button></div> }
-  <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
+  <form class="filter-toolbar" [formGroup]="filters" (ngSubmit)="applyProductFilter()" aria-label="Búsqueda de existencias">
     <div class="field product-filter">
       <label for="stock-product">Buscar producto</label>
       <app-searchable-select inputId="stock-product" formControlName="product_id" [options]="options()?.products ?? []" placeholder="Nombre o código" emptyOptionLabel="Todos los productos" />
     </div>
-    <button class="button filters-toggle" type="button" [attr.aria-expanded]="filtersOpen()" aria-controls="stock-location-filters" (click)="filtersOpen.set(!filtersOpen())"><ion-icon name="options-outline" aria-hidden="true" />Filtros</button>
-    <div id="stock-location-filters" class="extra-filters" [class.open]="filtersOpen()">
-      <div class="field"><label for="stock-location">Ubicación</label><select id="stock-location" formControlName="stock_location_id"><option value="">Todas</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></div>
-      <label class="checkbox"><input type="checkbox" formControlName="below_minimum"> Solo bajo mínimo</label>
-    </div>
-    <div class="filter-actions"><button class="button primary" type="submit">Buscar</button><button class="button" type="button" (click)="clearFilters()">Restablecer</button></div>
+    <button #filtersTrigger class="filter-trigger" type="button" aria-haspopup="dialog" [attr.aria-label]="activeFilterCount() ? 'Filtros, ' + activeFilterCount() + (activeFilterCount() === 1 ? ' aplicado' : ' aplicados') : 'Filtros'" (click)="openFilters(filtersTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (activeFilterCount()) { <span class="filter-count">{{ activeFilterCount() }}</span> }</button>
   </form>
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load()">Reintentar</button></div> }
   @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
@@ -90,4 +85,12 @@
     </div>
   </form>
 </dialog>
+  <app-filter-dialog titleId="stock-filters-title" (clearRequested)="clearDraftFilters()" (applyRequested)="applyFilters()">
+    <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <div class="filter-section"><label for="stock-location">Ubicación</label><select id="stock-location" formControlName="stock_location_id"><option value="">Todas las ubicaciones</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></div>
+      <div class="filter-section"><label class="checkbox"><input type="checkbox" formControlName="below_minimum"> Solo bajo mínimo</label></div>
+      @if (referencesState() === 'loading') { <p class="muted" role="status">Cargando ubicaciones…</p> }
+      @if (referencesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="loadReferences()">Reintentar filtros</button></div> }
+    </form>
+  </app-filter-dialog>
 </section>

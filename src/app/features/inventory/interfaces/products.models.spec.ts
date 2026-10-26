@@ -1,5 +1,7 @@
 import {
   baseUnitLabel,
+  CREATABLE_PRODUCT_KINDS,
+  isCreatableProductKind,
   Product,
   productKindLabel,
   productStatusLabel,
@@ -7,6 +9,13 @@ import {
 } from './products.models';
 
 describe('product catalog labels', () => {
+  it('offers current product types for creation while keeping legacy ration labels readable', () => {
+    expect(CREATABLE_PRODUCT_KINDS.map((kind) => kind.value)).toEqual(['raw_material', 'supply', 'egg', 'medicine', 'vaccine', 'other']);
+    expect(isCreatableProductKind('finished_feed')).toBe(false);
+    expect(isCreatableProductKind('supply')).toBe(true);
+    expect(isCreatableProductKind(null)).toBe(false);
+    expect(productKindLabel('finished_feed')).toBe('Ración');
+  });
   it('models ownership and capabilities metadata and keeps specialized public IDs as strings', () => {
     const vaccine: Product = {
       id: 17,

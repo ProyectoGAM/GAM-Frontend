@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
-import { PaginatedProducts, Product, ProductFilters, ProductInput, ProductStatus } from '../interfaces/products.models';
+import { CreateProductInput, PaginatedProducts, Product, ProductFilters, ProductInput, ProductStatus } from '../interfaces/products.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductsApi {
@@ -16,8 +16,8 @@ export class ProductsApi {
     return this.api.get<{ data: Product }>(`products/${encodeURIComponent(String(id))}`);
   }
 
-  create(body: ProductInput): Observable<{ data: Product }> {
-    return this.api.post<{ data: Product }, ProductInput>('products', body);
+  create(body: CreateProductInput): Observable<{ data: Product }> {
+    return this.api.post<{ data: Product }, CreateProductInput>('products', body);
   }
 
   update(id: number | string, body: Partial<ProductInput>): Observable<{ data: Product }> {

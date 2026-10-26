@@ -29,7 +29,7 @@
       <div class="field">
         <label for="product-kind">Tipo</label>
         <select id="product-kind" formControlName="kind" (change)="clearFieldError(form.controls.kind)" [attr.aria-invalid]="fieldError(form.controls.kind) ? 'true' : null">
-          @for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }
+          @for (kind of kinds(); track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }
         </select>
         @if (!isEditable('kind')) { <span class="field-help">Campo de solo lectura.</span> }
         @if (fieldError(form.controls.kind); as message) { <span class="field-error" role="alert">{{ message }}</span> }

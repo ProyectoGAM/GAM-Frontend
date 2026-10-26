@@ -55,4 +55,19 @@ describe('Inventory confirmation dialog', () => {
     expect(buttons.every(button => button.disabled)).toBe(true);
     fixture.destroy();
   });
+
+  it('lets a form name the safe action without changing confirmation behavior', () => {
+    const fixture = TestBed.configureTestingModule({ imports: [InventoryConfirmationDialogComponent] })
+      .createComponent(InventoryConfirmationDialogComponent);
+    fixture.componentInstance.title = '¿Descartar cambios?';
+    fixture.componentInstance.cancelLabel = 'Seguir editando';
+    fixture.componentInstance.confirmLabel = 'Descartar cambios';
+    fixture.detectChanges(); fixture.componentInstance.open();
+    const dismissed = vi.fn(); fixture.componentInstance.dismissed.subscribe(dismissed);
+    const cancel = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(cancel.textContent).toBe('Seguir editando');
+    expect(document.activeElement).toBe(cancel);
+    cancel.click(); expect(dismissed).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
 });

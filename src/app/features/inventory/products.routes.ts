@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import type { ProductCreatePage } from './pages/product-create/product-create.page';
 
 export const productsRoutes: Routes = [
   {
@@ -9,6 +10,7 @@ export const productsRoutes: Routes = [
   },
   {
     path: 'nuevo',
+    canDeactivate: [(component: ProductCreatePage) => component.canLeave()],
     data: { title: 'Nuevo producto', groupLabel: 'Inventario' },
     loadComponent: () => import('./pages/product-create/product-create.page').then((module) => module.ProductCreatePage),
   },

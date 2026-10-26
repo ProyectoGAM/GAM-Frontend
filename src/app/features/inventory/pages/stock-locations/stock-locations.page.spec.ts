@@ -40,6 +40,10 @@ const locationPage = {
   meta: { current_page: 1, from: 1, last_page: 1, per_page: 25, to: 1, total: 1 },
 };
 
+let restoreNativeDialog: () => void;
+beforeEach(() => { restoreNativeDialog = stubNativeDialog(); });
+afterEach(() => { restoreNativeDialog(); });
+
 describe('StockLocations production-unit integration', () => {
   it('uses the sidebar UP as a locked location filter', async () => {
     const selectedId = signal<number | null>(23);
@@ -132,7 +136,7 @@ describe('StockLocations production-unit integration', () => {
     await fixture.whenStable();
     const page = fixture.componentInstance;
     page.filters.patchValue({ production_unit_id: '23' });
-    await page.load();
+    await page.applyFilters();
     page.startCreate();
     page.form.patchValue({ name: 'Depósito nuevo', production_unit_id: '23' });
     await page.save();
@@ -146,11 +150,84 @@ describe('StockLocations production-unit integration', () => {
   });
 });
 
-describe('StockLocations activation confirmation', () => {
-  let restoreDialog: () => void;
-  beforeEach(() => { restoreDialog = stubNativeDialog(); });
-  afterEach(() => { restoreDialog(); });
+describe('StockLocations applied filters', () => {
+  it('keeps modal changes separate until applying and clears only its draft', async () => {
+    const list = vi.fn().mockReturnValue(of(locationPage));
+    const selectedId = signal<number | null>(null);
+    const fixture = TestBed.configureTestingModule({
+      imports: [StockLocationsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: AdminUnitContextService, useValue: { selectedId } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
+        { provide: StockLocationsApi, useValue: { list } },
+      ],
+    }).createComponent(StockLocationsPage);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    page.filters.patchValue({ production_unit_id: '23', status: 'inactive' });
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(list).toHaveBeenCalledTimes(1);
+    trigger.click();
+    expect(page.filters.getRawValue()).toEqual({ search: '', production_unit_id: '', status: '' });
+    page.filters.patchValue({ production_unit_id: '23', status: 'active' });
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(dialog.open).toBe(false);
+    expect(page.activeFilterCount()).toBe(2);
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ production_unit_id: 23, status: 'active' }));
+    trigger.click();
+    (dialog.querySelector('.sheet-action.secondary') as HTMLButtonElement).click();
+    expect(page.filters.controls.status.value).toBe('');
+    expect(page.activeFilterCount()).toBe(2);
+    selectedId.set(23);
+    await fixture.whenStable();
+    page.clearDraftFilters();
+    expect(page.filters.controls.production_unit_id.value).toBe('23');
+    expect(page.filters.controls.production_unit_id.disabled).toBe(true);
+    fixture.destroy();
+  });
 
+  it('paginates with applied filters and ignores a late response from an older search', async () => {
+    const older = new Subject<typeof locationPage>();
+    const list = vi.fn().mockReturnValue(of(locationPage));
+    const fixture = TestBed.configureTestingModule({
+      imports: [StockLocationsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
+        { provide: StockLocationsApi, useValue: { list } },
+      ],
+    }).createComponent(StockLocationsPage);
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.filters.patchValue({ search: '  Depósito  ', status: 'active' });
+    await page.applyFilters();
+    page.filters.patchValue({ search: 'Sin aplicar', status: 'inactive' });
+    await page.load(2);
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'Depósito', status: 'active', page: 2 }));
+    list.mockReturnValueOnce(older);
+    const olderLoad = page.load(2);
+    page.filters.controls.search.setValue('Nueva búsqueda');
+    await page.applyFilters();
+    older.next({ ...locationPage, data: [{ ...location, name: 'Resultado viejo' }] });
+    older.complete();
+    await olderLoad;
+    expect(page.locations()).toEqual([location]);
+    expect(page.state()).toBe('success');
+    fixture.destroy();
+  });
+});
+
+describe('StockLocations activation confirmation', () => {
   const createFixture = async (setStatus: ReturnType<typeof vi.fn>, canManage = true) => {
     const fixture = await TestBed.configureTestingModule({
       imports: [StockLocationsPage],
@@ -182,6 +259,22 @@ describe('StockLocations activation confirmation', () => {
     expect(row.textContent).toContain('Editar');
     expect(row.textContent).toContain('Desactivar');
     expect(row.textContent).not.toContain('Ubicación gestionada por el sistema');
+    fixture.destroy();
+  });
+
+  it('shows whether each location belongs to a plant, a production unit or a general depot without relying on its name', async () => {
+    const fixture = await createFixture(vi.fn());
+    fixture.componentInstance.locations.set([
+      { ...location, id: 1, name: 'Esto es un test', poultry_house_id: 10 },
+      { ...location, id: 2, name: 'Planta de ración escrita en el nombre', poultry_house_id: null, system_managed: true },
+      { ...location, id: 3, name: 'Depósito', production_unit: null, poultry_house_id: null },
+      { ...location, id: 4, name: 'Otra ubicación', poultry_house_id: 12, production_unit: null },
+    ]);
+    fixture.detectChanges();
+
+    const types = Array.from(fixture.nativeElement.querySelectorAll('td[data-label="Tipo"]') as NodeListOf<HTMLElement>)
+      .map(cell => cell.textContent?.trim());
+    expect(types).toEqual(['Planta de ración', 'Unidad productiva', 'Depósito general', 'Planta de ración']);
     fixture.destroy();
   });
 
@@ -288,17 +381,21 @@ describe('StockLocations activation confirmation', () => {
 });
 
 describe('StockLocations editor validation visibility', () => {
-  const createEditorFixture = async () => {
+  const createEditorFixture = async (options: {
+    create?: ReturnType<typeof vi.fn>;
+    update?: ReturnType<typeof vi.fn>;
+    canManage?: boolean;
+  } = {}) => {
     const fixture = await TestBed.configureTestingModule({
       imports: [StockLocationsPage],
       providers: [
         provideRouter([]),
-        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: AuthStore, useValue: { isAdmin: () => options.canManage ?? true, user: () => ({ permissions: [] }) } },
         { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit]) } },
         { provide: StockLocationsApi, useValue: {
           list: () => of(locationPage),
-          create: () => of({ data: location }),
-          update: () => of({ data: location }),
+          create: options.create ?? (() => of({ data: location })),
+          update: options.update ?? (() => of({ data: location })),
           setStatus: () => of({ data: location }),
         } },
       ],
@@ -311,6 +408,94 @@ describe('StockLocations editor validation visibility', () => {
     pageFixture.detectChanges();
     return pageFixture;
   };
+
+  it('opens a modal, focuses the name and returns focus on Escape without saving', async () => {
+    const create = vi.fn();
+    const fixture = await createEditorFixture({ create });
+    const page = fixture.componentInstance;
+    page.cancelEdit();
+    const opener = fixture.nativeElement.querySelector('.page-heading button') as HTMLButtonElement;
+    opener.click();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('.location-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#location-name'));
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(dialog.open).toBe(false);
+    expect(page.editorOpen()).toBe(false);
+    expect(document.activeElement).toBe(opener);
+    expect(create).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('edits in the modal and preserves values and validation errors when saving fails', async () => {
+    const update = vi.fn().mockReturnValue(throwError(() => new HttpErrorResponse({
+      status: 422, error: { message: 'Datos inválidos', errors: { name: ['El nombre ya está en uso.'] } },
+    })));
+    const fixture = await createEditorFixture({ update });
+    const page = fixture.componentInstance;
+    page.cancelEdit();
+    (fixture.nativeElement.querySelector('.row-actions button') as HTMLButtonElement).click();
+    page.form.controls.name.setValue('Nuevo nombre');
+    await page.save();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('.location-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain('Editar ubicación');
+    expect(dialog.textContent).toContain('El nombre ya está en uso.');
+    expect(page.form.controls.name.value).toBe('Nuevo nombre');
+    expect(update).toHaveBeenCalledWith(5, { name: 'Nuevo nombre', production_unit_id: 23 });
+    fixture.destroy();
+  });
+
+  it('blocks closing and duplicate submissions while saving, then closes and refreshes', async () => {
+    const pending = new Subject<{ data: StockLocation }>();
+    const create = vi.fn().mockReturnValue(pending);
+    const fixture = await createEditorFixture({ create });
+    const page = fixture.componentInstance;
+    page.form.patchValue({ name: '  Depósito nuevo  ' });
+    const saving = page.save();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('.location-dialog') as HTMLDialogElement;
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    page.cancelEdit();
+    await page.save();
+    expect(dialog.open).toBe(true);
+    expect((dialog.querySelector('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
+    expect(create).toHaveBeenCalledExactlyOnceWith({ name: 'Depósito nuevo', production_unit_id: null });
+    pending.next({ data: location });
+    pending.complete();
+    await saving;
+    expect(dialog.open).toBe(false);
+    expect(page.success()).toBe('Ubicación creada.');
+    expect(page.form.controls.name.value).toBe('');
+    fixture.destroy();
+  });
+
+  it('rejects whitespace-only names without sending a request', async () => {
+    const create = vi.fn();
+    const fixture = await createEditorFixture({ create });
+    fixture.componentInstance.form.controls.name.setValue('   ');
+    await fixture.componentInstance.save();
+    expect(fixture.componentInstance.form.controls.name.hasError('required')).toBe(true);
+    expect(create).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('prevents editing system-managed locations and opening an editor without permission', async () => {
+    const fixture = await createEditorFixture();
+    const page = fixture.componentInstance;
+    page.cancelEdit();
+    page.startEdit({ ...location, system_managed: true });
+    expect(page.editorOpen()).toBe(false);
+    fixture.destroy();
+    TestBed.resetTestingModule();
+    const readOnly = await createEditorFixture({ canManage: false });
+    readOnly.componentInstance.startEdit(location);
+    expect(readOnly.componentInstance.editorOpen()).toBe(false);
+    expect((readOnly.nativeElement.querySelector('.location-dialog') as HTMLDialogElement).open).toBe(false);
+    readOnly.destroy();
+  });
 
   it('keeps an untouched required name error hidden after focus and blur', async () => {
     const fixture = await createEditorFixture();

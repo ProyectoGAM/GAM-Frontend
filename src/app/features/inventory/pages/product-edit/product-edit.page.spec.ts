@@ -47,6 +47,32 @@ const settle = async (fixture: ReturnType<typeof createFixture>['fixture']): Pro
 };
 
 describe('Product edit page', () => {
+  it('does not offer conversion of current products to the retired ration type', async () => {
+    const { fixture, update } = createFixture({ get: vi.fn().mockReturnValue(of({ data: {
+      ...product, capabilities: { ...product.capabilities, editable_fields: ['name', 'kind'] },
+    } })) });
+    await settle(fixture);
+    const select = fixture.nativeElement.querySelector('#product-kind') as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.value)).not.toContain('finished_feed');
+    fixture.componentInstance.form.controls.kind.setValue('finished_feed');
+    await fixture.componentInstance.submit();
+    expect(update).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('keeps the kind of a historical ration visible and preserves it when editing its name', async () => {
+    const { fixture, update } = createFixture({ get: vi.fn().mockReturnValue(of({ data: {
+      ...product, kind: 'finished_feed',
+    } })) });
+    await settle(fixture);
+    const select = fixture.nativeElement.querySelector('#product-kind') as HTMLSelectElement;
+    expect(select.value).toBe('finished_feed');
+    expect(select.selectedOptions[0].textContent).toBe('Ración');
+    fixture.componentInstance.form.controls.name.setValue('Nombre histórico corregido');
+    await fixture.componentInstance.submit();
+    expect(update).toHaveBeenCalledWith(product.id, { name: 'Nombre histórico corregido' });
+    fixture.destroy();
+  });
   it('loads detail using the route ID and shows allowed and read-only fields', async () => {
     const { fixture, get } = createFixture();
     await settle(fixture);

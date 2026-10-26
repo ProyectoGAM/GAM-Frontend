@@ -141,7 +141,7 @@ describe('Existencias page', () => {
     fixture.destroy();
   });
 
-  it('applies below-minimum only on submit and clears back to the unfiltered server response', async () => {
+  it('applies below-minimum from the modal and clears only after requesting results', async () => {
     const atOrAboveMinimum: StockBalance = {
       ...balance,
       id: 10,
@@ -166,6 +166,10 @@ describe('Existencias page', () => {
 
     await fixture.whenStable();
     fixture.detectChanges();
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
     const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     expect(balances).toHaveBeenCalledTimes(1);
@@ -175,14 +179,20 @@ describe('Existencias page', () => {
     expect(checkbox.checked).toBe(true);
     expect(balances).toHaveBeenCalledTimes(1);
 
-    (fixture.nativeElement.querySelector('.filter-actions button[type="submit"]') as HTMLButtonElement).click();
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: true }));
+    expect(dialog.open).toBe(false);
+    expect(fixture.componentInstance.activeFilterCount()).toBe(1);
     expect(fixture.nativeElement.textContent).toContain('Alimento');
     expect(fixture.nativeElement.textContent).not.toContain('Alimento al mínimo');
 
-    (fixture.nativeElement.querySelector('.filter-actions button[type="button"]') as HTMLButtonElement).click();
+    trigger.click();
+    (dialog.querySelector('.sheet-action.secondary') as HTMLButtonElement).click();
+    expect(balances).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.activeFilterCount()).toBe(1);
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(checkbox.checked).toBe(false);
@@ -202,6 +212,57 @@ describe('Existencias page', () => {
     expect(movementAction?.textContent?.trim()).toBe('Registrar movimiento');
     expect(fixture.componentInstance.kindLabel('raw_material')).toBe('Materia prima');
     expect(fixture.componentInstance.kindLabel('finished_feed')).toBe('Ración / alimento preparado');
+    fixture.destroy();
+  });
+
+  it('discards cancelled filter drafts and preserves applied location and minimum filters for pages and product selection', async () => {
+    const balances = vi.fn().mockReturnValue(of(emptyBalances));
+    const fixture = createFixture([], { balances });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    page.filters.patchValue({ stock_location_id: '2', below_minimum: true });
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(balances).toHaveBeenCalledTimes(1);
+    expect(page.hasActiveFilters()).toBe(false);
+    trigger.click();
+    expect(page.filters.getRawValue()).toEqual({ product_id: '', stock_location_id: '', below_minimum: false });
+    page.filters.patchValue({ stock_location_id: '2', below_minimum: true });
+    await page.applyFilters();
+    expect(page.activeFilterCount()).toBe(2);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ stock_location_id: 2, below_minimum: true, page: 1 }));
+    page.filters.patchValue({ stock_location_id: '9', below_minimum: false });
+    await page.load(2);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ stock_location_id: 2, below_minimum: true, page: 2 }));
+    page.filters.controls.product_id.setValue('4');
+    await fixture.whenStable();
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ product_id: 4, stock_location_id: 2, below_minimum: true, page: 1 }));
+    fixture.destroy();
+  });
+
+  it('refreshes a minimum change using applied filters even after cancelling a different draft', async () => {
+    const response = { ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, total: 1 } };
+    const balances = vi.fn().mockReturnValue(of(response));
+    const setMinimumStock = vi.fn().mockReturnValue(of({ data: { ...balance, minimum_quantity: '0' } }));
+    const fixture = createFixture(['inventory.manage'], { balances, setMinimumStock });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    page.filters.controls.below_minimum.setValue(true);
+    await page.applyFilters();
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    page.clearDraftFilters();
+    (fixture.nativeElement.querySelector('.filters-dialog .sheet-close') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement).click();
+    page.minimumForm.controls.minimum_quantity.setValue('0');
+    await page.saveMinimum();
+    expect(setMinimumStock).toHaveBeenCalledExactlyOnceWith(balance.id, '0');
+    expect(balances).toHaveBeenCalledTimes(3);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: true }));
     fixture.destroy();
   });
 

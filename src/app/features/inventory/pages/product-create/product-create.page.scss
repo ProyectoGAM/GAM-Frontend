@@ -1,38 +1,59 @@
-.product-create-page {
-  max-width: 760px;
-  color: var(--gam-color-text);
-  font-size: 16px;
-
-  .page-heading { margin-bottom: 20px; }
-  .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-  .lead { margin: 8px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
-  .close-button { flex: 0 0 44px; min-height: 44px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font-size: 24px; cursor: pointer; }
-  .form-help { margin: 0; color: var(--gam-color-text-muted); font-size: .8125rem; }
-  .stock-note { margin: 0; padding: 14px; border-radius: 7px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); font-size: .875rem; }
-  .created-card { padding: 22px; border: 1px solid var(--gam-color-success); border-radius: 10px; background: var(--gam-color-success-soft); color: var(--gam-color-text); }
-  .created-card h2 { margin-top: 0; color: var(--gam-color-success); font-size: 1.25rem; }
-  .created-card p { line-height: 1.5; }
-  :disabled { opacity: .65; }
-  .product-form { padding-bottom: max(22px, env(safe-area-inset-bottom)); }
-  .eyebrow { margin: 0 0 8px; color: var(--gam-color-text-muted); font-weight: 700; }
-  h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(28px, 4vw, 36px); font-weight: 700; }
-  .product-form { display: grid; grid-template-columns: 1fr; gap: 18px; padding: 22px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
-  .field { display: grid; gap: 7px; }
-  .field label { font-weight: 700; }
-  input:not([type='checkbox']), select { width: 100%; min-height: 48px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 6px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
-  input[type='checkbox'] { width: 24px; height: 24px; margin: 0; accent-color: var(--gam-color-primary); }
-  .checkbox { display: flex; min-height: 48px; align-items: center; gap: 12px; font-weight: 700; cursor: pointer; }
-  .muted { color: var(--gam-color-text-muted); font-size: 14px; }
-  .field-error { color: var(--gam-color-danger); font-size: 14px; }
-  .feedback.error { padding: 14px 16px; border: 1px solid var(--gam-color-danger); border-radius: 8px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
-  .form-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-  .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 10px 16px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; font-weight: 700; cursor: pointer; }
-  .button.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
-  .button:disabled { opacity: .55; cursor: not-allowed; }
-  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
-
-  @media (max-width: 520px) {
-    .product-form { padding: 16px; }
-    .form-actions { display: grid; grid-template-columns: 1fr; }
-  }
+:host { display: block; color: var(--gam-color-text); }
+.product-create-page { max-width: 760px; margin-inline: auto; padding-bottom: calc(88px + env(safe-area-inset-bottom) + var(--product-keyboard-offset, 0px)); font-size: 1rem; }
+.back-button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 12px; padding: 0; border: 0; background: transparent; color: var(--gam-color-primary); font: inherit; font-size: .875rem; font-weight: 600; text-align: left; cursor: pointer; }
+.back-button ion-icon { font-size: 20px; }
+.page-heading { margin-bottom: 22px; }
+.eyebrow { margin: 0 0 10px; color: var(--gam-color-text-muted); font-size: .75rem; }
+h1, h2 { color: var(--gam-color-heading); margin: 0; font-weight: 700; }
+h1 { font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 700; }
+.lead { margin: 8px 0 0; color: var(--gam-color-text-muted); line-height: 1.5; font-size: .9375rem; }
+.global-note { display: inline-flex; align-items: center; gap: 10px; margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); font-size: .8125rem; }
+.global-note ion-icon { font-size: 24px; flex-shrink: 0; }
+.product-form, fieldset { display: grid; gap: 16px; min-width: 0; }
+fieldset { margin: 0; padding: 0; border: 0; }
+.form-card { display: grid; gap: 20px; min-width: 0; padding: 18px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+.form-card h2 { display: flex; align-items: center; gap: 10px; font-size: 1.125rem; line-height: 1.4; }
+.form-card h2 ion-icon { font-size: 26px; flex-shrink: 0; }
+.form-help { margin: -8px 0 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+.field { display: grid; gap: 8px; min-width: 0; }
+.field label { font-size: .875rem; font-weight: 600; }
+.field label span { color: var(--gam-color-danger); }
+input:not([type='checkbox']), select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; scroll-margin-block: 100px; }
+select:disabled { opacity: 1; color: var(--gam-color-text); background: var(--gam-color-surface-alt); }
+.tracking-option { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--gam-color-surface-alt); border-radius: 8px; }
+.tracking-option > div { flex: 1; min-width: 0; }
+.tracking-option > ion-icon { flex-shrink: 0; color: var(--gam-color-text-muted); font-size: 22px; }
+.tracking-option .muted { display: block; padding-left: 34px; margin-top: 2px; }
+.checkbox { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: .875rem; font-weight: 600; }
+input[type='checkbox'] { width: 22px; height: 22px; margin: 0; flex-shrink: 0; accent-color: var(--gam-color-primary); }
+input[type='checkbox']:disabled { opacity: 1; }
+.muted { color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+.stock-note { display: flex; gap: 12px; padding: 14px; border-radius: 8px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); }
+.stock-note > ion-icon { font-size: 24px; flex-shrink: 0; }
+.stock-note p { margin: 0; line-height: 1.5; font-size: .8125rem; }
+.stock-note strong { display: block; margin-bottom: 4px; font-size: .875rem; }
+.field-error { color: var(--gam-color-danger); font-size: .8125rem; line-height: 1.5; }
+.feedback.error { margin: 0; padding: 16px; border: 1px solid var(--gam-color-danger); border-radius: 8px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+.create-bar { position: fixed; z-index: 10; inset: auto 0 var(--product-keyboard-offset, 0px); padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); border-top: 1px solid var(--gam-color-border); background: var(--gam-color-surface); }
+.create-bar.keyboard-open { padding-bottom: 12px; }
+.create-bar-content { max-width: 760px; margin-inline: auto; }
+.button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 10px 18px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; font-size: .9375rem; font-weight: 600; cursor: pointer; }
+.button.primary { color: var(--gam-color-on-primary); background: var(--gam-color-primary); border-color: var(--gam-color-primary); }
+.create-button { width: 100%; }
+.button ion-icon { font-size: 22px; }
+button:disabled { opacity: .6; cursor: default; }
+.created-card { padding: 22px; border: 1px solid var(--gam-color-success); border-radius: 10px; background: var(--gam-color-success-soft); }
+.created-card h2 { color: var(--gam-color-success); font-size: 1.25rem; }
+.created-card p { line-height: 1.5; }
+.receipt-button { width: 100%; }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex='-1']:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+@media (min-width: 640px) {
+  .form-card { padding: 24px; }
+  .form-card h2 { font-size: 1.25rem; }
+  .receipt-button { width: auto; }
+}
+@media (min-width: 901px) {
+  .create-bar { left: 283px; padding-inline: clamp(18px, 3vw, 36px); }
+  .create-bar-content { display: flex; justify-content: flex-end; }
+  .create-button { width: auto; min-width: 200px; }
 }

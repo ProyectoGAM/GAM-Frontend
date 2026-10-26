@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { API_CONFIG } from '../../../core/config/api.config';
 import { ProductsApi } from './products.api';
-import { Product, ProductInput } from '../interfaces/products.models';
+import { CreateProductInput, Product } from '../interfaces/products.models';
 
 const product: Product = {
   id: 17,
@@ -69,7 +69,7 @@ describe('Products API contract', () => {
   });
 
   it('posts the exact product fields and accepts the 201 data resource', () => {
-    const body: ProductInput = {
+    const body: CreateProductInput = {
       sku: 'AL-17',
       name: 'Alimento inicial',
       kind: 'supply',
