@@ -17,7 +17,7 @@ export function inventoryErrorMessage(error: unknown, fallback = 'No se pudo com
   if (error.status === 401) return 'La sesión expiró. Vuelve a iniciar sesión.';
   if (error.status === 403) return 'No tienes permiso para realizar esta acción.';
   if (error.status === 404) return 'El recurso solicitado no fue encontrado.';
-  if (error.status === 409) return message ?? 'La operación entró en conflicto con el estado actual.';
+  if (error.status === 409) return message ?? detail ?? 'La operación entró en conflicto con el estado actual.';
   if (error.status === 422) return message ?? 'Revisa los datos ingresados.';
   if (error.status >= 500) return 'El servidor no pudo completar la operación.';
 

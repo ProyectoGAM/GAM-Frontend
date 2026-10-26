@@ -128,13 +128,67 @@ Validación del patrón compartido de filtros (26/10/2026): lint, las 767 prueba
 
 ## Movimientos e idempotencia
 
+El historial de **Movimientos** reúne tipo, producto, ubicación, proveedor y fechas
+en el botón **Filtros**, con contador de criterios aplicados. Usa el diálogo
+compartido centrado, con cuerpo desplazable y acciones **Limpiar** y **Ver
+resultados** accesibles en teléfono y escritorio. Los selectores de producto y
+ubicación conservan su búsqueda. Limpiar modifica únicamente el borrador; cerrar
+con X o Escape descarta esa edición y devuelve el foco al botón. Ver resultados
+aplica la consulta al backend desde la primera página; paginar y reintentar
+conservan los filtros aplicados. Los accesos desde existencias conservan producto
+y ubicación iniciales. Se ignoran respuestas tardías de consultas reemplazadas.
+Si las opciones de referencia fallan, el modal permite reintentarlas y conserva
+disponibles tipo y fechas. La selección global de UP mantiene el alcance actual
+del listado y no agrega un filtro de productos por UP.
+
+Validación de filtros de Movimientos (26/10/2026): lint, 797 pruebas de la suite
+completa (9 de Movimientos) y build aprobados en Docker. El navegador integrado
+comprobó aplicación real de tipo/fecha, búsqueda de productos, cancelación y
+paginación, foco de retorno y centrado en 390 px, 1440 px y 320 × 360 px, en
+claro/oscuro, con cuerpo desplazable y pie accesible, sin errores JavaScript ni
+escrituras en la base local. No hubo cambios de integración nativa.
+
 Ingresos, salidas, pérdidas, ajustes y transferencias admiten múltiples líneas, hasta el máximo backend actual de 100. El ajuste envía `counted_quantity`; no envía un delta manual. La transferencia envía origen y destino en el endpoint transaccional dedicado.
 
 Cada comando crea un UUID para `Idempotency-Key` y nunca lo expone como campo del formulario. Si la operación falla, el retry conserva la misma clave; una operación exitosa la descarta. Se previene el doble submit mientras está en estado `submitting`.
 
-La reversión pide confirmación, envía `reason`, no usa `DELETE` y mantiene visible el movimiento original.
+**Revertir** está disponible en cada fila del historial y **Revertir movimiento**
+en el detalle para quienes tienen `inventory.adjust` o son administradores. Ambos
+abren el mismo modal centrado; el motivo no ocupa un formulario permanente en el
+detalle. Desde el listado se consultan primero las líneas completas, sin navegar.
+El modal muestra tipo, fecha, responsable original, motivo original y cantidades.
+**Continuar** valida el motivo obligatorio de hasta 255 caracteres y abre una
+segunda etapa de revisión; únicamente **Confirmar reversión** envía `reason` al
+endpoint existente. Cancelar, X o Escape no registran nada y devuelven el foco.
 
-El recurso backend del listado de movimientos no incluye líneas ni nombres de ubicación, por lo que la tabla muestra los datos disponibles y el detalle carga las líneas. El recurso tampoco expone el nombre del actor: se muestra `created_by` como identificador. Si se necesita un nombre de actor o una ubicación enriquecida en el listado, es un gap de recurso backend, no una inferencia del frontend.
+Durante el envío se bloquean cierre, edición y envíos duplicados. Un error
+conserva motivo y confirmación; reintentar una operación incierta conserva cuerpo y
+clave idempotente, también al reabrir el mismo movimiento con la misma identidad.
+Cambiar el motivo genera otra intención y otra clave. Los conflictos del backend
+se explican dentro del modal; las restricciones sobre movimientos de elaboración,
+ajustes de ingredientes o movimientos ya revertidos siguen siendo del servidor.
+No se usa `DELETE` y el movimiento original permanece en el historial. Al guardar,
+el listado actualiza la página y los filtros aplicados; el detalle se recarga y
+ambos muestran una confirmación de éxito. La ventana contempla scroll interno,
+áreas seguras y pie accesible en móvil, y usa los tokens GAM en ambos temas.
+
+Validación del modal de reversión (26/10/2026): lint, 808 pruebas en 110 archivos
+y build aprobados en Docker. Se cubren confirmación obligatoria, cancelación,
+permisos, motivo vacío, doble envío, reintento idempotente, conflictos del servidor,
+respuestas tardías y recarga con filtros/página conservados. El navegador integrado
+comprobó los dos accesos, foco, edición de motivo, confirmación y cancelación en
+390/1440 px y 320 × 360 px, con claro/oscuro, sin desbordamientos ni errores
+JavaScript. No se confirmaron reversiones sobre los datos locales; los guardados
+se verificaron con respuestas controladas. No hubo cambios de integración nativa.
+
+El recurso backend del listado de movimientos no incluye líneas ni nombres de ubicación, por lo que la tabla muestra los datos disponibles y el detalle carga las líneas. El historial y el detalle muestran **Responsable** con `created_by_name`, el nombre vigente que entrega el backend, también para usuarios dados de baja. Se conserva `created_by` como identificador nullable; un nombre ausente, null o vacío se presenta como **No disponible**, sin deducir que sea una acción del sistema o del usuario conectado. No se consulta el módulo de gestión de usuarios ni se requieren sus permisos para mostrar el responsable.
+
+Validación del responsable (26/10/2026): lint, build y las 13 pruebas finales del
+historial/detalle aprobados en Docker. La suite general había aprobado 797 pruebas;
+se corrigió la sincronización del render en una prueba del detalle y se volvieron
+a verificar ambas pantallas con las 13 pruebas indicadas. El navegador integrado
+comprobó nombres reales, tabla y tarjetas móviles en 390/1440 px, claro/oscuro y
+ausencia de desbordamiento o errores JavaScript, sin escrituras en la base local.
 
 ## EggStock
 
@@ -180,5 +234,5 @@ La pantalla `/administracion/inventario/donaciones` permanece como `Módulo pend
 Gaps confirmados:
 
 - `/inventory/balances` no filtra por `kind`; el frontend no simula ese filtro global.
-- El listado de movimientos no incluye líneas, nombres de ubicación ni nombre del actor; el detalle usa lo que el recurso sí expone.
+- El listado de movimientos no incluye líneas ni nombres de ubicación; el detalle usa lo que el recurso sí expone. El nombre del responsable está disponible mediante `created_by_name`.
 - `/reference/options` devuelve opciones compactas para productos, proveedores, UP y ubicaciones. Si esos catálogos crecen más allá de un tamaño operativo razonable, conviene agregar búsqueda server-side específica; no se implementó paginación client-side.

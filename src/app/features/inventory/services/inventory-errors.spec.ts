@@ -13,9 +13,11 @@ describe('Inventory error messages', () => {
   it('keeps a human message from a known backend conflict and uses a safe fallback otherwise', () => {
     const conflict = new HttpErrorResponse({ status: 409, error: { message: 'El movimiento cambió de versión o ya fue cancelado.' } });
     const unknown = new HttpErrorResponse({ status: 409, error: { code: 'UNMAPPED_CODE', message: '' } });
+    const detailed = new HttpErrorResponse({ status: 409, error: { detail: 'El movimiento ya fue revertido.' } });
 
     expect(inventoryErrorMessage(conflict)).toBe('El movimiento cambió de versión o ya fue cancelado.');
     expect(inventoryErrorMessage(unknown)).toBe('La operación entró en conflicto con el estado actual.');
+    expect(inventoryErrorMessage(detailed)).toBe('El movimiento ya fue revertido.');
   });
 
   it('applies known validation fields to their form controls', () => {

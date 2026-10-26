@@ -83,7 +83,8 @@ export interface InventoryMovement {
   reference_id: string | null;
   reason: string | null;
   occurred_at: string;
-  created_by: number;
+  created_by: number | null;
+  created_by_name: string | null;
   reverses_movement_id: number | null;
   lines?: InventoryMovementLine[];
   created_at: string;
