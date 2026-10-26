@@ -10,6 +10,9 @@ La elaboración desde plantas de ración usa el catálogo, cálculo y registro d
 `feed-recipes.yaml`; ver [`feed-manufacture.md`](feed-manufacture.md) para el
 recorrido, las unidades exactas y la recuperación idempotente de pendientes.
 
+La consulta de raciones y sus mínimos por receta y UP usa ese mismo contrato.
+Ver [`feed-stock.md`](feed-stock.md) para filtros, estados, permisos y unidades.
+
 The frontend must not guess undocumented fields, states or error semantics.
 
 La pantalla de alimentación de lotes consume `flock-feeding.yaml` y

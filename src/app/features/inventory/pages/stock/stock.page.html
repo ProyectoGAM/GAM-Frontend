@@ -29,6 +29,7 @@
     <div class="toolbar-actions">
       @if (canRegisterMovement()) { <a class="button" routerLink="/administracion/inventario/ajustes-y-perdidas"><ion-icon name="swap-horizontal-outline" aria-hidden="true" />Registrar movimiento</a> }
       <a class="button" routerLink="/administracion/inventario/existencias/huevos"><ion-icon name="egg-outline" aria-hidden="true" />Stock de huevos</a>
+      <a class="button" routerLink="/administracion/inventario/existencias/raciones"><ion-icon name="leaf-outline" aria-hidden="true" />Stock de raciones</a>
     </div>
   </div>
   @if (state() === 'loading') { <div class="state card" aria-live="polite">Cargando existencias…</div> }

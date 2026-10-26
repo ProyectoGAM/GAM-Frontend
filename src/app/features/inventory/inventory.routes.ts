@@ -34,6 +34,11 @@ export const inventoryRoutes: Routes = [
         loadComponent: () => import('./pages/stock-locations/stock-locations.page').then((m) => m.StockLocationsPage),
       },
       {
+        path: 'raciones',
+        data: { title: 'Stock de raciones', groupLabel: 'Inventario' },
+        loadComponent: () => import('./pages/feed-stock/feed-stock.page').then((m) => m.FeedStockPage),
+      },
+      {
         path: 'huevos',
         children: [
           {

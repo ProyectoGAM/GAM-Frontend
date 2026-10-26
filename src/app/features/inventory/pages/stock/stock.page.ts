@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, settingsOutline, listOutline, chevronForwardOutline } from 'ionicons/icons';
+import { cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline } from 'ionicons/icons';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { CatalogHeaderComponent } from '../../components/catalog-header/catalog-header.component';
@@ -91,7 +91,7 @@ export class StockPage {
   private loadVersion = 0;
 
   constructor() {
-    addIcons({ cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, settingsOutline, listOutline, chevronForwardOutline });
+    addIcons({ cubeOutline, warningOutline, locationOutline, optionsOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline });
     void this.loadReferences();
     void this.loadLocations();
     void this.load();

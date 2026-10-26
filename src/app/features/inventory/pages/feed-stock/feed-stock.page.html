@@ -1,0 +1,65 @@
+<section class="catalog-page feed-page" aria-labelledby="feed-stock-title">
+  <p class="breadcrumb">Inventario / Existencias / Raciones</p>
+  <a class="back" routerLink="/administracion/inventario/existencias"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a existencias</a>
+  <header class="page-heading"><div><h1 id="feed-stock-title">Stock de raciones</h1><p>Disponibilidad y mínimos por receta y unidad productiva.</p></div>
+    @if (canManage() && canViewRecipes()) {
+      <button class="button primary" type="button" [disabled]="!selectedUnit() || recipesState() !== 'success' || minimumSaving()" (click)="openMinimum($event)"><ion-icon name="settings-outline" aria-hidden="true" />Configurar mínimo</button>
+    }
+  </header>
+  <label class="unit-picker" for="feed-stock-unit">Unidad productiva
+    <select id="feed-stock-unit" (change)="chooseUnit($event)" [disabled]="minimumSaving() || unitsState() === 'loading'">
+      <option value="" [selected]="selectedUnit() === null">Seleccionar unidad productiva</option>
+      @for (unit of units(); track unit.id) { <option [value]="unit.id" [selected]="selectedUnit() === unit.id">{{ unit.name }}</option> }
+    </select>
+  </label>
+  @if (unitsState() === 'loading') { <div class="card state" role="status">Cargando unidades productivas…</div> }
+  @if (unitsError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="loadUnits()">Reintentar unidades</button></div> }
+  @if (unitsState() === 'empty') { <div class="card state">No hay unidades productivas disponibles.</div> }
+  @if (recipesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="loadRecipes()">Reintentar recetas</button></div> }
+  @if (recipesState() === 'empty') { <div class="card state">No hay recetas disponibles para configurar nuevos mínimos.</div> }
+  <div class="stock-note card"><ion-icon name="information-circle-outline" aria-hidden="true" /><p>Las plantas de una UP comparten el stock de cada receta. Las elaboraciones y los consumos actualizan el saldo automáticamente.<small>El mínimo indica cuándo el stock requiere atención. Configurarlo no cambia la cantidad disponible.</small></p></div>
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (selectedUnit()) {
+    <form class="filters card" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      @if (canViewRecipes()) {
+        <div class="field"><label for="feed-stock-recipe">Receta</label><app-searchable-select inputId="feed-stock-recipe" formControlName="recipe" [options]="recipeOptions()" [loading]="recipesState() === 'loading'" placeholder="Buscar receta" emptyOptionLabel="Todas las recetas" /></div>
+      }
+      <label class="checkbox"><input type="checkbox" formControlName="attention"> Solo requieren atención</label>
+      <div class="filter-actions"><button class="button primary" type="submit">Buscar</button><button class="button" type="button" (click)="clearFilters()">Restablecer</button></div>
+    </form>
+    @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load()">Reintentar stock</button></div> }
+    @if (state() === 'loading') { <div class="card state" role="status">Cargando stock de raciones…</div> }
+    @if (state() === 'empty') { <div class="card state"><strong>No hay saldos de raciones para esta UP con esos filtros.</strong><p>Los saldos aparecen al elaborar ración o configurar un mínimo, incluso sin movimientos previos.</p></div> }
+    @if (state() === 'success') {
+      <div class="list-heading"><div><h2>Raciones de {{ selectedUnitName() }}</h2><p>{{ meta()?.total }} {{ meta()?.total === 1 ? 'saldo encontrado' : 'saldos encontrados' }}</p></div><span class="attention-summary"><ion-icon name="warning-outline" aria-hidden="true" />{{ attentionCount() }} requieren atención en esta página</span></div>
+      <div class="table-card"><table><caption class="sr-only">Saldos y mínimos de ración por receta</caption><thead><tr><th>Receta</th><th>Disponible</th><th>Mínimo</th><th>Estado del stock</th>@if (canManage()) { <th>Acciones</th> }</tr></thead><tbody>
+        @for (row of rows(); track row.balance.receta_id) {
+          <tr>
+            <td class="recipe-cell"><span class="recipe-icon"><ion-icon name="leaf-outline" aria-hidden="true" /></span><div><strong>{{ row.balance.nombre_receta }}</strong><small>Receta #{{ row.balance.receta_id }} · {{ row.balance.estado_receta === 'active' ? 'Activa' : 'Inactiva' }}</small></div></td>
+            <td class="quantity-cell" [class.negative]="row.negative"><span class="mobile-caption">Disponible</span><strong>{{ row.available }}</strong>@if (row.negative) { <small>Saldo negativo</small> }</td>
+            <td class="minimum-cell"><span class="mobile-caption">Mínimo</span>{{ row.minimum }}</td>
+            <td class="status-cell"><span class="status" [class]="row.balance.estado_stock">{{ row.status }}</span></td>
+            @if (canManage()) { <td class="action-cell"><button class="minimum-action" type="button" [attr.aria-label]="'Configurar mínimo de ' + row.balance.nombre_receta + ', receta ' + row.balance.receta_id" (click)="openMinimum($event, row.balance)"><ion-icon name="settings-outline" aria-hidden="true" />{{ row.balance.minimo_g === null ? 'Configurar mínimo' : 'Cambiar mínimo' }}</button></td> }
+          </tr>
+        }
+      </tbody></table></div>
+      <nav class="pagination" aria-label="Paginación de stock de raciones"><button class="button" type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><button class="button" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></nav>
+    }
+  }
+  <dialog #minimumDialog class="minimum-dialog" aria-labelledby="feed-minimum-title" (cancel)="onDialogCancel($event)">
+    <form [formGroup]="minimumForm" (ngSubmit)="saveMinimum()">
+      <header class="dialog-heading"><h2 id="feed-minimum-title">Mínimo de ración</h2><button class="button close-button" type="button" aria-label="Cerrar" [disabled]="minimumSaving()" (click)="closeMinimum()">&times;</button></header>
+      <p class="muted">{{ selectedUnitName() }} · El stock se comparte entre sus plantas.</p>
+      <div class="field"><label for="feed-minimum-recipe">Receta</label>
+        @if (canViewRecipes()) {
+          <select id="feed-minimum-recipe" [formControl]="minimumRecipe" (change)="chooseMinimumRecipe()" [attr.disabled]="minimumSaving() ? '' : null"><option value="">Seleccionar receta</option>@for (recipe of minimumRecipeOptions(); track recipe.id) { <option [value]="recipe.id">{{ recipe.nombre }} · #{{ recipe.id }}{{ recipe.estado === 'inactive' ? ' · Inactiva' : '' }}</option> }</select>
+        } @else { <p id="feed-minimum-recipe" class="recipe-name">{{ minimumBalance()?.nombre_receta }} · #{{ minimumBalance()?.receta_id }}</p> }
+      </div>
+      @if (minimumLoading()) { <p role="status">Consultando saldo…</p> }
+      @if (minimumBalance(); as balance) { <dl class="minimum-context"><div><dt>Disponible</dt><dd>{{ format(balance.saldo_g) }}</dd></div><div><dt>Mínimo actual</dt><dd>{{ balance.minimo_g === null ? 'Sin configurar' : format(balance.minimo_g) }}</dd></div></dl> }
+      <div class="field"><label for="feed-minimum-value">Nuevo mínimo (kg)</label><input #minimumInput id="feed-minimum-value" inputmode="decimal" autocomplete="off" [formControl]="minimumValue" [readonly]="minimumSaving() || minimumLoading() || !minimumBalance()" aria-describedby="feed-minimum-help"><small class="muted" id="feed-minimum-help">Acepta hasta 3 decimales. Dejá el campo vacío para quitar el mínimo. El saldo requiere atención cuando es igual o inferior al mínimo.</small></div>
+      @if (minimumError(); as message) { <p class="field-error" role="alert">{{ message }}</p> }
+      <div class="dialog-actions"><button class="button" type="button" [disabled]="minimumSaving()" (click)="closeMinimum()">Cancelar</button><button class="button primary" type="submit" [disabled]="minimumSaving() || minimumLoading() || !minimumBalance()">{{ minimumSaving() ? 'Guardando…' : 'Guardar mínimo' }}</button></div>
+    </form>
+  </dialog>
+</section>
