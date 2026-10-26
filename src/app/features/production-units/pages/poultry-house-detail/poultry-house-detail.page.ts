@@ -273,6 +273,8 @@ export class PoultryHouseDetailPage implements OnInit {
 
   toggleIngredientForm(): void {
     if (this.isAddingIngredient()) return;
+    const house = this.house();
+    if (!this.ingredientFormOpen() && (!house || house.type !== 'feed' || house.status !== 'operational')) return;
     this.ingredientFormOpen.update((open) => !open);
     this.ingredientMessage.set(null);
     if (this.ingredientFormOpen()) this.loadInventoryIngredients();
@@ -288,7 +290,7 @@ export class PoultryHouseDetailPage implements OnInit {
       return;
     }
     const house = this.house();
-    if (!house || house.type !== 'feed' || this.feedStockState() !== 'success' || this.catalogState() !== 'success') return;
+    if (!house || house.type !== 'feed' || house.status !== 'operational' || this.feedStockState() !== 'success' || this.catalogState() !== 'success') return;
     const form = this.ingredientForm.getRawValue();
     const product = this.availableIngredients().find((ingredient) => ingredient.id === form.productId);
     if (!product) {

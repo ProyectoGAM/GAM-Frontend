@@ -11,7 +11,7 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { FeedManufacture, ManufactureCalculation, ManufactureRecipe, PendingManufacture } from '../../interfaces/feed-manufacture.interface';
 import { PoultryHouseDetail } from '../../interfaces/production-unit.interface';
 import { FeedManufactureService } from '../../services/feed-manufacture.service';
-import { formatFeedKilograms, isYieldMultiple, kilogramsToGrams } from '../../services/feed-manufacture-quantity';
+import { formatFeedKilograms, multiplyRecipeYield } from '../../services/feed-manufacture-quantity';
 import { ProductionUnitsService } from '../../services/production-units.service';
 
 @Component({
@@ -41,7 +41,7 @@ export class FeedManufacturePage implements OnInit {
   readonly calculation = signal<ManufactureCalculation | null>(null);
   readonly result = signal<FeedManufacture | null>(null);
   readonly selectedRecipe = signal<ManufactureRecipe | null>(null);
-  readonly quantity = signal('');
+  readonly multiplier = signal('1');
   readonly search = signal('');
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
@@ -56,17 +56,20 @@ export class FeedManufacturePage implements OnInit {
       || recipe.id === this.selectedRecipe()?.id).map((recipe) => ({ ...recipe, yieldLabel: formatFeedKilograms(recipe.rendimiento_g) }));
   });
   readonly yieldLabel = computed(() => formatFeedKilograms(this.selectedRecipe()?.rendimiento_g ?? '0'));
-  readonly quantityError = computed(() => {
-    const grams = kilogramsToGrams(this.quantity());
-    if (!grams) return 'Ingresá una cantidad mayor que cero, con hasta 3 decimales (máximo 999.999.999,999 kg).';
+  readonly quantityGrams = computed(() => {
     const recipe = this.selectedRecipe();
-    return recipe && !isYieldMultiple(grams, recipe.rendimiento_g) ? `La cantidad debe ser múltiplo de ${this.yieldLabel()}.` : null;
+    return recipe ? multiplyRecipeYield(recipe.rendimiento_g, this.multiplier()) : null;
   });
-  readonly batches = computed(() => {
-    const grams = kilogramsToGrams(this.quantity());
-    const recipe = this.selectedRecipe();
-    return grams && recipe && isYieldMultiple(grams, recipe.rendimiento_g)
-      ? String(BigInt(grams) / BigInt(recipe.rendimiento_g)) : null;
+  readonly multiplierError = computed(() => {
+    const factor = this.multiplier().trim();
+    if (!/^\d{1,12}$/.test(factor) || BigInt(factor) === 0n) return 'Ingresá un multiplicador entero mayor que cero.';
+    return this.selectedRecipe() && !this.quantityGrams() ? 'El total supera la cantidad permitida para esta receta. Reducí el multiplicador.' : null;
+  });
+  readonly multiplierLabel = computed(() => this.quantityGrams() ? String(BigInt(this.multiplier().trim())) : null);
+  readonly quantityLabel = computed(() => formatFeedKilograms(this.quantityGrams() ?? '0'));
+  readonly reviewBasis = computed(() => {
+    const calculation = this.calculation();
+    return calculation ? `${formatFeedKilograms(calculation.rendimiento_g)} × ${calculation.factor}` : null;
   });
   readonly reviewQuantity = computed(() => formatFeedKilograms(this.pending()?.request.cantidad_g ?? this.calculation()?.cantidad_g ?? '0'));
   readonly reviewName = computed(() => this.selectedRecipe()?.nombre ?? `Receta #${this.pending()?.request.receta_id ?? ''}`);
@@ -91,13 +94,13 @@ export class FeedManufacturePage implements OnInit {
   });
   readonly form = new FormGroup({
     recipeId: new FormControl<number | null>(null),
-    kilograms: new FormControl('', { nonNullable: true }),
+    multiplier: new FormControl('1', { nonNullable: true }),
   });
 
   constructor() {
     addIcons({ arrowBackOutline, businessOutline, checkmarkCircleOutline, informationCircleOutline, leafOutline });
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      this.quantity.set(this.form.controls.kilograms.value);
+      this.multiplier.set(this.form.controls.multiplier.value);
       this.selectedRecipe.set(this.recipes().find((recipe) => recipe.id === this.form.controls.recipeId.value) ?? null);
       this.calculation.set(null);
       this.error.set(null);
@@ -166,8 +169,8 @@ export class FeedManufacturePage implements OnInit {
     if (this.busy() || this.pending() || !this.canOperate() || this.catalogState() !== 'ready') return;
     this.submitted.set(true);
     const recipe = this.selectedRecipe();
-    const grams = kilogramsToGrams(this.quantity());
-    if (!recipe || !grams || this.quantityError()) return;
+    const grams = this.quantityGrams();
+    if (!recipe || !grams || this.multiplierError()) return;
     this.busy.set(true);
     this.error.set(null);
     this.calculation.set(null);

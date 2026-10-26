@@ -10,9 +10,9 @@
       <p class="eyebrow">Planta de ración</p>
       <h1 id="page-title" #stepTitle tabindex="-1">{{ step() === 'configure' ? 'Elaborar ración' : step() === 'review' ? 'Revisar elaboración' : receipt()?.estado === 'cancelada' ? 'Elaboración cancelada' : 'Elaboración registrada' }}</h1>
       @if (step() !== 'result') {
-        <p class="intro">{{ step() === 'configure' ? 'Elegí la receta y cuánto querés elaborar.' : 'Revisá los ingredientes y los efectos antes de confirmar.' }}</p>
+        <p class="intro">{{ step() === 'configure' ? 'Elegí la receta y cuántas veces querés elaborar su base.' : 'Revisá los ingredientes y los efectos antes de confirmar.' }}</p>
         <ol class="steps" aria-label="Pasos de elaboración">
-          <li [attr.aria-current]="step() === 'configure' ? 'step' : null"><span>1</span>Receta y cantidad</li>
+          <li [attr.aria-current]="step() === 'configure' ? 'step' : null"><span>1</span>Receta y multiplicador</li>
           <li [attr.aria-current]="step() === 'review' ? 'step' : null"><span>2</span>Revisión</li>
         </ol>
       }
@@ -35,8 +35,8 @@
       } @else if (!recipes().length) {
         <section class="state-card"><h2>No hay recetas activas</h2><p>Se necesita una receta activa para elaborar ración. Consultá con un administrador.</p></section>
       } @else {
-        <form class="panel configuration" [formGroup]="form" (ngSubmit)="review()" aria-label="Receta y cantidad de ración">
-          <h2>Receta y cantidad</h2>
+        <form class="panel configuration" [formGroup]="form" (ngSubmit)="review()" aria-label="Receta y multiplicador de ración">
+          <h2>Receta y multiplicador</h2>
           @if (recipes().length > 8) {
             <ion-input fill="outline" label="Buscar receta" labelPlacement="stacked" type="search" [value]="search()" [disabled]="busy()" (ionInput)="search.set($event.detail.value ?? '')" />
           }
@@ -49,10 +49,12 @@
           @if (selectedRecipe(); as recipe) {
             <p class="hint">Receta #{{ recipe.id }} · Rendimiento base: <strong>{{ yieldLabel() }}</strong></p>
           }
-          <ion-input label="Cantidad a elaborar (kg)" labelPlacement="stacked" fill="outline" type="text" inputmode="decimal" formControlName="kilograms" placeholder="Ej.: 26" aria-describedby="quantity-help quantity-error" [attr.aria-invalid]="submitted() && quantityError() ? 'true' : null" />
-          <p id="quantity-help" class="hint">{{ selectedRecipe() ? 'Ingresá múltiplos de ' + yieldLabel() + '. Podés usar hasta 3 decimales.' : 'Seleccioná una receta para conocer los múltiplos permitidos.' }}</p>
-          @if (submitted() && quantityError()) { <p id="quantity-error" class="field-error" role="alert">{{ quantityError() }}</p> }
-          @if (batches()) { <p class="batch-count">Se elaborará {{ batches() }} {{ batches() === '1' ? 'vez' : 'veces' }} la receta.</p> }
+          <ion-input label="Multiplicador de la base" labelPlacement="stacked" fill="outline" type="text" inputmode="numeric" formControlName="multiplier" placeholder="Ej.: 2" [attr.aria-describedby]="submitted() && multiplierError() ? 'multiplier-help multiplier-error' : 'multiplier-help'" [attr.aria-invalid]="submitted() && multiplierError() ? 'true' : null" />
+          <p id="multiplier-help" class="hint">1 elabora una base; 2 elabora el doble. Usá números enteros.</p>
+          @if (submitted() && multiplierError()) { <p id="multiplier-error" class="field-error" role="alert">{{ multiplierError() }}</p> }
+          @if (multiplierLabel()) {
+            <output class="quantity-preview" aria-live="polite" aria-atomic="true"><span>Cantidad a elaborar</span><strong>{{ yieldLabel() }} × {{ multiplierLabel() }} = {{ quantityLabel() }}</strong></output>
+          }
           <div class="notice info"><ion-icon name="information-circle-outline" aria-hidden="true" /><p>La elaboración utiliza ingredientes para producir ración. Revisar el cálculo todavía no modifica el stock.</p></div>
           <ion-button class="primary" expand="block" type="submit" [disabled]="busy()">
             @if (busy()) { <ion-spinner slot="start" name="crescent" aria-hidden="true" /> }
@@ -64,6 +66,7 @@
     } @else if (step() === 'review') {
       <section class="panel review" aria-label="Resumen de elaboración">
         <div class="recipe-summary"><div><h2>{{ reviewName() }}</h2><span>Receta #{{ pending()?.request?.receta_id ?? calculation()?.receta_id }}</span></div><strong>{{ reviewQuantity() }}</strong></div>
+        @if (reviewBasis(); as basis) { <p class="hint review-basis">Base × multiplicador: {{ basis }} = {{ reviewQuantity() }}</p> }
         @if (requiredIngredients().length) {
           <h3>Ingredientes necesarios</h3>
           <ul class="ingredient-list">

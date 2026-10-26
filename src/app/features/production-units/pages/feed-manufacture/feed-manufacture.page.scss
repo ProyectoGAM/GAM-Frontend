@@ -25,9 +25,12 @@ h3 { margin: 20px 0 12px; font-size: 1rem; }
 .context-card span { color: var(--gam-color-text-muted); font-size: .875rem; }
 .panel { padding: 18px; }
 .configuration { display: grid; gap: 16px; }
-ion-input, ion-select { width: 100%; min-width: 0; min-height: 56px; --background: var(--gam-color-surface); --color: var(--gam-color-text); --border-color: var(--gam-color-control-border); --border-radius: 8px; --highlight-color-focused: var(--gam-color-focus); }
+ion-input, ion-select { width: 100%; min-width: 0; min-height: 56px; --background: var(--gam-color-surface); --color: var(--gam-color-text); --border-color: var(--gam-color-control-border); --border-radius: 8px; --highlight-color-focused: var(--gam-color-focus); --highlight-color-valid: var(--gam-color-primary); --highlight-color-invalid: var(--gam-color-danger); }
 .field-error { margin: -8px 0 0; color: var(--gam-color-danger); font-size: .875rem; line-height: 1.5; }
-.batch-count { margin: 0; color: var(--gam-color-heading); font-size: .875rem; font-weight: 600; }
+.quantity-preview { display: grid; gap: 6px; padding: 14px; border-radius: 9px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); overflow-wrap: anywhere; line-height: 1.5; }
+.quantity-preview span { font-size: .8125rem; }
+.quantity-preview strong { font-size: 1rem; }
+.review-basis { margin-top: 12px; }
 .notice { margin: 16px 0; padding: 14px; border-radius: 9px; font-size: .875rem; line-height: 1.55; overflow-wrap: anywhere; }
 .notice p { margin: 0; }
 .notice.info { display: flex; gap: 10px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); }
