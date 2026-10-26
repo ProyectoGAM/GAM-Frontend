@@ -1,0 +1,11 @@
+:host { display: contents; }
+.task-status-dialog { box-sizing: border-box; position: fixed; inset: 0; width: calc(100% - 24px); max-width: 560px; max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); margin: auto; padding: 20px; overflow-y: auto; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-text); }
+.task-status-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 65%, transparent); }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h2 { margin: 0; font-size: 1.25rem; color: var(--gam-color-heading); }
+p { line-height: 1.5; overflow-wrap: anywhere; }
+.loading { display: flex; align-items: center; gap: 12px; }
+.error { padding: 12px; border-radius: 8px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; cursor: pointer; }
+button.primary { color: var(--gam-color-on-primary); background: var(--gam-color-primary); border-color: var(--gam-color-primary); }
+button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }

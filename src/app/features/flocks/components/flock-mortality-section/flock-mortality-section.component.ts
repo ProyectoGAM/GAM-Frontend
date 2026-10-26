@@ -1,4 +1,4 @@
-import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { IonIcon, IonSpinner } from '@ionic/angular';
@@ -103,6 +103,11 @@ export class FlockMortalitySectionComponent {
 
   constructor() {
     addIcons({ addOutline, closeOutline, chevronBackOutline, chevronForwardOutline, informationCircleOutline, arrowUndoOutline });
+    inject(DestroyRef).onDestroy(() => {
+      for (const dialog of [this.confirmationDialog(), this.cancellationDialog(), this.dialog()]) {
+        if (dialog?.nativeElement.open) dialog.nativeElement.close();
+      }
+    });
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.edited.emit());
     this.cancellationForm.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.cancellationEdited.emit());
     effect(() => {

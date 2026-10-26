@@ -44,15 +44,28 @@ ración. Este último usa `leaf-outline`, igual que las plantas de ración. Los
 accesos son hermanos del enlace al detalle: no hay enlaces o botones anidados.
 El listado general de lotes no incorpora estas acciones.
 
-Los enlaces incluyen el origen validado y `task=entry`. Pesajes abre el ingreso
-directamente y permite continuar después de cada pesada. Mortalidad abre su
-formulario existente y Alimentación su editor vigente; ambos regresan al mismo
-galpón al cerrar o guardar. Las consultas de gráficas e historiales se omiten
-en este recorrido. El regreso tras guardar vuelve a consultar los datos del
-galpón y muestra una confirmación. El encabezado, los botones administrativos,
-la unidad productiva y capacidad/ocupación conservan su composición actual.
+Registrar pesaje conserva el enlace con origen validado y `task=entry`, abre el
+ingreso directamente y permite continuar después de cada pesada. Registrar
+mortalidad y Cambiar ración son botones que abren los formularios existentes
+como modales sobre el galpón, sin navegar ni modificar la URL. La consulta inicial
+presenta carga, error y reintento dentro del modal; se omiten gráficas e
+historiales. Cancelar o cerrar no guarda y devuelve el foco al botón de origen.
+Tras guardar, se muestra una confirmación y se actualizan ocupación, aves vivas y
+mortalidad acumulada sin desmontar la página. Si el lote deja de estar alojado,
+el foco pasa al título del galpón. Las rutas de consulta del lote siguen disponibles.
 
-El contexto de navegación no concede permisos. Las páginas verifican que la
+La orquestación de estas dos tareas pertenece a `FlockHouseTaskService`, con una
+instancia por modal. Se reutilizan `FlockMortalitySectionComponent` en modo de
+registro y `FeedingEditorComponent`, incluidos fecha, motivo, confirmación de
+exceso, modos automático/manual, recetas activas con saldo positivo en la UP y
+cantidades exactas en gramos. Guardar bloquea el cierre y los envíos duplicados;
+los errores conservan los datos y los reintentos de red mantienen la clave de
+idempotencia y el cuerpo original. Un conflicto de mortalidad vuelve a consultar
+la versión y el saldo antes de permitir otra confirmación. El cierre descarta
+consultas pendientes; un cambio de identidad descarta la tarea. El editor de
+alimentación permanece montado hasta que Ionic termina de cerrar su overlay.
+
+El contexto de navegación no concede permisos. Las páginas y las tareas verifican que la
 asignación consultada del lote coincida con UP y galpón de origen antes de
 permitir el registro; si cambió, solicitan volver al galpón. Los lotes
 finalizados no admiten nuevas tareas. Una relación inesperada con varios lotes
@@ -79,3 +92,14 @@ Estas comprobaciones de navegador no guardaron registros de negocio. Los
 guardados y la protección frente a un lote trasladado se cubren con pruebas.
 Se revisaron 320 y 390 px y escritorio a 1280 px, temas claro/oscuro, foco,
 targets de 60 px, hoja `leaf-outline` y ausencia de desbordamiento horizontal.
+
+La integración de los modales sobre el galpón (26/10/2026) pasó lint, 791 pruebas
+en 109 archivos y build dentro de Docker. Las pruebas cubren carga/error/reintento,
+cancelación, cierre tras guardado, bloqueo durante el envío, idempotencia,
+validación por campo, exceso con versión actualizada, lotes trasladados/finalizados,
+cambio de identidad y actualización del resumen sin navegación. El navegador
+integrado verificó apertura y cancelación de ambos formularios manteniendo la URL,
+foco de retorno, validación de alimentación sin cambios, escritorio de 1440 px y
+teléfono de 390 px, en claro y oscuro, sin errores JavaScript ni registros nuevos
+en la base local. Los guardados se verificaron con respuestas controladas en las
+pruebas; no se modificaron plugins ni configuración nativa ni se probó un dispositivo físico.

@@ -24,7 +24,7 @@
   } @else if (flocks().length) {
     <div class="flock-list">
       @for (flock of flocks(); track flock.id) {
-        <app-flock-card [flock]="flock" [returnHouse]="returnHouse()" [showTasks]="flocks().length === 1" [mortality]="mortalities().get(flock.id) ?? { state: 'loading', value: null }" />
+        <app-flock-card [flock]="flock" [returnHouse]="returnHouse()" [showTasks]="flocks().length === 1" [mortality]="mortalities().get(flock.id) ?? { state: 'loading', value: null }" (taskRequested)="taskRequested.emit($event)" />
       }
     </div>
   } @else {

@@ -28,11 +28,19 @@
     <section class="flock-tasks" [attr.aria-label]="'Tareas del lote ' + flock().code">
       <h4>Tareas del lote</h4>
       @for (task of tasks; track task.path) {
+        @if (task.kind; as kind) {
+        <button type="button" class="task-link" aria-haspopup="dialog" (click)="requestTask(kind, $event)">
+          <span class="task-icon"><ion-icon [name]="task.icon" aria-hidden="true" /></span>
+          <span class="task-copy"><strong>{{ task.label }}</strong><small>{{ task.description }}</small></span>
+          <ion-icon name="chevron-forward-outline" aria-hidden="true" />
+        </button>
+        } @else {
         <a class="task-link" [routerLink]="['/administracion/lotes/lotes', flock().id, task.path]" [queryParams]="taskQueryParams()">
           <span class="task-icon"><ion-icon [name]="task.icon" aria-hidden="true" /></span>
           <span class="task-copy"><strong>{{ task.label }}</strong><small>{{ task.description }}</small></span>
           <ion-icon name="chevron-forward-outline" aria-hidden="true" />
         </a>
+        }
       }
     </section>
   }

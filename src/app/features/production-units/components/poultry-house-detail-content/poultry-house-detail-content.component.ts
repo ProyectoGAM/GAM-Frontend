@@ -5,6 +5,7 @@ import { IonButton, IonSpinner } from '@ionic/angular';
 import { HouseFlock } from '../../interfaces/production-unit.interface';
 import { FlockCardComponent } from '../../../flocks/components/flock-card/flock-card.component';
 import { DetailMetric, FlockHouseOrigin } from '../../../flocks/interfaces/flock-detail.interface';
+import { FlockHouseTaskAction } from '../../../flocks/interfaces/flock-house-task.interface';
 
 @Component({
   selector: 'app-poultry-house-detail-content',
@@ -24,4 +25,5 @@ export class PoultryHouseDetailContentComponent {
   readonly canAddLot = input(false);
   readonly addLot = output<void>();
   readonly retry = output<void>();
+  readonly taskRequested = output<FlockHouseTaskAction>();
 }

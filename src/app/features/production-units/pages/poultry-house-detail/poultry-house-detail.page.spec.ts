@@ -148,6 +148,42 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain(house.name);
   });
 
+  it('handles task buttons locally and restores focus on cancellation without reloading or navigating', async () => {
+    houseFlocks.mockReturnValue(of([{ id: 'lot-1', code: 'LOTE', poultry_house_id: 22,
+      current_quantity: 750, entry_date: '2026-10-01', is_grouped: false, status: 'active' }]));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    render(); await fixture.whenStable();
+    const buttons = fixture.nativeElement.querySelectorAll('app-flock-card button.task-link') as NodeListOf<HTMLButtonElement>;
+    buttons[0].click();
+    expect(fixture.componentInstance.flockTask()).toMatchObject({ kind: 'mortality', flockId: 'lot-1', origin: { unitId: 7, houseId: 22 } });
+    fixture.componentInstance.closeFlockTask(null);
+    await fixture.whenStable();
+    expect(fixture.componentInstance.flockTask()).toBeNull(); expect(navigate).not.toHaveBeenCalled();
+    expect(houseFlocks).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(buttons[0]);
+    buttons[1].click(); expect(fixture.componentInstance.flockTask()?.kind).toBe('feeding');
+    fixture.componentInstance.closeFlockTask(null);
+  });
+
+  it('refreshes occupancy, live birds and mortality totals after a modal save while keeping the house visible', async () => {
+    const flock = { id: 'lot-1', code: 'LOTE', poultry_house_id: 22,
+      current_quantity: 750, entry_date: '2026-10-01', is_grouped: false, status: 'active' };
+    const totals = vi.fn(() => of(new Map([['lot-1', { state: 'ready', value: 9 }]])));
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(FlockDetailService, { useValue: { mortalityTotals: totals } });
+    render(); await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('app-flock-card button.task-link') as HTMLButtonElement;
+    button.click();
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 749 } }));
+    houseFlocks.mockReturnValue(of([{ ...flock, current_quantity: 749 }]));
+    totals.mockReturnValue(of(new Map([['lot-1', { state: 'ready', value: 10 }]])));
+    fixture.componentInstance.closeFlockTask('Mortalidad registrada.');
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.componentInstance.state()).toBe('success'); expect(fixture.componentInstance.occupancyLabel()).toBe('749 aves');
+    const counts = fixture.nativeElement.querySelectorAll('app-flock-card dd') as NodeListOf<HTMLElement>;
+    expect(counts[0].textContent).toBe('10'); expect(counts[1].textContent).toBe('749');
+    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortalidad registrada.');
+  });
+
   it('renders feed stock without avian sections', () => {
     getPoultryHouseById.mockReturnValue(of({
       data: {
