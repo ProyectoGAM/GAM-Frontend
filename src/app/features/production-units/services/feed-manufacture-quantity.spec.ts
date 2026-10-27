@@ -1,25 +1,27 @@
-import { formatFeedKilograms, isYieldMultiple, kilogramsToGrams } from './feed-manufacture-quantity';
+import { formatFeedKilograms, multiplyRecipeYield } from './feed-manufacture-quantity';
 
 describe('feed manufacture quantities', () => {
-  it('converts kg to exact integer grams with either decimal separator', () => {
-    expect(kilogramsToGrams('26')).toBe('26000');
-    expect(kilogramsToGrams('0,013')).toBe('13');
-    expect(kilogramsToGrams(' 1.001 ')).toBe('1001');
-    expect(kilogramsToGrams('999999999.999')).toBe('999999999999');
+  it('multiplies the recipe base exactly, including bases below one kilogram', () => {
+    expect(multiplyRecipeYield('13000', '1')).toBe('13000');
+    expect(multiplyRecipeYield('13000', '2')).toBe('26000');
+    expect(multiplyRecipeYield('1001', '3')).toBe('3003');
+    expect(multiplyRecipeYield('13', ' 02 ')).toBe('26');
   });
 
-  it('rejects zero, negatives, fractional grams, scientific notation and overflow', () => {
-    for (const value of ['', '0', '-1', '0.0001', '1e3', '1,000.1', '1000000000', 'Infinity']) {
-      expect(kilogramsToGrams(value), value).toBeNull();
+  it('rejects empty, zero, negative, fractional and nonnumeric multipliers', () => {
+    for (const value of ['', '0', '-1', '1.5', '1,5', '2.0', '1e3', 'Infinity', 'abc', '1 000']) {
+      expect(multiplyRecipeYield('13000', value), value).toBeNull();
     }
   });
 
-  it('accepts only positive whole multiples of the recipe yield', () => {
-    expect(isYieldMultiple('26000', '13000')).toBe(true);
-    expect(isYieldMultiple('26001', '13000')).toBe(false);
-    expect(isYieldMultiple('13', '13')).toBe(true);
-    expect(isYieldMultiple('0', '13')).toBe(false);
-    expect(isYieldMultiple('1', '0')).toBe(false);
+  it('respects the exact stock maximum and rejects invalid recipe bases', () => {
+    expect(multiplyRecipeYield('1', '999999999999')).toBe('999999999999');
+    expect(multiplyRecipeYield('13000', '76923076')).toBe('999999988000');
+    expect(multiplyRecipeYield('13000', '76923077')).toBeNull();
+    expect(multiplyRecipeYield('1', '1000000000000')).toBeNull();
+    for (const base of ['0', '-1', '', '1.5', '1000000000000']) {
+      expect(multiplyRecipeYield(base, '2'), base).toBeNull();
+    }
   });
 
   it('formats fractional ingredient quantities and large balances without losing digits', () => {

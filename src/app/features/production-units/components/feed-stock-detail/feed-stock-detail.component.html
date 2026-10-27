@@ -26,11 +26,11 @@
       <div class="stock-actions" role="group" aria-label="Gestión del stock de la planta">
         <button #ingredientTrigger class="stock-action product-trigger" type="button" aria-haspopup="dialog"
           [attr.aria-expanded]="formOpen()" aria-controls="ingredient-modal"
-          [disabled]="state() !== 'success' || saving()" (click)="toggleForm.emit()">
+          [disabled]="!canManufacture() || state() !== 'success' || saving()" [attr.aria-describedby]="!canManufacture() ? 'plant-operation-hint' : null" (click)="openIngredientForm()">
           <ion-icon name="cube-outline" aria-hidden="true" />Agregar Producto
         </button>
         <button #adjustmentTrigger class="stock-action adjustment-trigger" type="button" aria-haspopup="dialog"
-          [attr.aria-expanded]="adjustmentOpen()" aria-controls="stock-adjustment-modal" [disabled]="saving() || state() !== 'success'" (click)="adjustmentMessage.set(null); adjustmentOpen.set(true)">
+          [attr.aria-expanded]="adjustmentOpen()" aria-controls="stock-adjustment-modal" [disabled]="!canManufacture() || saving() || state() !== 'success'" [attr.aria-describedby]="!canManufacture() ? 'plant-operation-hint' : null" (click)="openAdjustment()">
           <ion-icon name="options-outline" aria-hidden="true" />Ajustar Stock
         </button>
       </div>
@@ -38,7 +38,7 @@
         <ion-button class="manufacture-button" expand="block" [disabled]="!canManufacture() || saving()" (click)="manufacture.emit()">
           <ion-icon name="leaf-outline" slot="start" aria-hidden="true" />Elaborar
         </ion-button>
-        @if (!canManufacture()) { <p class="form-hint">La planta debe estar operativa para elaborar ración.</p> }
+        @if (!canManufacture()) { <p id="plant-operation-hint" class="form-hint">La planta debe estar operativa para agregar ingredientes, ajustar stock o elaborar ración.</p> }
       </div>
     </div>
   </div>
@@ -82,7 +82,7 @@
           <div class="form-actions">
             <ion-button class="action" type="button" fill="outline" [disabled]="saving()" (click)="closeForm()">Cancelar</ion-button>
             @if (catalogState() === 'success' && ingredients().length) {
-              <ion-button class="save-button" type="submit" [disabled]="saving()">{{ saving() ? 'Agregando…' : 'Guardar ingrediente' }}</ion-button>
+              <ion-button class="save-button" type="submit" [disabled]="!canManufacture() || saving()">{{ saving() ? 'Agregando…' : 'Guardar ingrediente' }}</ion-button>
             }
           </div>
         </form>

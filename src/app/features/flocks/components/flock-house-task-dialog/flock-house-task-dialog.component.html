@@ -1,0 +1,23 @@
+<dialog #statusDialog class="task-status-dialog" aria-labelledby="house-task-title" (cancel)="cancel($event)">
+  <header><h2 id="house-task-title">{{ title() }}</h2><button type="button" aria-label="Cerrar tarea" (click)="close()">Cerrar</button></header>
+  <p>{{ request().houseName }} · {{ request().unitName }}</p>
+  @if (task.state() === 'loading') {
+    <p class="loading" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando datos del lote…</p>
+  } @else if (task.state() === 'error') {
+    <p class="error" role="alert">{{ task.loadError() }}</p>
+    <button type="button" class="primary" (click)="task.load()">Reintentar</button>
+  }
+</dialog>
+@if (task.state() === 'ready' && task.flock(); as flock) {
+  @if (request().kind === 'mortality') {
+    <app-flock-mortality-section [flock]="flock" [registrationOnly]="true"
+      [houseName]="request().houseName" [unitName]="request().unitName"
+      [saving]="task.saving()" [saveError]="task.saveError()" [fieldErrors]="task.fieldErrors()"
+      (formClosed)="finish()" (edited)="task.clearErrors()" (submitted)="task.saveMortality($event)" />
+  } @else if (task.feeding(); as feeding) {
+    <app-feeding-editor [open]="editorOpen()" [context]="context()" [currentQuantity]="feeding.cantidad_diaria_g"
+      [currentRecipe]="task.currentRecipe()" [currentMode]="feeding.modo" [options]="task.options()"
+      [state]="task.balancesState()" [saving]="task.saving()" [error]="task.saveError()"
+      (submitted)="task.saveFeeding($event)" (retry)="task.loadBalances()" (closeRequested)="close()" (dismissed)="finish()" />
+  }
+}

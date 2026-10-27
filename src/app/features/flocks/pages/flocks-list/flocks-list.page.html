@@ -81,15 +81,10 @@
   }
 </section>
 
-<dialog #filtersDialog class="filters-dialog" aria-labelledby="flocks-filters-title" (cancel)="onFilterCancel($event)">
-  <div class="sheet-handle" aria-hidden="true"></div>
-  <div class="sheet-header">
-    <h2 id="flocks-filters-title">Filtros</h2>
-    <button class="sheet-close" type="button" aria-label="Cerrar filtros" (click)="closeFilters()">
-      <ion-icon name="close-outline" aria-hidden="true" />
-    </button>
-  </div>
-  <div class="sheet-body">
+<app-filter-dialog titleId="flocks-filters-title" [showClear]="auth.isAdmin()"
+  [applyLabel]="draftResultCount() === null ? 'Ver resultados' : 'Ver ' + draftResultCount() + (draftResultCount() === 1 ? ' resultado' : ' resultados')"
+  (clearRequested)="draftUnitId.set(null)" (applyRequested)="applyFilters()">
+  <div class="flock-filter-fields">
     <label for="flocks-unit-filter">Unidad productiva</label>
     <select #unitSelect id="flocks-unit-filter" [value]="draftUnitId() ?? ''"
       (change)="setDraftUnit(unitSelect.value)">
@@ -109,16 +104,4 @@
       }
     </div>
   </div>
-  <div class="sheet-footer">
-    @if (auth.isAdmin()) {
-      <button class="sheet-action secondary" type="button" (click)="draftUnitId.set(null)">Limpiar</button>
-    }
-    <button class="sheet-action primary" type="button" (click)="applyFilters()">
-      @if (draftResultCount() !== null) {
-        Ver {{ draftResultCount() }} {{ draftResultCount() === 1 ? 'resultado' : 'resultados' }}
-      } @else {
-        Ver resultados
-      }
-    </button>
-  </div>
-</dialog>
+</app-filter-dialog>

@@ -1,0 +1,29 @@
+<dialog #dialog class="reversal-dialog" aria-labelledby="movement-reversal-title" (cancel)="onCancel($event)">
+  <header><h2 #heading tabindex="-1" id="movement-reversal-title">{{ step() === 'reason' ? 'Revertir movimiento' : 'Confirmar reversión' }}</h2><button class="close" type="button" aria-label="Cerrar reversión" [disabled]="saving()" (click)="close()">×</button></header>
+  <div class="body">
+    @if (movement(); as item) {
+      <dl class="summary"><div><dt>Movimiento</dt><dd>{{ typeLabel() }} · {{ date() }}</dd></div><div><dt>Responsable original</dt><dd>{{ item.created_by_name?.trim() || 'No disponible' }}</dd></div><div><dt>Motivo original</dt><dd>{{ item.reason || 'Sin motivo indicado' }}</dd></div></dl>
+      <p class="note">Se creará un movimiento que compensa las cantidades del original. Ambos registros permanecerán en el historial.</p>
+      @if (loading()) { <p role="status">Cargando productos del movimiento…</p> }
+      @if (loadError(); as message) { <div class="error" role="alert">{{ message }} <button type="button" (click)="loadDetails()">Reintentar consulta</button></div> }
+      @if (lines().length) { <section aria-label="Cantidades del movimiento original"><h3>Cantidades originales</h3><ul>@for (line of lines(); track line.id) { <li><span>{{ line.name }}<small>{{ line.location }}</small></span><strong>{{ line.amount }}</strong></li> }</ul></section> }
+    }
+    <form id="movement-reversal-form" [hidden]="step() !== 'reason'" [formGroup]="form" (ngSubmit)="review()" novalidate>
+      <label for="movement-reversal-reason">Motivo de la reversión <span aria-hidden="true">*</span></label>
+      <textarea #reasonInput id="movement-reversal-reason" rows="3" maxlength="255" required formControlName="reason" [readonly]="saving()" [attr.aria-invalid]="form.controls.reason.touched && form.controls.reason.invalid" aria-describedby="movement-reversal-help movement-reversal-error"></textarea>
+      <small id="movement-reversal-help">Explicá por qué necesitás corregir este movimiento. Hasta 255 caracteres.</small>
+      <p id="movement-reversal-error" class="field-error">@if (form.controls.reason.touched && form.controls.reason.invalid) { Escribí un motivo de hasta 255 caracteres; no puede quedar vacío. }</p>
+    </form>
+    @if (step() === 'confirmation') { <div class="review"><h3>Motivo de la reversión</h3><p>{{ confirmedReason() }}</p><p>¿Confirmás que querés registrar esta reversión?</p></div> }
+    @if (error(); as message) { <p class="error" role="alert">{{ message }}</p> }
+  </div>
+  <footer>
+    <button type="button" [disabled]="saving()" (click)="close()">Cancelar</button>
+    @if (step() === 'reason') {
+      <button type="submit" form="movement-reversal-form" class="primary" [disabled]="loading() || !!loadError()">Continuar</button>
+    } @else {
+      <button type="button" [disabled]="saving()" (click)="editReason()">Editar motivo</button>
+      <button type="button" class="danger" [disabled]="saving()" (click)="confirm()">{{ saving() ? 'Revirtiendo…' : 'Confirmar reversión' }}</button>
+    }
+  </footer>
+</dialog>

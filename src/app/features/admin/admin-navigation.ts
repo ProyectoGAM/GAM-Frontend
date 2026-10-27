@@ -81,8 +81,6 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     section: 'global',
     items: [
       { label: 'Proveedores', slug: 'proveedores' },
-      { label: 'Productos', slug: 'productos' },
-      { label: 'Nuevo producto', slug: 'productos/nuevo' },
     ],
   },
   {

@@ -12,9 +12,9 @@ export class InventoryReferenceApi {
     return this.api.get<ApiEnvelope<ReferenceOptions>>('reference/options');
   }
 
-  activeProducts(search = ''): Observable<PaginatedResponse<Product>> {
+  activeProducts(search = '', page = 1): Observable<PaginatedResponse<Product>> {
     return this.api.get<PaginatedResponse<Product>>('products', {
-      params: { status: 'active', search: search || undefined, per_page: 100 },
+      params: { status: 'active', search: search || undefined, per_page: 100, ...(page > 1 ? { page } : {}) },
     });
   }
 }

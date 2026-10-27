@@ -1,86 +1,81 @@
-<section class="egg-page stock-page">
-  <a class="back" routerLink="/administracion/inventario/existencias">← Volver a existencias</a>
-  <div class="page-heading">
-    <div>
-      <p class="eyebrow">Control de huevos</p>
-      <h1>Stock de huevos</h1>
-      <p class="lead">Consulta el saldo y los movimientos de cada unidad productiva. Los ingresos registrados desde Producción aparecen aquí automáticamente.</p>
-    </div>
-  </div>
-
-  <label class="unit-picker">
-    Unidad productiva
-    <select [value]="selectedUnit() ?? ''" (change)="chooseUnitFromEvent($event)" [disabled]="productionUnitsState() === 'loading' && productionUnits().length === 0">
-      <option value="">Seleccionar unidad productiva</option>
-      @for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+<section class="catalog-page egg-page" aria-labelledby="egg-stock-title">
+  <p class="breadcrumb">Inventario / Existencias / Huevos</p>
+  <a class="back" routerLink="/administracion/inventario/existencias"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a existencias</a>
+  <header class="page-heading"><h1 id="egg-stock-title">Stock de huevos</h1><p>Saldo y movimientos por unidad productiva.</p></header>
+  <label class="unit-picker" for="egg-stock-unit">Unidad productiva
+    <select id="egg-stock-unit" (change)="chooseUnitFromEvent($event)" [disabled]="mutation() === 'submitting' || (productionUnitsState() === 'loading' && productionUnits().length === 0)">
+      <option value="" [selected]="selectedUnit() === null">Seleccionar unidad productiva</option>
+      @for (item of productionUnits(); track item.id) { <option [value]="item.id" [selected]="item.id === selectedUnit()">{{ item.name }}</option> }
     </select>
   </label>
-  @if (productionUnitsState() === 'loading' && productionUnits().length === 0) { <div class="card state" aria-live="polite">Cargando unidades productivas…</div> }
-  @if (productionUnitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="loadProductionUnits()">Reintentar</button></div> }
+  @if (productionUnitsState() === 'loading' && productionUnits().length === 0) { <div class="card state" role="status">Cargando unidades productivas…</div> }
+  @if (productionUnitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button" type="button" (click)="loadProductionUnits()">Reintentar</button></div> }
   @if (productionUnitsState() === 'empty') { <div class="card state">No hay unidades productivas disponibles.</div> }
-
   @if (balance() !== null) {
-    <div class="balance-card card" [class.negative]="balance()! < 0">
-      <span>Saldo actual</span>
-      <strong>{{ quantity(balance()!) }}</strong>
-      @if (balance()! < 0) { <p>El saldo está por debajo de cero. Revisa los ingresos y salidas recientes.</p> }
-    </div>
+    <section class="balance-card card" aria-label="Saldo actual de huevos" [class.negative]="balance()! < 0">
+      <div class="balance-value"><span class="balance-icon"><ion-icon name="egg-outline" aria-hidden="true" /></span><div><span class="muted">Saldo actual</span><p class="balance-quantity"><strong>{{ balanceQuantity() }}</strong><span>huevos</span></p></div></div>
+      <div class="production-note"><ion-icon name="information-circle-outline" aria-hidden="true" /><p>Los ingresos de Producción se registran automáticamente.<small>El saldo actual no cambia al filtrar el historial.</small></p></div>
+      @if (balance()! < 0) { <p class="balance-warning" role="status">El saldo está por debajo de cero. Revisa los ingresos y salidas recientes.</p> }
+    </section>
   }
-
-  @if (canMove() && selectedUnit()) {
-    <section class="commands" aria-labelledby="command-heading">
-      <div class="commands-heading">
-        <div><h2 id="command-heading">Registrar movimiento</h2><p>Los ingresos de producción se generan automáticamente. Aquí puedes registrar un ingreso manual o una salida.</p></div>
-        <div class="operation-picker" role="group" aria-label="Tipo de movimiento">
-          <button class="button" [class.selected]="activeOperation() === 'receipt'" [attr.aria-pressed]="activeOperation() === 'receipt'" type="button" (click)="selectOperation('receipt')">Ingreso manual</button>
-          <button class="button" [class.selected]="activeOperation() === 'issue'" [attr.aria-pressed]="activeOperation() === 'issue'" type="button" (click)="selectOperation('issue')">Salida</button>
+  @if (canMove() && selectedUnit()) { <button class="button primary register-movement" type="button" (click)="openMovement($event)"><ion-icon name="add-outline" aria-hidden="true" />Registrar movimiento</button> }
+  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (!selectedUnit() && productionUnitsState() === 'success') { <div class="card state">Selecciona una unidad productiva para consultar su saldo y sus movimientos.</div> }
+  @if (selectedUnit()) {
+    <section class="history" aria-labelledby="egg-history-title">
+      <header class="history-heading"><div><h2 id="egg-history-title">Historial de movimientos</h2><p>Consulta el origen y el detalle de cada movimiento.</p></div></header>
+      <button class="button filters-toggle" type="button" [attr.aria-expanded]="filtersOpen()" aria-controls="egg-history-filters" (click)="filtersOpen.set(!filtersOpen())"><ion-icon name="options-outline" aria-hidden="true" />Filtros @if (appliedFilterCount()) { <span>({{ appliedFilterCount() }})</span> }</button>
+      <form id="egg-history-filters" class="filters card" [class.open]="filtersOpen()" [formGroup]="filters" (ngSubmit)="applyFilters()">
+        <div class="field"><label for="egg-type">Tipo</label><select id="egg-type" formControlName="type"><option value="">Todos los tipos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="distribution_return">Retorno de reparto</option><option value="donation">Donación</option><option value="loss">Pérdida</option></select></div>
+        <div class="field"><label for="egg-status">Estado</label><select id="egg-status" formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></div>
+        <div class="field"><label for="egg-from">Desde</label><input id="egg-from" type="date" formControlName="date_from" [attr.aria-invalid]="!!filterError()" [attr.aria-describedby]="filterError() ? 'egg-filter-error' : null"></div>
+        <div class="field"><label for="egg-to">Hasta</label><input id="egg-to" type="date" formControlName="date_to" [attr.aria-invalid]="!!filterError()" [attr.aria-describedby]="filterError() ? 'egg-filter-error' : null"></div>
+        <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button class="button" type="button" (click)="clearFilters()">Limpiar</button></div>
+        @if (filterError(); as message) { <p id="egg-filter-error" class="field-error" role="alert">{{ message }}</p> }
+      </form>
+      @if (error(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button" type="button" (click)="load()">Reintentar</button></div> }
+      @if (state() === 'loading') { <div class="card state" role="status">Cargando saldo e historial…</div> }
+      @if (state() === 'empty') { <div class="card state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><p>El saldo actual se consulta independientemente del historial.</p>@if (appliedFilterCount()) { <button class="button" type="button" (click)="clearFilters()">Limpiar filtros</button> }</div> }
+      @if (state() === 'success') {
+        <div class="table-card">
+          <table><caption class="sr-only">Movimientos de stock de huevos de {{ selectedUnitName() }}</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Movimiento</th><th scope="col">Cantidad</th><th scope="col">Motivo</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+            <tbody>@for (row of rows(); track row.item.id) {
+              <tr [class.cancelled]="row.item.status === 'cancelled'">
+                <td class="date-cell"><time [attr.datetime]="row.item.occurred_at">{{ row.date }}<small>{{ row.time }}</small></time></td>
+                <td class="movement-cell"><strong>{{ row.label }}</strong>@if (row.fromProduction) { <small>Origen: Producción</small> }</td>
+                <td class="quantity-cell" [class.incoming]="row.incoming" [class.loss]="row.item.type === 'loss'"><ion-icon [name]="row.incoming ? 'arrow-up-outline' : 'arrow-down-outline'" aria-hidden="true" /><div><strong>{{ row.amount }}</strong><span>huevos</span></div></td>
+                <td class="reason-cell">{{ row.item.reason || 'Sin motivo registrado' }}</td>
+                <td class="status-cell"><span class="status" [class.cancelled]="row.item.status === 'cancelled'">{{ row.status }}</span>@if (row.item.status === 'cancelled') { <small>No afecta al saldo</small> }</td>
+                <td class="detail-cell"><a class="detail-link" [attr.aria-label]="'Ver detalle de ' + row.label + ' del ' + row.date + ' a las ' + row.time" [routerLink]="['/administracion/inventario/existencias/huevos/movimientos', row.item.id]">Ver detalle<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a></td>
+              </tr>
+            }</tbody>
+          </table>
+          <nav class="pagination" aria-label="Paginación del historial de huevos"><span role="status">{{ meta()?.total }} {{ meta()?.total === 1 ? 'movimiento' : 'movimientos' }} · Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><div><button class="button" type="button" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><button class="button" type="button" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div></nav>
         </div>
-      </div>
-      @if (activeOperation() === 'receipt') {
-        <form class="card command-form" [formGroup]="receiptForm" (ngSubmit)="submitReceipt()">
-          <h3>Ingreso manual</h3>
-          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
-          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
-          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
-          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
-          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar ingreso</button>
-        </form>
-      } @else {
-        <form class="card command-form" [formGroup]="issueForm" (ngSubmit)="submitIssue()">
-          <h3>Salida de huevos</h3>
-          <label>Motivo de la salida<select formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
-          <label>Cantidad de huevos<input inputmode="numeric" formControlName="quantity"></label>
-          <label>Fecha del movimiento<input type="date" formControlName="occurred_at"></label>
-          <label>Motivo<textarea rows="2" formControlName="reason"></textarea></label>
-          <label>Notas adicionales<textarea rows="2" formControlName="notes"></textarea></label>
-          <button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">Registrar salida</button>
-        </form>
       }
     </section>
   }
-  @if (error(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button text" type="button" (click)="load()">Reintentar</button></div> }
-  @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
-
-  @if (selectedUnit()) {
-    <form class="filters card" [formGroup]="filters" (ngSubmit)="load()">
-      <label>Estado<select formControlName="status"><option value="">Todos</option><option value="recorded">Registrado</option><option value="cancelled">Cancelado</option></select></label>
-      <label>Tipo<select formControlName="type"><option value="">Todos</option><option value="collection_receipt">Ingreso de producción</option><option value="manual_receipt">Ingreso manual</option><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></label>
-      <label>Desde<input type="date" formControlName="date_from"></label>
-      <label>Hasta<input type="date" formControlName="date_to"></label>
-      <div class="filter-actions"><button class="button primary" type="submit">Filtrar</button><button class="button text" type="button" (click)="clearFilters()">Limpiar</button></div>
-    </form>
-  }
-
-  @if (state() === 'loading') { <div class="card state" aria-live="polite">Cargando saldo e historial…</div> }
-  @if (state() === 'empty') { <div class="card state"><strong>No hay movimientos para esta unidad productiva con esos filtros.</strong><p>El saldo puede ser cero aunque todavía no haya movimientos.</p></div> }
-  @if (state() === 'success') {
-    <div class="table-card card">
-      <table><caption class="sr-only">Movimientos de stock de huevos</caption><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-        <tbody>@for (item of transactions(); track item.id) {
-          <tr><td data-label="Fecha">{{ date(item.occurred_at) }}</td><td data-label="Tipo">{{ typeLabel(item.type) }} @if (item.reference?.type === 'egg_collection') { <small>Origen: Producción</small> }</td><td data-label="Cantidad">{{ quantity(item.quantity) }}</td><td data-label="Motivo">{{ item.reason }}</td><td data-label="Estado"><span class="status" [class.cancelled]="item.status === 'cancelled'">{{ statusLabel(item.status) }}</span></td><td data-label="Detalle"><a class="button small secondary" [routerLink]="['../huevos/movimientos', item.id]">Ver detalle</a></td></tr>
-        }</tbody>
-      </table>
+  <dialog #movementDialog class="movement-dialog" aria-labelledby="egg-movement-title" aria-describedby="egg-movement-context" (cancel)="onDialogCancel($event)">
+    @let form = activeForm();
+    <header class="dialog-heading"><div><h2 id="egg-movement-title">Registrar movimiento</h2><p id="egg-movement-context">{{ selectedUnitName() }}</p></div><button class="button close-button" type="button" aria-label="Cerrar" [disabled]="mutation() === 'submitting'" (click)="closeMovement()"><ion-icon name="close-outline" aria-hidden="true" /></button></header>
+    <div class="operation-picker" role="group" aria-label="Tipo de movimiento">
+      <button class="button" [class.selected]="activeOperation() === 'receipt'" [attr.aria-pressed]="activeOperation() === 'receipt'" [disabled]="mutation() === 'submitting'" type="button" (click)="selectOperation('receipt')">Ingreso manual</button>
+      <button class="button" [class.selected]="activeOperation() === 'issue'" [attr.aria-pressed]="activeOperation() === 'issue'" [disabled]="mutation() === 'submitting'" type="button" (click)="selectOperation('issue')">Salida</button>
     </div>
-    <div class="pagination"><button class="button secondary" [disabled]="!meta() || meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }} · {{ meta()?.total }} movimientos</span><button class="button secondary" [disabled]="!meta() || meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></div>
-  }
+    <form class="command-form" [formGroup]="form" (ngSubmit)="submitMovement()">
+      <h3>{{ activeOperation() === 'receipt' ? 'Ingreso manual' : 'Salida de huevos' }}</h3>
+      <p class="muted">{{ activeOperation() === 'receipt' ? 'Usa este ingreso para registros ajenos a Producción. Las recolecciones ingresan automáticamente.' : 'Registra una preparación de reparto o una pérdida.' }}</p>
+      <fieldset [disabled]="mutation() === 'submitting'">
+        @if (activeOperation() === 'issue') { <div class="field"><label for="egg-issue-type">Tipo de salida</label><select id="egg-issue-type" formControlName="type"><option value="distribution_preparation">Preparación de reparto</option><option value="loss">Pérdida</option></select></div> }
+        <div class="form-row">
+          <div class="field"><label for="egg-quantity">Cantidad de huevos <span>(obligatorio)</span></label><input #quantityInput id="egg-quantity" inputmode="numeric" formControlName="quantity" required [attr.aria-invalid]="form.controls.quantity.touched && form.controls.quantity.invalid" aria-describedby="egg-quantity-help"><small id="egg-quantity-help" [class.field-error]="form.controls.quantity.touched && form.controls.quantity.invalid">Ingresa un entero entre 1 y 2.147.483.647.</small>@if (form.controls.quantity.getError('server'); as message) { <small class="field-error" role="alert">{{ message }}</small> }</div>
+          <div class="field"><label for="egg-occurred">Fecha del movimiento <span>(opcional)</span></label><input id="egg-occurred" type="date" formControlName="occurred_at" aria-describedby="egg-date-help"><small id="egg-date-help">Si la dejas vacía, se registra ahora.</small>@if (form.controls.occurred_at.getError('server'); as message) { <small class="field-error" role="alert">{{ message }}</small> }</div>
+        </div>
+        <div class="field"><label for="egg-reason">Motivo <span>(obligatorio)</span></label><textarea id="egg-reason" rows="2" formControlName="reason" maxlength="500" required [attr.aria-invalid]="form.controls.reason.touched && form.controls.reason.invalid" aria-describedby="egg-reason-help"></textarea><small id="egg-reason-help" [class.field-error]="form.controls.reason.touched && form.controls.reason.invalid">Explica el motivo del movimiento. Máximo 500 caracteres.</small>@if (form.controls.reason.getError('server'); as message) { <small class="field-error" role="alert">{{ message }}</small> }</div>
+        <div class="field"><label for="egg-notes">Notas adicionales <span>(opcional)</span></label><textarea id="egg-notes" rows="2" formControlName="notes" maxlength="5000"></textarea>@if (form.controls.notes.getError('server'); as message) { <small class="field-error" role="alert">{{ message }}</small> }</div>
+      </fieldset>
+      @if (commandError(); as message) { <div class="feedback error" role="alert">{{ message }}</div> }
+      <footer class="dialog-actions"><button class="button" type="button" [disabled]="mutation() === 'submitting'" (click)="closeMovement()">Cancelar</button><button class="button primary" type="submit" [disabled]="mutation() === 'submitting'">{{ mutation() === 'submitting' ? 'Registrando…' : activeOperation() === 'receipt' ? 'Registrar ingreso' : 'Registrar salida' }}</button></footer>
+    </form>
+  </dialog>
 </section>

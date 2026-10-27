@@ -6,8 +6,9 @@ import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { InventoryApi } from '../../services/inventory.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
-import { StockBalance } from '../../interfaces/inventory';
+import { StockBalance, StockLocation } from '../../interfaces/inventory';
 import { stubNativeDialog } from '../../testing/native-dialog-test';
+import { StockLocationsApi } from '../../services/stock-locations.api';
 import { StockPage } from './stock.page';
 
 const emptyBalances = {
@@ -52,10 +53,11 @@ describe('Existencias page', () => {
   beforeEach(() => { restoreNativeDialog = stubNativeDialog(); });
   afterEach(() => { restoreNativeDialog(); });
 
-  const createFixture = (permissions: string[], inventoryApi: Partial<InventoryApi> = {}) => TestBed.configureTestingModule({
+  const createFixture = (permissions: string[], inventoryApi: Partial<InventoryApi> = {}, locations: StockLocation[] = []) => TestBed.configureTestingModule({
     imports: [StockPage],
     providers: [
       provideRouter([]),
+      { provide: StockLocationsApi, useValue: { list: () => of({ ...emptyBalances, data: locations }) } },
       { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
       { provide: InventoryApi, useValue: {
         balances: () => of(emptyBalances),
@@ -65,6 +67,43 @@ describe('Existencias page', () => {
       { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
     ],
   }).createComponent(StockPage);
+
+  it('shows the current plant name and links through its actual UP without exposing the technical name', async () => {
+    const location: StockLocation = {
+      id: 2, name: 'Planta de ración #42', status: 'active', system_managed: true,
+      poultry_house_id: 42, poultry_house_name: 'Planta Norte',
+      production_unit: { id: 7, name: 'Granja El Ombú' },
+    };
+    const plantBalance = { ...balance, stock_location: { ...location, production_unit: undefined } };
+    const fixture = createFixture(['products.manage'], {
+      balances: () => of({ ...emptyBalances, data: [plantBalance], meta: { ...emptyBalances.meta, total: 81, last_page: 4 } }),
+    }, [location]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Planta Norte');
+    expect(element.textContent).toContain('Granja El Ombú');
+    expect(element.textContent).not.toContain('Planta de ración #42');
+    expect(element.querySelector('.plant-link')?.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/42');
+    expect(element.querySelector('.summary-card strong')?.textContent).toBe('81');
+    expect(element.querySelector('.summary-card.warning')?.textContent).toContain('En esta página');
+    expect(element.querySelector('a[href$="/productos/nuevo"]')).not.toBeNull();
+    expect(element.querySelector('.actions-cell a')?.getAttribute('href')).toContain('product_id=4');
+    fixture.destroy();
+  });
+
+  it('keeps a named plant readable without inventing a route when its UP is unavailable', async () => {
+    const fixture = createFixture([], {
+      balances: () => of({ ...emptyBalances, data: [{ ...balance, stock_location: {
+        ...balance.stock_location, poultry_house_id: 42, poultry_house_name: 'Planta Norte',
+      } }] }),
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Planta Norte');
+    expect(fixture.nativeElement.querySelector('.plant-link')).toBeNull();
+    fixture.destroy();
+  });
 
   it('offers movement registration only to users with an existing movement permission', async () => {
     const allowed = createFixture(['inventory.move']);
@@ -102,7 +141,7 @@ describe('Existencias page', () => {
     fixture.destroy();
   });
 
-  it('applies below-minimum only on submit and clears back to the unfiltered server response', async () => {
+  it('applies below-minimum from the modal and clears only after requesting results', async () => {
     const atOrAboveMinimum: StockBalance = {
       ...balance,
       id: 10,
@@ -118,6 +157,7 @@ describe('Existencias page', () => {
       imports: [StockPage],
       providers: [
         provideRouter([]),
+        { provide: StockLocationsApi, useValue: { list: () => of(emptyBalances) } },
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: [] }) } },
         { provide: InventoryApi, useValue: { balances, setMinimumStock: () => of({ data: {} }) } },
         { provide: InventoryReferenceApi, useValue: { options: () => of(emptyReferences) } },
@@ -126,6 +166,10 @@ describe('Existencias page', () => {
 
     await fixture.whenStable();
     fixture.detectChanges();
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
     const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     expect(balances).toHaveBeenCalledTimes(1);
@@ -135,14 +179,20 @@ describe('Existencias page', () => {
     expect(checkbox.checked).toBe(true);
     expect(balances).toHaveBeenCalledTimes(1);
 
-    (fixture.nativeElement.querySelector('.filter-actions button[type="submit"]') as HTMLButtonElement).click();
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: true }));
+    expect(dialog.open).toBe(false);
+    expect(fixture.componentInstance.activeFilterCount()).toBe(1);
     expect(fixture.nativeElement.textContent).toContain('Alimento');
     expect(fixture.nativeElement.textContent).not.toContain('Alimento al mínimo');
 
-    (fixture.nativeElement.querySelector('.filter-actions button[type="button"]') as HTMLButtonElement).click();
+    trigger.click();
+    (dialog.querySelector('.sheet-action.secondary') as HTMLButtonElement).click();
+    expect(balances).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.activeFilterCount()).toBe(1);
+    (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(checkbox.checked).toBe(false);
@@ -165,12 +215,64 @@ describe('Existencias page', () => {
     fixture.destroy();
   });
 
+  it('discards cancelled filter drafts and preserves applied location and minimum filters for pages and product selection', async () => {
+    const balances = vi.fn().mockReturnValue(of(emptyBalances));
+    const fixture = createFixture([], { balances });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    const dialog = fixture.nativeElement.querySelector('.filters-dialog') as HTMLDialogElement;
+    page.filters.patchValue({ stock_location_id: '2', below_minimum: true });
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(balances).toHaveBeenCalledTimes(1);
+    expect(page.hasActiveFilters()).toBe(false);
+    trigger.click();
+    expect(page.filters.getRawValue()).toEqual({ product_id: '', stock_location_id: '', below_minimum: false });
+    page.filters.patchValue({ stock_location_id: '2', below_minimum: true });
+    await page.applyFilters();
+    expect(page.activeFilterCount()).toBe(2);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ stock_location_id: 2, below_minimum: true, page: 1 }));
+    page.filters.patchValue({ stock_location_id: '9', below_minimum: false });
+    await page.load(2);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ stock_location_id: 2, below_minimum: true, page: 2 }));
+    page.filters.controls.product_id.setValue('4');
+    await fixture.whenStable();
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ product_id: 4, stock_location_id: 2, below_minimum: true, page: 1 }));
+    fixture.destroy();
+  });
+
+  it('refreshes a minimum change using applied filters even after cancelling a different draft', async () => {
+    const response = { ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, total: 1 } };
+    const balances = vi.fn().mockReturnValue(of(response));
+    const setMinimumStock = vi.fn().mockReturnValue(of({ data: { ...balance, minimum_quantity: '0' } }));
+    const fixture = createFixture(['inventory.manage'], { balances, setMinimumStock });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    page.filters.controls.below_minimum.setValue(true);
+    await page.applyFilters();
+    const trigger = fixture.nativeElement.querySelector('.filter-trigger') as HTMLButtonElement;
+    trigger.click();
+    page.clearDraftFilters();
+    (fixture.nativeElement.querySelector('.filters-dialog .sheet-close') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('td[data-label="Acción"] button') as HTMLButtonElement).click();
+    page.minimumForm.controls.minimum_quantity.setValue('0');
+    await page.saveMinimum();
+    expect(setMinimumStock).toHaveBeenCalledExactlyOnceWith(balance.id, '0');
+    expect(balances).toHaveBeenCalledTimes(3);
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ below_minimum: true }));
+    fixture.destroy();
+  });
+
   it('shows and retries reference loading errors without hiding the balance list', async () => {
     let referenceCalls = 0;
     const fixture = TestBed.configureTestingModule({
       imports: [StockPage],
       providers: [
         provideRouter([]),
+        { provide: StockLocationsApi, useValue: { list: () => of(emptyBalances) } },
         { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions: [] }) } },
         { provide: InventoryApi, useValue: {
           balances: () => of({ ...emptyBalances, data: [balance], meta: { ...emptyBalances.meta, from: 1, to: 1, total: 1 } }),

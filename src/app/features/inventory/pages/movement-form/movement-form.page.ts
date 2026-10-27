@@ -1,6 +1,6 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { combineLatest, firstValueFrom } from 'rxjs';
 import { distinctUntilChanged, startWith } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -62,6 +62,8 @@ function decimalDifference(left: string, right: string): string | null {
   imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
 })
 export class MovementFormPage {
+  private readonly route = inject(ActivatedRoute);
+  private requestedProductApplied = false;
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(InventoryApi);
@@ -120,7 +122,18 @@ export class MovementFormPage {
         const response = await firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page }));
         stockLocations.push(...response.data);
       }
-      this.stockProducts.set(productsResponse.data.filter((product) => product.stock_tracked));
+      const products = [...productsResponse.data];
+      for (let page = 2; page <= (productsResponse.meta?.last_page ?? 1); page += 1) {
+        const response = await firstValueFrom(this.references.activeProducts('', page));
+        products.push(...response.data);
+      }
+      this.stockProducts.set(products.filter((product) => product.stock_tracked));
+      if (!this.requestedProductApplied) {
+        const requestedProduct = this.route.snapshot.queryParamMap.get('product_id');
+        const product = this.stockProducts().find((item) => String(item.id) === requestedProduct);
+        if (product) this.lines.at(0).controls.product_id.setValue(String(product.id));
+        this.requestedProductApplied = true;
+      }
       this.updateValidators();
       this.options.set({
         suppliers: suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),

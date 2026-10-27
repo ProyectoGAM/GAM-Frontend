@@ -11,6 +11,7 @@ import { PoultryHouseDetailPage } from './poultry-house-detail.page';
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FeedAdjustmentService } from '../../services/feed-adjustment.service';
+import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
 
 describe('PoultryHouseDetailPage', () => {
   let fixture: ComponentFixture<PoultryHouseDetailPage>;
@@ -147,6 +148,42 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain(house.name);
   });
 
+  it('handles task buttons locally and restores focus on cancellation without reloading or navigating', async () => {
+    houseFlocks.mockReturnValue(of([{ id: 'lot-1', code: 'LOTE', poultry_house_id: 22,
+      current_quantity: 750, entry_date: '2026-10-01', is_grouped: false, status: 'active' }]));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    render(); await fixture.whenStable();
+    const buttons = fixture.nativeElement.querySelectorAll('app-flock-card button.task-link') as NodeListOf<HTMLButtonElement>;
+    buttons[0].click();
+    expect(fixture.componentInstance.flockTask()).toMatchObject({ kind: 'mortality', flockId: 'lot-1', origin: { unitId: 7, houseId: 22 } });
+    fixture.componentInstance.closeFlockTask(null);
+    await fixture.whenStable();
+    expect(fixture.componentInstance.flockTask()).toBeNull(); expect(navigate).not.toHaveBeenCalled();
+    expect(houseFlocks).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(buttons[0]);
+    buttons[1].click(); expect(fixture.componentInstance.flockTask()?.kind).toBe('feeding');
+    fixture.componentInstance.closeFlockTask(null);
+  });
+
+  it('refreshes occupancy, live birds and mortality totals after a modal save while keeping the house visible', async () => {
+    const flock = { id: 'lot-1', code: 'LOTE', poultry_house_id: 22,
+      current_quantity: 750, entry_date: '2026-10-01', is_grouped: false, status: 'active' };
+    const totals = vi.fn(() => of(new Map([['lot-1', { state: 'ready', value: 9 }]])));
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(FlockDetailService, { useValue: { mortalityTotals: totals } });
+    render(); await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('app-flock-card button.task-link') as HTMLButtonElement;
+    button.click();
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 749 } }));
+    houseFlocks.mockReturnValue(of([{ ...flock, current_quantity: 749 }]));
+    totals.mockReturnValue(of(new Map([['lot-1', { state: 'ready', value: 10 }]])));
+    fixture.componentInstance.closeFlockTask('Mortalidad registrada.');
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.componentInstance.state()).toBe('success'); expect(fixture.componentInstance.occupancyLabel()).toBe('749 aves');
+    const counts = fixture.nativeElement.querySelectorAll('app-flock-card dd') as NodeListOf<HTMLElement>;
+    expect(counts[0].textContent).toBe('10'); expect(counts[1].textContent).toBe('749');
+    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortalidad registrada.');
+  });
+
   it('renders feed stock without avian sections', () => {
     getPoultryHouseById.mockReturnValue(of({
       data: {
@@ -271,8 +308,46 @@ describe('PoultryHouseDetailPage', () => {
     expect(fixture.nativeElement.textContent).toContain('La planta debe estar operativa');
   });
 
+  it.each(['maintenance', 'out_of_service', 'inactive'] as const)('disables stock actions and prevents opening or adding ingredients for a %s plant', (status) => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status } }));
+    render();
+    const page = fixture.componentInstance;
+    const stock = fixture.debugElement.query(By.directive(FeedStockDetailComponent)).componentInstance as FeedStockDetailComponent;
+    const triggers = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.stock-action')];
+    expect(triggers).toHaveLength(2);
+    expect(triggers.every((button) => button.disabled)).toBe(true);
+    triggers.forEach((button) => button.click());
+    stock.openIngredientForm(); stock.openAdjustment(); page.toggleIngredientForm();
+    expect(page.ingredientFormOpen()).toBe(false);
+    expect(stock.adjustmentOpen()).toBe(false);
+    expect(inventoryIngredients).not.toHaveBeenCalled();
+    page.inventoryIngredients.set([{ id: 2, sku: 'SOJA-1', name: 'Soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true }]);
+    page.catalogState.set('success');
+    page.ingredientForm.setValue({ productId: 2, quantity: '50', unit: 'kg' });
+    page.addIngredient();
+    expect(createFeedIngredient).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('operativa para agregar ingredientes, ajustar stock');
+    page.house.set({ ...page.house()!, status: 'operational' }); fixture.detectChanges();
+    expect(triggers.every((button) => !button.disabled)).toBe(true);
+  });
+
+  it('blocks saving an open ingredient form after the plant stops operating, while allowing it to close', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational' } }));
+    inventoryIngredients.mockReturnValue(of([{ id: 2, sku: 'SOJA-1', name: 'Soja', kind: 'raw_material', base_unit: 'g', status: 'active', stock_tracked: true }]));
+    render();
+    const page = fixture.componentInstance;
+    page.toggleIngredientForm(); fixture.detectChanges();
+    page.ingredientForm.setValue({ productId: 2, quantity: '50', unit: 'kg' });
+    page.house.set({ ...page.house()!, status: 'maintenance' }); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.save-button')?.disabled).toBe(true);
+    page.addIngredient();
+    expect(createFeedIngredient).not.toHaveBeenCalled();
+    page.toggleIngredientForm();
+    expect(page.ingredientFormOpen()).toBe(false);
+  });
+
   it('loads initial stock only from a selected inventory ingredient without editable SKU or name', () => {
-    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', bird_capacity: null, current_occupancy: null } }));
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', status: 'operational', bird_capacity: null, current_occupancy: null } }));
     feedStock.mockReturnValue(of({ data: {
       scope: 'plant', scope_id: 22,
       items: [{ product_id: 1, product: { id: 1, sku: 'MAIZ-1', name: 'Maíz' }, total_g: '1000', is_negative: false, details: [] }],

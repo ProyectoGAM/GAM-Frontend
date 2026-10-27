@@ -66,6 +66,17 @@ export class FeedStockDetailComponent {
 
   focusAdjustment(): void { this.adjustmentForm()?.focusTitle(); }
 
+  openIngredientForm(): void {
+    if (!this.canManufacture() || this.state() !== 'success' || this.saving()) return;
+    this.toggleForm.emit();
+  }
+
+  openAdjustment(): void {
+    if (!this.canManufacture() || this.state() !== 'success' || this.saving() || this.adjustmentBusy()) return;
+    this.adjustmentMessage.set(null);
+    this.adjustmentOpen.set(true);
+  }
+
   closeAdjustment(): void { if (!this.adjustmentBusy()) this.adjustmentOpen.set(false); }
 
   dismissAdjustment(): void {

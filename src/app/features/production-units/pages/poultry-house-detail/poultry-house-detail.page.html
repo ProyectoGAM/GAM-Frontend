@@ -32,7 +32,7 @@
     <header class="page-heading">
       <div class="heading-copy">
         <p class="breadcrumb">Administración <span aria-hidden="true">/</span> Instalaciones <span aria-hidden="true">/</span> {{ currentHouse.type === 'poultry' ? 'Galpones' : 'Plantas de ración' }}</p>
-        <h1 id="page-title">{{ currentHouse.name }}</h1>
+        <h1 id="page-title" tabindex="-1">{{ currentHouse.name }}</h1>
         <div class="heading-meta">
           <p class="house-type">{{ currentHouse.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</p>
           <span class="status" [attr.data-status]="currentHouse.status">{{ houseStatus(currentHouse.status) }}</span>
@@ -65,7 +65,7 @@
 
     @if (deleteError()) { <p class="feedback error" role="alert">{{ deleteError() }}</p> }
     @if (statusError()) { <p class="feedback error" role="alert">{{ statusError() }}</p> }
-    @if (taskMessage) { <p class="feedback task-feedback" role="status">{{ taskMessage }}</p> }
+    @if (taskMessage()) { <p class="feedback task-feedback" role="status">{{ taskMessage() }}</p> }
 
     <section class="unit-card" aria-label="Unidad productiva donde está alojada">
       <span class="unit-symbol" aria-hidden="true"><ion-icon name="business-outline" /></span>
@@ -91,6 +91,7 @@
         [canAddLot]="canAddLot()"
         (addLot)="addLot()"
         (retry)="retryRelated()"
+        (taskRequested)="openFlockTask($event)"
       />
     } @else {
       <app-feed-stock-detail
@@ -136,3 +137,6 @@
     </div>
   }
 </main>
+@if (flockTask(); as task) {
+  <app-flock-house-task-dialog [request]="task" (closed)="closeFlockTask($event)" />
+}

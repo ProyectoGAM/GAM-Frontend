@@ -43,7 +43,7 @@ describe('FeedManufacturePage', () => {
 
   function render(): void { fixture = TestBed.createComponent(FeedManufacturePage); fixture.detectChanges(); }
   function review(): void {
-    fixture.componentInstance.form.setValue({ recipeId: 12, kilograms: '26' });
+    fixture.componentInstance.form.setValue({ recipeId: 12, multiplier: '2' });
     fixture.componentInstance.review();
     fixture.detectChanges();
   }
@@ -67,16 +67,43 @@ describe('FeedManufacturePage', () => {
     expect(service.manufacture).toHaveBeenCalledOnce();
   });
 
-  it('rejects nonmultiples, fractional grams and missing recipes before calling the calculation', () => {
+  it('rejects invalid multipliers, excessive totals and missing recipes before calling the calculation', () => {
     render();
-    for (const kilograms of ['13.001', '0', '-13', '0.0001']) {
-      fixture.componentInstance.form.setValue({ recipeId: 12, kilograms });
+    for (const multiplier of ['', '0', '-2', '1.5', '1,5', '1e3', '76923077']) {
+      fixture.componentInstance.form.setValue({ recipeId: 12, multiplier });
       fixture.componentInstance.review();
     }
-    fixture.componentInstance.form.setValue({ recipeId: null, kilograms: '26' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Reducí el multiplicador.');
+    fixture.componentInstance.form.setValue({ recipeId: null, multiplier: '2' });
     fixture.componentInstance.review(); fixture.detectChanges();
     expect(service.calculate).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Seleccioná una receta activa.');
+  });
+
+  it('starts with one base and presents a calculated total without an editable quantity', () => {
+    render();
+    fixture.componentInstance.form.controls.recipeId.setValue(12); fixture.detectChanges();
+    expect(fixture.componentInstance.form.controls.multiplier.value).toBe('1');
+    expect(fixture.nativeElement.querySelector('ion-input[formControlName="kilograms"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('13 kg × 1 = 13 kg');
+    fixture.componentInstance.form.controls.multiplier.setValue('2'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('13 kg × 2 = 26 kg');
+    fixture.componentInstance.review(); fixture.detectChanges();
+    expect(service.calculate).toHaveBeenCalledWith(12, '26000');
+    expect(fixture.nativeElement.querySelector('.review-basis')?.textContent).toContain('13 kg × 2 = 26 kg');
+    expect(service.manufacture).not.toHaveBeenCalled();
+  });
+
+  it('recalculates from the selected recipe base and invalidates an old review after editing', () => {
+    service.recipes.mockReturnValue(of([recipe, { ...recipe, id: 13, nombre: 'Otra ración', rendimiento_g: '25000' }]));
+    render(); review();
+    fixture.componentInstance.edit();
+    fixture.componentInstance.form.controls.recipeId.setValue(13); fixture.detectChanges();
+    expect(fixture.componentInstance.calculation()).toBeNull();
+    expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('25 kg × 2 = 50 kg');
+    fixture.componentInstance.review();
+    expect(service.calculate).toHaveBeenLastCalledWith(13, '50000');
   });
 
   it('blocks double confirmation while saving and reuses the exact request/key after an uncertain response', () => {

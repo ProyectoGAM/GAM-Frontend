@@ -12,6 +12,13 @@ tres decimales de kg; establecer permite cero, sumar/restar exigen un valor posi
 Se conservan los seis decimales de gramos de los saldos existentes mediante BigInt.
 Se rechazan resultados negativos o fuera del rango del inventario.
 
+**Agregar Producto** y **Ajustar Stock** quedan deshabilitados cuando la planta
+no está operativa (mantenimiento, fuera de servicio o inactiva), con una explicación
+visible. También se bloquea la apertura de sus formularios y el alta de ingredientes
+desde sus manejadores. Si la planta deja de estar operativa con el alta abierta,
+se impide guardar y se permite cerrar el formulario. Al volver a operativa se
+habilitan nuevamente las acciones, siempre que el stock haya cargado.
+
 El guardado usa `POST plantas-racion/{planta}/ingredientes/{producto}/ajustes`,
 definido en `contracts/openapi/feed-recipes.yaml`, con `{accion, valor_g, motivo}`
 y `Idempotency-Key`. Requiere una planta operativa; el servidor verifica producto,
@@ -34,7 +41,7 @@ acción requiere una planta operativa; su ruta comprueba el tipo y la pertenenci
 a la UP. El servidor sigue siendo la autoridad para permisos, estado y stock.
 
 La página `:id/galpon/:houseId/elaborar` pertenece a `production-units` y se carga
-de forma diferida. Sus pasos locales son receta/cantidad, revisión y resultado.
+de forma diferida. Sus pasos locales son receta/multiplicador, revisión y resultado.
 El resultado solo existe durante ese recorrido: no hay ruta de comprobante,
 historial, cancelación ni acceso adicional desde Inventario. Volver a la planta
 reemplaza la entrada de navegación y vuelve a consultar su stock.
@@ -49,9 +56,17 @@ reemplaza la entrada de navegación y vuelve a consultar su stock.
 - `POST elaboraciones`, `{receta_id, planta_id, cantidad_g}` y encabezado
   `Idempotency-Key`: registro o recuperación idempotente de la misma operación.
 
-La cantidad visible está en kg, admite coma o punto y hasta tres decimales. La
-conversión usa enteros `BigInt`, respeta el máximo de 999999999999 gramos y exige
-múltiplos del rendimiento. No se infiere el rendimiento sumando ingredientes.
+La persona selecciona la receta e ingresa únicamente un **multiplicador entero
+positivo**, con 1 por defecto. El total es de solo lectura: rendimiento base ×
+multiplicador (por ejemplo, 13 kg × 2 = 26 kg). Al cambiar de receta se conserva
+el multiplicador y se recalcula desde su base. La revisión muestra también esta
+relación con el rendimiento y factor devueltos por el servidor.
+
+El cálculo utiliza enteros `BigInt`, respeta el máximo de 999999999999 gramos y
+envía el total en `cantidad_g` al contrato existente. Se rechazan cero, negativos,
+fracciones, notación científica y totales fuera de rango antes de llamar al API.
+No se infiere el rendimiento sumando ingredientes. La recuperación de pendientes
+conserva el cuerpo y la clave originales, incluso los creados antes de este cambio.
 Los saldos fraccionarios de ingredientes se formatean sin perder sus decimales.
 
 La revisión informa que se consume primero la planta elegida y luego otras
@@ -82,6 +97,27 @@ estado y conexión se presentan dentro del flujo.
 No hay cambios de plugins, configuración o integraciones nativas. Se utilizan
 controles Ionic, el scroll existente de `ion-content`, áreas seguras y tokens
 GAM compartidos para claro y oscuro.
+
+## Verificación del multiplicador — 26/10/2026
+
+Lint, las 718 pruebas de la suite completa (103 archivos) y la compilación de
+producción pasaron en Docker. Las pruebas cubren multiplicadores inválidos,
+límites exactos, cambio de base y recuperación del cuerpo/clave de operaciones
+pendientes. El navegador integrado verificó el cálculo real de 13 kg × 2 = 26 kg
+y sus ingredientes, el regreso a editar y la vista móvil a 320 px en oscuro sin
+desbordamiento horizontal. También se revisó la vista de escritorio en claro.
+No se confirmó ninguna elaboración ni se modificó stock durante este recorrido.
+No se probaron dispositivos físicos.
+
+## Verificación de acciones por estado — 26/10/2026
+
+Lint, 722 pruebas en 103 archivos y build de producción aprobados en Docker.
+Las pruebas del detalle verifican los botones y manejadores bloqueados en
+mantenimiento, fuera de servicio e inactiva, su rehabilitación al volver a
+operativa y la imposibilidad de guardar un alta abierta tras el cambio de estado.
+El navegador integrado comprobó las acciones disponibles en una planta operativa.
+Las plantas locales estaban operativas; no se modificaron sus estados ni stocks
+para esta verificación.
 
 ## Verificación del ajuste de ingredientes — 23/10/2026
 

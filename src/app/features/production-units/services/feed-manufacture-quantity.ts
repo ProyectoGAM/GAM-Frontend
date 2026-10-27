@@ -1,16 +1,12 @@
 const integerFormatter = new Intl.NumberFormat('es-UY');
 
-/** The API accepts positive integer grams, up to its stock quantity limit. */
-export function kilogramsToGrams(value: string): string | null {
-  const match = /^(\d{1,12})(?:[.,](\d{1,3}))?$/.exec(value.trim());
-  if (!match) return null;
-  const grams = BigInt(match[1]) * 1000n + BigInt((match[2] ?? '').padEnd(3, '0'));
-  return grams > 0n && grams <= 999999999999n ? String(grams) : null;
-}
-
-export function isYieldMultiple(grams: string, yieldGrams: string): boolean {
-  return /^\d+$/.test(grams) && /^\d+$/.test(yieldGrams)
-    && BigInt(yieldGrams) > 0n && BigInt(grams) > 0n && BigInt(grams) % BigInt(yieldGrams) === 0n;
+/** Whole recipe batches, calculated exactly within the API's stock quantity limit. */
+export function multiplyRecipeYield(yieldGrams: string, multiplier: string): string | null {
+  const factor = multiplier.trim();
+  if (!/^\d{1,12}$/.test(yieldGrams) || !/^\d{1,12}$/.test(factor)) return null;
+  const base = BigInt(yieldGrams);
+  const grams = base * BigInt(factor);
+  return base > 0n && grams > 0n && grams <= 999999999999n ? String(grams) : null;
 }
 
 /** Preserve fractional ingredient balances without floating-point rounding. */

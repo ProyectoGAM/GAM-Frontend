@@ -96,14 +96,12 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(27);
+    ).toBe(25);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
     expect(supplierItems).toEqual([
       { label: 'Proveedores', slug: 'proveedores' },
-      { label: 'Productos', slug: 'productos' },
-      { label: 'Nuevo producto', slug: 'productos/nuevo' },
     ]);
 
     expect(
@@ -161,8 +159,8 @@ describe('admin navigation visibility', () => {
     expect(supplierRoutePaths).not.toContain('medicamentos');
     expect(supplierRoutePaths).not.toContain('vacunas');
 
-    const productsRoute = suppliersGroup
-      ?.children
+    const productsRoute = inventoryRoutes
+      ?.find((route) => route.path === 'existencias')?.children
       ?.find((route) => route.path === 'productos');
 
     const productsLoader = productsRoute
@@ -242,16 +240,7 @@ describe('admin navigation visibility', () => {
       '/administracion/inventario/existencias/ubicaciones',
     );
 
-    expect(
-      links
-        .find(
-          (link) =>
-            link.textContent?.trim() === 'Nuevo producto',
-        )
-        ?.getAttribute('href'),
-    ).toBe(
-      '/administracion/proveedores/productos/nuevo',
-    );
+    expect(links.some((link) => link.textContent?.trim() === 'Nuevo producto')).toBe(false);
 
     expect(
       links

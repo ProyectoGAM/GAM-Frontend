@@ -136,3 +136,17 @@ Keep manual Android/iOS modifications minimal, documented and reproducible.
 ## Authentication storage
 
 The app uses Preferences for the non-secret deviceMode marker and the secure-storage plugin for native personal PAT/device credentials. Keychain synchronization is disabled by the wrapper. Employee PATs are memory-only, and shared startup returns to PIN after process restart or resume. iOS compilation still requires macOS/Xcode; Android signing/build tooling must be verified separately.
+
+## Filter dialogs
+
+`shared/ui/filter-dialog` supplies the presentation shell used by installations,
+flocks, stock by location, stock locations and the product catalogue. Its native dialog is centered
+in the viewport on phone and desktop, with safe-area margins and a bounded height
+based on `100dvh`. Only the body scrolls; the heading, close action and footer stay
+available when more filters are added or the viewport height decreases.
+
+Opening resets body scroll and focuses the heading without scrolling the page.
+Closing with the X or Escape restores focus to the trigger. Feature pages own the
+filter fields, draft selection, applied values and queries; **Limpiar** updates the
+draft and **Ver resultados** applies it. The shell projects content without
+knowing business types, permissions or endpoints.

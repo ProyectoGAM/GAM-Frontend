@@ -1,0 +1,55 @@
+<section class="product-create-page" aria-labelledby="product-create-title">
+  <button class="back-button" type="button" [disabled]="saving()" (click)="cancel()"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a productos</button>
+  <header class="page-heading"><p class="eyebrow">Inventario / Existencias</p><h1 id="product-create-title">Nuevo producto</h1><p class="lead">Agregá un producto al catálogo global.</p>
+    @if (!createdProduct()) { <p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" />Disponible para todas las UP.</p> }
+  </header>
+  @if (createdProduct(); as product) {
+    <div class="created-card" role="status">
+      <h2 #createdHeading tabindex="-1">Producto creado</h2>
+      <p><strong>{{ product.name }}</strong> se agregó al catálogo global.</p>
+      <p>Crear el producto no modifica el stock. Registrá un ingreso para almacenarlo en una ubicación.</p>
+      @if (canRegisterReceipt() && product.stock_tracked) { <button class="button primary receipt-button" type="button" (click)="registerReceipt()">Registrar ingreso</button> }
+    </div>
+  } @else {
+    <form #productForm class="product-form" [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="saving()">
+      @if (error(); as message) { <p class="feedback error" role="alert" tabindex="-1">{{ message }}</p> }
+      <fieldset [disabled]="saving()">
+        <section class="form-card" aria-labelledby="product-data-title">
+          <h2 id="product-data-title"><ion-icon name="cube-outline" aria-hidden="true" />Datos del producto</h2>
+          <p class="form-help">Todos los campos de datos son obligatorios.</p>
+          <div class="field"><label for="product-name">Nombre del producto <span aria-hidden="true">*</span></label>
+            <input id="product-name" formControlName="name" maxlength="160" autocomplete="off" required [attr.aria-invalid]="fieldError(form.controls.name) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.name) ? 'name-error' : null">
+            @if (fieldError(form.controls.name); as message) { <span class="field-error" id="name-error" role="alert">{{ message }}</span> }
+          </div>
+          <div class="field"><label for="product-sku">Código del producto <span aria-hidden="true">*</span></label>
+            <input id="product-sku" formControlName="sku" maxlength="80" autocomplete="off" autocapitalize="characters" spellcheck="false" required [attr.aria-invalid]="fieldError(form.controls.sku) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.sku) ? 'sku-error' : 'sku-help'">
+            <small class="muted" id="sku-help">Usá un código único para identificarlo.</small>
+            @if (fieldError(form.controls.sku); as message) { <span class="field-error" id="sku-error" role="alert">{{ message }}</span> }
+          </div>
+          <div class="field"><label for="product-kind">Tipo de producto <span aria-hidden="true">*</span></label>
+            <select id="product-kind" formControlName="kind" (change)="kindChanged()" required [attr.aria-invalid]="fieldError(form.controls.kind) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.kind) ? 'kind-error' : null"><option value="" disabled>Seleccioná un tipo</option>@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select>
+            @if (fieldError(form.controls.kind); as message) { <span class="field-error" id="kind-error" role="alert">{{ message }}</span> }
+          </div>
+        </section>
+        <section class="form-card" aria-labelledby="product-stock-title">
+          <h2 id="product-stock-title"><ion-icon name="layers-outline" aria-hidden="true" />Control de existencias</h2>
+          <div class="tracking-option">
+            <div><label class="checkbox" for="product-stock-tracked"><input id="product-stock-tracked" type="checkbox" formControlName="stock_tracked" [attr.aria-invalid]="fieldError(form.controls.stock_tracked) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.stock_tracked) ? 'stock-tracked-error' : 'stock-help'">Controlar existencias</label>
+              <small class="muted" id="stock-help">{{ form.controls.kind.value === 'raw_material' ? 'Obligatorio para materias primas.' : 'Permite registrar cantidades y movimientos por ubicación.' }}</small>
+            </div>
+            @if (form.controls.kind.value === 'raw_material') { <ion-icon name="lock-closed-outline" aria-hidden="true" /> }
+          </div>
+          @if (fieldError(form.controls.stock_tracked); as message) { <span class="field-error" id="stock-tracked-error" role="alert">{{ message }}</span> }
+          <div class="field"><label for="product-unit">Unidad de registro <span aria-hidden="true">*</span></label>
+            <select id="product-unit" formControlName="base_unit" required [attr.aria-invalid]="fieldError(form.controls.base_unit) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.base_unit) ? 'unit-error' : 'unit-help'"><option value="" disabled>Seleccioná una unidad</option>@for (unit of units; track unit.value) { <option [value]="unit.value">{{ unit.label }}</option> }</select>
+            <small class="muted" id="unit-help">{{ form.controls.kind.value === 'raw_material' ? 'Las materias primas se registran en gramos.' : 'Los movimientos y mínimos se registran en esta unidad.' }}</small>
+            @if (fieldError(form.controls.base_unit); as message) { <span class="field-error" id="unit-error" role="alert">{{ message }}</span> }
+          </div>
+          <div class="stock-note"><ion-icon name="information-circle-outline" aria-hidden="true" /><p><strong>El stock se carga después</strong>Crear el producto no agrega existencias. Podés registrar un ingreso después.</p></div>
+        </section>
+      </fieldset>
+      <div class="create-bar" [class.keyboard-open]="viewportBottom() > 0"><div class="create-bar-content"><button class="button primary create-button" type="submit" [disabled]="saving()"><ion-icon name="checkmark-outline" aria-hidden="true" />{{ saving() ? 'Creando…' : 'Crear producto' }}</button></div></div>
+    </form>
+  }
+  <app-inventory-confirmation-dialog title="¿Descartar cambios?" message="Los datos del producto todavía no se guardaron." cancelLabel="Seguir editando" confirmLabel="Descartar cambios" (dismissed)="finishLeave(false)" (confirmed)="finishLeave(true)" />
+</section>
