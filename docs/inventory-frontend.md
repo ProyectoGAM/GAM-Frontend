@@ -12,7 +12,7 @@ Los productos nunca se filtran ni se crean por UP. El catálogo consulta `GET /p
 
 `ProductsApi` vive en `services/`, las pantallas en `pages/` y los contratos en `interfaces/`. Las capacidades devueltas por el backend siguen controlando la edición y activación. Los permisos `products.view` y `products.manage` permiten entrar al grupo Inventario; un usuario con acceso solo al catálogo entra directamente a Productos. El alta visible requiere `products.manage` o administrador.
 
-Crear un producto no registra existencias. Después de guardar se muestra una confirmación y se impide repetir el alta. Para productos con control de stock, quienes tienen `inventory.move` pueden continuar a **Registrar ingreso**, con el producto preseleccionado y la ubicación pendiente de elegir. El formulario conserva gramos y control de stock obligatorios para materias primas, los errores por campo y la validación del servidor.
+Crear un producto no registra existencias. Después de guardar se muestra una confirmación y se impide repetir el alta. Para productos con control de stock, quienes tienen `inventory.move` pueden continuar a **Registrar ingreso**. Primero se elige la ubicación; el producto solicitado desde el catálogo se selecciona cuando el backend confirma que está permitido allí. Si no lo está, se explica el motivo y se permite elegir otra ubicación o producto. El formulario conserva gramos y control de stock obligatorios para materias primas, los errores por campo y la validación del servidor.
 
 El alta se diseña primero para teléfono: dos tarjetas en una columna, **Datos del
 producto** y **Control de existencias**, con campos táctiles de 48 px y tokens GAM
@@ -46,11 +46,23 @@ La navegación de Inventario conserva estas entradas:
 - `/administracion/inventario/existencias`
 - `/administracion/inventario/presentaciones-huevos`
 - `/administracion/inventario/existencias/ubicaciones`
-- `/administracion/inventario/movimientos`
 - `/administracion/inventario/donaciones`
+- `/administracion/inventario/movimientos`
 - `/administracion/inventario/ajustes-y-perdidas`
 
 El catálogo, el alta y la edición de productos, y el detalle de EggStock son rutas internas; no agregan entradas al sidebar.
+
+La entrada **Registrar movimiento** conserva la URL `ajustes-y-perdidas`. Los
+enlaces del sidebar comparan la ruta e ignoran parámetros de consulta y fragmento
+para mantener la selección activa al entrar con contexto de producto o filtros;
+las rutas de otros ítems no quedan seleccionadas. Planes conserva su selección
+en rutas descendientes.
+
+Validación del nombre y selección del sidebar (27/10/2026): lint, 821 pruebas
+en 110 archivos y build aprobados en Docker. La prueba de navegación verifica la
+ruta sola, con `product_id` y con fragmento, además de deseleccionarla al salir.
+El navegador integrado comprobó el enlace activo con contexto y su deselección
+en Donaciones. No cambia la URL pública ni la integración nativa.
 
 ## Validación del rediseño — 25 de octubre de 2026
 
@@ -85,6 +97,7 @@ GET   /inventory/balances
 PATCH /inventory/balances/{stockBalance}/minimum-stock
 GET   /inventory/movements
 GET   /inventory/movements/{inventoryMovement}
+GET   /inventario/productos-permitidos
 
 POST  /inventory/receipts
 POST  /inventory/issues
@@ -127,6 +140,85 @@ Validación de filtros y modales (26/10/2026): lint, las 761 pruebas de la suite
 Validación del patrón compartido de filtros (26/10/2026): lint, las 767 pruebas de la suite y build aprobados. El navegador integrado comprobó centrado en instalaciones, lotes, ubicaciones y productos; teléfono de 320/390 px, escritorio de 1366 px y altura reducida de 360 px, con cuerpo desplazable y pie accesible. Se verificaron claro/oscuro, cancelación del borrador y aplicación real de tipo/estado en productos (tres materias primas activas), sin escrituras en la base de datos. La regresión de una búsqueda pendiente al abrir el modal está cubierta por una prueba de componente.
 
 ## Movimientos e idempotencia
+
+### Registrar movimiento
+
+El formulario de `/administracion/inventario/ajustes-y-perdidas` presenta las cinco
+operaciones con iconos y selección visible en escritorio. En teléfono usa un
+selector compacto **Tipo de movimiento**, con las mismas opciones y permisos.
+Ambos controles muestran únicamente las operaciones autorizadas. Al cambiar de
+operación se conservan los datos compatibles y se vuelven a consultar los productos
+permitidos. La selección inicial coincide con el
+formulario, también para usuarios que sólo pueden registrar pérdidas y ajustes.
+
+Las tarjetas numeradas **Datos del movimiento** y **Productos** mantienen una
+única columna en móvil y amplían su composición en escritorio. Ingreso conserva
+el **proveedor obligatorio**; fecha efectiva es opcional y motivo es obligatorio
+para pérdidas y ajustes. Cada producto muestra la unidad real junto a la cantidad
+y el contexto de la ubicación: Planta de ración, Unidad productiva o Depósito
+general, con la UP cuando existe. El tipo se deriva de las relaciones cargadas,
+nunca del nombre. No se agrega un selector global de UP al formulario.
+
+Cada línea sigue **ubicación → producto → cantidad**. En transferencias se eligen
+primero origen y destino distintos. `GET /inventario/productos-permitidos` recibe
+el ID de la ubicación de inventario (`stock_location_id`, no el ID de la planta)
+y `operation`: `receipt`, `issue`, `loss`, `adjustment` o `transfer`. El catálogo
+de productos sigue siendo global; las reglas de compatibilidad pertenecen al
+backend y nunca se deducen del nombre ni de una matriz de tipos en el frontend.
+
+La consulta carga las páginas de esa ubicación y operación, hasta 100 productos
+por página, para ofrecer búsqueda local sobre las opciones completas. No descarga
+el catálogo global ni todos los saldos. Pérdidas muestra únicamente los productos
+que devuelve el servidor con stock local positivo. Las otras operaciones pueden
+ofrecer productos sin saldo previo, con cero o con saldo negativo según el
+contrato. Transferencias consulta ambas ubicaciones y conserva la intersección
+por ID y unidad, usando el saldo del origen para informar el stock disponible.
+
+El selector de producto se bloquea antes de elegir ubicación y durante la carga.
+Un error permite reintentar la consulta de esa línea, sin recurrir al catálogo
+global. Cambiar ubicación u operación descarta respuestas anteriores; quitar una
+línea o salir también impide que una respuesta tardía modifique la pantalla. Una
+selección aún compatible conserva sus cantidades; una incompatible limpia
+producto, cantidad y cantidad contada. El envío requiere opciones válidas para el
+contexto actual, incluso si quedó un valor anterior durante una consulta.
+
+Salida y pérdida explican la cantidad que se descontará por línea. Transferencia
+identifica origen y destino con una flecha. Ajuste pide **cantidad contada** y
+presenta stock registrado, diferencia calculada y cantidad resultante sin editar
+un delta. Usa `available_quantity` de la misma respuesta de productos permitidos,
+incluido cero cuando aún no existe una cuenta, sin otra consulta de saldos. Los
+decimales siguen siendo strings, sin redondeos ni sumas entre unidades distintas.
+
+**Agregar producto** es secundario y enfoca la ubicación de la nueva línea;
+quitarla devuelve el foco a la ubicación de una línea conservada. La acción principal nombra la operación: Registrar
+ingreso, salida, transferencia, pérdida o ajuste. En móvil queda fija al pie con
+área segura, espacio reservado en el contenido y ajuste al viewport del teclado;
+en escritorio queda al final del formulario. `ion-content` conserva el scroll.
+El envío inválido enfoca el primer campo afectado; éxito y error reciben foco.
+Durante el guardado se bloquean edición, cambios de líneas y operación, enlace de
+retorno y doble envío. Presionar la operación ya seleccionada no renueva la clave
+idempotente de un reintento incierto. Los comandos de registro y los plugins
+nativos conservan sus contratos.
+
+Validación del rediseño inicial (27/10/2026): lint, 815 pruebas en 110 archivos (22 del formulario) y
+build de producción aprobados dentro de Docker. El navegador integrado verificó
+las cinco operaciones, proveedor obligatorio, agregado/retiro con foco, contexto
+de ubicaciones y diferencia de conteo con un saldo real. Se revisaron 320/390 px,
+901/1440 px, claro/oscuro y altura reducida de 320 × 360 px, sin desbordamiento
+horizontal ni errores JavaScript. No se registraron movimientos en la base local;
+guardados, errores, permisos y reintentos se cubren con respuestas controladas en
+las pruebas. No se probó un dispositivo físico ni el teclado del sistema nativo.
+
+Validación del flujo ubicación → producto (27/10/2026): lint, las 821 pruebas de
+110 archivos (27 del formulario) y build de producción aprobados dentro de Docker.
+Se cubren paginación, compatibilidad recibida del backend, pérdidas con stock
+positivo, intersección de transferencias, selección desde catálogo, limpieza de
+cantidades incompatibles, errores, reintentos y respuestas tardías. El navegador
+integrado comprobó las consultas reales de cámara y plantas, la exclusión de un
+producto sin saldo en pérdidas y el bloqueo de transferencias sin productos
+comunes. Se revisaron teléfono de 320/390 px y escritorio de 1440 px, con ambos
+temas, sin desbordamiento horizontal ni errores de consola. No se registraron
+movimientos reales ni se modificó integración nativa.
 
 El historial de **Movimientos** reúne tipo, producto, ubicación, proveedor y fechas
 en el botón **Filtros**, con contador de criterios aplicados. Usa el diálogo
@@ -227,9 +319,80 @@ La UI lee solamente `AuthUser.permissions` y no cambia `GROUP_ROLE_GRANTS` ni in
 - Medicamentos: `MedicineStockBalance` y `MedicineStockMovement` pertenecen a Manejo y usan medicamento, cantidad entera, versión y permisos `management-plans.*`. No se combinan con `StockBalance` ni se suman al inventario físico genérico.
 - Huevos: usan la cuenta técnica EggStock y sus propios movimientos.
 
-## Donaciones y gaps backend
+## Donaciones de huevos
 
-La pantalla `/administracion/inventario/donaciones` permanece como `Módulo pendiente de implementación` porque el backend no expone `InventoryMovementType::Donation` ni un endpoint específico. No se transforma una donación en pérdida, salida o ajuste.
+La pantalla `/administracion/inventario/donaciones` ya registra donaciones del
+subdominio EggStock. Consulta las UP activas mediante
+`GET /donaciones/unidades-productivas`, registra con
+`POST /unidades-productivas/{productionUnit}/donaciones` y lista el historial
+de huevos por UP con `type=donation`. No transforma una donación en pérdida,
+salida ni ajuste del inventario genérico. El contrato vigente está en
+`reporting-operations.yaml` del backend.
+
+El registro requiere cantidad entera positiva, fecha/hora y `reason` (hasta 500
+caracteres); `notes` es opcional y admite hasta 5000. Motivo y destinatario
+comparten hoy `reason`; separarlos en campos persistidos requeriría ampliar el
+contrato. El historial dispone de cantidad, fecha, motivo, notas y estado, con
+detalle, corrección y anulación mediante los movimientos de huevos. No expone
+nombre de responsable ni agregados de donaciones para un panel de totales.
+
+### Rediseño — 27/10/2026
+
+La pantalla prioriza el historial y el contexto de la UP. Carga las páginas de
+unidades activas para ofrecer un único selector con búsqueda local. Consulta el
+saldo por separado y enlaza a Stock de huevos con `production_unit_id`; el destino
+selecciona esa UP si está disponible. No muestra un saldo de otra unidad mientras
+se carga la nueva ni presenta un fallo de lectura como saldo cero.
+
+**Nueva donación** abre un modal centrado en escritorio y de pantalla completa
+en teléfono. El encabezado y las acciones permanecen visibles; únicamente el
+cuerpo se desplaza, con áreas seguras y adaptación al viewport visual del teclado.
+La unidad de origen queda identificada y bloqueada durante el registro. El foco
+inicial va a cantidad y vuelve al botón de apertura al cerrar con X, Cancelar o
+Escape. Cancelar conserva el borrador al reabrir para la misma unidad; abrir para
+otra UP lo limpia. La fecha/hora se inicia en el minuto local actual y admite
+edición, rechazando fechas inválidas o futuras según la regla del servidor.
+
+La cantidad entera, **Motivo o destinatario** y comentarios conservan el contrato
+actual. La vista previa muestra el descuento y el saldo resultante estimado;
+advierte un saldo negativo sin bloquear una operación admitida por el backend.
+Si el saldo no está disponible o falta permiso de lectura, no inventa una cifra
+ni impide registrar a quien tiene `egg-stock.move`. Los errores por campo y el
+error general quedan dentro del modal, preservando los valores. Durante el envío
+se bloquean campos, cierre y doble submit. El reintento de la misma UP y contenido
+conserva su UUID, incluso después de cerrar y reabrir; cambiar el contenido crea
+otra intención. El éxito cierra, limpia el formulario y recarga saldo e historial
+desde la primera página, conservando los filtros aplicados.
+
+El historial usa tabla en escritorio y tarjetas en teléfono. **Filtros** abre el
+diálogo compartido centrado para estado y fechas. Limpiar modifica el borrador;
+Ver resultados valida el rango y aplica la consulta al backend. Cerrar descarta
+ese borrador y restaura el foco; paginar o reintentar usa los valores aplicados.
+Las donaciones anuladas se identifican con texto y **No afecta al saldo**. Ver
+detalle conserva las rutas de corrección/anulación de EggStock. No agrega datos
+de responsable ni indicadores globales que el API no suministra.
+
+Saldo, historial, unidades y registro tienen estados independientes de carga,
+vacío y error. Las versiones de consulta descartan respuestas tardías de otra
+UP, página, filtro o identidad, y las recibidas después de destruir la pantalla.
+El cambio de usuario limpia el contexto y los borradores. Los colores usan tokens
+GAM para claro/oscuro; no cambia dependencias ni integración nativa.
+
+Validación de Donaciones (27/10/2026): lint, las 852 pruebas de 111 archivos y
+build de producción aprobados en Docker. Después del ajuste final de foco se
+repitieron lint, build y las 57 pruebas de Donaciones, su modal, EggStock y los
+contratos HTTP. Se cubren filtros aplicados/borradores, páginas, errores
+independientes, permisos de lectura/movimiento, saldos negativos o desconocidos,
+fechas, validación del servidor, doble envío, idempotencia y respuestas tardías.
+El navegador integrado comprobó saldos reales de ambas UP, enlace a la UP
+correcta en Stock de huevos, filtros, contexto del modal, cálculo del descuento,
+cancelación y devolución del foco. Se revisaron 320/390 px, 1440 px, claro/oscuro
+y altura reducida de 320 × 360 px, con cuerpo desplazable y acciones accesibles,
+sin desbordamiento horizontal ni errores de consola. Los registros y sus errores
+se verificaron con respuestas controladas; no se guardaron donaciones de prueba
+en la base local. No se probó un dispositivo físico ni el teclado nativo.
+
+## Gaps backend
 
 Gaps confirmados:
 

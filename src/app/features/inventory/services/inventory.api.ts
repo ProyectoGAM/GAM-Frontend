@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import {
   ApiEnvelope,
+  AllowedStockProduct,
+  AllowedStockProductFilters,
   AdjustmentInput,
   InventoryBalanceFilters,
   InventoryMovement,
@@ -19,6 +21,12 @@ import {
 @Injectable({ providedIn: 'root' })
 export class InventoryApi {
   private readonly api = inject(ApiClient);
+
+  allowedProducts(filters: AllowedStockProductFilters): Observable<PaginatedResponse<AllowedStockProduct>> {
+    return this.api.get<PaginatedResponse<AllowedStockProduct>>('inventario/productos-permitidos', {
+      params: { ...filters },
+    });
+  }
 
   balances(filters: InventoryBalanceFilters): Observable<PaginatedResponse<StockBalance>> {
     return this.api.get<PaginatedResponse<StockBalance>>('inventory/balances', {

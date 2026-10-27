@@ -1,13 +1,53 @@
-<section class="page"><h1>Donaciones de huevos</h1><p>Registra las entregas a donación con su motivo o destinatario. Se descuentan del stock de la unidad productiva.</p>
-@if (error(); as message) { <p class="error" role="alert">{{ message }}</p> } @if (notice(); as message) { <p role="status">{{ message }}</p> }
-<label for="donation-unit-search">Buscar unidad productiva</label><input id="donation-unit-search" type="search" (change)="searchUnits($event)" />
-<label for="donation-unit">Unidad productiva</label><select id="donation-unit" (change)="selectUnit($event)"><option value="" [selected]="unit() === null">Seleccionar</option>@for (option of units(); track option.id) { <option [value]="option.id" [selected]="unit() === option.id">{{ option.name }}</option> }</select>
-@if (unitPage() < unitLastPage()) { <button type="button" (click)="loadUnits('', unitPage() + 1)">Más unidades</button> }
-@if (canMove()) { <form [formGroup]="form" (ngSubmit)="save()"><h2>Registrar donación</h2><label for="donation-quantity">Cantidad de huevos</label><input id="donation-quantity" inputmode="numeric" formControlName="quantity" />
-<label for="donation-date">Fecha y hora</label><input id="donation-date" type="datetime-local" formControlName="date" />
-<label for="donation-reason">Motivo o destinatario</label><input id="donation-reason" formControlName="reason" maxlength="500" />
-<label for="donation-notes">Comentarios</label><textarea id="donation-notes" formControlName="notes" maxlength="5000"></textarea>
-<button type="submit" [disabled]="busy() || !unit()">{{ busy() ? 'Registrando…' : 'Registrar donación' }}</button></form> }
-@if (canRead()) { <section class="history"><h2>Historial de donaciones</h2>@for (item of records(); track item.id) { <article><strong>{{ item.quantity }} huevos · {{ item.reason }}</strong><p>{{ item.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · {{ item.status === 'recorded' ? 'Registrada' : 'Anulada' }}</p><p>{{ item.notes }}</p><a [routerLink]="['/administracion/inventario/existencias/huevos/movimientos', item.id]">Ver detalle y correcciones</a></article> } @empty { <p>No hay donaciones registradas para esta unidad.</p> }
-<div class="actions"><button type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">Anterior</button><span>{{ page() }} / {{ lastPage() }}</span><button type="button" [disabled]="page() >= lastPage()" (click)="load(page() + 1)">Siguiente</button></div></section> }
+<section class="catalog-page donations-page">
+  <header class="page-heading"><div><p class="eyebrow">INVENTARIO</p><h1>Donaciones de huevos</h1><p class="lead">Registra entregas y consulta su historial por unidad productiva.</p></div>@if (canMove()) { <button #newDonation class="button primary" type="button" [disabled]="!unit() || unitsState() !== 'success' || dialogOpen()" (click)="openDonation(newDonation)"><ion-icon name="add-outline" aria-hidden="true" />Nueva donación</button> }</header>
+
+  @if (!canRead() && !canMove()) { <div class="state">Tu usuario no tiene permiso para consultar ni registrar donaciones de huevos.</div> }
+  @else {
+    @if (notice(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+    <section class="card unit-context" aria-label="Unidad productiva y stock actual">
+      <div class="field unit-field"><label for="donation-unit">Unidad productiva</label><app-searchable-select inputId="donation-unit" [formControl]="unitControl" [options]="unitOptions()" [loading]="unitsState() === 'loading'" [blocked]="dialogOpen() || unitsState() !== 'success'" placeholder="Selecciona una unidad productiva" emptyOptionLabel="Selecciona una unidad productiva" /></div>
+      <div class="balance-block"><ion-icon name="egg-outline" aria-hidden="true" /><div><span>Stock actual</span>
+        @if (!unit()) { <p class="helper">Selecciona una unidad productiva.</p> }
+        @else if (!canRead()) { <p class="helper">No tienes permiso para consultar el saldo.</p> }
+        @else if (balanceState() === 'loading') { <p class="helper" role="status">Consultando saldo…</p> }
+        @else if (balanceError(); as message) { <div class="balance-error" role="alert"><p>{{ message }}</p><button class="button" type="button" (click)="loadBalance()">Reintentar saldo</button></div> }
+        @else if (balanceLabel(); as amount) { <p class="balance-value" [class.negative]="balance()! < 0">{{ amount }} <span>huevos</span></p> }
+        @if (unit() && canRead()) { <a class="stock-link" routerLink="/administracion/inventario/existencias/huevos" [queryParams]="{ production_unit_id: unit() }">Ver stock de huevos</a> }
+      </div></div>
+    </section>
+    @if (unitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button" type="button" (click)="loadUnits()">Reintentar unidades</button></div> }
+    @if (unitsState() === 'empty') { <div class="state">No hay unidades productivas activas disponibles para donaciones.</div> }
+
+    @if (canRead()) {
+      <section class="history" aria-labelledby="donation-history-heading">
+        <header class="history-heading"><h2 id="donation-history-heading">Historial de donaciones</h2><button #filterTrigger class="filter-trigger" type="button" aria-haspopup="dialog" [disabled]="!unit() || dialogOpen()" (click)="openFilters(filterTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (activeFilterCount()) { <span class="filter-count">{{ activeFilterCount() }}</span> }</button></header>
+        @if (!unit()) { <div class="state">Elige una unidad productiva para consultar sus donaciones.</div> }
+        @else if (historyState() === 'loading') { <div class="state" role="status">Cargando historial de donaciones…</div> }
+        @else if (historyError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button" type="button" (click)="load()">Reintentar historial</button></div> }
+        @else if (historyState() === 'empty') { <div class="state"><h3>{{ activeFilterCount() ? 'No hay donaciones con estos filtros.' : 'Aún no hay donaciones en esta unidad.' }}</h3><p>{{ activeFilterCount() ? 'Prueba otras fechas o estados.' : 'Las entregas registradas aparecerán aquí.' }}</p>@if (activeFilterCount()) { <button class="button" type="button" (click)="clearFilters()">Limpiar filtros</button> }</div> }
+        @else if (historyState() === 'success') {
+          <div class="table-card"><table><caption class="sr-only">Donaciones de huevos de {{ selectedUnit()?.name }}</caption><thead><tr><th scope="col">Fecha y hora</th><th scope="col">Motivo o destinatario</th><th scope="col">Cantidad</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>@for (row of rows(); track row.item.id) {
+            <tr [class.cancelled]="row.item.status === 'cancelled'">
+              <td class="date-cell"><time [attr.datetime]="row.item.occurred_at">{{ row.item.occurred_at | date:'dd/MM/yyyy':'-0300' }}<small>{{ row.item.occurred_at | date:'HH:mm':'-0300' }}</small></time></td>
+              <td class="reason-cell"><strong>{{ row.item.reason || 'Sin motivo registrado' }}</strong></td>
+              <td class="quantity-cell"><strong>{{ row.quantity }}</strong> <span>huevos</span></td>
+              <td class="status-cell"><span class="status" [class.cancelled]="row.item.status === 'cancelled'">{{ row.item.status === 'cancelled' ? 'Anulada' : 'Registrada' }}</span>@if (row.item.status === 'cancelled') { <small>No afecta al saldo</small> }</td>
+              <td class="detail-cell"><a class="detail-link" [routerLink]="['/administracion/inventario/existencias/huevos/movimientos', row.item.id]" [attr.aria-label]="'Ver detalle de la donación a ' + row.item.reason + ' del ' + (row.item.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300')">Ver detalle<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a></td>
+            </tr>
+          }</tbody></table></div>
+        }
+        @if (meta(); as pagination) { <nav class="pagination" aria-label="Paginación de donaciones"><button class="button" type="button" [disabled]="pagination.current_page <= 1" (click)="load(pagination.current_page - 1)">Anterior</button><span role="status">Página {{ pagination.current_page }} de {{ pagination.last_page }}</span><button class="button" type="button" [disabled]="pagination.current_page >= pagination.last_page" (click)="load(pagination.current_page + 1)">Siguiente</button></nav> }
+      </section>
+    }
+  }
+
+  <app-filter-dialog titleId="donation-filters-title" (clearRequested)="clearDraftFilters()" (applyRequested)="applyFilters()">
+    <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <fieldset class="filter-section"><legend>Estado</legend><div class="filter-choices"><button type="button" [attr.aria-pressed]="filters.controls.status.value === ''" (click)="filters.controls.status.setValue('')">Todas</button><button type="button" [attr.aria-pressed]="filters.controls.status.value === 'recorded'" (click)="filters.controls.status.setValue('recorded')">Registradas</button><button type="button" [attr.aria-pressed]="filters.controls.status.value === 'cancelled'" (click)="filters.controls.status.setValue('cancelled')">Anuladas</button></div></fieldset>
+      <div class="filter-section"><label for="donation-from">Desde</label><input id="donation-from" type="date" formControlName="date_from" [attr.aria-invalid]="filterError() ? 'true' : null" [attr.aria-describedby]="filterError() ? 'donation-filter-error' : null"></div>
+      <div class="filter-section"><label for="donation-to">Hasta</label><input id="donation-to" type="date" formControlName="date_to" [attr.aria-invalid]="filterError() ? 'true' : null" [attr.aria-describedby]="filterError() ? 'donation-filter-error' : null"></div>
+      @if (filterError(); as message) { <p class="field-error" id="donation-filter-error" role="alert">{{ message }}</p> }
+    </form>
+  </app-filter-dialog>
+  <app-egg-donation-dialog (openChanged)="dialogOpen.set($event)" (saved)="onSaved($event)" />
 </section>

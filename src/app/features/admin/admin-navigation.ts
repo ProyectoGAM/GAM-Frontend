@@ -43,9 +43,9 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
       { label: 'Existencias', slug: 'existencias' },
       { label: 'Presentaciones y precios', slug: 'presentaciones-huevos' },
       { label: 'Ubicaciones de stock', slug: 'existencias/ubicaciones' },
-      { label: 'Movimientos', slug: 'movimientos' },
       { label: 'Donaciones', slug: 'donaciones' },
-      { label: 'Ajustes y pérdidas', slug: 'ajustes-y-perdidas' },
+      { label: 'Movimientos', slug: 'movimientos' },
+      { label: 'Registrar movimiento', slug: 'ajustes-y-perdidas' },
     ],
   },
   {

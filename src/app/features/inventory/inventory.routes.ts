@@ -75,7 +75,7 @@ export const inventoryRoutes: Routes = [
   },
   {
     path: 'ajustes-y-perdidas',
-    data: { title: 'Ajustes y pérdidas', groupLabel: 'Inventario' },
+    data: { title: 'Registrar movimiento', groupLabel: 'Inventario' },
     loadComponent: () => import('./pages/movement-form/movement-form.page').then((m) => m.MovementFormPage),
   },
   {

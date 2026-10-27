@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
+import { EggDonationUnit } from '../interfaces/egg-donation';
 import {
   ApiEnvelope,
   EggBalance,
@@ -37,7 +38,7 @@ export class EggStockApi {
     return this.api.get<ApiEnvelope<EggStockTransaction>>(`egg-stock/movements/${id}`);
   }
 
-  donationUnits(search = '', page = 1): Observable<{ data: { id: number; name: string }[]; meta: { current_page: number; last_page: number } }> {
+  donationUnits(search = '', page = 1): Observable<{ data: EggDonationUnit[]; meta: { current_page: number; last_page: number } }> {
     return this.api.get('donaciones/unidades-productivas', { params: { search: search || undefined, page } });
   }
 

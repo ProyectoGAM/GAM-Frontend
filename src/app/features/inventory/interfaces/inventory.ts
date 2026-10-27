@@ -1,3 +1,5 @@
+import { InventoryOperation } from '../types/inventory-state.type';
+
 export type ProductKind =
   | 'raw_material'
   | 'supply'
@@ -27,6 +29,23 @@ export interface Product {
   base_unit: BaseUnit;
   stock_tracked: boolean;
   status: ProductStatus;
+}
+
+export interface AllowedStockProduct {
+  id: number;
+  sku: string;
+  name: string;
+  kind: ProductKind;
+  base_unit: BaseUnit;
+  available_quantity: string;
+}
+
+export interface AllowedStockProductFilters {
+  stock_location_id: number;
+  operation: InventoryOperation;
+  search?: string;
+  per_page?: number;
+  page?: number;
 }
 
 export interface StockLocationProductionUnitSummary {

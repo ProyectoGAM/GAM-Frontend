@@ -32,6 +32,13 @@ describe('Inventory API contracts', () => {
 
   afterEach(() => http.verify());
 
+  it('queries allowed products by stock location and stable operation using the public contract', () => {
+    generic.allowedProducts({ stock_location_id: 6, operation: 'loss', per_page: 100, page: 2 }).subscribe();
+    const request = http.expectOne('/api/v1/inventario/productos-permitidos?stock_location_id=6&operation=loss&per_page=100&page=2');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [], links: {}, meta: { current_page: 2, last_page: 2, per_page: 100, total: 100 } });
+  });
+
   it('omits below_minimum when the stock filter is inactive', () => {
     generic.balances({ below_minimum: false, per_page: 25, page: 1 }).subscribe();
 
@@ -191,5 +198,22 @@ describe('Inventory API contracts', () => {
     expect(request.request.headers.get('Idempotency-Key')).toBe('00000000-0000-4000-8000-000000000002');
     expect(request.request.body).toEqual({ version: 3, correction_reason: 'Duplicado' });
     request.flush({ data: {} });
+  });
+
+  it('reads paginated donation units with the published query parameters', () => {
+    eggs.donationUnits('Ombú', 2).subscribe();
+    const request = http.expectOne('/api/v1/donaciones/unidades-productivas?search=Omb%C3%BA&page=2');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [], meta: { current_page: 2, last_page: 2 } });
+  });
+
+  it('registers donations through EggStock with the original intent key', () => {
+    const body = { quantity: 120, occurred_at: '2026-10-26T13:30:00Z', reason: 'Comedor', notes: 'Entrega' };
+    eggs.donate(19, body, 'donation-key').subscribe();
+    const request = http.expectOne('/api/v1/unidades-productivas/19/donaciones');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    expect(request.request.headers.get('Idempotency-Key')).toBe('donation-key');
+    request.flush({ data: { transaction: 'donation-one' } });
   });
 });
