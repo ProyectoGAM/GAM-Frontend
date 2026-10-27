@@ -1,20 +1,22 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, ElementRef, Injector, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { combineLatest, firstValueFrom } from 'rxjs';
+import { combineLatest, firstValueFrom, Subscription } from 'rxjs';
 import { distinctUntilChanged, startWith } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { IonIcon } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { addOutline, arrowBackOutline, arrowForwardOutline, checkmarkCircle, clipboardOutline, cubeOutline, informationCircleOutline, swapHorizontalOutline, trashOutline, warningOutline } from 'ionicons/icons';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
 import { SuppliersApi } from '../../../suppliers-catalogs/suppliers/suppliers.api';
-import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
 import { StockLocationsApi } from '../../services/stock-locations.api';
 import { createIdempotencyKey, formatQuantity, isDiscreteUnit, unitLabel } from '../../services/inventory-format';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
-import { InventoryOperation, MutationState } from '../../types/inventory-state.type';
-import { BaseUnit, Product, ReferenceOptions, StockLocation } from '../../interfaces/inventory';
+import { InventoryOperation, LoadState, MutationState } from '../../types/inventory-state.type';
+import { AllowedStockProduct, BaseUnit, OptionValue, ReferenceOptions, StockLocation } from '../../interfaces/inventory';
 import { Supplier } from '../../../suppliers-catalogs/suppliers/suppliers.models';
 
 interface LineControls {
@@ -29,9 +31,27 @@ type AdjustmentBalanceState =
   | { status: 'idle' | 'loading' | 'unavailable' }
   | { status: 'ready'; availableQuantity: string; unit: BaseUnit };
 
-type MovementReferenceOptions = Pick<ReferenceOptions, 'suppliers' | 'products' | 'stock_locations'>;
+type MovementReferenceOptions = Pick<ReferenceOptions, 'suppliers' | 'stock_locations'>;
+
+interface LineProductState {
+  status: LoadState;
+  products: readonly AllowedStockProduct[];
+  options: readonly OptionValue[];
+  byId?: ReadonlyMap<string, AllowedStockProduct>;
+  error?: string;
+}
+
+const EMPTY_PRODUCT_STATE: LineProductState = { status: 'idle', products: [], options: [] };
 
 const EMPTY_BALANCE_STATE: AdjustmentBalanceState = { status: 'idle' };
+
+const OPERATIONS: readonly { value: InventoryOperation; label: string; title: string; description: string; action: string; icon: string; adjusts: boolean }[] = [
+  { value: 'receipt', label: 'Ingreso', title: 'Ingreso de productos', description: 'Productos recibidos de un proveedor.', action: 'Registrar ingreso', icon: 'cube-outline', adjusts: false },
+  { value: 'issue', label: 'Salida', title: 'Salida de productos', description: 'Registra productos que salen de una ubicación.', action: 'Registrar salida', icon: 'arrow-forward-outline', adjusts: false },
+  { value: 'transfer', label: 'Transferencia', title: 'Transferencia entre ubicaciones', description: 'Mueve stock entre dos ubicaciones.', action: 'Registrar transferencia', icon: 'swap-horizontal-outline', adjusts: false },
+  { value: 'loss', label: 'Pérdida', title: 'Pérdida de productos', description: 'Registra productos dañados o perdidos.', action: 'Registrar pérdida', icon: 'warning-outline', adjusts: true },
+  { value: 'adjustment', label: 'Ajuste por conteo', title: 'Ajuste por conteo', description: 'Ingresa la cantidad que contaste físicamente.', action: 'Registrar ajuste', icon: 'clipboard-outline', adjusts: true },
+];
 
 function decimalDifference(left: string, right: string): string | null {
   const parse = (value: string): { negative: boolean; integer: string; fraction: string } | null => {
@@ -59,22 +79,32 @@ function decimalDifference(left: string, right: string): string | null {
   selector: 'app-inventory-movement-form',
   templateUrl: './movement-form.page.html',
   styleUrl: './movement-form.page.scss',
-  imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent],
+  imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent, IonIcon],
+  host: { '[style.--movement-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class MovementFormPage {
   private readonly route = inject(ActivatedRoute);
-  private requestedProductApplied = false;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private requestedProductId = this.route.snapshot.queryParamMap.get('product_id');
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(InventoryApi);
-  private readonly references = inject(InventoryReferenceApi);
   private readonly suppliersApi = inject(SuppliersApi);
   private readonly stockLocationsApi = inject(StockLocationsApi);
   readonly canMove = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.move') === true);
   readonly canAdjust = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.adjust') === true);
   readonly operation = signal<InventoryOperation>(this.canMove() ? 'receipt' : 'adjustment');
+  readonly operations = computed(() => OPERATIONS.filter((item) => item.adjusts ? this.canAdjust() : this.canMove()));
+  readonly selectedOperation = computed(() => OPERATIONS.find((item) => item.value === this.operation())!);
+  readonly reasonRequired = computed(() => this.operation() === 'loss' || this.operation() === 'adjustment');
+  readonly sourceLabel = computed(() => this.operation() === 'receipt' ? 'Ubicación de destino' : this.operation() === 'adjustment' ? 'Ubicación' : 'Ubicación de origen');
+  readonly quantityLabel = computed(() => ({ receipt: 'Cantidad', issue: 'Cantidad a retirar', transfer: 'Cantidad a transferir', loss: 'Cantidad perdida', adjustment: 'Cantidad contada' })[this.operation()]);
+  readonly viewportBottom = signal(0);
+  readonly locationDescriptions = signal(new Map<string, string>());
   readonly options = signal<MovementReferenceOptions | null>(null);
-  readonly stockProducts = signal<Product[]>([]);
+  readonly productStates = signal(new Map<FormGroup<LineControls>, LineProductState>());
+  readonly requestedProductNotice = signal<string | null>(null);
   readonly referencesState = signal<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   readonly referencesError = signal<string | null>(null);
   readonly mutation = signal<MutationState>('idle');
@@ -82,7 +112,6 @@ export class MovementFormPage {
   readonly success = signal<string | null>(null);
   readonly submitAttempted = signal(false);
   readonly lines = new FormArray<FormGroup<LineControls>>([this.newLine()]);
-  readonly balanceStates = signal(new Map<FormGroup<LineControls>, AdjustmentBalanceState>());
   readonly form = new FormGroup({
     supplier_id: new FormControl('', { nonNullable: true }),
     reason: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(255)] }),
@@ -92,25 +121,37 @@ export class MovementFormPage {
     lines: this.lines,
   });
   private operationKey: string | null = null;
-  private readonly balanceRequestTokens = new WeakMap<FormGroup<LineControls>, number>();
-  private readonly balanceSubscriptions = new WeakMap<FormGroup<LineControls>, { unsubscribe(): void }>();
+  private readonly productRequestTokens = new WeakMap<FormGroup<LineControls>, number>();
+  private readonly lineSubscriptions = new WeakMap<FormGroup<LineControls>, Subscription>();
+  private referencesVersion = 0;
 
   constructor() {
+    addIcons({ addOutline, arrowBackOutline, arrowForwardOutline, checkmarkCircle, clipboardOutline, cubeOutline, informationCircleOutline, swapHorizontalOutline, trashOutline, warningOutline });
+    const viewport = window.visualViewport;
+    const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
+      ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0);
+    viewport?.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('scroll', updateViewport);
+    updateViewport();
+    this.destroyRef.onDestroy(() => {
+      viewport?.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('scroll', updateViewport);
+    });
     this.updateValidators();
-    this.watchBalanceLine(this.lines.at(0));
+    this.watchLine(this.lines.at(0));
     void this.loadReferences();
   }
 
   async loadReferences(): Promise<void> {
+    const version = ++this.referencesVersion;
     this.referencesState.set('loading');
     this.referencesError.set(null);
     try {
       const supplierFilters = { status: 'active' as const, per_page: 100 };
       const locationFilters = { status: 'active' as const, per_page: 100 };
-      const [supplierResponse, locationResponse, productsResponse] = await Promise.all([
+      const [supplierResponse, locationResponse] = await Promise.all([
         firstValueFrom(this.suppliersApi.list(supplierFilters, 1)),
         firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page: 1 })),
-        firstValueFrom(this.references.activeProducts()),
       ]);
       const suppliers: Supplier[] = [...supplierResponse.data];
       const stockLocations: StockLocation[] = [...locationResponse.data];
@@ -122,33 +163,28 @@ export class MovementFormPage {
         const response = await firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page }));
         stockLocations.push(...response.data);
       }
-      const products = [...productsResponse.data];
-      for (let page = 2; page <= (productsResponse.meta?.last_page ?? 1); page += 1) {
-        const response = await firstValueFrom(this.references.activeProducts('', page));
-        products.push(...response.data);
-      }
-      this.stockProducts.set(products.filter((product) => product.stock_tracked));
-      if (!this.requestedProductApplied) {
-        const requestedProduct = this.route.snapshot.queryParamMap.get('product_id');
-        const product = this.stockProducts().find((item) => String(item.id) === requestedProduct);
-        if (product) this.lines.at(0).controls.product_id.setValue(String(product.id));
-        this.requestedProductApplied = true;
-      }
+      if (this.destroyRef.destroyed || version !== this.referencesVersion) return;
       this.updateValidators();
+      this.locationDescriptions.set(new Map(stockLocations.map((location) => {
+        const type = location.poultry_house_id != null ? 'Planta de ración' : location.production_unit ? 'Unidad productiva' : 'Depósito general';
+        return [String(location.id), location.production_unit ? `${type} · ${location.production_unit.name}` : type];
+      })));
       this.options.set({
         suppliers: suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
-        products: this.stockProducts().map((product) => ({ value: product.id, label: `${product.sku} — ${product.name}` })),
         stock_locations: stockLocations.map((location) => ({ value: location.id, label: location.name })),
       });
-      this.referencesState.set(this.stockProducts().length && stockLocations.length ? 'success' : 'empty');
-      if (this.operation() === 'adjustment') this.lines.controls.forEach((line) => void this.loadAdjustmentBalance(line));
+      this.referencesState.set(stockLocations.length ? 'success' : 'empty');
+      this.lines.controls.forEach((line) => void this.loadProductsFor(line));
     } catch (error) {
+      if (this.destroyRef.destroyed || version !== this.referencesVersion) return;
       this.referencesState.set('error');
-      this.referencesError.set(inventoryErrorMessage(error, 'No se pudieron cargar los productos y ubicaciones.'));
+      this.referencesError.set(inventoryErrorMessage(error, 'No se pudieron cargar los proveedores y ubicaciones.'));
     }
   }
 
   setOperation(operation: InventoryOperation): void {
+    if (operation === this.operation()) return;
+    if (!OPERATIONS.some((item) => item.value === operation)) return;
     if ((operation === 'loss' || operation === 'adjustment') ? !this.canAdjust() : !this.canMove()) return;
     if (this.mutation() === 'submitting') return;
     this.operation.set(operation);
@@ -159,67 +195,103 @@ export class MovementFormPage {
     this.form.markAsUntouched();
     this.lines.markAsUntouched();
     this.updateValidators();
-    for (const line of this.lines.controls) void this.loadAdjustmentBalance(line);
+    for (const line of this.lines.controls) void this.loadProductsFor(line);
   }
 
   addLine(): void {
+    if (this.mutation() === 'submitting') return;
     if (this.lines.length < 100) {
       const line = this.newLine();
       this.lines.push(line);
-      this.watchBalanceLine(line);
+      this.watchLine(line);
       this.updateValidators();
+      this.focusAfterRender(`#location-${this.lines.length - 1}`);
     }
   }
 
   removeLine(index: number): void {
+    if (this.mutation() === 'submitting') return;
     if (this.lines.length > 1) {
       const line = this.lines.at(index);
-      this.balanceSubscriptions.get(line)?.unsubscribe();
-      this.invalidateBalanceRequest(line);
-      this.setBalanceState(line, EMPTY_BALANCE_STATE);
+      this.lineSubscriptions.get(line)?.unsubscribe();
+      this.invalidateProductRequest(line);
+      this.productStates.update((states) => { const next = new Map(states); next.delete(line); return next; });
       this.lines.removeAt(index);
+      this.focusAfterRender(`#location-${Math.max(0, index - 1)}`);
     }
   }
 
-  async loadAdjustmentBalance(line: FormGroup<LineControls>): Promise<void> {
-    const token = this.nextBalanceRequestToken(line);
-    if (this.operation() !== 'adjustment') {
-      this.setBalanceState(line, EMPTY_BALANCE_STATE);
+  async loadProductsFor(line: FormGroup<LineControls>): Promise<void> {
+    if (this.mutation() === 'submitting') return;
+    const token = this.invalidateProductRequest(line);
+    const operation = this.operation();
+    const source = line.controls.stock_location_id.value;
+    const destination = operation === 'transfer' ? line.controls.to_stock_location_id.value : '';
+    const context = this.productContext(line);
+    const locations = this.options()?.stock_locations ?? [];
+    const validSource = locations.some((item) => String(item.value) === source);
+    const validDestination = operation !== 'transfer' || locations.some((item) => String(item.value) === destination);
+    if (this.referencesState() !== 'success' || !validSource || !validDestination || source === destination) {
+      this.setProductState(line, EMPTY_PRODUCT_STATE);
+      this.clearProductSelection(line);
       return;
     }
-    const productId = Number(line.controls.product_id.value);
-    const locationId = Number(line.controls.stock_location_id.value);
-    if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(locationId) || locationId < 1) {
-      this.setBalanceState(line, EMPTY_BALANCE_STATE);
-      return;
-    }
-    const product = this.stockProducts().find((item) => item.id === productId);
-    if (!product) {
-      this.setBalanceState(line, { status: 'unavailable' });
-      return;
-    }
-
-    this.setBalanceState(line, { status: 'loading' });
+    this.setProductState(line, { status: 'loading', products: [], options: [] });
+    const isCurrent = () => !this.destroyRef.destroyed && this.lines.controls.includes(line)
+      && this.referencesState() === 'success' && this.productRequestTokens.get(line) === token && this.productContext(line) === context;
     try {
-      const response = await firstValueFrom(this.api.balances({ product_id: productId, stock_location_id: locationId, per_page: 100, page: 1 }));
-      if (!this.isCurrentBalanceRequest(line, token, productId, locationId)) return;
-      const matches = response.data.filter((balance) => balance.product_id === productId && balance.stock_location_id === locationId);
-      const balance = matches.length === 1 ? matches[0] : null;
-      if (!balance
-        || balance.product?.id !== productId
-        || balance.stock_location?.id !== locationId
-        || balance.product.base_unit !== product.base_unit
-        || !/^[-+]?\d+(?:\.\d+)?$/.test(balance.available_quantity)) {
-        this.setBalanceState(line, { status: 'unavailable' });
-        return;
+      const [sourceProducts, destinationProducts] = await Promise.all([
+        this.readAllowedProducts(Number(source), operation, isCurrent),
+        destination ? this.readAllowedProducts(Number(destination), operation, isCurrent) : Promise.resolve(null),
+      ]);
+      if (!isCurrent()) return;
+      const destinationUnits = destinationProducts && new Map(destinationProducts.map((product) => [product.id, product.base_unit]));
+      const products = sourceProducts.filter((product) => !destinationUnits || destinationUnits.get(product.id) === product.base_unit);
+      this.setProductState(line, {
+        status: products.length ? 'success' : 'empty', products,
+        byId: new Map(products.map((product) => [String(product.id), product])),
+        options: products.map((product) => ({ value: product.id, label: `${product.sku} — ${product.name}` })),
+      });
+      if (!products.some((product) => String(product.id) === line.controls.product_id.value)) this.clearProductSelection(line);
+      if (this.requestedProductId && this.lines.at(0) === line && operation === 'receipt' && !line.controls.product_id.value) {
+        if (products.some((product) => String(product.id) === this.requestedProductId)) {
+          line.controls.product_id.setValue(this.requestedProductId, { emitEvent: false });
+          this.requestedProductId = null;
+          this.requestedProductNotice.set(null);
+        } else {
+          this.requestedProductNotice.set('El producto elegido en el catálogo no está permitido en esta ubicación. Elige otra ubicación o producto.');
+        }
       }
-      this.setBalanceState(line, { status: 'ready', availableQuantity: balance.available_quantity, unit: product.base_unit });
-    } catch {
-      if (this.isCurrentBalanceRequest(line, token, productId, locationId)) this.setBalanceState(line, { status: 'unavailable' });
+      this.updateValidators();
+    } catch (error) {
+      if (!isCurrent()) return;
+      this.setProductState(line, { status: 'error', products: [], options: [], error: inventoryErrorMessage(error, 'No se pudieron consultar los productos permitidos. Reintenta para continuar.') });
     }
   }
 
-  balanceStateFor(line: FormGroup<LineControls>): AdjustmentBalanceState { return this.balanceStates().get(line) ?? EMPTY_BALANCE_STATE; }
+  productStateFor(line: FormGroup<LineControls>): LineProductState {
+    return this.productStates().get(line) ?? EMPTY_PRODUCT_STATE;
+  }
+
+  productHintFor(line: FormGroup<LineControls>): string {
+    const state = this.productStateFor(line);
+    if (state.status === 'loading') return 'Consultando productos permitidos…';
+    if (state.status === 'error') return state.error!;
+    if (state.status === 'empty') return this.operation() === 'loss'
+      ? 'No hay productos con stock positivo en esta ubicación.' : 'No hay productos permitidos para esta operación en las ubicaciones elegidas.';
+    if (state.status === 'idle') return this.operation() === 'transfer'
+      ? 'Primero elige ubicaciones de origen y destino distintas.' : 'Primero selecciona una ubicación.';
+    const product = this.selectedProductFor(line);
+    return product ? `Stock en esta ubicación: ${formatQuantity(product.available_quantity, product.base_unit)}.` : 'Selecciona un producto permitido para esta ubicación.';
+  }
+
+  balanceStateFor(line: FormGroup<LineControls>): AdjustmentBalanceState {
+    const state = this.productStateFor(line);
+    if (state.status === 'loading') return { status: 'loading' };
+    if (state.status === 'error') return { status: 'unavailable' };
+    const product = this.selectedProductFor(line);
+    return product ? { status: 'ready', availableQuantity: product.available_quantity, unit: product.base_unit } : EMPTY_BALANCE_STATE;
+  }
 
   registeredQuantityFor(line: FormGroup<LineControls>): string | null {
     const state = this.balanceStateFor(line);
@@ -253,6 +325,23 @@ export class MovementFormPage {
     return control.invalid && (this.submitAttempted() || (control.touched && control.dirty));
   }
 
+  quantityNoticeFor(line: FormGroup<LineControls>): string | null {
+    if (!this.selectedUnitFor(line) || !line.controls.stock_location_id.value || line.controls.quantity.invalid || !line.controls.quantity.value) return null;
+    const amount = formatQuantity(this.quantityPayload(line.controls.quantity.value), this.selectedUnitFor(line)!);
+    return this.operation() === 'loss' ? `Se descontarán ${amount} del stock.`
+      : this.operation() === 'issue' ? `Se descontarán ${amount} de esta ubicación.` : null;
+  }
+
+  countedQuantityFor(line: FormGroup<LineControls>): string | null {
+    return line.controls.counted_quantity.valid && line.controls.counted_quantity.value !== '' && this.selectedUnitFor(line)
+      ? formatQuantity(this.quantityPayload(line.controls.counted_quantity.value), this.selectedUnitFor(line)!) : null;
+  }
+
+  selectOperation(value: string): void {
+    const operation = this.operations().find((item) => item.value === value);
+    if (operation) this.setOperation(operation.value);
+  }
+
   async submit(): Promise<void> {
     if (this.mutation() === 'submitting') return;
     if (this.referencesState() !== 'success') {
@@ -263,6 +352,7 @@ export class MovementFormPage {
     if (!this.allowedOperation() || this.form.invalid || this.lines.invalid || !this.validateBusinessFields()) {
       this.form.markAllAsTouched();
       this.lines.markAllAsTouched();
+      this.focusAfterRender(this.error() ? '.feedback.error' : '[aria-invalid="true"]');
       return;
     }
     this.mutation.set('submitting');
@@ -308,34 +398,37 @@ export class MovementFormPage {
       this.success.set('Movimiento registrado correctamente.');
       this.operationKey = null;
       for (const line of this.lines.controls) {
-        this.balanceSubscriptions.get(line)?.unsubscribe();
-        this.invalidateBalanceRequest(line);
+        this.lineSubscriptions.get(line)?.unsubscribe();
+        this.invalidateProductRequest(line);
       }
-      this.lines.clear();
+      while (this.lines.length > 1) this.lines.removeAt(this.lines.length - 1);
+      this.productStates.set(new Map());
       this.form.reset();
       this.submitAttempted.set(false);
-      const line = this.newLine();
-      this.lines.push(line);
-      this.watchBalanceLine(line);
+      this.watchLine(this.lines.at(0));
       this.updateValidators();
+      this.focusAfterRender('.feedback.success');
     } catch (error) {
       this.mutation.set('error');
       this.error.set(inventoryErrorMessage(error, 'No se pudo registrar el movimiento. Puedes reintentar sin duplicarlo.'));
+      this.focusAfterRender('.feedback.error');
     }
   }
 
   operationLabel(): string {
-    return ({ receipt: 'Ingreso de productos', issue: 'Salida de productos', loss: 'Pérdida de productos', adjustment: 'Ajuste por conteo', transfer: 'Transferencia entre ubicaciones' } satisfies Record<InventoryOperation, string>)[this.operation()];
+    return this.selectedOperation().title;
   }
 
   operationDescription(): string {
-    return ({
-      receipt: 'Anota los productos recibidos y quién los entregó.',
-      issue: 'Registra los productos que salen de una ubicación.',
-      loss: 'Registra una pérdida física de productos.',
-      adjustment: 'Cuenta físicamente el stock e ingresa la cantidad contada.',
-      transfer: 'Mueve productos desde una ubicación hacia otra.',
-    } satisfies Record<InventoryOperation, string>)[this.operation()];
+    return this.selectedOperation().description;
+  }
+
+  private focusAfterRender(selector: string): void {
+    afterNextRender(() => {
+      const element = this.host.nativeElement.querySelector<HTMLElement>(selector);
+      element?.focus();
+      element?.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    }, { injector: this.injector });
   }
 
   private allowedOperation(): boolean {
@@ -353,6 +446,10 @@ export class MovementFormPage {
       return false;
     }
     const lines = this.lines.getRawValue();
+    if (this.lines.controls.some((line) => this.productStateFor(line).status !== 'success' || !this.selectedProductFor(line))) {
+      this.error.set('Elige productos permitidos para las ubicaciones y la operación actuales. Espera a que termine la consulta o reinténtala.');
+      return false;
+    }
     if (lines.some((line) => !line.product_id || !line.stock_location_id || (this.operation() === 'transfer' && !line.to_stock_location_id))) {
       this.error.set('Completa producto y ubicación en todas las líneas.');
       return false;
@@ -370,43 +467,64 @@ export class MovementFormPage {
 
   private quantityPayload(value: string): string { return value.trim().replace(',', '.'); }
 
-  private watchBalanceLine(line: FormGroup<LineControls>): void {
-    const subscription = combineLatest([
-      line.controls.product_id.valueChanges.pipe(startWith(line.controls.product_id.value)),
+  private watchLine(line: FormGroup<LineControls>): void {
+    const subscriptions = new Subscription();
+    subscriptions.add(combineLatest([
       line.controls.stock_location_id.valueChanges.pipe(startWith(line.controls.stock_location_id.value)),
+      line.controls.to_stock_location_id.valueChanges.pipe(startWith(line.controls.to_stock_location_id.value)),
     ]).pipe(
       distinctUntilChanged((previous, current) => previous[0] === current[0] && previous[1] === current[1]),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(() => {
+      void this.loadProductsFor(line);
+    }));
+    subscriptions.add(line.controls.product_id.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateValidators();
-      void this.loadAdjustmentBalance(line);
-    });
-    this.balanceSubscriptions.set(line, subscription);
+      if (this.lines.at(0) === line && this.selectedProductFor(line)) {
+        this.requestedProductId = null;
+        this.requestedProductNotice.set(null);
+      }
+    }));
+    this.lineSubscriptions.set(line, subscriptions);
   }
 
-  private selectedProductFor(line: FormGroup<LineControls>): Product | undefined {
-    return this.stockProducts().find((product) => String(product.id) === line.controls.product_id.value);
+  private selectedProductFor(line: FormGroup<LineControls>): AllowedStockProduct | undefined {
+    return this.productStateFor(line).byId?.get(line.controls.product_id.value);
   }
 
-  private nextBalanceRequestToken(line: FormGroup<LineControls>): number {
-    const token = (this.balanceRequestTokens.get(line) ?? 0) + 1;
-    this.balanceRequestTokens.set(line, token);
+  private invalidateProductRequest(line: FormGroup<LineControls>): number {
+    const token = (this.productRequestTokens.get(line) ?? 0) + 1;
+    this.productRequestTokens.set(line, token);
     return token;
   }
 
-  private invalidateBalanceRequest(line: FormGroup<LineControls>): void { this.nextBalanceRequestToken(line); }
-
-  private isCurrentBalanceRequest(line: FormGroup<LineControls>, token: number, productId: number, locationId: number): boolean {
-    return this.balanceRequestTokens.get(line) === token
-      && this.operation() === 'adjustment'
-      && Number(line.controls.product_id.value) === productId
-      && Number(line.controls.stock_location_id.value) === locationId;
+  private productContext(line: FormGroup<LineControls>): string {
+    return `${this.operation()}:${line.controls.stock_location_id.value}:${this.operation() === 'transfer' ? line.controls.to_stock_location_id.value : ''}`;
   }
 
-  private setBalanceState(line: FormGroup<LineControls>, state: AdjustmentBalanceState): void {
-    const next = new Map(this.balanceStates());
+  private setProductState(line: FormGroup<LineControls>, state: LineProductState): void {
+    const next = new Map(this.productStates());
     next.set(line, state);
-    this.balanceStates.set(next);
+    this.productStates.set(next);
+  }
+
+  private clearProductSelection(line: FormGroup<LineControls>): void {
+    line.controls.product_id.reset('', { emitEvent: false });
+    line.controls.quantity.reset('', { emitEvent: false });
+    line.controls.counted_quantity.reset('', { emitEvent: false });
+  }
+
+  private async readAllowedProducts(locationId: number, operation: InventoryOperation, isCurrent: () => boolean): Promise<AllowedStockProduct[]> {
+    const products = new Map<number, AllowedStockProduct>();
+    let lastPage = 1;
+    for (let page = 1; page <= lastPage; page += 1) {
+      if (!isCurrent()) return [];
+      const response = await firstValueFrom(this.api.allowedProducts({ stock_location_id: locationId, operation, per_page: 100, page }));
+      if (!isCurrent()) return [];
+      response.data.forEach((product) => products.set(product.id, product));
+      lastPage = response.meta.last_page;
+    }
+    return [...products.values()];
   }
 
   private updateValidators(): void {

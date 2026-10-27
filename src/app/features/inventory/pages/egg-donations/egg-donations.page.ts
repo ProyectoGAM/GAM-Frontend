@@ -1,49 +1,222 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { IonIcon } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { addOutline, chevronForwardOutline, eggOutline, funnelOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
+
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { EggStockTransaction } from '../../interfaces/inventory';
+import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
+import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
+import { EggDonationDialogComponent } from '../../components/egg-donation-dialog/egg-donation-dialog.component';
+import { EggDonationUnit } from '../../interfaces/egg-donation';
+import { EggStockStatus, EggStockTransaction, PaginatedResponse } from '../../interfaces/inventory';
 import { EggStockApi } from '../../services/egg-stock.api';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
+import { formatQuantity } from '../../services/inventory-format';
+import { LoadState } from '../../types/inventory-state.type';
+
+const EMPTY_FILTERS = { status: '' as '' | EggStockStatus, date_from: '', date_to: '' };
 
 @Component({
-  selector: 'app-egg-donations', imports: [ReactiveFormsModule, RouterLink, DatePipe], templateUrl: './egg-donations.page.html', styleUrl: './egg-donations.page.scss',
+  selector: 'app-egg-donations',
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, IonIcon, SearchableSelectComponent, FilterDialogComponent, EggDonationDialogComponent],
+  templateUrl: './egg-donations.page.html',
+  styleUrl: './egg-donations.page.scss',
 })
 export class EggDonationsPage {
-  private readonly api = inject(EggStockApi); private readonly auth = inject(AuthStore); private readonly destroyRef = inject(DestroyRef);
-  readonly units = signal<{ id: number; name: string }[]>([]); readonly unit = signal<number | null>(null);
-  readonly records = signal<EggStockTransaction[]>([]); readonly page = signal(1); readonly lastPage = signal(1);
-  readonly unitPage = signal(1); readonly unitLastPage = signal(1);
-  readonly busy = signal(false); readonly error = signal<string | null>(null); readonly notice = signal<string | null>(null);
+  private readonly api = inject(EggStockApi);
+  private readonly auth = inject(AuthStore);
+  private readonly destroyRef = inject(DestroyRef);
   readonly canMove = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.move') === true);
   readonly canRead = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.view') === true);
-  readonly form = new FormGroup({ quantity: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[1-9]\d*$/), Validators.max(2147483647)] }), date: new FormControl('', { nonNullable: true, validators: [Validators.required] }), reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }), notes: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }) });
-  private epoch = 0; private key: string | null = null;
+  readonly units = signal<EggDonationUnit[]>([]);
+  readonly unit = signal<number | null>(null);
+  readonly selectedUnit = computed(() => this.units().find((item) => item.id === this.unit()) ?? null);
+  readonly unitOptions = computed(() => this.units().map((item) => ({ value: item.id, label: item.name })));
+  readonly unitControl = new FormControl('', { nonNullable: true });
+  readonly unitsState = signal<LoadState>('idle');
+  readonly unitsError = signal<string | null>(null);
+  readonly balance = signal<number | null>(null);
+  readonly balanceState = signal<LoadState>('idle');
+  readonly balanceError = signal<string | null>(null);
+  readonly balanceLabel = computed(() => this.balance() === null ? null : formatQuantity(String(this.balance())));
+  readonly records = signal<EggStockTransaction[]>([]);
+  readonly rows = computed(() => this.records().map((item) => ({ item, quantity: formatQuantity(String(item.quantity)) })));
+  readonly meta = signal<PaginatedResponse<EggStockTransaction>['meta'] | null>(null);
+  readonly historyState = signal<LoadState>('idle');
+  readonly historyError = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
+  readonly dialogOpen = signal(false);
+  readonly appliedFilters = signal({ ...EMPTY_FILTERS });
+  readonly activeFilterCount = computed(() => Object.values(this.appliedFilters()).filter(Boolean).length);
+  readonly filterError = signal<string | null>(null);
+  readonly filters = new FormGroup({
+    status: new FormControl<'' | EggStockStatus>('', { nonNullable: true }),
+    date_from: new FormControl('', { nonNullable: true }),
+    date_to: new FormControl('', { nonNullable: true }),
+  });
+  private unitsVersion = 0;
+  private balanceVersion = 0;
+  private historyVersion = 0;
+  @ViewChild(FilterDialogComponent, { static: true }) private readonly filterDialog!: FilterDialogComponent;
+  @ViewChild(EggDonationDialogComponent, { static: true }) private readonly donationDialog!: EggDonationDialogComponent;
+
   constructor() {
-    effect(() => { const id = this.auth.user()?.id; this.epoch++; this.records.set([]); this.units.set([]); this.unit.set(null); this.form.reset(); this.key = null; if (id) void this.loadUnits(); });
-    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => { this.key = null; });
-    this.destroyRef.onDestroy(() => this.epoch++);
+    addIcons({ addOutline, chevronForwardOutline, eggOutline, funnelOutline });
+    this.unitControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => this.chooseUnit(value));
+    effect(() => {
+      const actor = this.auth.user()?.id;
+      untracked(() => {
+        this.unitsVersion++;
+        this.invalidateUnit();
+        this.units.set([]);
+        this.unitsState.set('idle');
+        this.unitsError.set(null);
+        this.unitControl.reset('', { emitEvent: false });
+        this.unit.set(null);
+        this.notice.set(null);
+        this.appliedFilters.set({ ...EMPTY_FILTERS });
+        this.filters.reset(EMPTY_FILTERS);
+        this.filterError.set(null);
+        this.filterDialog?.close();
+        if (actor && (this.canRead() || this.canMove())) void this.loadUnits();
+      });
+    });
   }
-  async loadUnits(search = '', page = 1): Promise<void> {
-    const epoch = this.epoch;
-    try { const result = await firstValueFrom(this.api.donationUnits(search, page)); if (epoch !== this.epoch) return; this.units.update((value) => page > 1 ? [...value, ...result.data] : result.data); this.unitPage.set(result.meta.current_page); this.unitLastPage.set(result.meta.last_page); if (!this.unit() && result.data[0]) { this.unit.set(result.data[0].id); await this.load(); } }
-    catch (error) { if (epoch === this.epoch) this.error.set(inventoryErrorMessage(error)); }
+
+  async loadUnits(): Promise<void> {
+    const version = ++this.unitsVersion;
+    this.unitsState.set('loading');
+    this.unitsError.set(null);
+    const units = new Map<number, EggDonationUnit>();
+    try {
+      let lastPage = 1;
+      for (let page = 1; page <= lastPage; page++) {
+        const response = await firstValueFrom(this.api.donationUnits('', page));
+        if (version !== this.unitsVersion || this.destroyRef.destroyed) return;
+        response.data.forEach((item) => units.set(item.id, item));
+        lastPage = response.meta.last_page;
+      }
+      const items = [...units.values()];
+      this.units.set(items);
+      this.unitsState.set(items.length ? 'success' : 'empty');
+      if (!items.some((item) => item.id === this.unit())) this.chooseUnit(items[0] ? String(items[0].id) : '');
+    } catch (error) {
+      if (version !== this.unitsVersion || this.destroyRef.destroyed) return;
+      this.unitsState.set('error');
+      this.unitsError.set(inventoryErrorMessage(error, 'No se pudieron cargar las unidades productivas.'));
+    }
   }
-  searchUnits(event: Event): void { void this.loadUnits((event.target as HTMLInputElement).value); }
-  selectUnit(event: Event): void { this.unit.set(Number((event.target as HTMLSelectElement).value) || null); this.key = null; this.records.set([]); void this.load(); }
+
+  chooseUnit(value: string): void {
+    if (this.dialogOpen()) {
+      this.unitControl.setValue(this.unit() ? String(this.unit()) : '', { emitEvent: false });
+      return;
+    }
+    const unit = this.units().find((item) => String(item.id) === value);
+    this.unitControl.setValue(unit ? String(unit.id) : '', { emitEvent: false });
+    if ((unit?.id ?? null) === this.unit()) return;
+    this.invalidateUnit();
+    this.unit.set(unit?.id ?? null);
+    this.notice.set(null);
+    if (unit) { void this.loadBalance(); void this.load(); }
+  }
+
+  async loadBalance(): Promise<void> {
+    const version = ++this.balanceVersion;
+    const unit = this.unit();
+    if (!unit || !this.canRead()) return;
+    this.balance.set(null);
+    this.balanceState.set('loading');
+    this.balanceError.set(null);
+    try {
+      const response = await firstValueFrom(this.api.balance(unit));
+      if (version !== this.balanceVersion || this.destroyRef.destroyed) return;
+      this.balance.set(response.data.balance);
+      this.balanceState.set('success');
+    } catch (error) {
+      if (version !== this.balanceVersion || this.destroyRef.destroyed) return;
+      this.balanceState.set('error');
+      this.balanceError.set(inventoryErrorMessage(error, 'No se pudo consultar el saldo de huevos.'));
+    }
+  }
+
   async load(page = 1): Promise<void> {
-    const unit = this.unit(); const epoch = this.epoch; if (!unit || !this.canRead()) return;
-    try { const response = await firstValueFrom(this.api.movements(unit, { type: 'donation', page, per_page: 20 })); if (epoch !== this.epoch || unit !== this.unit()) return; this.records.set(response.data); this.page.set(response.meta.current_page); this.lastPage.set(response.meta.last_page); }
-    catch (error) { if (epoch === this.epoch) this.error.set(inventoryErrorMessage(error)); }
+    const version = ++this.historyVersion;
+    const unit = this.unit();
+    if (!unit || !this.canRead()) return;
+    this.historyState.set('loading');
+    this.historyError.set(null);
+    this.records.set([]);
+    this.meta.set(null);
+    const filters = this.appliedFilters();
+    try {
+      const response = await firstValueFrom(this.api.movements(unit, {
+        type: 'donation', status: filters.status || undefined,
+        date_from: filters.date_from || undefined, date_to: filters.date_to || undefined,
+        page, per_page: 20,
+      }));
+      if (version !== this.historyVersion || this.destroyRef.destroyed) return;
+      this.records.set(response.data);
+      this.meta.set(response.meta);
+      this.historyState.set(response.data.length ? 'success' : 'empty');
+    } catch (error) {
+      if (version !== this.historyVersion || this.destroyRef.destroyed) return;
+      this.historyState.set('error');
+      this.historyError.set(inventoryErrorMessage(error, 'No se pudo cargar el historial de donaciones.'));
+    }
   }
-  async save(): Promise<void> {
-    this.form.markAllAsTouched(); const unit = this.unit(); if (!unit || this.form.invalid || this.busy()) return;
-    const epoch = this.epoch; const value = this.form.getRawValue(); this.key ??= crypto.randomUUID(); this.busy.set(true); this.error.set(null);
-    try { await firstValueFrom(this.api.donate(unit, { quantity: Number(value.quantity), occurred_at: new Date(value.date).toISOString(), reason: value.reason, notes: value.notes }, this.key)); if (epoch !== this.epoch) return; this.form.reset(); this.key = null; this.notice.set('Donación registrada y descontada del stock.'); await this.load(); }
-    catch (error) { if (epoch === this.epoch) this.error.set(inventoryErrorMessage(error)); }
-    finally { if (epoch === this.epoch) this.busy.set(false); }
+
+  openFilters(trigger: HTMLElement): void {
+    if (!this.unit() || !this.canRead() || this.dialogOpen()) return;
+    this.filters.reset(this.appliedFilters());
+    this.filterError.set(null);
+    this.filterDialog.open(trigger);
+  }
+
+  clearDraftFilters(): void { this.filters.reset(EMPTY_FILTERS); this.filterError.set(null); }
+
+  async applyFilters(): Promise<void> {
+    const filters = this.filters.getRawValue();
+    if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+      this.filterError.set('La fecha desde debe ser anterior o igual a la fecha hasta.');
+      return;
+    }
+    this.filterError.set(null);
+    this.appliedFilters.set(filters);
+    this.filterDialog.close();
+    await this.load();
+  }
+
+  clearFilters(): void { this.clearDraftFilters(); void this.applyFilters(); }
+
+  openDonation(trigger: HTMLElement): void {
+    const unit = this.selectedUnit();
+    if (!unit || !this.canMove() || this.unitsState() !== 'success' || this.dialogOpen()) return;
+    this.notice.set(null);
+    this.donationDialog.open(unit, this.balanceState() === 'success' ? this.balance() : null, trigger);
+  }
+
+  onSaved(unitId: number): void {
+    if (unitId !== this.unit()) return;
+    this.notice.set('Donación registrada y descontada del stock de ' + this.selectedUnit()?.name + '.');
+    void this.loadBalance();
+    void this.load();
+  }
+
+  private invalidateUnit(): void {
+    this.balanceVersion++;
+    this.historyVersion++;
+    this.balance.set(null);
+    this.balanceState.set('idle');
+    this.balanceError.set(null);
+    this.records.set([]);
+    this.meta.set(null);
+    this.historyState.set('idle');
+    this.historyError.set(null);
   }
 }

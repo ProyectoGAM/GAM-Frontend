@@ -140,7 +140,7 @@ The app uses Preferences for the non-secret deviceMode marker and the secure-sto
 ## Filter dialogs
 
 `shared/ui/filter-dialog` supplies the presentation shell used by installations,
-flocks, stock by location, stock locations and the product catalogue. Its native dialog is centered
+flocks, stock by location, stock locations, donations and the product catalogue. Its native dialog is centered
 in the viewport on phone and desktop, with safe-area margins and a bounded height
 based on `100dvh`. Only the body scrolls; the heading, close action and footer stay
 available when more filters are added or the viewport height decreases.

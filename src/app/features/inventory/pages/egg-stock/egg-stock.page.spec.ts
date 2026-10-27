@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, Subject, throwError } from 'rxjs';
 
@@ -34,6 +34,22 @@ describe('EggStock production-unit integration', () => {
   let restoreDialog: () => void;
   beforeEach(() => { restoreDialog = stubNativeDialog(); });
   afterEach(() => { restoreDialog(); });
+  it.each([['27', 27], ['999', 12]])('opens the requested donation unit %s when it is available', async (requested, expected) => {
+    const balance = vi.fn((id: number) => of({ data: { production_unit_id: id, balance: 86 } }));
+    const fixture = TestBed.configureTestingModule({
+      imports: [EggStockPage], providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ production_unit_id: requested }) } } },
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit(12, 'Granja Norte'), productionUnit(27, 'Granja Sur')]) } },
+        { provide: EggStockApi, useValue: { balance, movements: () => of(emptyMovements) } },
+      ],
+    }).createComponent(EggStockPage);
+    await fixture.whenStable();
+    expect(fixture.componentInstance.selectedUnit()).toBe(expected);
+    expect(balance).toHaveBeenCalledWith(expected);
+    fixture.destroy();
+  });
   it('loads units from ProductionUnitsService and keeps selected IDs numeric', async () => {
     let listAllCalls = 0;
     let referenceOptionsCalls = 0;

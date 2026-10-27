@@ -41,7 +41,7 @@
       <div class="nav-items" [id]="'nav-items-' + group.id" [hidden]="!isGroupExpanded(group.id)">
         @for (item of group.items; track item.slug) {
         <a [routerLink]="itemRouteCommands(group.id, item.slug)" routerLinkActive="active" ariaCurrentWhenActive="page"
-          [routerLinkActiveOptions]="{ exact: !(group.id === 'manejo-lotes' && item.slug === 'planes') }">
+          [routerLinkActiveOptions]="{ paths: group.id === 'manejo-lotes' && item.slug === 'planes' ? 'subset' : 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }">
           {{ item.label }}
         </a>
         }

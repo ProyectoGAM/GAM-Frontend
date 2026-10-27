@@ -6,462 +6,352 @@ import { Subject, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { SuppliersApi } from '../../../suppliers-catalogs/suppliers/suppliers.api';
 import { InventoryApi } from '../../services/inventory.api';
-import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { StockLocationsApi } from '../../services/stock-locations.api';
-import { PaginatedResponse, Product, StockBalance } from '../../interfaces/inventory';
+import { AllowedStockProduct, AllowedStockProductFilters, PaginatedResponse, StockLocation } from '../../interfaces/inventory';
 import { MovementFormPage } from './movement-form.page';
 
-const product: Product = {
-  id: 4, sku: 'AL-4', name: 'Alimento', kind: 'supply', base_unit: 'kg', stock_tracked: true, status: 'active',
-};
-const doseProduct: Product = {
-  id: 5, sku: 'DOS-5', name: 'Dosis', kind: 'medicine', base_unit: 'dose', stock_tracked: true, status: 'active',
-};
-
+const product: AllowedStockProduct = { id: 4, sku: 'AL-4', name: 'Alimento', kind: 'supply', base_unit: 'kg', available_quantity: '10.000000' };
+const doseProduct: AllowedStockProduct = { id: 5, sku: 'DOS-5', name: 'Dosis', kind: 'medicine', base_unit: 'dose', available_quantity: '12.000000' };
+const rawProduct: AllowedStockProduct = { id: 6, sku: 'MP-6', name: 'Materia prima', kind: 'raw_material', base_unit: 'g', available_quantity: '1000.000000' };
 const suppliers = [
   { id: 3, name: 'Proveedor activo', status: 'active' },
   { id: 4, name: 'Proveedor activo 2', status: 'active' },
   { id: 30, name: 'Proveedor inactivo', status: 'inactive' },
-  { id: 40, name: 'Proveedor inactivo 2', status: 'inactive' },
 ];
-const stockLocations = [
+const stockLocations: StockLocation[] = [
   { id: 2, name: 'Depósito activo', system_managed: false, status: 'active' },
-  { id: 9, name: 'Depósito activo 2', system_managed: false, status: 'active' },
+  { id: 9, name: 'Ubicación sin tipo en su nombre', system_managed: true, poultry_house_id: 3, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
   { id: 20, name: 'Depósito inactivo', system_managed: false, status: 'inactive' },
-  { id: 90, name: 'Depósito inactivo 2', system_managed: false, status: 'inactive' },
 ];
-
-const paginated = <T>(data: T[], page: number, lastPage: number) => ({
-  data,
-  links: { first: null, last: null, prev: null, next: null },
+const paginated = <T>(data: T[], page = 1, lastPage = 1): PaginatedResponse<T> => ({
+  data, links: { first: null, last: null, prev: null, next: null },
   meta: { current_page: page, from: data.length ? 1 : null, last_page: lastPage, per_page: 100, to: data.length || null, total: data.length },
 });
 
-const balancesResponse = (data: StockBalance[]): PaginatedResponse<StockBalance> => ({
-  data,
-  links: { first: null, last: null, prev: null, next: null },
-  meta: { current_page: 1, from: data.length ? 1 : null, last_page: 1, per_page: 100, to: data.length || null, total: data.length },
-});
-
-const balance = (locationId: number, availableQuantity: string): StockBalance => ({
-  id: locationId,
-  product_id: 4,
-  stock_location_id: locationId,
-  product,
-  stock_location: { id: locationId, name: 'Depósito', system_managed: false, status: 'active' },
-  available_quantity: availableQuantity,
-  minimum_quantity: '0',
-  created_at: '2026-01-01',
-  updated_at: '2026-01-01',
-});
-
-describe('Inventory movement adjustment comparison', () => {
+describe('Location-first inventory movements', () => {
   let fixture: ComponentFixture<MovementFormPage>;
-  let requests: Subject<PaginatedResponse<StockBalance>>[];
+  let allowedProducts: ReturnType<typeof vi.fn>;
   let supplierList: ReturnType<typeof vi.fn>;
-  let stockLocationList: ReturnType<typeof vi.fn>;
-  let receiveMovement: ReturnType<typeof vi.fn>;
-  let adjustMovement: ReturnType<typeof vi.fn>;
-  let transferMovement: ReturnType<typeof vi.fn>;
+  let locationList: ReturnType<typeof vi.fn>;
+  let receive: ReturnType<typeof vi.fn>;
+  let issue: ReturnType<typeof vi.fn>;
+  let loss: ReturnType<typeof vi.fn>;
+  let adjustment: ReturnType<typeof vi.fn>;
+  let transfer: ReturnType<typeof vi.fn>;
 
-  const createFixture = async (permissions = ['inventory.adjust']): Promise<void> => {
-    requests = [];
-    supplierList = vi.fn().mockImplementation((filters: { status?: string }, page: number) => {
-      const matching = filters.status === 'active' ? suppliers.filter((item) => item.status === 'active') : suppliers;
+  const settle = async (): Promise<void> => {
+    await fixture.whenStable();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.componentInstance.referencesState()).not.toBe('loading');
+      for (const state of fixture.componentInstance.productStates().values()) expect(state.status).not.toBe('loading');
+    });
+  };
+  const createFixture = async (permissions = ['inventory.move', 'inventory.adjust']): Promise<void> => {
+    allowedProducts = vi.fn((_filters: AllowedStockProductFilters) => of(paginated([product, doseProduct])));
+    supplierList = vi.fn((filters: { status?: string }, page: number) => {
+      const matching = suppliers.filter((item) => item.status === filters.status);
       return of(paginated(matching.slice(page - 1, page), page, matching.length));
     });
-    stockLocationList = vi.fn().mockImplementation((filters: { status?: string; page?: number }) => {
+    locationList = vi.fn((filters: { status?: string; page?: number }) => {
+      const matching = stockLocations.filter((item) => item.status === filters.status);
       const page = filters.page ?? 1;
-      const matching = filters.status === 'active' ? stockLocations.filter((item) => item.status === 'active') : stockLocations;
       return of(paginated(matching.slice(page - 1, page), page, matching.length));
     });
-    receiveMovement = vi.fn().mockReturnValue(of({ data: {} }));
-    adjustMovement = vi.fn().mockReturnValue(of({ data: {} }));
-    transferMovement = vi.fn().mockReturnValue(of({ data: {} }));
-    const api = {
-      receive: receiveMovement,
-      adjustment: adjustMovement,
-      transfer: transferMovement,
-      balances: () => {
-        const request = new Subject<PaginatedResponse<StockBalance>>();
-        requests.push(request);
-        return request.asObservable();
-      },
-    };
-    await TestBed.configureTestingModule({
-      imports: [MovementFormPage],
-      providers: [
-        provideRouter([]),
-        { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
-        { provide: InventoryApi, useValue: api },
-        { provide: InventoryReferenceApi, useValue: {
-          activeProducts: () => of({ data: [product, doseProduct], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: 1, last_page: 1, per_page: 100, to: 2, total: 2 } }),
-        } },
-        { provide: SuppliersApi, useValue: { list: supplierList } },
-        { provide: StockLocationsApi, useValue: { list: stockLocationList } },
-      ],
-    }).compileComponents();
+    receive = vi.fn(() => of({ data: {} })); issue = vi.fn(() => of({ data: {} }));
+    loss = vi.fn(() => of({ data: {} })); adjustment = vi.fn(() => of({ data: {} })); transfer = vi.fn(() => of({ data: {} }));
+    await TestBed.configureTestingModule({ imports: [MovementFormPage], providers: [
+      provideRouter([]),
+      { provide: AuthStore, useValue: { isAdmin: () => false, user: () => ({ permissions }) } },
+      { provide: InventoryApi, useValue: { allowedProducts, receive, issue, loss, adjustment, transfer } },
+      { provide: SuppliersApi, useValue: { list: supplierList } },
+      { provide: StockLocationsApi, useValue: { list: locationList } },
+    ] }).compileComponents();
     fixture = TestBed.createComponent(MovementFormPage);
     fixture.detectChanges();
-    await fixture.whenStable();
-    await fixture.componentInstance.loadReferences();
+    await settle();
+  };
+  const chooseSource = async (id = '2'): Promise<void> => {
+    fixture.componentInstance.lines.at(0).controls.stock_location_id.setValue(id);
+    await settle();
+  };
+  const completeReceipt = async (quantity = '1'): Promise<void> => {
+    await chooseSource();
+    const page = fixture.componentInstance;
+    page.form.controls.supplier_id.setValue('3');
+    page.lines.at(0).patchValue({ product_id: '4', quantity });
     fixture.detectChanges();
   };
 
-  it('requests active supplier and location pages and displays only the returned active options', async () => {
-    await createFixture(['inventory.move']);
-    fixture.detectChanges();
+  afterEach(() => fixture?.destroy());
 
-    expect(supplierList).toHaveBeenCalledWith({ status: 'active', per_page: 100 }, 1);
+  it('loads active locations and suppliers across pages without requesting products before a location is chosen', async () => {
+    await createFixture();
     expect(supplierList).toHaveBeenCalledWith({ status: 'active', per_page: 100 }, 2);
-    expect(stockLocationList).toHaveBeenCalledWith({ status: 'active', per_page: 100, page: 1 });
-    expect(stockLocationList).toHaveBeenCalledWith({ status: 'active', per_page: 100, page: 2 });
-
-    const supplierLabels = [...fixture.nativeElement.querySelectorAll('#supplier option') as NodeListOf<HTMLOptionElement>]
-      .map((option) => option.textContent?.trim());
-    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
-    productInput.focus();
-    fixture.detectChanges();
-    const productLabels = [...fixture.nativeElement.querySelectorAll('#product-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
-      .map((option) => option.textContent?.trim());
-    const locationInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
-    locationInput.focus();
-    fixture.detectChanges();
-    const locationLabels = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
-      .map((option) => option.textContent?.trim());
+    expect(locationList).toHaveBeenCalledWith({ status: 'active', per_page: 100, page: 2 });
+    expect(allowedProducts).not.toHaveBeenCalled();
+    expect((fixture.nativeElement.querySelector('#product-0') as HTMLInputElement).disabled).toBe(true);
+    const inputs = [...fixture.nativeElement.querySelectorAll('.line input') as NodeListOf<HTMLInputElement>];
+    expect(inputs[0].id).toBe('location-0');
+    expect(inputs[1].id).toBe('product-0');
+    const supplierLabels = [...fixture.nativeElement.querySelectorAll('#supplier option') as NodeListOf<HTMLOptionElement>].map((item) => item.textContent?.trim());
     expect(supplierLabels).toContain('Proveedor activo');
     expect(supplierLabels).not.toContain('Proveedor inactivo');
-    expect(productLabels).toContain('AL-4 — Alimento');
-    expect(productLabels).toContain('DOS-5 — Dosis');
-    expect(locationLabels).toContain('Depósito activo');
-    expect(locationLabels).not.toContain('Depósito inactivo');
-    fixture.destroy();
   });
 
-  it('uses the loaded active locations for every operation and both transfer selects', async () => {
-    await createFixture(['inventory.move', 'inventory.adjust']);
-    const page = fixture.componentInstance;
-
-    for (const operation of ['receipt', 'issue', 'loss', 'adjustment', 'transfer'] as const) {
-      page.setOperation(operation);
-      fixture.detectChanges();
-      const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
-      sourceInput.focus();
-      fixture.detectChanges();
-      const sourceOptions = [...fixture.nativeElement.querySelectorAll('#location-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
-        .map((option) => option.textContent?.trim());
-      expect(sourceOptions).toEqual(['Depósito activo', 'Depósito activo 2']);
-      if (operation === 'transfer') {
-        const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
-        destinationInput.focus();
-        fixture.detectChanges();
-        const destinationOptions = [...fixture.nativeElement.querySelectorAll('#destination-0-listbox [role="option"]') as NodeListOf<HTMLElement>]
-          .map((option) => option.textContent?.trim());
-        expect(destinationOptions).toEqual(sourceOptions);
-      }
-    }
-    fixture.destroy();
-  });
-
-  it('keeps string IDs in the controls and builds the existing transfer payload', async () => {
-    await createFixture(['inventory.move', 'inventory.adjust']);
-    const page = fixture.componentInstance;
-    const line = page.lines.at(0);
-
-    const productInput = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
-    productInput.focus();
+  it('uses the new endpoint response as the product authority instead of inferring rules from location names or links', async () => {
+    await createFixture();
+    allowedProducts.mockReturnValue(of(paginated([rawProduct])));
+    await chooseSource('9');
+    expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 9, operation: 'receipt', per_page: 100, page: 1 });
+    expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).options).toEqual([{ value: 6, label: 'MP-6 — Materia prima' }]);
+    expect(fixture.nativeElement.querySelector('#location-context-0')?.textContent).toBe('Planta de ración · El Ombú');
+    allowedProducts.mockReturnValue(of(paginated([doseProduct])));
+    await fixture.componentInstance.loadProductsFor(fixture.componentInstance.lines.at(0));
     fixture.detectChanges();
+    expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).products).toEqual([doseProduct]);
+  });
+
+  it('selects product IDs through the searchable selector after the location has enabled it', async () => {
+    await createFixture(); await chooseSource();
+    const input = fixture.nativeElement.querySelector('#product-0') as HTMLInputElement;
+    expect(input.disabled).toBe(false);
+    input.focus(); fixture.detectChanges();
     (fixture.nativeElement.querySelector('#product-0-listbox [role="option"]') as HTMLElement).click();
     fixture.detectChanges();
-    expect(line.controls.product_id.value).toBe('4');
+    expect(fixture.componentInstance.lines.at(0).controls.product_id.value).toBe('4');
+    expect(fixture.nativeElement.querySelector('.quantity-unit')?.textContent).toBe('kg');
+  });
 
-    page.setOperation('transfer');
-    fixture.detectChanges();
-    const sourceInput = fixture.nativeElement.querySelector('#location-0') as HTMLInputElement;
-    sourceInput.focus();
-    fixture.detectChanges();
-    fixture.nativeElement.querySelector('#location-0-listbox [role="option"]')?.dispatchEvent(
-      new MouseEvent('click', { bubbles: true }),
-    );
-    fixture.detectChanges();
+  it('collects every scoped page before enabling the complete product selector', async () => {
+    await createFixture();
+    allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated(filters.page === 1 ? [product] : [doseProduct], filters.page, 2)));
+    await chooseSource();
+    expect(allowedProducts).toHaveBeenLastCalledWith({ stock_location_id: 2, operation: 'receipt', per_page: 100, page: 2 });
+    expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).products).toEqual([product, doseProduct]);
+  });
+
+  it('requeries on operation changes and losses show only the server list for that location', async () => {
+    await createFixture(); await completeReceipt();
+    allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated(filters.operation === 'loss' ? [doseProduct] : [product, doseProduct])));
+    const page = fixture.componentInstance;
+    page.setOperation('loss'); await settle();
+    const line = page.lines.at(0);
+    expect(allowedProducts).toHaveBeenLastCalledWith({ stock_location_id: 2, operation: 'loss', per_page: 100, page: 1 });
+    expect(page.productStateFor(line).products).toEqual([doseProduct]);
+    expect(line.controls.product_id.value).toBe('');
+    expect(line.controls.quantity.value).toBe('');
+    page.form.controls.supplier_id.setValue('');
+    expect(page.form.controls.supplier_id.valid).toBe(true);
+    expect(fixture.nativeElement.querySelector('#supplier')).toBeNull();
+  });
+
+  it('explains empty loss stock and keeps the selector blocked', async () => {
+    await createFixture();
+    allowedProducts.mockReturnValue(of(paginated([])));
+    fixture.componentInstance.setOperation('loss'); await chooseSource();
+    const line = fixture.componentInstance.lines.at(0);
+    expect(fixture.componentInstance.productStateFor(line).status).toBe('empty');
+    expect(fixture.nativeElement.querySelector('#product-context-0')?.textContent).toContain('stock positivo');
+    expect((fixture.nativeElement.querySelector('#product-0') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('preserves a compatible selection but clears product and quantities when the next location rejects it', async () => {
+    await createFixture(); await completeReceipt('12,500000');
+    await chooseSource('9');
+    const line = fixture.componentInstance.lines.at(0);
+    expect(line.controls.product_id.value).toBe('4'); expect(line.controls.quantity.value).toBe('12,500000');
+    allowedProducts.mockReturnValue(of(paginated([doseProduct])));
+    await chooseSource('2');
+    expect(line.controls.product_id.value).toBe(''); expect(line.controls.quantity.value).toBe('');
+  });
+
+  it('clears the dependent fields immediately when the source is cleared', async () => {
+    await createFixture(); await completeReceipt(); await chooseSource('');
+    const page = fixture.componentInstance; const line = page.lines.at(0);
+    expect(line.controls.product_id.value).toBe(''); expect(line.controls.quantity.value).toBe('');
+    expect(page.productStateFor(line).status).toBe('idle');
+    expect((fixture.nativeElement.querySelector('#product-0') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('ignores late responses from previous locations', async () => {
+    await createFixture();
+    const first = new Subject<PaginatedResponse<AllowedStockProduct>>();
+    const second = new Subject<PaginatedResponse<AllowedStockProduct>>();
+    allowedProducts.mockReturnValueOnce(first.asObservable()).mockReturnValueOnce(second.asObservable());
+    const page = fixture.componentInstance; const line = page.lines.at(0);
+    line.controls.stock_location_id.setValue('2'); line.controls.stock_location_id.setValue('9');
+    second.next(paginated([rawProduct])); await settle();
+    first.next(paginated([doseProduct])); await settle();
+    expect(page.productStateFor(line).products).toEqual([rawProduct]);
+  });
+
+  it('ignores an old operation response and stops its remaining pagination', async () => {
+    await createFixture();
+    const previous = new Subject<PaginatedResponse<AllowedStockProduct>>();
+    allowedProducts.mockReturnValueOnce(previous.asObservable()).mockReturnValue(of(paginated([doseProduct])));
+    const page = fixture.componentInstance; const line = page.lines.at(0);
+    line.controls.stock_location_id.setValue('2'); page.setOperation('loss'); await settle();
+    previous.next(paginated([product], 1, 3)); await settle();
+    expect(page.productStateFor(line).products).toEqual([doseProduct]);
+    expect(allowedProducts.mock.calls.some(([filters]) => filters.operation === 'receipt' && filters.page === 2)).toBe(false);
+  });
+
+  it('does not restore options after a pending line is removed', async () => {
+    await createFixture(); const page = fixture.componentInstance;
+    page.addLine(); const removed = page.lines.at(1);
+    const pending = new Subject<PaginatedResponse<AllowedStockProduct>>();
+    allowedProducts.mockReturnValue(pending.asObservable());
+    removed.controls.stock_location_id.setValue('2'); page.removeLine(1);
+    pending.next(paginated([product])); await settle();
+    expect(page.productStates().has(removed)).toBe(false); expect(page.lines.length).toBe(1);
+    expect(document.activeElement?.id).toBe('location-0');
+  });
+
+  it('keeps errors local and retries without falling back to global catalogue products', async () => {
+    await createFixture();
+    allowedProducts.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
+    await chooseSource(); const page = fixture.componentInstance; const line = page.lines.at(0);
+    expect(page.productStateFor(line).status).toBe('error'); expect(page.productStateFor(line).products).toEqual([]);
+    expect((fixture.nativeElement.querySelector('#product-0') as HTMLInputElement).disabled).toBe(true);
+    allowedProducts.mockReturnValue(of(paginated([doseProduct])));
+    (fixture.nativeElement.querySelector('.product-field button') as HTMLButtonElement).click(); await settle();
+    expect(page.productStateFor(line).products).toEqual([doseProduct]);
     expect(line.controls.stock_location_id.value).toBe('2');
+  });
 
-    const destinationInput = fixture.nativeElement.querySelector('#destination-0') as HTMLInputElement;
-    destinationInput.focus();
-    fixture.detectChanges();
-    (fixture.nativeElement.querySelector('#destination-0-listbox [role="option"]:nth-child(2)') as HTMLElement).click();
-    fixture.detectChanges();
-    expect(line.controls.to_stock_location_id.value).toBe('9');
+  it('blocks sending a previously selected product while its new compatibility is loading', async () => {
+    await createFixture(); await completeReceipt();
+    const pending = new Subject<PaginatedResponse<AllowedStockProduct>>(); allowedProducts.mockReturnValue(pending.asObservable());
+    const page = fixture.componentInstance; page.lines.at(0).controls.stock_location_id.setValue('9');
+    await page.submit(); fixture.detectChanges();
+    expect(receive).not.toHaveBeenCalled(); expect(page.error()).toContain('Espera');
+    pending.next(paginated([product])); await settle();
+  });
 
-    line.controls.quantity.setValue('1');
+  it('rejects a product ID injected into the form but absent from the current endpoint response', async () => {
+    await createFixture(); await completeReceipt();
+    const page = fixture.componentInstance; page.lines.at(0).controls.product_id.setValue('999');
+    await page.submit(); expect(receive).not.toHaveBeenCalled(); expect(page.error()).toContain('permitidos');
+  });
+
+  it('requires both transfer locations, intersects their paginated lists and uses the source balance', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('transfer');
+    await chooseSource(); expect(allowedProducts).not.toHaveBeenCalled();
+    allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated(filters.stock_location_id === 2 ? [product, doseProduct] : [{ ...doseProduct, available_quantity: '300.000000' }, rawProduct])));
+    const line = page.lines.at(0); line.controls.to_stock_location_id.setValue('9'); await settle();
+    expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 2, operation: 'transfer', per_page: 100, page: 1 });
+    expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 9, operation: 'transfer', per_page: 100, page: 1 });
+    expect(page.productStateFor(line).products).toEqual([doseProduct]);
+    line.patchValue({ product_id: '5', quantity: '2' });
+    expect(page.productHintFor(line)).toContain('12 dosis');
     await page.submit();
-    expect(transferMovement.mock.calls[0][0].lines[0]).toEqual({
-      product_id: 4,
-      from_stock_location_id: 2,
-      to_stock_location_id: 9,
-      quantity: '1',
-    });
-    fixture.destroy();
+    expect(transfer.mock.calls[0][0].lines).toEqual([{ product_id: 5, from_stock_location_id: 2, to_stock_location_id: 9, quantity: '2' }]);
   });
 
-  it('keeps a backend submit error visible in the movement form', async () => {
-    await createFixture(['inventory.move']);
-    receiveMovement.mockReturnValue(throwError(() => new HttpErrorResponse({
-      status: 409,
-      error: { message: 'La ubicación está inactiva.' },
-    })));
-    const page = fixture.componentInstance;
-    page.form.controls.supplier_id.setValue('3');
-    const line = page.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    line.controls.quantity.setValue('1');
-
-    await page.submit();
-    fixture.detectChanges();
-
-    expect(page.mutation()).toBe('error');
-    expect(page.error()).toBe('La ubicación está inactiva.');
-    expect(fixture.nativeElement.querySelector('.feedback.error')?.textContent).toContain('La ubicación está inactiva.');
-    fixture.destroy();
+  it('clears an incompatible transfer selection when only the destination changes', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('transfer');
+    const line = page.lines.at(0); line.controls.stock_location_id.setValue('2'); line.controls.to_stock_location_id.setValue('9'); await settle();
+    line.patchValue({ product_id: '4', quantity: '1' });
+    allowedProducts.mockReturnValue(of(paginated([]))); line.controls.to_stock_location_id.setValue('2'); await settle();
+    expect(line.controls.product_id.value).toBe(''); expect(page.productHintFor(line)).toContain('distintas');
+    await page.submit(); expect(transfer).not.toHaveBeenCalled();
   });
 
-  it('shows the exact counted-minus-registered difference with the selected product unit', async () => {
-    await createFixture();
-    const line = fixture.componentInstance.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    expect(requests).toHaveLength(1);
-
-    requests[0].next(balancesResponse([balance(2, '9007199254740993.000001')]));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    line.controls.counted_quantity.setValue('9007199254740993,000003');
-
-    expect(fixture.componentInstance.registeredQuantityFor(line)).toBe('9.007.199.254.740.993,000001 kg');
-    expect(fixture.componentInstance.differenceFor(line)).toBe('+0,000002 kg');
-    fixture.destroy();
+  it('shows an empty transfer intersection rather than products accepted by only one endpoint', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('transfer');
+    allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated(filters.stock_location_id === 2 ? [product] : [rawProduct])));
+    const line = page.lines.at(0); line.controls.stock_location_id.setValue('2'); line.controls.to_stock_location_id.setValue('9'); await settle();
+    expect(page.productStateFor(line).status).toBe('empty'); expect(page.productStateFor(line).products).toEqual([]);
   });
 
-  it('ignores a stale balance response after the selected location changes', async () => {
-    await createFixture();
-    const line = fixture.componentInstance.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    line.controls.stock_location_id.setValue('9');
-    expect(requests).toHaveLength(2);
-
-    requests[0].next(balancesResponse([balance(2, '5')]));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.balanceStateFor(line).status).toBe('loading');
-
-    requests[1].next(balancesResponse([balance(9, '8')]));
-    await fixture.whenStable();
-    expect(fixture.componentInstance.balanceStateFor(line).status).toBe('ready');
-    expect(fixture.componentInstance.registeredQuantityFor(line)).toBe('8 kg');
-    fixture.destroy();
+  it('renders exact counted-minus-registered differences from the endpoint without a separate balance request', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('adjustment');
+    allowedProducts.mockReturnValue(of(paginated([{ ...product, available_quantity: '9007199254740993.000001' }])));
+    await chooseSource(); const line = page.lines.at(0); line.controls.product_id.setValue('4');
+    line.controls.counted_quantity.setValue('9007199254740993,000003'); fixture.detectChanges();
+    expect(page.registeredQuantityFor(line)).toBe('9.007.199.254.740.993,000001 kg');
+    expect(page.differenceFor(line)).toBe('+0,000002 kg');
+    expect(fixture.nativeElement.querySelector('.adjustment-summary')?.textContent).toContain('+0,000002 kg');
   });
 
-  it('shows the balance as unavailable when the filtered response has no matching record', async () => {
-    await createFixture();
-    const line = fixture.componentInstance.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    requests[0].next(balancesResponse([]));
-    await fixture.whenStable();
-
-    expect(fixture.componentInstance.balanceStateFor(line).status).toBe('unavailable');
-    fixture.destroy();
+  it('supports an explicit zero count, signed differences and the existing counted quantity payload', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('adjustment'); await chooseSource();
+    const line = page.lines.at(0); line.controls.product_id.setValue('4'); page.form.controls.reason.setValue('Conteo físico');
+    for (const [count, difference] of [['20', '+10 kg'], ['10', '0 kg'], ['0', '-10 kg']]) {
+      line.controls.counted_quantity.setValue(count); fixture.detectChanges();
+      expect(page.differenceFor(line)).toBe(difference);
+    }
+    await page.submit(); expect(adjustment.mock.calls[0][0].lines[0].counted_quantity).toBe('0');
   });
 
-  it('refreshes quantity validation and keypad mode for discrete products in movement and adjustment operations', async () => {
-    await createFixture(['inventory.adjust', 'inventory.move']);
-    const page = fixture.componentInstance;
-    const line = page.lines.at(0);
-    line.controls.product_id.setValue('4');
-    page.setOperation('receipt');
-    line.controls.quantity.setValue('1,5');
-    expect(line.controls.quantity.valid).toBe(true);
-    expect(page.quantityInputModeFor(line)).toBe('decimal');
-
-    line.controls.product_id.setValue('5');
-    expect(line.controls.quantity.invalid).toBe(true);
-    expect(page.quantityInputModeFor(line)).toBe('numeric');
-    line.controls.quantity.setValue('2');
-    expect(line.controls.quantity.valid).toBe(true);
-
-    page.setOperation('adjustment');
-    line.controls.counted_quantity.setValue('2,5');
-    expect(line.controls.counted_quantity.invalid).toBe(true);
-    line.controls.counted_quantity.setValue('2');
-    expect(line.controls.counted_quantity.valid).toBe(true);
-    fixture.destroy();
+  it('accepts a zero stock snapshot for a permitted product without an existing stock account', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('adjustment');
+    allowedProducts.mockReturnValue(of(paginated([{ ...product, available_quantity: '0.000000' }])));
+    await chooseSource(); const line = page.lines.at(0); line.controls.product_id.setValue('4'); line.controls.counted_quantity.setValue('2');
+    expect(page.registeredQuantityFor(line)).toBe('0 kg'); expect(page.differenceFor(line)).toBe('+2 kg');
   });
 
-  it('keeps the entered decimal precision when the form builds a movement payload', async () => {
-    await createFixture(['inventory.move']);
-    const page = fixture.componentInstance;
-    page.form.controls.supplier_id.setValue('3');
-    const line = page.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    line.controls.quantity.setValue('12,500000');
-    expect(page.operation()).toBe('receipt');
-    expect(page.referencesState()).toBe('success');
-    expect(page.form.valid).toBe(true);
-
-    await page.submit();
-
-    expect(receiveMovement).toHaveBeenCalledTimes(1);
-    expect(receiveMovement.mock.calls[0][0].lines[0].quantity).toBe('12.500000');
-    fixture.destroy();
-  });
-
-  it('renders the registered stock and positive, negative, and zero adjustment differences', async () => {
-    await createFixture();
-    const page = fixture.componentInstance;
-    const line = page.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    requests[0].next(balancesResponse([balance(2, '10')]));
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const summaryText = (): string => fixture.nativeElement.querySelector('.adjustment-summary')?.textContent ?? '';
-    expect(summaryText()).toContain('Resumen del ajuste');
-    expect(summaryText()).toContain('Stock registrado actualmente');
-    expect(summaryText()).toContain('10 kg');
-    expect(summaryText()).toContain('Ingresa una cantidad válida para ver la diferencia.');
-
-    const input = fixture.nativeElement.querySelector('#counted-0') as HTMLInputElement;
-    const enterCount = async (value: string): Promise<void> => {
-      input.value = value;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      await fixture.whenStable();
-      fixture.detectChanges();
-    };
-    await enterCount('20');
-    expect(summaryText()).toContain('+10 kg');
-
-    await enterCount('0');
-    expect(page.differenceFor(line)).toBe('-10 kg');
-    expect(summaryText()).toContain('-10 kg');
-
-    await enterCount('10');
-    expect(summaryText()).toContain('0 kg');
-    fixture.destroy();
-  });
-
-  it('accepts an explicitly entered zero count and preserves it in the adjustment payload', async () => {
-    await createFixture();
-    const page = fixture.componentInstance;
-    const line = page.lines.at(0);
-    line.controls.product_id.setValue('4');
-    line.controls.stock_location_id.setValue('2');
-    requests[0].next(balancesResponse([balance(2, '10')]));
-    await fixture.whenStable();
-    line.controls.counted_quantity.setValue('0');
-    page.form.controls.reason.setValue('Conteo físico');
-
-    expect(line.controls.counted_quantity.valid).toBe(true);
-    expect(page.form.valid).toBe(true);
-    expect(page.lines.valid).toBe(true);
-
-    await page.submit();
-
-    expect(adjustMovement).toHaveBeenCalledTimes(1);
-    expect(adjustMovement.mock.calls[0][0].lines[0]).toEqual({
-      product_id: 4,
-      stock_location_id: 2,
-      counted_quantity: '0',
-    });
-    fixture.destroy();
-  });
-
-  it('keeps the adjustment summary and difference independent for multiple lines', async () => {
-    await createFixture();
-    const page = fixture.componentInstance;
-    page.addLine();
-    const firstLine = page.lines.at(0);
-    const secondLine = page.lines.at(1);
-    firstLine.controls.product_id.setValue('4');
-    firstLine.controls.stock_location_id.setValue('2');
-    secondLine.controls.product_id.setValue('4');
-    secondLine.controls.stock_location_id.setValue('9');
-
-    expect(requests).toHaveLength(2);
-    requests[0].next(balancesResponse([balance(2, '3')]));
-    requests[1].next(balancesResponse([balance(9, '8')]));
-    await fixture.whenStable();
-    firstLine.controls.counted_quantity.setValue('4');
-    secondLine.controls.counted_quantity.setValue('4');
-    fixture.detectChanges();
-
+  it('keeps multiple lines and their local stock snapshots independent', async () => {
+    await createFixture(); const page = fixture.componentInstance; page.setOperation('adjustment'); page.addLine();
+    allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated([{ ...product, available_quantity: filters.stock_location_id === 2 ? '3.000000' : '8.000000' }])));
+    page.lines.at(0).controls.stock_location_id.setValue('2'); page.lines.at(1).controls.stock_location_id.setValue('9'); await settle();
+    page.lines.controls.forEach((line) => line.patchValue({ product_id: '4', counted_quantity: '4' })); fixture.detectChanges();
     const summaries = [...fixture.nativeElement.querySelectorAll('.adjustment-summary') as NodeListOf<HTMLElement>];
-    expect(summaries).toHaveLength(2);
-    expect(summaries[0].textContent).toContain('+1 kg');
-    expect(summaries[1].textContent).toContain('-4 kg');
-    fixture.destroy();
+    expect(summaries[0].textContent).toContain('+1 kg'); expect(summaries[1].textContent).toContain('-4 kg');
   });
 
-  it('does not reveal an initially invalid quantity after focus and blur without editing', async () => {
-    await createFixture(['inventory.move']);
-    await fixture.componentInstance.loadReferences();
-    fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
-    const quantity = fixture.componentInstance.lines.at(0).controls.quantity;
-
-    input.focus();
-    input.blur();
-    fixture.detectChanges();
-
-    expect(quantity.touched).toBe(true);
-    expect(quantity.pristine).toBe(true);
-    expect(fixture.nativeElement.querySelector('#quantity-error-0')).toBeNull();
-    expect(input.getAttribute('aria-invalid')).toBeNull();
-    expect(input.getAttribute('aria-describedby')).toBeNull();
-    fixture.destroy();
+  it('updates the keypad and validators for discrete units while preserving decimal payload precision', async () => {
+    await createFixture(); await completeReceipt('12,500000'); const page = fixture.componentInstance;
+    await page.submit(); expect(receive.mock.calls[0][0].lines[0].quantity).toBe('12.500000');
+    await chooseSource(); const current = page.lines.at(0); current.controls.product_id.setValue('5'); current.controls.quantity.setValue('1,5');
+    expect(page.quantityInputModeFor(current)).toBe('numeric'); expect(current.controls.quantity.invalid).toBe(true);
+    current.controls.quantity.setValue('2'); expect(current.controls.quantity.valid).toBe(true);
   });
 
-  it('reveals an edited invalid quantity and keeps ARIA state aligned with the message', async () => {
-    await createFixture(['inventory.move']);
-    await fixture.componentInstance.loadReferences();
-    fixture.detectChanges();
+  it('keeps supplier and reason requirements and the existing submit-error presentation', async () => {
+    await createFixture(); await chooseSource(); const page = fixture.componentInstance; const line = page.lines.at(0);
+    line.patchValue({ product_id: '4', quantity: '1' }); await page.submit(); fixture.detectChanges();
+    expect(receive).not.toHaveBeenCalled(); expect(fixture.nativeElement.querySelector('#supplier-error')).not.toBeNull();
+    page.form.controls.supplier_id.setValue('3'); receive.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'La ubicación está inactiva.' } })));
+    await page.submit(); fixture.detectChanges(); expect(page.error()).toBe('La ubicación está inactiva.');
+    page.setOperation('loss'); await settle(); page.form.controls.reason.setValue('   '); await page.submit(); fixture.detectChanges();
+    expect(loss).not.toHaveBeenCalled(); expect(fixture.nativeElement.querySelector('#reason-error')).not.toBeNull();
+  });
+
+  it('keeps inline errors and ARIA descriptions aligned without showing pristine quantity errors', async () => {
+    await createFixture(); await chooseSource(); const page = fixture.componentInstance; const line = page.lines.at(0); line.controls.product_id.setValue('4'); fixture.detectChanges();
     const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
-    const quantity = fixture.componentInstance.lines.at(0).controls.quantity;
-
-    input.value = '0';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus();
-    input.blur();
-    fixture.detectChanges();
-
-    expect(quantity.dirty).toBe(true);
-    expect(quantity.invalid).toBe(true);
+    input.focus(); input.blur(); fixture.detectChanges(); expect(input.getAttribute('aria-invalid')).toBeNull();
+    input.value = '0'; input.dispatchEvent(new Event('input', { bubbles: true })); input.blur(); fixture.detectChanges();
+    expect(input.getAttribute('aria-invalid')).toBe('true'); expect(input.getAttribute('aria-describedby')).toBe('quantity-error-0');
     expect(fixture.nativeElement.querySelector('#quantity-error-0')).not.toBeNull();
-    expect(input.getAttribute('aria-invalid')).toBe('true');
-    expect(input.getAttribute('aria-describedby')).toBe('quantity-error-0');
-    fixture.destroy();
   });
 
-  it('reveals invalid fields after submit and resets that visibility when changing operation', async () => {
-    await createFixture(['inventory.move']);
-    await fixture.componentInstance.loadReferences();
-    fixture.detectChanges();
-    const page = fixture.componentInstance;
-    const input = fixture.nativeElement.querySelector('#quantity-0') as HTMLInputElement;
+  it('limits operation selectors to permissions and keeps mobile and desktop selections synchronized', async () => {
+    await createFixture(['inventory.adjust']); const page = fixture.componentInstance;
+    const selector = fixture.nativeElement.querySelector('#movement-operation') as HTMLSelectElement;
+    expect([...selector.options].map((option) => option.value)).toEqual(['loss', 'adjustment']); expect(selector.value).toBe('adjustment');
+    page.selectOperation('receipt'); expect(page.operation()).toBe('adjustment');
+    selector.value = 'loss'; selector.dispatchEvent(new Event('change')); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.operation-tabs [aria-pressed="true"]')?.textContent).toContain('Pérdida');
+  });
 
-    await page.submit();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#quantity-error-0')).not.toBeNull();
-    expect(input.getAttribute('aria-invalid')).toBe('true');
-    expect(input.getAttribute('aria-describedby')).toBe('quantity-error-0');
+  it('locks editing, line and operation changes, return navigation and duplicate submission while saving', async () => {
+    await createFixture(); await completeReceipt(); const pending = new Subject<{ data: object }>(); receive.mockReturnValue(pending.asObservable());
+    const page = fixture.componentInstance; const submission = page.submit(); fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('.form-fields') as HTMLFieldSetElement).disabled).toBe(true);
+    expect((fixture.nativeElement.querySelector('#product-0') as HTMLInputElement).disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('.back').getAttribute('href')).toBeNull();
+    page.addLine(); page.removeLine(0); page.setOperation('loss'); await page.submit();
+    expect(page.lines.length).toBe(1); expect(page.operation()).toBe('receipt'); expect(receive).toHaveBeenCalledTimes(1);
+    pending.error(new HttpErrorResponse({ status: 503 })); await submission; fixture.detectChanges();
+    expect(page.lines.at(0).controls.quantity.value).toBe('1'); expect(page.mutation()).toBe('error');
+  });
 
-    page.setOperation('issue');
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#quantity-error-0')).toBeNull();
-    expect(input.getAttribute('aria-invalid')).toBeNull();
-    expect(input.getAttribute('aria-describedby')).toBeNull();
-    fixture.destroy();
+  it('retains the idempotency key for an uncertain retry of the same operation', async () => {
+    await createFixture(); await completeReceipt(); receive.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 503 })));
+    const page = fixture.componentInstance; await page.submit(); const key = receive.mock.calls[0][1];
+    page.setOperation('receipt'); await page.submit(); expect(receive.mock.calls[1][1]).toBe(key);
   });
 });

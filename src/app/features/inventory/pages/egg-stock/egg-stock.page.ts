@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, merge } from 'rxjs';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -37,6 +37,7 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-UY', { timeStyle: 'short' });
 export class EggStockPage {
   readonly auth = inject(AuthStore);
   private readonly api = inject(EggStockApi);
+  private readonly requestedUnit = inject(ActivatedRoute).snapshot.queryParamMap.get('production_unit_id');
   private readonly productionUnitsApi = inject(ProductionUnitsService);
   private readonly destroyRef = inject(DestroyRef);
   readonly selectedUnit = signal<number | null>(null);
@@ -97,7 +98,7 @@ export class EggStockPage {
       const units = await firstValueFrom(this.productionUnitsApi.listAll());
       this.productionUnits.set(units);
       this.productionUnitsState.set(units.length ? 'success' : 'empty');
-      const first = units[0]?.id;
+      const first = units.find((unit) => String(unit.id) === this.requestedUnit)?.id ?? units[0]?.id;
       if (this.selectedUnit() === null && first !== undefined) {
         this.selectedUnit.set(first);
         await this.load();
