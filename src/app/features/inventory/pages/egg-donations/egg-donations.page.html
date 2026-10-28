@@ -1,18 +1,24 @@
 <section class="catalog-page donations-page">
-  <header class="page-heading"><div><p class="eyebrow">INVENTARIO</p><h1>Donaciones de huevos</h1><p class="lead">Registra entregas y consulta su historial por unidad productiva.</p></div>@if (canMove()) { <button #newDonation class="button primary" type="button" [disabled]="!unit() || unitsState() !== 'success' || dialogOpen()" (click)="openDonation(newDonation)"><ion-icon name="add-outline" aria-hidden="true" />Nueva donación</button> }</header>
+  <header class="page-heading"><div><p class="eyebrow">INVENTARIO</p><h1>Donaciones de huevos</h1><p class="lead">Registra entregas y consulta su historial por unidad productiva.</p></div>@if (canMove()) { <button #newDonation class="button primary" type="button" [disabled]="!canDonate() || dialogOpen()" aria-describedby="donation-unit-hint" (click)="openDonation(newDonation)"><ion-icon name="add-outline" aria-hidden="true" />Nueva donación</button> }</header>
 
   @if (!canRead() && !canMove()) { <div class="state">Tu usuario no tiene permiso para consultar ni registrar donaciones de huevos.</div> }
   @else {
     @if (notice(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
     <section class="card unit-context" aria-label="Unidad productiva y stock actual">
-      <div class="field unit-field"><label for="donation-unit">Unidad productiva</label><app-searchable-select inputId="donation-unit" [formControl]="unitControl" [options]="unitOptions()" [loading]="unitsState() === 'loading'" [blocked]="dialogOpen() || unitsState() !== 'success'" placeholder="Selecciona una unidad productiva" emptyOptionLabel="Selecciona una unidad productiva" /></div>
+      <div class="unit-field"><span class="context-label">Unidad productiva</span><p class="unit-name">{{ unitContext.state() === 'ready' ? (unitContext.selectedUnit()?.name || 'Todas las UP') : 'Unidad productiva no disponible' }}</p><p class="helper" id="donation-unit-hint">
+        @if (unitContext.state() === 'loading') { Cargando el filtro global… }
+        @else if (unitContext.state() === 'error') { No se pudo cargar el filtro global. Reintenta desde la navegación. }
+        @else if (!unit()) { Selecciona una unidad productiva en el filtro global para registrar una donación y consultar su historial. }
+        @else if (unitsState() === 'success' && !selectedUnit()) { Esta unidad no está disponible para registrar donaciones. }
+        @else { La unidad productiva se cambia desde el filtro global. }
+      </p></div>
       <div class="balance-block"><ion-icon name="egg-outline" aria-hidden="true" /><div><span>Stock actual</span>
         @if (!unit()) { <p class="helper">Selecciona una unidad productiva.</p> }
         @else if (!canRead()) { <p class="helper">No tienes permiso para consultar el saldo.</p> }
         @else if (balanceState() === 'loading') { <p class="helper" role="status">Consultando saldo…</p> }
         @else if (balanceError(); as message) { <div class="balance-error" role="alert"><p>{{ message }}</p><button class="button" type="button" (click)="loadBalance()">Reintentar saldo</button></div> }
         @else if (balanceLabel(); as amount) { <p class="balance-value" [class.negative]="balance()! < 0">{{ amount }} <span>huevos</span></p> }
-        @if (unit() && canRead()) { <a class="stock-link" routerLink="/administracion/inventario/existencias/huevos" [queryParams]="{ production_unit_id: unit() }">Ver stock de huevos</a> }
+        @if (unit() && canRead()) { <a class="stock-link" routerLink="/administracion/inventario/existencias/huevos" [queryParams]="{ production_unit_id: unit(), from: 'donaciones' }">Ver stock de huevos</a> }
       </div></div>
     </section>
     @if (unitsError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button" type="button" (click)="loadUnits()">Reintentar unidades</button></div> }
@@ -49,5 +55,5 @@
       @if (filterError(); as message) { <p class="field-error" id="donation-filter-error" role="alert">{{ message }}</p> }
     </form>
   </app-filter-dialog>
-  <app-egg-donation-dialog (openChanged)="dialogOpen.set($event)" (saved)="onSaved($event)" />
+  <app-egg-donation-dialog [productionUnitId]="canDonate() ? unit() : null" (openChanged)="dialogOpen.set($event)" (saved)="onSaved($event)" />
 </section>

@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, computed, inject, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -14,6 +14,8 @@ import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filte
 import { StockLocationsApi } from '../../services/stock-locations.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
+import { stockLocationTypeLabel } from '../../services/movement-product-policy';
+import { StockRegularizationDialogComponent } from '../../components/stock-regularization-dialog/stock-regularization-dialog.component';
 import { applyInventoryValidationErrors, inventoryErrorMessage } from '../../services/inventory-errors';
 import { decimalCompare, formatQuantity, formatStockQuantity, formatQuantityInput, isDiscreteUnit, unitLabel } from '../../services/inventory-format';
 import { LoadState } from '../../types/inventory-state.type';
@@ -33,10 +35,11 @@ const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {
   selector: 'app-inventory-stock',
   templateUrl: './stock.page.html',
   styleUrl: './stock.page.scss',
-  imports: [ReactiveFormsModule, RouterLink, IonIcon, CatalogHeaderComponent, SearchableSelectComponent, FilterDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, IonIcon, CatalogHeaderComponent, SearchableSelectComponent, FilterDialogComponent, StockRegularizationDialogComponent],
 })
 export class StockPage {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthStore);
   private readonly locationsApi = inject(StockLocationsApi);
   readonly locations = signal<StockLocation[]>([]);
@@ -49,6 +52,7 @@ export class StockPage {
     const unit = location.production_unit ?? balance.stock_location.production_unit;
     return {
       balance,
+      locationType: stockLocationTypeLabel(balance.stock_location),
       locationName: balance.stock_location.poultry_house_name ?? location.poultry_house_name ?? location.name,
       unitName: unit?.name,
       plantPath: houseId && unit ? ['/administracion/unidades-productivas', unit.id, 'galpon', houseId] : null,
@@ -83,20 +87,32 @@ export class StockPage {
   @ViewChild('minimumDialog', { static: true }) private readonly minimumDialog!: ElementRef<HTMLDialogElement>;
   @ViewChild('minimumInput', { static: true }) private readonly minimumInput!: ElementRef<HTMLInputElement>;
   @ViewChild(FilterDialogComponent, { static: true }) private readonly filterDialog!: FilterDialogComponent;
+  @ViewChild(StockRegularizationDialogComponent) private readonly regularizationDialog!: StockRegularizationDialogComponent;
   readonly filters = new FormGroup({
     product_id: new FormControl('', { nonNullable: true }),
     stock_location_id: new FormControl('', { nonNullable: true }),
     below_minimum: new FormControl(false, { nonNullable: true }),
+    incompatible_only: new FormControl(false, { nonNullable: true }),
   });
   private readonly appliedFilters = signal(this.filters.getRawValue());
   readonly activeFilterCount = computed(() => Number(Boolean(this.appliedFilters().stock_location_id))
-    + Number(this.appliedFilters().below_minimum));
+    + Number(this.appliedFilters().below_minimum) + Number(this.appliedFilters().incompatible_only));
+  readonly reviewingIncompatible = computed(() => this.appliedFilters().incompatible_only);
+  readonly canAdjust = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.adjust') === true);
+  readonly locationOptions = computed(() => this.locations().length ? this.locations().map((location) => ({
+    value: location.id, label: `${location.poultry_house_name ?? location.name} · ${stockLocationTypeLabel(location)}`,
+  })) : this.options()?.stock_locations ?? []);
   readonly canManage = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.manage') === true);
   readonly canRegisterMovement = computed(() => this.auth.isAdmin()
     || this.auth.user()?.permissions.some((permission) => permission === 'inventory.move' || permission === 'inventory.adjust') === true);
   private loadVersion = 0;
 
   constructor() {
+    const productId = this.route.snapshot.queryParamMap.get('product_id');
+    if (productId && /^[1-9]\d*$/.test(productId) && Number.isSafeInteger(Number(productId))) {
+      this.filters.controls.product_id.setValue(productId, { emitEvent: false });
+      this.appliedFilters.set(this.filters.getRawValue());
+    }
     addIcons({ cubeOutline, warningOutline, locationOutline, funnelOutline, swapHorizontalOutline, eggOutline, leafOutline, settingsOutline, listOutline, chevronForwardOutline });
     this.filters.controls.product_id.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       void this.applyProductFilter();
@@ -154,18 +170,18 @@ export class StockPage {
   }
 
   clearFilters(): void {
-    this.filters.reset({ product_id: '', stock_location_id: '', below_minimum: false }, { emitEvent: false });
+    this.filters.reset({ product_id: '', stock_location_id: '', below_minimum: false, incompatible_only: false }, { emitEvent: false });
     void this.applyFilters();
   }
 
   openFilters(trigger: HTMLElement): void {
     const applied = this.appliedFilters();
-    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum });
+    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum, incompatible_only: applied.incompatible_only });
     this.filterDialog.open(trigger);
   }
 
   clearDraftFilters(): void {
-    this.filters.patchValue({ stock_location_id: '', below_minimum: false });
+    this.filters.patchValue({ stock_location_id: '', below_minimum: false, incompatible_only: false });
   }
 
   async applyFilters(): Promise<void> {
@@ -177,7 +193,7 @@ export class StockPage {
   async applyProductFilter(): Promise<void> {
     const applied = this.appliedFilters();
     if (this.filters.controls.product_id.value === applied.product_id && this.state() !== 'error') return;
-    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum });
+    this.filters.patchValue({ stock_location_id: applied.stock_location_id, below_minimum: applied.below_minimum, incompatible_only: applied.incompatible_only });
     await this.applyFilters();
   }
 
@@ -257,7 +273,7 @@ export class StockPage {
 
   hasActiveFilters(): boolean {
     const value = this.appliedFilters();
-    return Boolean(value.product_id || value.stock_location_id || value.below_minimum);
+    return Boolean(value.product_id || value.stock_location_id || value.below_minimum || value.incompatible_only);
   }
 
   status(balance: StockBalance): 'Normal' | 'Bajo mínimo' | 'Sin stock' | 'Stock negativo' {
@@ -271,6 +287,11 @@ export class StockPage {
   }
 
   kindLabel(kind: ProductKind): string { return PRODUCT_KIND_LABELS[kind] ?? PRODUCT_KIND_LABELS.other; }
+
+  regularize(balance: StockBalance, event: Event): void {
+    if (!this.reviewingIncompatible() || !this.canAdjust() || balance.product.kind === 'egg') return;
+    this.regularizationDialog.open(balance, event.currentTarget instanceof HTMLElement ? event.currentTarget : null);
+  }
 
   format(value: string, unit: string): string {
     return formatQuantity(value, unit);
@@ -291,6 +312,7 @@ export class StockPage {
       product_id: value.product_id ? Number(value.product_id) : undefined,
       stock_location_id: value.stock_location_id ? Number(value.stock_location_id) : undefined,
       below_minimum: value.below_minimum || undefined,
+      incompatible_only: value.incompatible_only || undefined,
       per_page: 25,
       page,
     };

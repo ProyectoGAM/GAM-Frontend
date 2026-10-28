@@ -59,7 +59,7 @@
         <div class="field">
           <label for="location-unit">Unidad Productiva <span class="muted">(opcional)</span></label>
           <select id="location-unit" formControlName="production_unit_id" [attr.aria-invalid]="fieldErrorVisible(form.controls.production_unit_id) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.production_unit_id) ? 'location-unit-hint location-unit-error' : 'location-unit-hint'"><option value="">General (sin Unidad Productiva)</option>@for (item of editorUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select>
-          <p class="helper" id="location-unit-hint">Podés dejarla sin Unidad Productiva si es un depósito general.</p>
+          <p class="helper" id="location-unit-hint">Esta ubicación es una cámara de insumos: admite insumos y otros. Podés dejarla sin UP. Sanidad, plantas y cuentas de huevos se crean desde sus flujos específicos.</p>
           @if (fieldErrorVisible(form.controls.production_unit_id) && form.controls.production_unit_id.getError('server'); as fieldError) { <span class="field-error" id="location-unit-error" role="alert">{{ fieldError }}</span> }
         </div>
       </fieldset>
@@ -71,6 +71,7 @@
   </dialog>
   <app-filter-dialog titleId="location-filters-title" (clearRequested)="clearDraftFilters()" (applyRequested)="applyFilters()">
     <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <div class="filter-section"><label for="location-filter-type">Tipo de ubicación</label><select id="location-filter-type" formControlName="type"><option value="">Todos los tipos</option>@for (item of locationTypes; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></div>
       <div class="filter-section"><label for="location-filter-unit">Unidad productiva</label><select id="location-filter-unit" formControlName="production_unit_id" [attr.aria-describedby]="unitContext?.selectedId() ? 'location-filter-unit-hint' : null"><option value="">Todas las UP</option>@for (item of productionUnits(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select>
         @if (unitContext?.selectedId()) { <p class="helper" id="location-filter-unit-hint">La UP se cambia desde la navegación.</p> }
       </div>

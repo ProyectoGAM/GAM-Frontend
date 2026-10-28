@@ -33,7 +33,7 @@ const balance: StockBalance = {
   product_id: 4,
   stock_location_id: 2,
   product: { id: 4, sku: 'AL-4', name: 'Alimento', kind: 'supply', base_unit: 'kg', stock_tracked: true, status: 'active' },
-  stock_location: { id: 2, name: 'Depósito', system_managed: false, status: 'active' },
+  stock_location: { id: 2, name: 'Depósito', type: 'warehouse', allowed_product_kinds: ['supply', 'other'], system_managed: false, status: 'active' },
   available_quantity: '5',
   minimum_quantity: '12.500000',
   created_at: '2026-01-01',
@@ -70,6 +70,7 @@ describe('Existencias page', () => {
 
   it('shows the current plant name and links through its actual UP without exposing the technical name', async () => {
     const location: StockLocation = {
+      type: 'feed_plant', allowed_product_kinds: ['raw_material'],
       id: 2, name: 'Planta de ración #42', status: 'active', system_managed: true,
       poultry_house_id: 42, poultry_house_name: 'Planta Norte',
       production_unit: { id: 7, name: 'Granja El Ombú' },
@@ -215,6 +216,23 @@ describe('Existencias page', () => {
     fixture.destroy();
   });
 
+  it('reviews incompatible balances only after applying the filter and exposes regularization to adjustment users', async () => {
+    const incompatible = { ...balance, product: { ...balance.product, kind: 'vaccine' as const } };
+    const balances = vi.fn(() => of({ ...emptyBalances, data: [incompatible] }));
+    const fixture = createFixture(['inventory.adjust'], { balances }); await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Regularizar saldo incompatible×Confirmar');
+    expect([...fixture.nativeElement.querySelectorAll('.row-action') as NodeListOf<HTMLElement>].some((item) => item.textContent?.includes('Regularizar'))).toBe(false);
+    const page = fixture.componentInstance;
+    page.filters.controls.incompatible_only.setValue(true);
+    expect(balances).toHaveBeenCalledTimes(1);
+    await page.applyFilters(); fixture.detectChanges();
+    expect(balances).toHaveBeenLastCalledWith(expect.objectContaining({ incompatible_only: true, page: 1 }));
+    expect([...fixture.nativeElement.querySelectorAll('.row-action') as NodeListOf<HTMLElement>].some((item) => item.textContent?.includes('Regularizar'))).toBe(true);
+    expect(page.activeFilterCount()).toBe(1);
+    page.clearDraftFilters(); expect(page.reviewingIncompatible()).toBe(true);
+    fixture.destroy();
+  });
+
   it('discards cancelled filter drafts and preserves applied location and minimum filters for pages and product selection', async () => {
     const balances = vi.fn().mockReturnValue(of(emptyBalances));
     const fixture = createFixture([], { balances });
@@ -229,7 +247,7 @@ describe('Existencias page', () => {
     expect(balances).toHaveBeenCalledTimes(1);
     expect(page.hasActiveFilters()).toBe(false);
     trigger.click();
-    expect(page.filters.getRawValue()).toEqual({ product_id: '', stock_location_id: '', below_minimum: false });
+    expect(page.filters.getRawValue()).toEqual({ product_id: '', stock_location_id: '', below_minimum: false, incompatible_only: false });
     page.filters.patchValue({ stock_location_id: '2', below_minimum: true });
     await page.applyFilters();
     expect(page.activeFilterCount()).toBe(2);

@@ -10,7 +10,8 @@ import {
 
 describe('product catalog labels', () => {
   it('offers current product types for creation while keeping legacy ration labels readable', () => {
-    expect(CREATABLE_PRODUCT_KINDS.map((kind) => kind.value)).toEqual(['raw_material', 'supply', 'egg', 'medicine', 'vaccine', 'other']);
+    expect(CREATABLE_PRODUCT_KINDS.map((kind) => kind.value)).toEqual(['raw_material', 'supply', 'other']);
+    for (const kind of ['egg', 'medicine', 'vaccine']) expect(isCreatableProductKind(kind)).toBe(false);
     expect(isCreatableProductKind('finished_feed')).toBe(false);
     expect(isCreatableProductKind('supply')).toBe(true);
     expect(isCreatableProductKind(null)).toBe(false);

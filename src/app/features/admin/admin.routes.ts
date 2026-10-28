@@ -170,6 +170,20 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'vacunacion') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../health-catalogs/health-catalogs.routes').then((module) => module.vaccinationRoutes),
+                    };
+                  }
+
+                  if (group.id === 'manejo-lotes' && item.slug === 'medicacion') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../health-catalogs/health-catalogs.routes').then((module) => module.medicationRoutes),
+                    };
+                  }
+
                   if (group.id === 'lotes' && item.slug === 'lotes') {
                     return {
                       path: item.slug,

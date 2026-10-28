@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router, provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
@@ -48,21 +48,32 @@ describe('Product create page', () => {
   it('does not offer ration as a type for new products', () => {
     const { fixture } = createFixture(vi.fn());
     const select = fixture.nativeElement.querySelector('#product-kind') as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).not.toContain('finished_feed');
-    expect(Array.from(select.options).map((option) => option.value)).toContain('raw_material');
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(['', 'raw_material', 'supply', 'other']);
     fixture.destroy();
   });
 
-  it('rejects a retired kind even if an obsolete option is submitted', async () => {
+  it('links administrators to the global medicine and vaccine creation pages without stock fields in this flow', async () => {
+    const fixture = TestBed.configureTestingModule({ imports: [ProductCreatePage], providers: [
+      provideRouter([]), { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+      { provide: ProductsApi, useValue: { create: vi.fn() } },
+    ] }).createComponent(ProductCreatePage);
+    await fixture.whenStable(); fixture.detectChanges();
+    const shortcuts = fixture.nativeElement.querySelector('.health-shortcut-links') as HTMLElement;
+    const hrefs = Array.from(shortcuts.querySelectorAll('a')).map((link) => link.getAttribute('href'));
+    expect(hrefs).toEqual(['/administracion/manejo-lotes/medicacion/nuevo', '/administracion/manejo-lotes/vacunacion/nuevo']);
+    fixture.destroy();
+  });
+
+  it.each(['finished_feed', 'egg', 'medicine', 'vaccine'])('rejects an unavailable kind (%s) even if an obsolete option is submitted', async (kind) => {
     const create = vi.fn(); const { fixture } = createFixture(create);
     const page = fixture.componentInstance;
     page.form.patchValue({ name: 'Ración anterior', sku: 'RACION-OLD', base_unit: 'kg' });
     const select = fixture.nativeElement.querySelector('#product-kind') as HTMLSelectElement;
-    select.add(new Option('Ración', 'finished_feed')); select.value = 'finished_feed';
+    select.add(new Option('Tipo anterior', kind)); select.value = kind;
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await page.submit(); fixture.detectChanges();
     expect(create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain('Las raciones se gestionan desde recetas');
+    expect(fixture.nativeElement.textContent).toContain('Elegí Insumo, Materia prima u Otros');
     fixture.destroy();
   });
   it('forces raw material to grams and tracked stock in the submitted payload', async () => {

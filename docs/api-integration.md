@@ -15,6 +15,13 @@ Ver [`feed-stock.md`](feed-stock.md) para filtros, estados, permisos y unidades.
 
 The frontend must not guess undocumented fields, states or error semantics.
 
+Los catálogos globales de vacunas y medicamentos consumen `vaccination.yaml` y
+`medication.yaml` con acceso administrativo. Ver [`health-catalogs.md`](health-catalogs.md)
+para campos, filtros, proveedores y reintentos idempotentes de sus altas.
+
+El almacenamiento tipado, Sanidad histórica deshabilitada, proveedor interno y regularizaciones
+consumen `inventory-storage.yaml`; ver [integración de almacenamiento](inventory-storage-rules.md).
+
 La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
 `feed-recipes.yaml`, con consumos diarios y rectificaciones. Ver
 [`flock-feeding.md`](flock-feeding.md) para endpoints, unidades, paginación,

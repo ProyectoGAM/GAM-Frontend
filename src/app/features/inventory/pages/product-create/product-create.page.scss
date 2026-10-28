@@ -1,4 +1,5 @@
 :host { display: block; color: var(--gam-color-text); }
+.health-shortcut-links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .product-create-page { max-width: 760px; margin-inline: auto; font-size: 1rem; }
 /* Reserve the 73px action bar plus a 16px gap, counting shell/safe-area space once. */
 .product-create-page:has(.create-bar) { padding-bottom: max(0px, calc(73px + env(safe-area-inset-bottom) + 16px + var(--product-keyboard-offset, 0px) - var(--gam-page-bottom-space, calc(48px + env(safe-area-inset-bottom))))); }
@@ -11,6 +12,11 @@ h1 { font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 700; }
 .lead { margin: 8px 0 0; color: var(--gam-color-text-muted); line-height: 1.5; font-size: .9375rem; }
 .global-note { display: inline-flex; align-items: center; gap: 10px; margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); font-size: .8125rem; }
 .global-note ion-icon { font-size: 24px; flex-shrink: 0; }
+.recipe-shortcut { display: grid; gap: 6px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+.recipe-shortcut p { margin: 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
+.recipe-shortcut strong { display: block; margin-bottom: 4px; color: var(--gam-color-heading); }
+.recipe-link { display: inline-flex; align-items: center; justify-self: start; gap: 8px; min-height: 44px; color: var(--gam-color-primary); font-size: .875rem; font-weight: 600; text-underline-offset: 3px; }
+.recipe-link[aria-disabled='true'] { opacity: .6; }
 .product-form, fieldset { display: grid; gap: 16px; min-width: 0; }
 fieldset { margin: 0; padding: 0; border: 0; }
 .form-card { display: grid; gap: 20px; min-width: 0; padding: 18px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
@@ -48,8 +54,9 @@ button:disabled { opacity: .6; cursor: default; }
 .created-card h2 { color: var(--gam-color-success); font-size: 1.25rem; }
 .created-card p { line-height: 1.5; }
 .receipt-button { width: 100%; }
-button:focus-visible, input:focus-visible, select:focus-visible, [tabindex='-1']:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex='-1']:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
 @media (min-width: 640px) {
+  .recipe-shortcut { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
   .form-card { padding: 24px; }
   .form-card h2 { font-size: 1.25rem; }
   .receipt-button { width: auto; }

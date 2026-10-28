@@ -10,6 +10,7 @@ import { StockLocationsApi } from '../services/stock-locations.api';
 import { SuppliersApi } from '../../suppliers-catalogs/suppliers/suppliers.api';
 import { MovementsPage } from './movements/movements.page';
 import { MovementFormPage } from './movement-form/movement-form.page';
+import { StockPage } from './stock/stock.page';
 
 const response = <T>(data: T[], lastPage = 1) => ({
   data,
@@ -41,7 +42,7 @@ describe('navigation from the stock and global catalog', () => {
       { provide: AuthStore, useValue: { isAdmin: () => true, user: () => null } },
       { provide: InventoryApi, useValue: { allowedProducts } },
       { provide: SuppliersApi, useValue: { list: () => of(response([])) } },
-      { provide: StockLocationsApi, useValue: { list: () => of(response([{ id: 9, name: 'Depósito', status: 'active' }])) } },
+      { provide: StockLocationsApi, useValue: { list: () => of(response([{ id: 9, name: 'Depósito', type: 'warehouse', allowed_product_kinds: ['supply', 'other'], status: 'active' }])) } },
     ] });
     const harness = await RouterTestingHarness.create();
     const page = await harness.navigateByUrl('/ingreso?product_id=17', MovementFormPage);
@@ -54,5 +55,19 @@ describe('navigation from the stock and global catalog', () => {
     await harness.fixture.whenStable();
     expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 9, operation: 'receipt', per_page: 100, page: 2 });
     expect(page.lines.at(0).controls.product_id.value).toBe('17');
+  });
+
+  it('opens physical inventory for the product linked to a health catalog record', async () => {
+    const balances = vi.fn(() => of(response([])));
+    TestBed.configureTestingModule({ providers: [
+      provideRouter([{ path: 'stock', component: StockPage }]),
+      { provide: AuthStore, useValue: { isAdmin: () => true, user: () => null } },
+      { provide: InventoryApi, useValue: { balances } },
+      { provide: StockLocationsApi, useValue: { list: () => of(response([])) } },
+      { provide: InventoryReferenceApi, useValue: { options: () => of({ data: { products: [], stock_locations: [] } }) } },
+    ] });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/stock?product_id=9', StockPage); await harness.fixture.whenStable();
+    expect(balances).toHaveBeenCalledWith(expect.objectContaining({ product_id: 9 }));
   });
 });

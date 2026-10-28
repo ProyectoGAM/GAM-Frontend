@@ -12,6 +12,8 @@
   h3 { font-size: 1rem; }
   .lead { margin: 8px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
   .unit-context { display: grid; gap: 20px; margin-bottom: 28px; padding: 18px; }
+  .context-label { color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .unit-name { margin: 6px 0; color: var(--gam-color-heading); font-size: 1.125rem; font-weight: 700; overflow-wrap: anywhere; }
   .balance-block { display: flex; align-items: center; gap: 16px; padding-top: 18px; border-top: 1px solid var(--gam-color-border); }
   .balance-block > ion-icon { flex-shrink: 0; font-size: 42px; color: var(--gam-color-primary); }
   .balance-block > div { min-width: 0; }

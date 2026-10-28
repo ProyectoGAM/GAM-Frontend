@@ -1,12 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, DestroyRef, ElementRef, HostListener, Injector, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { hasFeedRecipesPermission } from '../../../../core/auth/access-policy';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline } from 'ionicons/icons';
+import { arrowBackOutline, arrowForwardOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline } from 'ionicons/icons';
 
 import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { ProductsApi } from '../../services/products.api';
@@ -25,7 +26,7 @@ export function safeReturnTo(value: string | null): string | null {
   selector: 'app-product-create',
   templateUrl: './product-create.page.html',
   styleUrl: './product-create.page.scss',
-  imports: [ReactiveFormsModule, IonIcon, InventoryConfirmationDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, IonIcon, InventoryConfirmationDialogComponent],
   host: { '[style.--product-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class ProductCreatePage {
@@ -40,6 +41,8 @@ export class ProductCreatePage {
   readonly createdProduct = signal<Product | null>(null);
   private readonly createdHeading = viewChild<ElementRef<HTMLElement>>('createdHeading');
   readonly canRegisterReceipt = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.move') === true);
+  readonly canCreateRecipe = computed(() => this.auth.isAdmin() || hasFeedRecipesPermission(this.auth.user(), 'manage'));
+  readonly canCreateHealthCatalog = computed(() => this.auth.isAdmin());
   private readonly api = inject(ProductsApi);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -57,7 +60,7 @@ export class ProductCreatePage {
   });
 
   constructor() {
-    addIcons({ arrowBackOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline });
+    addIcons({ arrowBackOutline, arrowForwardOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline });
     effect(() => this.createdHeading()?.nativeElement.focus());
     const viewport = window.visualViewport;
     const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
@@ -89,7 +92,7 @@ export class ProductCreatePage {
     if (typeof serverError === 'string') return serverError;
     if (control.touched && control.hasError('required')) return 'Completa este campo.';
     if (control.touched && control.hasError('maxlength')) return 'El valor supera el máximo permitido.';
-    if (control.hasError('unavailableKind')) return 'Elegí un tipo disponible. Las raciones se gestionan desde recetas y stock de raciones.';
+    if (control.hasError('unavailableKind')) return 'Elegí Insumo, Materia prima u Otros. Las vacunas, medicamentos, huevos y raciones se gestionan en sus apartados específicos.';
     return null;
   }
 

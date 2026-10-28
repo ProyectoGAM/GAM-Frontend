@@ -1,6 +1,6 @@
 <section class="catalog-page egg-page" aria-labelledby="egg-stock-title">
   <p class="breadcrumb">Inventario / Existencias / Huevos</p>
-  <a class="back" routerLink="/administracion/inventario/existencias"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a existencias</a>
+  <a class="back" [routerLink]="backLink"><ion-icon name="arrow-back-outline" aria-hidden="true" />{{ backLabel }}</a>
   <header class="page-heading"><h1 id="egg-stock-title">Stock de huevos</h1><p>Saldo y movimientos por unidad productiva.</p></header>
   <label class="unit-picker" for="egg-stock-unit">Unidad productiva
     <select id="egg-stock-unit" (change)="chooseUnitFromEvent($event)" [disabled]="mutation() === 'submitting' || (productionUnitsState() === 'loading' && productionUnits().length === 0)">

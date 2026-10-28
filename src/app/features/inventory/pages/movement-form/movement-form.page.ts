@@ -3,7 +3,7 @@ import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { combineLatest, firstValueFrom, Subscription } from 'rxjs';
 import { distinctUntilChanged, startWith } from 'rxjs/operators';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addOutline, arrowBackOutline, arrowForwardOutline, checkmarkCircle, clipboardOutline, cubeOutline, informationCircleOutline, swapHorizontalOutline, trashOutline, warningOutline } from 'ionicons/icons';
@@ -18,6 +18,7 @@ import { inventoryErrorMessage } from '../../services/inventory-errors';
 import { InventoryOperation, LoadState, MutationState } from '../../types/inventory-state.type';
 import { AllowedStockProduct, BaseUnit, OptionValue, ReferenceOptions, StockLocation } from '../../interfaces/inventory';
 import { Supplier } from '../../../suppliers-catalogs/suppliers/suppliers.models';
+import { isMovementProductAllowed, movementLocationDescription, movementLocationKind } from '../../services/movement-product-policy';
 
 interface LineControls {
   product_id: FormControl<string>;
@@ -102,11 +103,13 @@ export class MovementFormPage {
   readonly quantityLabel = computed(() => ({ receipt: 'Cantidad', issue: 'Cantidad a retirar', transfer: 'Cantidad a transferir', loss: 'Cantidad perdida', adjustment: 'Cantidad contada' })[this.operation()]);
   readonly viewportBottom = signal(0);
   readonly locationDescriptions = signal(new Map<string, string>());
+  private readonly locationsById = signal(new Map<string, StockLocation>());
   readonly options = signal<MovementReferenceOptions | null>(null);
   readonly productStates = signal(new Map<FormGroup<LineControls>, LineProductState>());
   readonly requestedProductNotice = signal<string | null>(null);
   readonly referencesState = signal<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   readonly referencesError = signal<string | null>(null);
+  readonly supplierReferencesError = signal<string | null>(null);
   readonly mutation = signal<MutationState>('idle');
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
@@ -120,6 +123,9 @@ export class MovementFormPage {
     reference_id: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
     lines: this.lines,
   });
+  readonly supplierSelection = toSignal(this.form.controls.supplier_id.valueChanges, { initialValue: '' });
+  readonly supplierErrorVisible = computed(() => this.submitAttempted() && this.operation() === 'receipt'
+    && !!this.supplierSelection() && !this.options()?.suppliers.some((item) => String(item.value) === this.supplierSelection()));
   private operationKey: string | null = null;
   private readonly productRequestTokens = new WeakMap<FormGroup<LineControls>, number>();
   private readonly lineSubscriptions = new WeakMap<FormGroup<LineControls>, Subscription>();
@@ -146,31 +152,24 @@ export class MovementFormPage {
     const version = ++this.referencesVersion;
     this.referencesState.set('loading');
     this.referencesError.set(null);
+    this.supplierReferencesError.set(null);
     try {
-      const supplierFilters = { status: 'active' as const, per_page: 100 };
       const locationFilters = { status: 'active' as const, per_page: 100 };
-      const [supplierResponse, locationResponse] = await Promise.all([
-        firstValueFrom(this.suppliersApi.list(supplierFilters, 1)),
+      const [suppliers, locationResponse] = await Promise.all([
+        this.readSupplierOptions(version),
         firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page: 1 })),
       ]);
-      const suppliers: Supplier[] = [...supplierResponse.data];
       const stockLocations: StockLocation[] = [...locationResponse.data];
-      for (let page = 2; page <= supplierResponse.meta.last_page; page += 1) {
-        const response = await firstValueFrom(this.suppliersApi.list(supplierFilters, page));
-        suppliers.push(...response.data);
-      }
       for (let page = 2; page <= locationResponse.meta.last_page; page += 1) {
         const response = await firstValueFrom(this.stockLocationsApi.list({ ...locationFilters, page }));
         stockLocations.push(...response.data);
       }
       if (this.destroyRef.destroyed || version !== this.referencesVersion) return;
       this.updateValidators();
-      this.locationDescriptions.set(new Map(stockLocations.map((location) => {
-        const type = location.poultry_house_id != null ? 'Planta de ración' : location.production_unit ? 'Unidad productiva' : 'Depósito general';
-        return [String(location.id), location.production_unit ? `${type} · ${location.production_unit.name}` : type];
-      })));
+      this.locationsById.set(new Map(stockLocations.map((location) => [String(location.id), location])));
+      this.locationDescriptions.set(new Map(stockLocations.map((location) => [String(location.id), movementLocationDescription(location)])));
       this.options.set({
-        suppliers: suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+        suppliers: suppliers.filter((supplier) => supplier.status === 'active').map((supplier) => ({ value: supplier.id, label: supplier.name })),
         stock_locations: stockLocations.map((location) => ({ value: location.id, label: location.name })),
       });
       this.referencesState.set(stockLocations.length ? 'success' : 'empty');
@@ -179,6 +178,22 @@ export class MovementFormPage {
       if (this.destroyRef.destroyed || version !== this.referencesVersion) return;
       this.referencesState.set('error');
       this.referencesError.set(inventoryErrorMessage(error, 'No se pudieron cargar los proveedores y ubicaciones.'));
+    }
+  }
+
+  private async readSupplierOptions(version: number): Promise<Supplier[]> {
+    try {
+      const suppliers: Supplier[] = [];
+      let lastPage = 1;
+      for (let page = 1; page <= lastPage; page++) {
+        if (this.destroyRef.destroyed || version !== this.referencesVersion) return [];
+        const response = await firstValueFrom(this.suppliersApi.list({ status: 'active', per_page: 100 }, page));
+        suppliers.push(...response.data); lastPage = response.meta.last_page;
+      }
+      return suppliers;
+    } catch {
+      if (!this.destroyRef.destroyed && version === this.referencesVersion) this.supplierReferencesError.set('No se pudieron cargar los proveedores. Puedes continuar sin seleccionar uno para usar el proveedor interno.');
+      return [];
     }
   }
 
@@ -246,7 +261,11 @@ export class MovementFormPage {
       ]);
       if (!isCurrent()) return;
       const destinationUnits = destinationProducts && new Map(destinationProducts.map((product) => [product.id, product.base_unit]));
-      const products = sourceProducts.filter((product) => !destinationUnits || destinationUnits.get(product.id) === product.base_unit);
+      const sourceLocation = this.locationsById().get(source)!;
+      const destinationLocation = destination ? this.locationsById().get(destination) : null;
+      const products = sourceProducts.filter((product) => isMovementProductAllowed(product, sourceLocation, operation)
+        && (!destinationLocation || isMovementProductAllowed(product, destinationLocation, operation))
+        && (!destinationUnits || destinationUnits.get(product.id) === product.base_unit));
       this.setProductState(line, {
         status: products.length ? 'success' : 'empty', products,
         byId: new Map(products.map((product) => [String(product.id), product])),
@@ -277,8 +296,14 @@ export class MovementFormPage {
     const state = this.productStateFor(line);
     if (state.status === 'loading') return 'Consultando productos permitidos…';
     if (state.status === 'error') return state.error!;
-    if (state.status === 'empty') return this.operation() === 'loss'
-      ? 'No hay productos con stock positivo en esta ubicación.' : 'No hay productos permitidos para esta operación en las ubicaciones elegidas.';
+    if (state.status === 'empty') {
+      const location = this.locationsById().get(line.controls.stock_location_id.value);
+      const eggAccount = location && movementLocationKind(location) === 'egg_account';
+      return this.operation() === 'loss'
+        ? 'No hay productos compatibles con stock positivo en esta ubicación.'
+        : eggAccount ? 'No hay huevos habilitados para esta operación. Los huevos de la cuenta se gestionan desde Stock de huevos.'
+        : 'No hay productos permitidos para esta operación en las ubicaciones elegidas.';
+    }
     if (state.status === 'idle') return this.operation() === 'transfer'
       ? 'Primero elige ubicaciones de origen y destino distintas.' : 'Primero selecciona una ubicación.';
     const product = this.selectedProductFor(line);
@@ -349,6 +374,7 @@ export class MovementFormPage {
       return;
     }
     this.submitAttempted.set(true);
+    this.error.set(null);
     if (!this.allowedOperation() || this.form.invalid || this.lines.invalid || !this.validateBusinessFields()) {
       this.form.markAllAsTouched();
       this.lines.markAllAsTouched();
@@ -365,7 +391,7 @@ export class MovementFormPage {
     try {
       if (operation === 'receipt') {
         await firstValueFrom(this.api.receive({
-          supplier_id: Number(values.supplier_id),
+          ...(values.supplier_id ? { supplier_id: Number(values.supplier_id) } : {}),
           lines: lineValues.map((line) => ({ product_id: Number(line.product_id), stock_location_id: Number(line.stock_location_id), quantity: this.quantityPayload(line.quantity) })),
           occurred_at: values.occurred_at || undefined,
           reason: values.reason || undefined,
@@ -437,8 +463,8 @@ export class MovementFormPage {
 
   private validateBusinessFields(): boolean {
     const values = this.form.getRawValue();
-    if (this.operation() === 'receipt' && !values.supplier_id) {
-      this.error.set('Selecciona un proveedor para registrar un ingreso.');
+    if (this.supplierErrorVisible()) {
+      this.error.set('Selecciona un proveedor activo de la lista o deja el campo vacío para usar el proveedor interno.');
       return false;
     }
     if (['loss', 'adjustment'].includes(this.operation()) && !values.reason.trim()) {
@@ -529,7 +555,6 @@ export class MovementFormPage {
 
   private updateValidators(): void {
     const operation = this.operation();
-    this.form.controls.supplier_id.setValidators(operation === 'receipt' ? Validators.required : null);
     this.form.controls.reason.setValidators(
       operation === 'loss' || operation === 'adjustment'
         ? [Validators.required, Validators.pattern(/\S/), Validators.maxLength(255)]

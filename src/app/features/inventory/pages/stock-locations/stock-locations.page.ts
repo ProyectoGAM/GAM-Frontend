@@ -27,7 +27,8 @@ import { ProductionUnitsService } from '../../../production-units/services/produ
 import { inventoryErrorMessage, applyInventoryValidationErrors } from '../../services/inventory-errors';
 import { StockLocationsApi } from '../../services/stock-locations.api';
 import { LoadState, MutationState } from '../../types/inventory-state.type';
-import { PaginatedResponse, StockLocation, StockLocationStatus } from '../../interfaces/inventory';
+import { PaginatedResponse, StockLocation, StockLocationStatus, StockLocationType } from '../../interfaces/inventory';
+import { STOCK_LOCATION_TYPES, stockLocationTypeLabel } from '../../services/movement-product-policy';
 import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 import { IonIcon } from '@ionic/angular';
@@ -68,9 +69,10 @@ export class StockLocationsPage {
   @ViewChild(InventoryConfirmationDialogComponent) private statusDialog!: InventoryConfirmationDialogComponent;
   @ViewChild(FilterDialogComponent, { static: true }) private filterDialog!: FilterDialogComponent;
   readonly canManage = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.manage') === true);
-  readonly filters = new FormGroup({ search: new FormControl('', { nonNullable: true }), status: new FormControl('', { nonNullable: true }), production_unit_id: new FormControl('', { nonNullable: true }) });
+  readonly locationTypes = STOCK_LOCATION_TYPES;
+  readonly filters = new FormGroup({ search: new FormControl('', { nonNullable: true }), type: new FormControl<StockLocationType | ''>('', { nonNullable: true }), status: new FormControl('', { nonNullable: true }), production_unit_id: new FormControl('', { nonNullable: true }) });
   private readonly appliedFilters = signal(this.filters.getRawValue());
-  readonly activeFilterCount = computed(() => Number(Boolean(this.appliedFilters().status))
+  readonly activeFilterCount = computed(() => Number(Boolean(this.appliedFilters().status)) + Number(Boolean(this.appliedFilters().type))
     + Number(this.unitContext?.selectedId() == null && Boolean(this.appliedFilters().production_unit_id)));
   readonly editorUnits = computed(() => {
     const units = this.productionUnits();
@@ -105,7 +107,7 @@ export class StockLocationsPage {
     this.error.set(null);
     try {
       const value = this.appliedFilters();
-      const response = await firstValueFrom(this.api.list({ search: value.search || undefined, status: (value.status || undefined) as StockLocationStatus | undefined, production_unit_id: value.production_unit_id ? Number(value.production_unit_id) : undefined, per_page: 25, page }));
+      const response = await firstValueFrom(this.api.list({ search: value.search || undefined, type: value.type || undefined, status: (value.status || undefined) as StockLocationStatus | undefined, production_unit_id: value.production_unit_id ? Number(value.production_unit_id) : undefined, per_page: 25, page }));
       if (version !== this.loadVersion || this.destroyRef.destroyed) return;
       this.locations.set(response.data);
       this.meta.set(response.meta);
@@ -135,11 +137,11 @@ export class StockLocationsPage {
 
   hasActiveFilters(): boolean {
     const value = this.appliedFilters();
-    return Boolean(value.search || value.status || value.production_unit_id);
+    return Boolean(value.search || value.type || value.status || value.production_unit_id);
   }
 
   clearFilters(): void {
-    this.filters.reset({ search: '', status: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' }, { emitEvent: false });
+    this.filters.reset({ search: '', type: '', status: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' }, { emitEvent: false });
     void this.applyFilters();
   }
 
@@ -152,18 +154,18 @@ export class StockLocationsPage {
   openFilters(trigger: HTMLElement): void {
     void this.searchLocations();
     const applied = this.appliedFilters();
-    this.filters.patchValue({ status: applied.status, production_unit_id: applied.production_unit_id });
+    this.filters.patchValue({ type: applied.type, status: applied.status, production_unit_id: applied.production_unit_id });
     this.filterDialog.open(trigger);
   }
 
   clearDraftFilters(): void {
-    this.filters.patchValue({ status: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' });
+    this.filters.patchValue({ type: '', status: '', production_unit_id: this.unitContext?.selectedId()?.toString() ?? '' });
   }
 
   async searchLocations(): Promise<void> {
     const applied = this.appliedFilters();
     if (this.filters.controls.search.value.trim() === applied.search && this.state() !== 'error') return;
-    this.filters.patchValue({ status: applied.status, production_unit_id: applied.production_unit_id });
+    this.filters.patchValue({ type: applied.type, status: applied.status, production_unit_id: applied.production_unit_id });
     await this.applyFilters();
   }
 
@@ -283,7 +285,6 @@ export class StockLocationsPage {
   productionUnitName(location: StockLocation): string { return location.production_unit?.name ?? 'General'; }
 
   locationTypeLabel(location: StockLocation): string {
-    if (location.poultry_house_id != null) return 'Planta de ración';
-    return location.production_unit ? 'Unidad productiva' : 'Depósito general';
+    return stockLocationTypeLabel(location);
   }
 }

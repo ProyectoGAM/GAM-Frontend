@@ -12,6 +12,16 @@ rendimiento por base, notas opcionales e ingredientes existentes.
 **Ver receta** abre `Recetas/:id`, una consulta de composición, nota, estado,
 rendimiento base y fecha de actualización, sin acciones de edición ni de stock.
 
+Nuevo producto ofrece **Crear receta** para administradores y usuarios con
+`feed-recipes.manage`, junto a una aclaración sobre la creación de raciones.
+El enlace navega a `/administracion/manejo-lotes/Recetas/nueva`; el formulario de
+receta se abre como página. Durante el guardado de un producto el enlace queda
+inactivo, y la navegación conserva el guard de cambios sin guardar del producto.
+Se verificó el enlace en el navegador integrado, en escritorio y móvil de 360 px,
+en claro y oscuro, incluida la opción de seguir editando un producto sin guardar.
+Lint, las 908 pruebas de la suite completa y el build de producción pasaron en
+Docker. No se crearon productos ni recetas durante esta comprobación.
+
 ## Datos y permisos
 
 `FeedRecipesApi` consume `ApiClient` con rutas relativas:

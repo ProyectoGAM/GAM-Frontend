@@ -26,7 +26,8 @@ describe('EggDonationDialogComponent', () => {
       { provide: AuthStore, useValue: { isAdmin: () => false, user } },
       { provide: EggStockApi, useValue: { donate } },
     ] });
-    fixture = TestBed.createComponent(EggDonationDialogComponent); fixture.detectChanges();
+    fixture = TestBed.createComponent(EggDonationDialogComponent);
+    fixture.componentRef.setInput('productionUnitId', 2); fixture.detectChanges();
     trigger = document.createElement('button'); document.body.appendChild(trigger);
   });
   afterEach(() => { fixture.destroy(); trigger.remove(); restore(); });
@@ -48,7 +49,8 @@ describe('EggDonationDialogComponent', () => {
     await fixture.whenStable(); fixture.detectChanges();
     expect(modal().open).toBe(false); expect(document.activeElement).toBe(trigger); expect(donate).not.toHaveBeenCalled();
     open(); expect(component().form.controls.quantity.value).toBe('120');
-    component().close(); component().open({ id: 3, name: 'Otra UP' }, 20, trigger);
+    component().close(); fixture.componentRef.setInput('productionUnitId', 3); fixture.detectChanges();
+    component().open({ id: 3, name: 'Otra UP' }, 20, trigger);
     expect(component().form.controls.quantity.value).toBe('');
     expect(component().form.controls.reason.value).toBe('');
   });
@@ -150,5 +152,26 @@ describe('EggDonationDialogComponent', () => {
     const saved = vi.fn(); component().saved.subscribe(saved); open(); fill(); const saving = component().save();
     fixture.destroy(); pending.next({ data: { transaction: 'late' } }); await saving;
     expect(saved).not.toHaveBeenCalled();
+  });
+
+  it('closes and clears the draft when the global context becomes Todas and blocks opening or saving', async () => {
+    open(); fill(); fixture.componentRef.setInput('productionUnitId', null);
+    await component().save();
+    expect(donate).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    expect(modal().open).toBe(false); expect(component().unit()).toBeNull();
+    expect(component().form.controls.reason.value).toBe('');
+    open(); await component().save();
+    expect(modal().open).toBe(false); expect(donate).not.toHaveBeenCalled();
+  });
+
+  it('discards the result of an already sent donation after switching global units', async () => {
+    const pending = new Subject<{ data: { transaction: string } }>(); donate.mockReturnValue(pending);
+    const saved = vi.fn(); component().saved.subscribe(saved);
+    open(); fill(); const saving = component().save();
+    fixture.componentRef.setInput('productionUnitId', 3); fixture.detectChanges();
+    expect(modal().open).toBe(false); expect(component().busy()).toBe(false);
+    pending.next({ data: { transaction: 'previous-unit' } }); await saving;
+    expect(saved).not.toHaveBeenCalled(); expect(component().unit()).toBeNull();
   });
 });

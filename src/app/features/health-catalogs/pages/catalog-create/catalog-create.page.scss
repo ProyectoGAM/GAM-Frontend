@@ -1,0 +1,32 @@
+@use '../../health-catalog-ui';
+:host { display: block; }
+.create-page { max-width: 760px;
+  .global-note { padding: 8px 12px; border-radius: 99px; color: var(--gam-color-primary); background: var(--gam-color-primary-soft); }
+  &:has(.action-bar) { padding-bottom: max(0px, calc(73px + env(safe-area-inset-bottom) + 16px + var(--health-keyboard-offset, 0px) - var(--gam-page-bottom-space, calc(48px + env(safe-area-inset-bottom))))); }
+  .catalog-form, fieldset { display: grid; gap: 16px; min-width: 0; }
+  fieldset { margin: 0; padding: 0; border: 0; }
+  .form-card { display: grid; gap: 20px; }
+  .section-heading { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .section-heading app-info-help { flex-shrink: 0; }
+  .form-card h2 { display: flex; align-items: center; gap: 10px; line-height: 1.5; }
+  .form-card h2 ion-icon { font-size: 26px; flex-shrink: 0; }
+  .form-card .helper { margin: 0; }
+  .step { display: inline-grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); }
+  .data-grid, .field { display: grid; align-content: start; min-width: 0; gap: 8px; }
+  .data-grid { align-items: start; gap: 18px; }
+  label { color: var(--gam-color-text); font-size: .875rem; font-weight: 600; }
+  label span, .field-error { color: var(--gam-color-danger); }
+  .field-error { font-size: .8125rem; line-height: 1.5; }
+  input, select, textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; scroll-margin-block: 100px; }
+  textarea { resize: vertical; line-height: 1.5; }
+  summary { min-height: 44px; display: flex; align-items: center; padding: 8px 12px; border: 1px solid var(--gam-color-border); border-radius: 7px; background: var(--gam-color-surface-alt); color: var(--gam-color-heading); font-weight: 600; font-size: .875rem; cursor: pointer; }
+  summary::before { content: '›'; display: inline-block; margin-right: 10px; font-size: 20px; } details[open] summary::before { transform: rotate(90deg); }
+  .details-field { margin-top: 16px; }
+  .action-bar { position: fixed; z-index: 10; inset: auto 0 var(--health-keyboard-offset, 0px); padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); border-top: 1px solid var(--gam-color-border); background: var(--gam-color-surface); }
+  .action-bar.keyboard-open { padding-bottom: 12px; }
+  .action-bar > div { max-width: 760px; margin-inline: auto; } .action-bar .button { width: 100%; min-height: 48px; }
+  .feedback.success .button { margin: 8px 8px 0 0; }
+  .feedback.success h2 { color: var(--gam-color-success); margin-bottom: 10px; }
+  @media (min-width: 640px) { .data-grid:has(#health-sku) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 901px) { .action-bar { left: 283px; padding-inline: clamp(18px, 3vw, 36px); } .action-bar > div { display: flex; justify-content: flex-end; } .action-bar .button { width: auto; min-width: 200px; } }
+}
