@@ -1,0 +1,16 @@
+<section class="health-page vaccine-detail">
+  <a class="back" routerLink="/administracion/manejo-lotes/vacunacion" [queryParams]="returnQuery">← Volver a vacunación</a>
+  <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>Ficha de vacuna</h1><p class="lead">Información del catálogo global.</p></div></header>
+  @if (!allowed()) { <div class="feedback error" role="alert">Este catálogo está disponible únicamente para administradores.</div> }
+  @else if (state() === 'idle' || state() === 'loading') { <div class="state" role="status">Cargando vacuna…</div> }
+  @else if (error(); as message) { <div class="feedback error" role="alert"><p>{{ message }}</p><button class="button" type="button" (click)="load()">Reintentar</button></div> }
+  @else if (record(); as item) {
+    <article class="card">
+      <div class="record-heading"><div><h2>{{ item.name }}</h2><p class="muted">{{ item.vaccine?.sku }}</p></div><span class="status" [class.inactive]="item.vaccine?.status === 'inactive'">{{ item.vaccine?.status === 'active' ? 'Activa' : 'Inactiva' }}</span></div>
+      <dl><div><dt>Descripción</dt><dd class="long-text">{{ item.description }}</dd></div><div><dt>Proveedor</dt><dd>{{ item.supplier }}</dd></div><div><dt>Unidad de registro</dt><dd>{{ unit() }}</dd></div>
+        @if (item.vaccine?.details) { <div><dt>Detalles adicionales</dt><dd class="long-text">{{ item.vaccine.details }}</dd></div> }
+        <div><dt>Registrado por</dt><dd>{{ item.creator }}</dd></div><div><dt>Fecha de registro</dt><dd><time [attr.datetime]="item.createdAt">{{ item.createdAt | date:'dd/MM/yyyy HH:mm':'-0300' }}</time></dd></div>
+      </dl>
+    </article>
+  }
+</section>

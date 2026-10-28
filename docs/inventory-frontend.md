@@ -121,7 +121,7 @@ El stock mínimo conserva el valor decimal como string. Los estados se derivan d
 
 ## Productos y unidades
 
-El modelo de lectura contempla `raw_material`, `supply`, `finished_feed`, `egg`, `medicine`, `vaccine` y `other`. Las altas ofrecen únicamente `raw_material`, `supply`, `egg`, `medicine`, `vaccine` y `other`, según `CreatableKind` de `products.yaml`; `finished_feed` queda reservado a registros históricos. El editor no ofrece convertir otros productos a ese tipo, pero conserva su etiqueta y clasificación al editar metadata de uno que ya era ración. La validación del formulario también rechaza nuevas altas y conversiones con el valor retirado. Se conservan `stock_tracked`, `status` y las capacidades del backend como autoridad sobre productos utilizables.
+El modelo de lectura contempla `raw_material`, `supply`, `finished_feed`, `egg`, `medicine`, `vaccine` y `other`. Las altas genéricas ofrecen únicamente `raw_material`, `supply` y `other`, según el contrato vigente. Huevos, vacunas, medicamentos y raciones se gestionan desde sus apartados específicos; vacunas y medicamentos son catálogos globales sin inventario físico. Nuevo producto ofrece a administradores enlaces a sus formularios de creación. El editor conserva el tipo de un registro histórico y las tres categorías genéricas disponibles, sin ofrecer nuevas conversiones a tipos especializados. La validación rechaza tipos inyectados en opciones antiguas. Se conservan `stock_tracked`, `status` y las capacidades del backend como autoridad sobre registros históricos.
 
 Las unidades técnicas son `unit`, `kg`, `g`, `l`, `ml` y `dose`. Se muestran como unidades, kg, g, L, ml y dosis. Las cantidades se formatean desde strings sin convertirlas a `number` para enviarlas ni redondearlas destructivamente.
 
@@ -152,27 +152,34 @@ permitidos. La selección inicial coincide con el
 formulario, también para usuarios que sólo pueden registrar pérdidas y ajustes.
 
 Las tarjetas numeradas **Datos del movimiento** y **Productos** mantienen una
-única columna en móvil y amplían su composición en escritorio. Ingreso conserva
-el **proveedor obligatorio**; fecha efectiva es opcional y motivo es obligatorio
+única columna en móvil y amplían su composición en escritorio. Ingreso permite
+dejar el proveedor sin seleccionar: se avisa que se usará «Propio» y se omite
+`supplier_id` para que el backend resuelva su proveedor interno estable. No se
+busca por nombre ni se crean proveedores desde el formulario. Fecha efectiva es opcional y motivo es obligatorio
 para pérdidas y ajustes. Cada producto muestra la unidad real junto a la cantidad
-y el contexto de la ubicación: Planta de ración, Unidad productiva o Depósito
-general, con la UP cuando existe. El tipo se deriva de las relaciones cargadas,
-nunca del nombre. No se agrega un selector global de UP al formulario.
+y el contexto de la ubicación: Cámara de insumos, Planta de ración, Cuenta de
+huevos de UP o Sanidad, con la UP cuando existe. Se consume el `type` explícito
+del API, nunca el nombre o las relaciones. No se agrega un selector global de UP al formulario.
 
 Cada línea sigue **ubicación → producto → cantidad**. En transferencias se eligen
 primero origen y destino distintos. `GET /inventario/productos-permitidos` recibe
 el ID de la ubicación de inventario (`stock_location_id`, no el ID de la planta)
 y `operation`: `receipt`, `issue`, `loss`, `adjustment` o `transfer`. El catálogo
-de productos sigue siendo global; las reglas de compatibilidad pertenecen al
-backend y nunca se deducen del nombre ni de una matriz de tipos en el frontend.
+de productos sigue siendo global. El backend conserva la autoridad y el frontend
+aplica las categorías explícitas `allowed_product_kinds` sobre esa respuesta:
+plantas de ración sólo materias primas; cuentas de huevos de UP sólo huevos;
+cámaras sólo insumos y otros. Sanidad queda reservada e inhabilitada; medicamentos
+y vacunas no admiten movimientos físicos nuevos. No amplía las
+opciones del servidor. Ver [almacenamiento, sanidad y regularizaciones](inventory-storage-rules.md).
 
 La consulta carga las páginas de esa ubicación y operación, hasta 100 productos
 por página, para ofrecer búsqueda local sobre las opciones completas. No descarga
 el catálogo global ni todos los saldos. Pérdidas muestra únicamente los productos
-que devuelve el servidor con stock local positivo. Las otras operaciones pueden
+que devuelve el servidor y verifica también stock local estrictamente positivo. Las otras operaciones pueden
 ofrecer productos sin saldo previo, con cero o con saldo negativo según el
 contrato. Transferencias consulta ambas ubicaciones y conserva la intersección
-por ID y unidad, usando el saldo del origen para informar el stock disponible.
+por ID y unidad, exige la matriz en ambos extremos y usa el saldo del origen
+para informar el stock disponible.
 
 El selector de producto se bloquea antes de elegir ubicación y durante la carga.
 Un error permite reintentar la consulta de esa línea, sin recurrir al catálogo
@@ -338,11 +345,24 @@ nombre de responsable ni agregados de donaciones para un panel de totales.
 
 ### Rediseño — 27/10/2026
 
-La pantalla prioriza el historial y el contexto de la UP. Carga las páginas de
-unidades activas para ofrecer un único selector con búsqueda local. Consulta el
+La pantalla prioriza el historial y el contexto de la UP. Utiliza la selección
+global de `AdminUnitContextService`, sin un selector independiente ni elegir
+automáticamente la primera UP. Espera a que el contexto esté listo. Con **Todas
+las UP**, deshabilita **Nueva donación** y pide elegir una unidad desde el filtro
+global; no consulta un saldo ni un historial agregados que el API no ofrece.
+Carga las páginas de unidades activas para comprobar que la UP seleccionada
+admite el registro de donaciones. Consulta el
 saldo por separado y enlaza a Stock de huevos con `production_unit_id`; el destino
 selecciona esa UP si está disponible. No muestra un saldo de otra unidad mientras
 se carga la nueva ni presenta un fallo de lectura como saldo cero.
+El enlace desde Donaciones añade `from=donaciones`: Stock de huevos muestra
+**Volver a donaciones** y regresa a esa pantalla, conservando la UP del filtro
+global. Desde Existencias u otro acceso sigue mostrando **Volver a existencias**.
+El origen admite únicamente ese valor conocido, nunca una URL de retorno libre.
+Se comprobó el recorrido completo en el navegador integrado con Santa Clara,
+incluido el regreso con esa UP seleccionada y el retorno habitual desde
+Existencias. Pasaron lint, las 908 pruebas de la suite completa y el build de
+producción en Docker.
 
 **Nueva donación** abre un modal centrado en escritorio y de pantalla completa
 en teléfono. El encabezado y las acciones permanecen visibles; únicamente el
@@ -350,7 +370,11 @@ cuerpo se desplaza, con áreas seguras y adaptación al viewport visual del tecl
 La unidad de origen queda identificada y bloqueada durante el registro. El foco
 inicial va a cantidad y vuelve al botón de apertura al cerrar con X, Cancelar o
 Escape. Cancelar conserva el borrador al reabrir para la misma unidad; abrir para
-otra UP lo limpia. La fecha/hora se inicia en el minuto local actual y admite
+otra UP lo limpia. Cambiar el filtro global cierra el modal y descarta su borrador,
+invalida respuestas anteriores y recarga saldo e historial desde la primera
+página, conservando los filtros aplicados de estado y fechas. Si ya se envió una
+donación, el cambio no revierte el comando: descarta su resultado visual del
+contexto anterior. La fecha/hora se inicia en el minuto local actual y admite
 edición, rechazando fechas inválidas o futuras según la regla del servidor.
 
 La cantidad entera, **Motivo o destinatario** y comentarios conservan el contrato
@@ -391,6 +415,15 @@ y altura reducida de 320 × 360 px, con cuerpo desplazable y acciones accesibles
 sin desbordamiento horizontal ni errores de consola. Los registros y sus errores
 se verificaron con respuestas controladas; no se guardaron donaciones de prueba
 en la base local. No se probó un dispositivo físico ni el teclado nativo.
+
+La sincronización con el filtro global se verificó en el navegador integrado con
+ambas UP y con **Todas las UP**, en escritorio y teléfono de 360 px en claro y
+oscuro. Las 34 pruebas de Donaciones y su modal cubren selección previa, carga
+del contexto, UP no habilitada, bloqueo en Todas, cambio de UP, descarte de
+borradores y respuestas tardías, además de los permisos y reintentos existentes.
+Pasaron lint, las 905 pruebas de la suite completa y el build de producción en
+Docker; la auditoría de producción no reportó vulnerabilidades. No se registraron
+donaciones reales durante esta comprobación.
 
 ## Gaps backend
 

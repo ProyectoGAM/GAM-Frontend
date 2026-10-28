@@ -11,6 +11,21 @@
       @if (canRegisterReceipt() && product.stock_tracked) { <button class="button primary receipt-button" type="button" (click)="registerReceipt()">Registrar ingreso</button> }
     </div>
   } @else {
+    @if (canCreateRecipe()) {
+      <aside class="recipe-shortcut" aria-label="Creación de raciones">
+        <p><strong>¿Querés crear una ración?</strong>Definí su composición y rendimiento en Recetas.</p>
+        <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/Recetas/nueva'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear receta<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
+      </aside>
+    }
+    @if (canCreateHealthCatalog()) {
+      <aside class="recipe-shortcut" aria-label="Catálogos globales de sanidad">
+        <p><strong>Vacunas y medicamentos</strong>Se crean en sus catálogos globales, sin ubicación ni control de existencias.</p>
+        <div class="health-shortcut-links">
+          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/medicacion/nuevo'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear medicamento<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
+          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/vacunacion/nuevo'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear vacuna<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
+        </div>
+      </aside>
+    }
     <form #productForm class="product-form" [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="saving()">
       @if (error(); as message) { <p class="feedback error" role="alert" tabindex="-1">{{ message }}</p> }
       <fieldset [disabled]="saving()">

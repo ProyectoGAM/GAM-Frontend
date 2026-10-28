@@ -34,6 +34,26 @@ describe('EggStock production-unit integration', () => {
   let restoreDialog: () => void;
   beforeEach(() => { restoreDialog = stubNativeDialog(); });
   afterEach(() => { restoreDialog(); });
+  it.each([
+    ['donaciones', '/administracion/inventario/donaciones', 'Volver a donaciones'],
+    ['', '/administracion/inventario/existencias', 'Volver a existencias'],
+    ['https://example.com', '/administracion/inventario/existencias', 'Volver a existencias'],
+  ])('returns to the recognized origin %s without accepting arbitrary destinations', async (from, destination, label) => {
+    const fixture = TestBed.configureTestingModule({
+      imports: [EggStockPage], providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ from, production_unit_id: '27' }) } } },
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+        { provide: ProductionUnitsService, useValue: { listAll: () => of([productionUnit(12, 'Granja Norte'), productionUnit(27, 'Granja Sur')]) } },
+        { provide: EggStockApi, useValue: { balance: (id: number) => of({ data: { production_unit_id: id, balance: 86 } }), movements: () => of(emptyMovements) } },
+      ],
+    }).createComponent(EggStockPage);
+    await fixture.whenStable(); fixture.detectChanges();
+    const back = fixture.nativeElement.querySelector('.back') as HTMLAnchorElement;
+    expect(back.getAttribute('href')).toBe(destination); expect(back.textContent).toContain(label);
+    expect(fixture.componentInstance.selectedUnit()).toBe(27);
+    fixture.destroy();
+  });
   it.each([['27', 27], ['999', 12]])('opens the requested donation unit %s when it is available', async (requested, expected) => {
     const balance = vi.fn((id: number) => of({ data: { production_unit_id: id, balance: 86 } }));
     const fixture = TestBed.configureTestingModule({

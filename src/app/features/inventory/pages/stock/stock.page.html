@@ -19,6 +19,7 @@
   </form>
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load()">Reintentar</button></div> }
   @if (success(); as message) { <div class="feedback success" role="status">{{ message }}</div> }
+  @if (reviewingIncompatible()) { <p class="feedback" role="status">Saldos históricos incompatibles con la ubicación. Revisa cada caso antes de trasladarlo o cerrar el saldo a cero. La consulta no cambia existencias.</p> }
   <div class="stock-toolbar">
     <p role="status">{{ resultSummary() }}</p>
     <div class="toolbar-actions">
@@ -40,6 +41,7 @@
             <td data-label="Ubicación" class="location-cell">
               @if (row.plantPath; as path) { <a class="plant-link" [routerLink]="path">{{ row.locationName }}<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a> }
               @else { <span>{{ row.locationName }}</span> }
+              <small>{{ row.locationType }}</small>
               @if (row.unitName) { <small>{{ row.unitName }}</small> }
             </td>
             <td data-label="Disponible" class="quantity available-cell"><span class="mobile-caption">Disponible</span>{{ row.available }}</td>
@@ -47,6 +49,7 @@
             <td data-label="Estado" class="status-cell"><span class="status" [class]="row.statusClass">{{ row.status }}</span></td>
             <td data-label="Acción" class="actions-cell">
               <div class="row-actions">
+                @if (reviewingIncompatible() && canAdjust() && row.balance.product.kind !== 'egg') { <button class="row-action" type="button" (click)="regularize(row.balance, $event)">Regularizar</button> }
                 @if (canManage()) { <button class="row-action" type="button" aria-label="Cambiar mínimo" (click)="editMinimum(row.balance, $event)"><ion-icon name="settings-outline" aria-hidden="true" /><span class="full-action-label">Cambiar mínimo</span><span class="compact-action-label" aria-hidden="true">Mínimo</span></button> }
                 <a class="row-action movement-link" aria-label="Ver movimientos" title="Ver movimientos" routerLink="/administracion/inventario/movimientos" [queryParams]="{ product_id: row.balance.product_id, stock_location_id: row.balance.stock_location_id }"><ion-icon name="list-outline" aria-hidden="true" /><span class="full-action-label">Ver movimientos</span></a>
               </div>
@@ -87,10 +90,12 @@
 </dialog>
   <app-filter-dialog titleId="stock-filters-title" (clearRequested)="clearDraftFilters()" (applyRequested)="applyFilters()">
     <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
-      <div class="filter-section"><label for="stock-location">Ubicación</label><select id="stock-location" formControlName="stock_location_id"><option value="">Todas las ubicaciones</option>@for (item of options()?.stock_locations ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></div>
+      <div class="filter-section"><label for="stock-location">Ubicación</label><select id="stock-location" formControlName="stock_location_id"><option value="">Todas las ubicaciones</option>@for (item of locationOptions(); track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></div>
       <div class="filter-section"><label class="checkbox"><input type="checkbox" formControlName="below_minimum"> Solo bajo mínimo</label></div>
+      <div class="filter-section"><label class="checkbox"><input type="checkbox" formControlName="incompatible_only"> Solo saldos incompatibles</label></div>
       @if (referencesState() === 'loading') { <p class="muted" role="status">Cargando ubicaciones…</p> }
       @if (referencesError(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="loadReferences()">Reintentar filtros</button></div> }
     </form>
   </app-filter-dialog>
+  <app-stock-regularization-dialog (regularized)="load(meta()?.current_page ?? 1)" />
 </section>

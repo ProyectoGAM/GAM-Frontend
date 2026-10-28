@@ -26,11 +26,12 @@
 
     @if (referencesState() === 'loading') { <div class="state card" role="status">Cargando proveedores y ubicaciones…</div> }
     @if (referencesError(); as message) { <div class="feedback error" role="alert"><span>{{ message }}</span><button class="button secondary" type="button" (click)="loadReferences()">Reintentar</button></div> }
+    @if (operation() === 'receipt' && supplierReferencesError(); as message) { <div class="feedback" role="status"><span>{{ message }}</span><button class="button secondary" type="button" (click)="loadReferences()" [disabled]="mutation() === 'submitting'">Reintentar proveedores</button></div> }
     @if (referencesState() === 'empty') { <div class="state card">No hay ubicaciones disponibles. Pide a una persona administradora que revise la configuración.</div> }
     @if (requestedProductNotice(); as message) { <p class="feedback" role="status">{{ message }}</p> }
     @if (error(); as message) { <div class="feedback error" role="alert" tabindex="-1">{{ message }}</div> }
     @if (success(); as message) { <div class="feedback success" role="status" tabindex="-1">{{ message }}</div> }
-    @if (operation() === 'receipt' && referencesState() === 'success' && !options()?.suppliers?.length) { <p class="feedback">No hay proveedores disponibles para registrar un ingreso.</p> }
+    @if (operation() === 'receipt' && referencesState() === 'success' && !options()?.suppliers?.length) { <p class="feedback">No hay proveedores externos activos. Puedes registrar el ingreso sin seleccionar proveedor para usar el proveedor interno.</p> }
 
     @if (referencesState() === 'success') {
       <form class="movement-form" [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="mutation() === 'submitting'">
@@ -40,9 +41,10 @@
             <div class="data-grid">
               @if (operation() === 'receipt') {
                 <div class="field">
-                  <label for="supplier">Proveedor <span aria-hidden="true">*</span></label>
-                  <select id="supplier" formControlName="supplier_id" required [attr.aria-invalid]="fieldErrorVisible(form.controls.supplier_id) ? 'true' : null" [attr.aria-describedby]="fieldErrorVisible(form.controls.supplier_id) ? 'supplier-error' : null"><option value="">Selecciona un proveedor</option>@for (item of options()?.suppliers ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select>
-                  @if (fieldErrorVisible(form.controls.supplier_id)) { <p class="field-error" id="supplier-error" role="alert">Selecciona el proveedor que entregó los productos.</p> }
+                  <label for="supplier">Proveedor <small>(opcional)</small></label>
+                  <select id="supplier" formControlName="supplier_id" [attr.aria-invalid]="supplierErrorVisible() ? 'true' : null" [attr.aria-describedby]="supplierErrorVisible() ? 'supplier-help supplier-error' : 'supplier-help'"><option value="">Sin proveedor seleccionado (Propio)</option>@for (item of options()?.suppliers ?? []; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select>
+                  <p class="field-help" id="supplier-help" role="status">@if (!supplierSelection()) { Se ingresará "propio" como proveedor ya que no se proporcionó uno. } @else { Se registrará el proveedor seleccionado. }</p>
+                  @if (supplierErrorVisible()) { <p class="field-error" id="supplier-error" role="alert">Selecciona un proveedor activo o deja el campo vacío para usar el proveedor interno.</p> }
                 </div>
               }
               <div class="field">

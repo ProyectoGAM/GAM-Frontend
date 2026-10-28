@@ -27,6 +27,7 @@ const productionUnit: ProductionUnit = {
 };
 
 const location: StockLocation = {
+  type: 'warehouse', allowed_product_kinds: ['supply', 'other'],
   id: 5,
   name: 'Depósito principal',
   system_managed: false,
@@ -175,18 +176,18 @@ describe('StockLocations applied filters', () => {
     dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
     expect(list).toHaveBeenCalledTimes(1);
     trigger.click();
-    expect(page.filters.getRawValue()).toEqual({ search: '', production_unit_id: '', status: '' });
-    page.filters.patchValue({ production_unit_id: '23', status: 'active' });
+    expect(page.filters.getRawValue()).toEqual({ search: '', production_unit_id: '', status: '', type: '' });
+    page.filters.patchValue({ production_unit_id: '23', status: 'active', type: 'health' });
     (dialog.querySelector('.sheet-action.primary') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(dialog.open).toBe(false);
-    expect(page.activeFilterCount()).toBe(2);
-    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ production_unit_id: 23, status: 'active' }));
+    expect(page.activeFilterCount()).toBe(3);
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ production_unit_id: 23, status: 'active', type: 'health' }));
     trigger.click();
     (dialog.querySelector('.sheet-action.secondary') as HTMLButtonElement).click();
     expect(page.filters.controls.status.value).toBe('');
-    expect(page.activeFilterCount()).toBe(2);
+    expect(page.activeFilterCount()).toBe(3);
     selectedId.set(23);
     await fixture.whenStable();
     page.clearDraftFilters();
@@ -265,16 +266,16 @@ describe('StockLocations activation confirmation', () => {
   it('shows whether each location belongs to a plant, a production unit or a general depot without relying on its name', async () => {
     const fixture = await createFixture(vi.fn());
     fixture.componentInstance.locations.set([
-      { ...location, id: 1, name: 'Esto es un test', poultry_house_id: 10 },
-      { ...location, id: 2, name: 'Planta de ración escrita en el nombre', poultry_house_id: null, system_managed: true },
+      { ...location, id: 1, name: 'Esto es un test', type: 'feed_plant', poultry_house_id: 10 },
+      { ...location, id: 2, name: 'Planta de ración escrita en el nombre', type: 'egg_account', poultry_house_id: null, system_managed: true },
       { ...location, id: 3, name: 'Depósito', production_unit: null, poultry_house_id: null },
-      { ...location, id: 4, name: 'Otra ubicación', poultry_house_id: 12, production_unit: null },
+      { ...location, id: 4, name: 'Otra ubicación', type: 'health', production_unit: null },
     ]);
     fixture.detectChanges();
 
     const types = Array.from(fixture.nativeElement.querySelectorAll('td[data-label="Tipo"]') as NodeListOf<HTMLElement>)
       .map(cell => cell.textContent?.trim());
-    expect(types).toEqual(['Planta de ración', 'Unidad productiva', 'Depósito general', 'Planta de ración']);
+    expect(types).toEqual(['Planta de ración', 'Cuenta de huevos de UP', 'Cámara de insumos', 'Sanidad']);
     fixture.destroy();
   });
 

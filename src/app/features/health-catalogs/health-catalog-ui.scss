@@ -1,0 +1,26 @@
+.health-page { max-width: 1280px; margin: 0 auto; color: var(--gam-color-text); font-size: .9375rem;
+  h1, h2, h3 { margin: 0; color: var(--gam-color-heading); font-weight: 700; }
+  h1 { font-size: clamp(1.625rem, 3vw, 2.25rem); } h2 { font-size: 1.125rem; }
+  p { line-height: 1.5; }
+  .page-heading { display: grid; gap: 18px; margin-bottom: 22px; }
+  .eyebrow { margin: 0 0 6px; color: var(--gam-color-text-muted); font-size: .75rem; font-weight: 600; letter-spacing: .06em; }
+  .lead { margin: 8px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; }
+  .global-note { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .button { box-sizing: border-box; display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; font-size: .875rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .button.primary { border-color: var(--gam-color-primary); background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+  button:disabled, a[aria-disabled='true'] { opacity: .6; cursor: default; }
+  .button ion-icon { flex-shrink: 0; font-size: 20px; }
+  .card, .state, .feedback { padding: 18px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  .state, .feedback { margin-bottom: 16px; }
+  .state { text-align: center; } .state p { color: var(--gam-color-text-muted); }
+  .feedback.error { background: var(--gam-color-danger-soft); color: var(--gam-color-danger); border-color: var(--gam-color-danger); }
+  .feedback.success { background: var(--gam-color-success-soft); color: var(--gam-color-success); border-color: var(--gam-color-success); }
+  .feedback p { margin: 0 0 12px; }
+  .status { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 99px; background: var(--gam-color-success-soft); color: var(--gam-color-success); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+  .status.inactive { background: var(--gam-color-surface-alt); color: var(--gam-color-text-muted); border: 1px solid var(--gam-color-border); }
+  .muted, .helper { color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 14px; color: var(--gam-color-primary); font-size: .875rem; text-decoration: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex='-1']:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+  @media (min-width: 640px) { .page-heading { display: flex; align-items: center; justify-content: space-between; } .page-heading > .button { flex-shrink: 0; } .card { padding: 24px; } }
+}

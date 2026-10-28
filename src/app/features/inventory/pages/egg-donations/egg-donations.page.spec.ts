@@ -1,11 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
 import { EggDonationDialogComponent } from '../../components/egg-donation-dialog/egg-donation-dialog.component';
 import { EggStockTransaction, PaginatedResponse } from '../../interfaces/inventory';
@@ -27,10 +28,14 @@ describe('Egg donations page', () => {
   let restore: () => void;
   const api = { donationUnits: vi.fn(), balance: vi.fn(), movements: vi.fn(), donate: vi.fn() };
   const user = signal({ id: 1, permissions: ['egg-stock.view', 'egg-stock.move'] });
+  const selectedId = signal<number | null>(2);
+  const contextState = signal<'loading' | 'ready' | 'error'>('ready');
+  const unitContext = { selectedId, state: contextState, selectedUnit: computed(() => units.find((unit) => unit.id === selectedId()) ?? null) };
 
   beforeEach(() => {
     restore = stubNativeDialog(); vi.resetAllMocks();
     user.set({ id: 1, permissions: ['egg-stock.view', 'egg-stock.move'] });
+    selectedId.set(2); contextState.set('ready');
     api.donationUnits.mockReturnValue(of(unitPage()));
     api.balance.mockImplementation((id: number) => of({ data: { production_unit_id: id, balance: id === 2 ? 9503 : 477 } }));
     api.movements.mockReturnValue(of(history()));
@@ -42,6 +47,7 @@ describe('Egg donations page', () => {
     await TestBed.configureTestingModule({
       imports: [EggDonationsPage], providers: [provideRouter([]),
         { provide: AuthStore, useValue: { isAdmin: () => false, user } },
+        { provide: AdminUnitContextService, useValue: unitContext },
         { provide: EggStockApi, useValue: api }],
     }).compileComponents();
     fixture = TestBed.createComponent(EggDonationsPage); fixture.detectChanges();
@@ -58,34 +64,84 @@ describe('Egg donations page', () => {
 
   it('shows the selected unit, real balance and empty history without a permanent creation form', async () => {
     await render();
-    expect((fixture.nativeElement.querySelector('#donation-unit') as HTMLInputElement).value).toBe('Granja Santa Clara');
+    expect(fixture.nativeElement.querySelector('.unit-name').textContent).toBe('Granja Santa Clara');
+    expect(fixture.nativeElement.querySelector('#donation-unit')).toBeNull();
     expect(api.movements).toHaveBeenCalledWith(2, expect.objectContaining({ type: 'donation', page: 1, per_page: 20 }));
     expect(fixture.nativeElement.querySelector('.balance-value').textContent).toContain('9.503');
     expect(fixture.nativeElement.textContent).toContain('Aún no hay donaciones');
     expect(fixture.nativeElement.querySelector('.donation-dialog').open).toBe(false);
     expect(fixture.nativeElement.querySelector('.stock-link').getAttribute('href')).toContain('production_unit_id=2');
+    expect(fixture.nativeElement.querySelector('.stock-link').getAttribute('href')).toContain('from=donaciones');
   });
 
-  it('loads every page of active units before offering a single searchable selector', async () => {
+  it('loads eligible units without replacing the global selection and follows subsequent global changes', async () => {
     api.donationUnits.mockImplementation((_search: string, requested: number) => of(requested === 1
       ? unitPage([units[0]], 2) : { data: [units[1]], meta: { current_page: 2, last_page: 2 } }));
     await render();
     expect(api.donationUnits.mock.calls).toEqual([['', 1], ['', 2]]);
-    expect(page().unitOptions()).toEqual(units.map((unit) => ({ value: unit.id, label: unit.name })));
-    page().unitControl.setValue('3'); await settle();
+    expect(page().unit()).toBe(2);
+    selectedId.set(3); await settle();
     expect(page().balance()).toBe(477);
     expect(api.movements).toHaveBeenLastCalledWith(3, expect.objectContaining({ type: 'donation' }));
-    page().unitControl.setValue(''); await settle();
+    selectedId.set(null); await settle();
     expect(page().balance()).toBeNull(); expect(page().records()).toEqual([]);
     expect(page().meta()).toBeNull(); expect(button('Nueva donación').disabled).toBe(true);
+    page().openDonation(document.createElement('button')); await settle();
+    expect(page().dialogOpen()).toBe(false); expect(api.donate).not.toHaveBeenCalled();
+  });
+
+  it('keeps Todas on entry without automatically selecting an eligible unit or allowing donations', async () => {
+    selectedId.set(null); await render();
+    expect(page().unit()).toBeNull(); expect(selectedId()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.unit-name').textContent).toBe('Todas las UP');
+    expect(fixture.nativeElement.querySelector('#donation-unit-hint').textContent).toContain('filtro global');
+    expect(button('Nueva donación').disabled).toBe(true);
+    page().openDonation(document.createElement('button'));
+    expect(page().dialogOpen()).toBe(false);
+    expect(api.balance).not.toHaveBeenCalled(); expect(api.movements).not.toHaveBeenCalled(); expect(api.donate).not.toHaveBeenCalled();
+  });
+
+  it('respects a previously selected global UP and blocks donating in an ineligible UP', async () => {
+    selectedId.set(3); api.donationUnits.mockReturnValue(of(unitPage([units[0]])));
+    await render();
+    expect(page().unit()).toBe(3); expect(selectedId()).toBe(3);
+    expect(api.balance).toHaveBeenCalledWith(3);
+    expect(button('Nueva donación').disabled).toBe(true);
+    page().openDonation(document.createElement('button'));
+    expect(page().dialogOpen()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('Esta unidad no está disponible');
+  });
+
+  it('closes the creation draft and prevents a donation after changing the global filter to Todas', async () => {
+    await render(); button('Nueva donación').click(); await settle();
+    dialogComponent().form.patchValue({ quantity: '20', reason: 'Borrador' });
+    selectedId.set(null); await settle();
+    expect(page().dialogOpen()).toBe(false); expect(dialogComponent().unit()).toBeNull();
+    expect(dialogComponent().form.controls.reason.value).toBe('');
+    await dialogComponent().save(); expect(api.donate).not.toHaveBeenCalled();
+    selectedId.set(3); await settle(); button('Nueva donación').click(); await settle();
+    expect(dialogComponent().unit()?.id).toBe(3); expect(dialogComponent().form.controls.quantity.value).toBe('');
+  });
+
+  it('keeps applied history filters and resets pagination when the global UP changes', async () => {
+    await render(); page().filters.patchValue({ status: 'cancelled', date_from: '2026-10-01' });
+    await page().applyFilters(); await page().load(3); openFilters();
+    selectedId.set(3); await settle();
+    expect(api.movements).toHaveBeenLastCalledWith(3, expect.objectContaining({ status: 'cancelled', date_from: '2026-10-01', page: 1 }));
+    expect(fixture.nativeElement.querySelector('.filters-dialog').open).toBe(false);
+    contextState.set('error'); await settle();
+    expect(page().balance()).toBeNull(); expect(page().records()).toEqual([]);
+    expect(button('Nueva donación').disabled).toBe(true);
   });
 
   it('does not show an empty history while units and history are still loading', async () => {
     const pendingUnits = new Subject<ReturnType<typeof unitPage>>(); const pendingHistory = new Subject<ReturnType<typeof history>>();
+    contextState.set('loading');
     api.donationUnits.mockReturnValue(pendingUnits); api.movements.mockReturnValue(pendingHistory);
     await render();
     expect(page().unitsState()).toBe('loading'); expect(page().unit()).toBeNull();
-    pendingUnits.next(unitPage()); await settle();
+    expect(api.balance).not.toHaveBeenCalled(); expect(api.movements).not.toHaveBeenCalled();
+    contextState.set('ready'); pendingUnits.next(unitPage()); await settle();
     expect(page().historyState()).toBe('loading');
     expect(fixture.nativeElement.textContent).not.toContain('Aún no hay donaciones');
     pendingHistory.next(history()); await settle(); expect(page().historyState()).toBe('empty');
@@ -107,10 +163,10 @@ describe('Egg donations page', () => {
 
   it('represents empty and failed unit lists and can recover without invented stock', async () => {
     api.donationUnits.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
-    await render(); expect(page().unitsState()).toBe('error'); expect(api.balance).not.toHaveBeenCalled();
+    await render(); expect(page().unitsState()).toBe('error'); expect(button('Nueva donación').disabled).toBe(true);
     api.donationUnits.mockReturnValueOnce(of(unitPage([])));
     button('Reintentar unidades').click(); await settle();
-    expect(page().unitsState()).toBe('empty'); expect(page().balance()).toBeNull();
+    expect(page().unitsState()).toBe('empty'); expect(button('Nueva donación').disabled).toBe(true);
     expect(fixture.nativeElement.textContent).toContain('No hay unidades productivas activas');
     await page().loadUnits(); await settle(); expect(page().unit()).toBe(2);
   });
@@ -120,7 +176,7 @@ describe('Egg donations page', () => {
     api.donationUnits.mockReturnValueOnce(old);
     await render(); await page().loadUnits(); await settle();
     old.next(unitPage([{ id: 99, name: 'Respuesta antigua' }], 2)); await settle();
-    expect(page().unitOptions().some((unit) => unit.value === 99)).toBe(false);
+    expect(page().units().some((unit) => unit.id === 99)).toBe(false);
     expect(api.donationUnits.mock.calls).toEqual([['', 1], ['', 1]]);
   });
 
@@ -129,7 +185,7 @@ describe('Egg donations page', () => {
     const oldHistory = new Subject<ReturnType<typeof history>>();
     api.balance.mockReturnValueOnce(oldBalance); api.movements.mockReturnValueOnce(oldHistory);
     await render();
-    page().chooseUnit('3'); await settle(); page().chooseUnit('2'); await settle();
+    selectedId.set(3); await settle(); selectedId.set(2); await settle();
     expect(page().balance()).toBe(9503);
     oldBalance.next({ data: { production_unit_id: 2, balance: 1 } });
     oldHistory.error(new HttpErrorResponse({ status: 500 })); await settle();
@@ -188,10 +244,9 @@ describe('Egg donations page', () => {
     expect(api.movements).toHaveBeenLastCalledWith(2, expect.objectContaining({ page: 2 }));
   });
 
-  it('opens creation with frozen UP context, locks unit changes, and refreshes both reads after success', async () => {
+  it('opens creation with global UP context and refreshes both reads after success', async () => {
     await render(); button('Nueva donación').click(); await settle();
     expect(page().dialogOpen()).toBe(true); expect(dialogComponent().unit()?.id).toBe(2);
-    page().chooseUnit('3'); expect(page().unit()).toBe(2); expect(page().unitControl.value).toBe('2');
     dialogComponent().form.setValue({ quantity: '120', occurred_at: '2026-01-10T10:30', reason: 'Comedor', notes: '' });
     await dialogComponent().save(); await settle();
     expect(page().dialogOpen()).toBe(false); expect(page().notice()).toContain('Granja Santa Clara');

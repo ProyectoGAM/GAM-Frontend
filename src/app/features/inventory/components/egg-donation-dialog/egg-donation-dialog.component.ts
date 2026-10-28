@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, Injector, ViewChild, afterNextRender, computed, effect, inject, output, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, ViewChild, afterNextRender, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { IonIcon } from '@ionic/angular';
@@ -39,6 +39,7 @@ export class EggDonationDialogComponent {
   private readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
+  readonly productionUnitId = input<number | null>(null);
   readonly saved = output<number>();
   readonly openChanged = output<boolean>();
   readonly unit = signal<EggDonationUnit | null>(null);
@@ -65,14 +66,17 @@ export class EggDonationDialogComponent {
   private intent: { fingerprint: string; key: string } | null = null;
   private epoch = 0;
   private actorId: number | undefined;
+  private contextId: number | null | undefined;
 
   constructor() {
     addIcons({ closeOutline, eggOutline, warningOutline });
     this.form.controls.quantity.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.updateQuantity());
     effect(() => {
       const actor = this.auth.user()?.id;
-      if (actor === this.actorId) return;
+      const unit = this.productionUnitId();
+      if (actor === this.actorId && unit === this.contextId) return;
       this.actorId = actor;
+      this.contextId = unit;
       untracked(() => {
         this.epoch++;
         this.busy.set(false);
@@ -103,7 +107,7 @@ export class EggDonationDialogComponent {
   }
 
   open(unit: EggDonationUnit, balance: number | null, trigger: HTMLElement): void {
-    if (!this.allowed() || this.busy() || this.dialog.nativeElement.open) return;
+    if (unit.id !== this.productionUnitId() || !this.allowed() || this.busy() || this.dialog.nativeElement.open) return;
     if (unit.id !== this.unit()?.id) {
       this.form.reset({ quantity: '', occurred_at: localNow(), reason: '', notes: '' });
       this.intent = null;
@@ -135,7 +139,7 @@ export class EggDonationDialogComponent {
   fieldInvalid(control: AbstractControl): boolean { return control.touched && control.invalid; }
 
   async save(): Promise<void> {
-    if (this.busy() || !this.allowed() || !this.unit() || !this.dialog.nativeElement.open) return;
+    if (this.busy() || !this.allowed() || !this.unit() || this.unit()!.id !== this.productionUnitId() || !this.dialog.nativeElement.open) return;
     this.form.controls.occurred_at.updateValueAndValidity();
     this.form.markAllAsTouched();
     if (this.form.invalid) { this.focusAfterRender('[aria-invalid="true"]'); return; }

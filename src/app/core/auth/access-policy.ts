@@ -49,9 +49,14 @@ export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Pa
     || (permission === 'view' && permissions.has('management-plans.manage'));
 }
 
+export function hasFeedRecipesPermission(user: Partial<Pick<AuthUser, 'permissions'>> | null, permission: 'view' | 'manage'): boolean {
+  return user?.permissions?.includes(`feed-recipes.${permission}`) === true;
+}
+
 export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, group: AdminGroup): boolean {
   if (isAdminUser(user)) return true;
   if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
+  if (group === 'manejo-lotes' && (hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage'))) return true;
   if (group === 'reportes' && user?.permissions?.includes('reports.view')) return true;
   if (group === 'inventario' && user?.permissions?.some((permission) => ['inventory.view', 'egg-stock.view', 'egg-stock.move', 'products.view', 'products.manage', 'management-plans.manage'].includes(permission))) return true;
   const roles = normalizedRoles(user);

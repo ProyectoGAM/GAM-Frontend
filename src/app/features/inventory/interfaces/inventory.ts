@@ -12,6 +12,7 @@ export type ProductKind =
 export type ProductStatus = 'active' | 'inactive';
 export type BaseUnit = 'unit' | 'kg' | 'g' | 'l' | 'ml' | 'dose';
 export type StockLocationStatus = 'active' | 'inactive';
+export type StockLocationType = 'warehouse' | 'feed_plant' | 'egg_account' | 'health' | 'unknown';
 export type InventoryMovementType =
   | 'opening_balance'
   | 'receipt'
@@ -57,6 +58,8 @@ export interface StockLocationProductionUnitSummary {
 export interface StockLocation {
   id: number;
   name: string;
+  type: StockLocationType;
+  allowed_product_kinds: ProductKind[];
   system_managed: boolean;
   poultry_house_id?: number | null;
   poultry_house_name?: string | null;
@@ -160,6 +163,7 @@ export interface ReferenceOptions {
 }
 
 export interface InventoryBalanceFilters {
+  incompatible_only?: boolean;
   product_id?: number;
   stock_location_id?: number;
   below_minimum?: boolean;
@@ -179,6 +183,7 @@ export interface InventoryMovementFilters {
 }
 
 export interface StockLocationFilters {
+  type?: StockLocationType;
   search?: string;
   status?: StockLocationStatus;
   production_unit_id?: number;
@@ -193,13 +198,17 @@ export interface MovementLineInput {
 }
 
 export interface ReceiptInput {
-  supplier_id: number;
+  supplier_id?: number | null;
   lines: MovementLineInput[];
   occurred_at?: string;
   reason?: string;
   reference_type?: string;
   reference_id?: string;
 }
+
+export type StockRegularizationInput =
+  | { mode: 'trasladar'; reason: string; to_stock_location_id: number; quantity: string }
+  | { mode: 'recontar'; reason: string };
 
 export interface IssueInput {
   lines: MovementLineInput[];

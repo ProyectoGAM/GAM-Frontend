@@ -1,0 +1,38 @@
+@use '../../health-catalog-ui';
+@use '../../../../shared/ui/filter-dialog/filter-controls';
+:host { display: block; }
+.catalog-list { @include filter-controls.controls;
+  .result-count { margin: 0 0 14px; color: var(--gam-color-text-muted); font-size: .875rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  tbody { display: grid; gap: 12px; }
+  tr { position: relative; display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  td { min-width: 0; overflow-wrap: anywhere; }
+  td h2 { font-size: 1rem; line-height: 1.5; }
+  td small, .description { display: block; margin: 4px 0 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+  .mobile-label { margin-right: 6px; color: var(--gam-color-text-muted); font-size: .75rem; }
+  .vaccines .name-cell { padding-right: 82px; }
+  .vaccines .status-cell { position: absolute; top: 16px; right: 12px; }
+  .creator-cell, .date-cell { color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .detail-cell { border-top: 1px solid var(--gam-color-border); }
+  .detail-cell a { display: flex; justify-content: space-between; align-items: center; min-height: 44px; gap: 8px; color: var(--gam-color-primary); font-weight: 600; text-decoration: none; }
+  .detail-cell a:hover { text-decoration: underline; }
+  details summary { display: inline-flex; align-items: center; min-height: 44px; color: var(--gam-color-primary); cursor: pointer; font-size: .8125rem; text-decoration: underline; }
+  .full-description { white-space: pre-wrap; }
+  .pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .pagination .button { padding-inline: 10px; font-size: .8125rem; }
+  .field-error { color: var(--gam-color-danger); font-size: .875rem; }
+  .filter-section input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; }
+  @media (min-width: 1000px) {
+    .table-card { border: 1px solid var(--gam-color-border); border-radius: 10px; overflow: hidden; background: var(--gam-color-surface); }
+    thead { position: static; width: auto; height: auto; clip-path: none; background: var(--gam-color-surface-alt); }
+    tbody { display: table-row-group; } tr { display: table-row; padding: 0; border: 0; background: transparent; }
+    th, td { padding: 16px 20px; border-bottom: 1px solid var(--gam-color-border); text-align: left; vertical-align: middle; }
+    th { color: var(--gam-color-text-muted); font-weight: 600; font-size: .8125rem; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .vaccines .name-cell { padding-right: 20px; } .vaccines .status-cell { position: static; }
+    .mobile-label { display: none; } .detail-cell { border-top: 0; }
+    .detail-cell a { justify-content: flex-end; white-space: nowrap; }
+    .name-cell { max-width: 360px; } .date-cell { white-space: nowrap; }
+  }
+}

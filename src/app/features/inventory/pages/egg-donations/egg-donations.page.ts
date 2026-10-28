@@ -1,6 +1,5 @@
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
@@ -10,7 +9,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
-import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
+import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { EggDonationDialogComponent } from '../../components/egg-donation-dialog/egg-donation-dialog.component';
 import { EggDonationUnit } from '../../interfaces/egg-donation';
 import { EggStockStatus, EggStockTransaction, PaginatedResponse } from '../../interfaces/inventory';
@@ -23,7 +22,7 @@ const EMPTY_FILTERS = { status: '' as '' | EggStockStatus, date_from: '', date_t
 
 @Component({
   selector: 'app-egg-donations',
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, IonIcon, SearchableSelectComponent, FilterDialogComponent, EggDonationDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, IonIcon, FilterDialogComponent, EggDonationDialogComponent],
   templateUrl: './egg-donations.page.html',
   styleUrl: './egg-donations.page.scss',
 })
@@ -31,13 +30,13 @@ export class EggDonationsPage {
   private readonly api = inject(EggStockApi);
   private readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
+  readonly unitContext = inject(AdminUnitContextService);
   readonly canMove = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.move') === true);
   readonly canRead = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-stock.view') === true);
   readonly units = signal<EggDonationUnit[]>([]);
-  readonly unit = signal<number | null>(null);
+  readonly unit = computed(() => this.unitContext.state() === 'ready' && (this.canRead() || this.canMove()) ? this.unitContext.selectedId() : null);
   readonly selectedUnit = computed(() => this.units().find((item) => item.id === this.unit()) ?? null);
-  readonly unitOptions = computed(() => this.units().map((item) => ({ value: item.id, label: item.name })));
-  readonly unitControl = new FormControl('', { nonNullable: true });
+  readonly canDonate = computed(() => this.canMove() && this.unitsState() === 'success' && this.selectedUnit() !== null);
   readonly unitsState = signal<LoadState>('idle');
   readonly unitsError = signal<string | null>(null);
   readonly balance = signal<number | null>(null);
@@ -67,7 +66,6 @@ export class EggDonationsPage {
 
   constructor() {
     addIcons({ addOutline, chevronForwardOutline, eggOutline, funnelOutline });
-    this.unitControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => this.chooseUnit(value));
     effect(() => {
       const actor = this.auth.user()?.id;
       untracked(() => {
@@ -76,14 +74,23 @@ export class EggDonationsPage {
         this.units.set([]);
         this.unitsState.set('idle');
         this.unitsError.set(null);
-        this.unitControl.reset('', { emitEvent: false });
-        this.unit.set(null);
         this.notice.set(null);
         this.appliedFilters.set({ ...EMPTY_FILTERS });
         this.filters.reset(EMPTY_FILTERS);
         this.filterError.set(null);
         this.filterDialog?.close();
         if (actor && (this.canRead() || this.canMove())) void this.loadUnits();
+      });
+    });
+    effect(() => {
+      const actor = this.auth.user()?.id;
+      const unit = this.unit();
+      const canRead = this.canRead();
+      untracked(() => {
+        this.invalidateUnit();
+        this.notice.set(null);
+        this.filterDialog?.close();
+        if (actor && unit && canRead) { void this.loadBalance(); void this.load(); }
       });
     });
   }
@@ -104,26 +111,11 @@ export class EggDonationsPage {
       const items = [...units.values()];
       this.units.set(items);
       this.unitsState.set(items.length ? 'success' : 'empty');
-      if (!items.some((item) => item.id === this.unit())) this.chooseUnit(items[0] ? String(items[0].id) : '');
     } catch (error) {
       if (version !== this.unitsVersion || this.destroyRef.destroyed) return;
       this.unitsState.set('error');
       this.unitsError.set(inventoryErrorMessage(error, 'No se pudieron cargar las unidades productivas.'));
     }
-  }
-
-  chooseUnit(value: string): void {
-    if (this.dialogOpen()) {
-      this.unitControl.setValue(this.unit() ? String(this.unit()) : '', { emitEvent: false });
-      return;
-    }
-    const unit = this.units().find((item) => String(item.id) === value);
-    this.unitControl.setValue(unit ? String(unit.id) : '', { emitEvent: false });
-    if ((unit?.id ?? null) === this.unit()) return;
-    this.invalidateUnit();
-    this.unit.set(unit?.id ?? null);
-    this.notice.set(null);
-    if (unit) { void this.loadBalance(); void this.load(); }
   }
 
   async loadBalance(): Promise<void> {
@@ -196,7 +188,7 @@ export class EggDonationsPage {
 
   openDonation(trigger: HTMLElement): void {
     const unit = this.selectedUnit();
-    if (!unit || !this.canMove() || this.unitsState() !== 'success' || this.dialogOpen()) return;
+    if (!unit || !this.canDonate() || this.dialogOpen()) return;
     this.notice.set(null);
     this.donationDialog.open(unit, this.balanceState() === 'success' ? this.balance() : null, trigger);
   }

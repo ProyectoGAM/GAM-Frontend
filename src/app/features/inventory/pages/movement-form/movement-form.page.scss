@@ -1,5 +1,7 @@
 :host { display: block; color: var(--gam-color-text); }
-.form-page { max-width: 1100px; margin-inline: auto; padding-bottom: calc(88px + env(safe-area-inset-bottom) + var(--movement-keyboard-offset, 0px)); }
+.form-page { max-width: 1100px; margin-inline: auto; }
+/* The shell already contributes bottom space; only reserve the remaining bar/gap. */
+.form-page:has(.form-footer) { padding-bottom: max(0px, calc(73px + env(safe-area-inset-bottom) + 16px + var(--movement-keyboard-offset, 0px) - var(--gam-page-bottom-space, calc(48px + env(safe-area-inset-bottom))))); }
 .back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 14px; color: var(--gam-color-primary); text-decoration: none; font-size: .875rem; font-weight: 600; }
 .back ion-icon { font-size: 20px; }
 .page-heading { margin-bottom: 22px; }
@@ -77,7 +79,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .add-product { justify-self: start; width: auto; }
 }
 @media (min-width: 901px) {
-  .form-page { padding-bottom: 16px; }
+  .form-page:has(.form-footer) { padding-bottom: 0; }
   .operation-picker { display: none; }
   .operation-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 12px; }
   .operation-tabs button { position: relative; display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 112px; padding: 18px 10px; border: 1px solid var(--gam-color-border); border-radius: 8px; color: var(--gam-color-heading); background: var(--gam-color-surface); font: inherit; font-size: .875rem; cursor: pointer; }

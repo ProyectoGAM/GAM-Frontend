@@ -18,8 +18,9 @@ export const BASE_UNITS = [
 ] as const;
 
 export type ProductKind = typeof PRODUCT_KINDS[number]['value'];
-export type CreatableProductKind = Exclude<ProductKind, 'finished_feed'>;
-export const CREATABLE_PRODUCT_KINDS = PRODUCT_KINDS.filter((kind) => kind.value !== 'finished_feed');
+export type CreatableProductKind = Extract<ProductKind, 'raw_material' | 'supply' | 'other'>;
+export const CREATABLE_PRODUCT_KINDS = PRODUCT_KINDS.filter((kind): kind is typeof kind & { value: CreatableProductKind } =>
+  kind.value === 'raw_material' || kind.value === 'supply' || kind.value === 'other');
 
 export function isCreatableProductKind(value: unknown): value is CreatableProductKind {
   return CREATABLE_PRODUCT_KINDS.some((kind) => kind.value === value);

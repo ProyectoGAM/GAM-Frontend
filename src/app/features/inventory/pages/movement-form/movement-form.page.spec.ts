@@ -11,7 +11,7 @@ import { AllowedStockProduct, AllowedStockProductFilters, PaginatedResponse, Sto
 import { MovementFormPage } from './movement-form.page';
 
 const product: AllowedStockProduct = { id: 4, sku: 'AL-4', name: 'Alimento', kind: 'supply', base_unit: 'kg', available_quantity: '10.000000' };
-const doseProduct: AllowedStockProduct = { id: 5, sku: 'DOS-5', name: 'Dosis', kind: 'medicine', base_unit: 'dose', available_quantity: '12.000000' };
+const doseProduct: AllowedStockProduct = { id: 5, sku: 'DOS-5', name: 'Insumo en dosis', kind: 'supply', base_unit: 'dose', available_quantity: '12.000000' };
 const rawProduct: AllowedStockProduct = { id: 6, sku: 'MP-6', name: 'Materia prima', kind: 'raw_material', base_unit: 'g', available_quantity: '1000.000000' };
 const suppliers = [
   { id: 3, name: 'Proveedor activo', status: 'active' },
@@ -19,9 +19,12 @@ const suppliers = [
   { id: 30, name: 'Proveedor inactivo', status: 'inactive' },
 ];
 const stockLocations: StockLocation[] = [
-  { id: 2, name: 'Depósito activo', system_managed: false, status: 'active' },
-  { id: 9, name: 'Ubicación sin tipo en su nombre', system_managed: true, poultry_house_id: 3, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
-  { id: 20, name: 'Depósito inactivo', system_managed: false, status: 'inactive' },
+  { id: 2, name: 'Depósito activo', type: 'warehouse', allowed_product_kinds: ['supply', 'other'], system_managed: false, status: 'active' },
+  { id: 3, name: 'Otra cámara', type: 'warehouse', allowed_product_kinds: ['supply', 'other'], system_managed: false, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
+  { id: 9, name: 'Ubicación sin tipo en su nombre', type: 'feed_plant', allowed_product_kinds: ['raw_material'], system_managed: true, poultry_house_id: 3, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
+  { id: 12, name: 'Nombre que no indica el tipo', type: 'egg_account', allowed_product_kinds: ['egg'], system_managed: true, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
+  { id: 15, name: 'Sanidad UP', type: 'health', allowed_product_kinds: ['medicine', 'vaccine'], system_managed: true, production_unit: { id: 1, name: 'El Ombú' }, status: 'active' },
+  { id: 20, name: 'Depósito inactivo', type: 'warehouse', allowed_product_kinds: ['supply', 'other'], system_managed: false, status: 'inactive' },
 ];
 const paginated = <T>(data: T[], page = 1, lastPage = 1): PaginatedResponse<T> => ({
   data, links: { first: null, last: null, prev: null, next: null },
@@ -99,17 +102,17 @@ describe('Location-first inventory movements', () => {
     expect(supplierLabels).not.toContain('Proveedor inactivo');
   });
 
-  it('uses the new endpoint response as the product authority instead of inferring rules from location names or links', async () => {
+  it('restricts server options using location relations without guessing from names', async () => {
     await createFixture();
     allowedProducts.mockReturnValue(of(paginated([rawProduct])));
     await chooseSource('9');
     expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 9, operation: 'receipt', per_page: 100, page: 1 });
     expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).options).toEqual([{ value: 6, label: 'MP-6 — Materia prima' }]);
-    expect(fixture.nativeElement.querySelector('#location-context-0')?.textContent).toBe('Planta de ración · El Ombú');
+    expect(fixture.nativeElement.querySelector('#location-context-0')?.textContent).toContain('Planta de ración · Solo materias primas · El Ombú');
     allowedProducts.mockReturnValue(of(paginated([doseProduct])));
     await fixture.componentInstance.loadProductsFor(fixture.componentInstance.lines.at(0));
     fixture.detectChanges();
-    expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).products).toEqual([doseProduct]);
+    expect(fixture.componentInstance.productStateFor(fixture.componentInstance.lines.at(0)).products).toEqual([]);
   });
 
   it('selects product IDs through the searchable selector after the location has enabled it', async () => {
@@ -158,7 +161,7 @@ describe('Location-first inventory movements', () => {
 
   it('preserves a compatible selection but clears product and quantities when the next location rejects it', async () => {
     await createFixture(); await completeReceipt('12,500000');
-    await chooseSource('9');
+    await chooseSource('3');
     const line = fixture.componentInstance.lines.at(0);
     expect(line.controls.product_id.value).toBe('4'); expect(line.controls.quantity.value).toBe('12,500000');
     allowedProducts.mockReturnValue(of(paginated([doseProduct])));
@@ -239,14 +242,14 @@ describe('Location-first inventory movements', () => {
     await createFixture(); const page = fixture.componentInstance; page.setOperation('transfer');
     await chooseSource(); expect(allowedProducts).not.toHaveBeenCalled();
     allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated(filters.stock_location_id === 2 ? [product, doseProduct] : [{ ...doseProduct, available_quantity: '300.000000' }, rawProduct])));
-    const line = page.lines.at(0); line.controls.to_stock_location_id.setValue('9'); await settle();
+    const line = page.lines.at(0); line.controls.to_stock_location_id.setValue('3'); await settle();
     expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 2, operation: 'transfer', per_page: 100, page: 1 });
-    expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 9, operation: 'transfer', per_page: 100, page: 1 });
+    expect(allowedProducts).toHaveBeenCalledWith({ stock_location_id: 3, operation: 'transfer', per_page: 100, page: 1 });
     expect(page.productStateFor(line).products).toEqual([doseProduct]);
     line.patchValue({ product_id: '5', quantity: '2' });
     expect(page.productHintFor(line)).toContain('12 dosis');
     await page.submit();
-    expect(transfer.mock.calls[0][0].lines).toEqual([{ product_id: 5, from_stock_location_id: 2, to_stock_location_id: 9, quantity: '2' }]);
+    expect(transfer.mock.calls[0][0].lines).toEqual([{ product_id: 5, from_stock_location_id: 2, to_stock_location_id: 3, quantity: '2' }]);
   });
 
   it('clears an incompatible transfer selection when only the destination changes', async () => {
@@ -295,7 +298,7 @@ describe('Location-first inventory movements', () => {
   it('keeps multiple lines and their local stock snapshots independent', async () => {
     await createFixture(); const page = fixture.componentInstance; page.setOperation('adjustment'); page.addLine();
     allowedProducts.mockImplementation((filters: AllowedStockProductFilters) => of(paginated([{ ...product, available_quantity: filters.stock_location_id === 2 ? '3.000000' : '8.000000' }])));
-    page.lines.at(0).controls.stock_location_id.setValue('2'); page.lines.at(1).controls.stock_location_id.setValue('9'); await settle();
+    page.lines.at(0).controls.stock_location_id.setValue('2'); page.lines.at(1).controls.stock_location_id.setValue('3'); await settle();
     page.lines.controls.forEach((line) => line.patchValue({ product_id: '4', counted_quantity: '4' })); fixture.detectChanges();
     const summaries = [...fixture.nativeElement.querySelectorAll('.adjustment-summary') as NodeListOf<HTMLElement>];
     expect(summaries[0].textContent).toContain('+1 kg'); expect(summaries[1].textContent).toContain('-4 kg');
@@ -311,12 +314,110 @@ describe('Location-first inventory movements', () => {
 
   it('keeps supplier and reason requirements and the existing submit-error presentation', async () => {
     await createFixture(); await chooseSource(); const page = fixture.componentInstance; const line = page.lines.at(0);
+    page.form.controls.supplier_id.setValue('999');
     line.patchValue({ product_id: '4', quantity: '1' }); await page.submit(); fixture.detectChanges();
     expect(receive).not.toHaveBeenCalled(); expect(fixture.nativeElement.querySelector('#supplier-error')).not.toBeNull();
     page.form.controls.supplier_id.setValue('3'); receive.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'La ubicación está inactiva.' } })));
     await page.submit(); fixture.detectChanges(); expect(page.error()).toBe('La ubicación está inactiva.');
     page.setOperation('loss'); await settle(); page.form.controls.reason.setValue('   '); await page.submit(); fixture.detectChanges();
     expect(loss).not.toHaveBeenCalled(); expect(fixture.nativeElement.querySelector('#reason-error')).not.toBeNull();
+  });
+
+  it('omits supplier_id and lets the server resolve its internal supplier even when a Propio name exists', async () => {
+    await createFixture();
+    supplierList.mockReturnValue(of(paginated([
+      ...suppliers,
+      { id: 40, name: '  pRoPiO  ', status: 'active' },
+      { id: 41, name: 'Propio', status: 'inactive' },
+    ])));
+    const page = fixture.componentInstance;
+    await page.loadReferences(); await settle(); await chooseSource();
+    page.lines.at(0).patchValue({ product_id: '4', quantity: '2' }); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#supplier-help')?.textContent).toContain('Se ingresará "propio" como proveedor ya que no se proporcionó uno');
+    expect((fixture.nativeElement.querySelector('#supplier') as HTMLSelectElement).required).toBe(false);
+    expect(page.form.controls.supplier_id.valid).toBe(true);
+    await page.submit();
+    expect(receive.mock.calls[0][0]).not.toHaveProperty('supplier_id');
+    expect(receive.mock.calls[0][0].lines[0].quantity).toBe('2');
+  });
+
+  it('allows the server fallback without any suppliers and rejects an injected explicit ID', async () => {
+    await createFixture(); await chooseSource(); const page = fixture.componentInstance;
+    supplierList.mockReturnValue(of(paginated([])));
+    await page.loadReferences(); await settle();
+    page.lines.at(0).patchValue({ product_id: '4', quantity: '1' });
+    await page.submit();
+    expect(receive).toHaveBeenCalledTimes(1); expect(receive.mock.calls[0][0]).not.toHaveProperty('supplier_id');
+    await chooseSource(); page.lines.at(0).patchValue({ product_id: '4', quantity: '1' });
+    page.form.controls.supplier_id.setValue('999'); await page.submit();
+    expect(receive).toHaveBeenCalledTimes(1); expect(page.error()).toContain('proveedor activo');
+  });
+
+  it('honors an explicitly selected supplier even when Propio exists', async () => {
+    await createFixture();
+    supplierList.mockReturnValue(of(paginated([...suppliers, { id: 40, name: 'Propio', status: 'active' }])));
+    const page = fixture.componentInstance;
+    await page.loadReferences(); await settle(); await completeReceipt();
+    expect(fixture.nativeElement.querySelector('#supplier-help')?.textContent).toContain('proveedor seleccionado');
+    await page.submit(); expect(receive.mock.calls[0][0].supplier_id).toBe(3);
+  });
+
+  it('keeps receipts available through the internal supplier when the optional supplier list fails', async () => {
+    await createFixture(); const page = fixture.componentInstance;
+    supplierList.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503 })));
+    await page.loadReferences(); await settle(); await chooseSource();
+    expect(page.referencesState()).toBe('success'); expect(page.supplierReferencesError()).toContain('proveedor interno');
+    page.lines.at(0).patchValue({ product_id: '4', quantity: '1' }); await page.submit();
+    expect(receive.mock.calls[0][0]).not.toHaveProperty('supplier_id');
+  });
+
+  it('restricts egg accounts to eggs, cameras to supplies and others, and prevents injected disallowed products', async () => {
+    await createFixture(); const page = fixture.componentInstance; const line = page.lines.at(0);
+    const egg = { ...doseProduct, id: 7, kind: 'egg' as const, base_unit: 'unit' as const };
+    const other = { ...product, id: 8, kind: 'other' as const };
+    const medicine = { ...doseProduct, id: 10, kind: 'medicine' as const };
+    allowedProducts.mockReturnValue(of(paginated([product, rawProduct, egg, other, medicine])));
+    await chooseSource('12');
+    expect(page.productStateFor(line).products).toEqual([egg]);
+    expect(fixture.nativeElement.querySelector('#location-context-0')?.textContent).toContain('Solo huevos');
+    line.patchValue({ product_id: '7', quantity: '1' });
+    await chooseSource('3');
+    expect(page.productStateFor(line).products).toEqual([product, other]);
+    expect(line.controls.product_id.value).toBe(''); expect(line.controls.quantity.value).toBe('');
+    line.patchValue({ product_id: '10', quantity: '1' }); page.form.controls.supplier_id.setValue('3');
+    await page.submit(); expect(receive).not.toHaveBeenCalled();
+  });
+
+  it('rejects incompatible transfer destinations even when both endpoints return the same product', async () => {
+    await createFixture(); const page = fixture.componentInstance; const line = page.lines.at(0);
+    allowedProducts.mockReturnValue(of(paginated([product, rawProduct])));
+    page.setOperation('transfer'); line.controls.stock_location_id.setValue('2'); line.controls.to_stock_location_id.setValue('9'); await settle();
+    expect(page.productStateFor(line).products).toEqual([]);
+    line.patchValue({ product_id: '4', quantity: '1' }); await page.submit(); expect(transfer).not.toHaveBeenCalled();
+  });
+
+  it('independently excludes zero and negative stock from loss options', async () => {
+    await createFixture(); const page = fixture.componentInstance;
+    allowedProducts.mockReturnValue(of(paginated([
+      product, { ...doseProduct, available_quantity: '0.000000' }, { ...product, id: 8, available_quantity: '-0.000001' }, rawProduct,
+    ])));
+    page.setOperation('loss'); await chooseSource();
+    expect(page.productStateFor(page.lines.at(0)).products).toEqual([product]);
+  });
+
+  it('blocks historical health stock and lets the server report an unavailable internal supplier for normal receipts', async () => {
+    await createFixture(); const page = fixture.componentInstance;
+    const medicine = { ...doseProduct, id: 10, kind: 'medicine' as const };
+    const vaccine = { ...doseProduct, id: 11, kind: 'vaccine' as const };
+    allowedProducts.mockReturnValue(of(paginated([product, rawProduct, medicine, vaccine])));
+    await chooseSource('15');
+    expect(page.productStateFor(page.lines.at(0)).products).toEqual([]);
+    await chooseSource('2');
+    page.lines.at(0).patchValue({ product_id: '4', quantity: '1' });
+    receive.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'El proveedor interno está inactivo.' } })));
+    await page.submit(); expect(page.error()).toBe('El proveedor interno está inactivo.');
+    expect(receive.mock.calls[0][0]).not.toHaveProperty('supplier_id');
+    const key = receive.mock.calls[0][1]; await page.submit(); expect(receive.mock.calls[1][1]).toBe(key);
   });
 
   it('keeps inline errors and ARIA descriptions aligned without showing pristine quantity errors', async () => {

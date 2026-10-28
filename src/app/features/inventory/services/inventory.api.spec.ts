@@ -55,6 +55,31 @@ describe('Inventory API contracts', () => {
     request.flush({ data: [] });
   });
 
+  it('encodes the incompatible balance review without changing ordinary queries', () => {
+    generic.balances({ incompatible_only: true, product_id: 4 }).subscribe();
+    const active = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(active.request.params.get('incompatible_only')).toBe('1'); active.flush({ data: [] });
+    generic.balances({ incompatible_only: false }).subscribe();
+    const inactive = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(inactive.request.params.has('incompatible_only')).toBe(false); inactive.flush({ data: [] });
+  });
+
+  it('sends explicit location types to the location filter', () => {
+    stockLocations.list({ type: 'health', production_unit_id: 1 }).subscribe();
+    const request = http.expectOne('/api/v1/stock-locations?type=health&production_unit_id=1');
+    request.flush({ data: [] });
+  });
+
+  it('omits supplier_id for the server internal supplier and sends regularizations with idempotency', () => {
+    generic.receive({ lines: [{ product_id: 4, stock_location_id: 23, quantity: '2' }] }, 'receipt-key').subscribe();
+    const receipt = http.expectOne('/api/v1/inventory/receipts');
+    expect(receipt.request.body).not.toHaveProperty('supplier_id'); receipt.flush({ data: {} });
+    generic.regularize(8, { mode: 'recontar', reason: 'Recuento verificado' }, 'review-key').subscribe();
+    const regularization = http.expectOne('/api/v1/inventario/saldos/8/regularizaciones');
+    expect(regularization.request.method).toBe('POST'); expect(regularization.request.headers.get('Idempotency-Key')).toBe('review-key');
+    expect(regularization.request.body).toEqual({ mode: 'recontar', reason: 'Recuento verificado' }); regularization.flush({ data: {} });
+  });
+
   it('sends the active status and pagination query for stock-location options', () => {
     stockLocations.list({ status: 'active', per_page: 100, page: 1 }).subscribe();
 

@@ -37,7 +37,11 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-UY', { timeStyle: 'short' });
 export class EggStockPage {
   readonly auth = inject(AuthStore);
   private readonly api = inject(EggStockApi);
-  private readonly requestedUnit = inject(ActivatedRoute).snapshot.queryParamMap.get('production_unit_id');
+  private readonly route = inject(ActivatedRoute);
+  private readonly requestedUnit = this.route.snapshot.queryParamMap.get('production_unit_id');
+  readonly fromDonations = this.route.snapshot.queryParamMap.get('from') === 'donaciones';
+  readonly backLink = this.fromDonations ? '/administracion/inventario/donaciones' : '/administracion/inventario/existencias';
+  readonly backLabel = this.fromDonations ? 'Volver a donaciones' : 'Volver a existencias';
   private readonly productionUnitsApi = inject(ProductionUnitsService);
   private readonly destroyRef = inject(DestroyRef);
   readonly selectedUnit = signal<number | null>(null);
