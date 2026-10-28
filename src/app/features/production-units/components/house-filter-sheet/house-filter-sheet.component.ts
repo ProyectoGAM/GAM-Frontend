@@ -1,7 +1,5 @@
-import { Component, ElementRef, ViewChild, input, output } from '@angular/core';
-import { IonIcon } from '@ionic/angular';
-import { addIcons } from 'ionicons';
-import { closeOutline } from 'ionicons/icons';
+import { Component, ViewChild, input, output } from '@angular/core';
+import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 
 import { ProductionUnit } from '../../interfaces/production-unit.interface';
 import {
@@ -12,10 +10,10 @@ import {
   selector: 'app-house-filter-sheet',
   templateUrl: './house-filter-sheet.component.html',
   styleUrl: './house-filter-sheet.component.scss',
-  imports: [IonIcon],
+  imports: [FilterDialogComponent],
 })
 export class HouseFilterSheetComponent {
-  @ViewChild('dialog', { static: true }) private readonly dialog!: ElementRef<HTMLDialogElement>;
+  @ViewChild(FilterDialogComponent, { static: true }) private readonly dialog!: FilterDialogComponent;
 
   readonly isFeedList = input.required<boolean>();
   readonly globalUnitId = input<number | null>(null);
@@ -33,26 +31,12 @@ export class HouseFilterSheetComponent {
   readonly statusOptions = houseStatusOptions;
   readonly occupancyOptions = houseOccupancyOptions;
 
-  private returnFocusTo: HTMLElement | null = null;
-
-  constructor() {
-    addIcons({ closeOutline });
-  }
-
   open(trigger?: HTMLElement | null): void {
-    this.returnFocusTo = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    if (!this.dialog.nativeElement.open) this.dialog.nativeElement.showModal();
+    this.dialog.open(trigger);
   }
 
   close(): void {
-    if (this.dialog.nativeElement.open) this.dialog.nativeElement.close();
-    if (this.returnFocusTo?.isConnected) this.returnFocusTo.focus();
-    this.returnFocusTo = null;
-  }
-
-  onCancel(event: Event): void {
-    event.preventDefault();
-    this.close();
+    this.dialog.close();
   }
 
   onUnitChange(value: string): void {

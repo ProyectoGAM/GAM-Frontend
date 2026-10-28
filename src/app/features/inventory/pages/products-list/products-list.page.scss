@@ -1,0 +1,24 @@
+@use '../../catalog-ui';
+@use '../../../../shared/ui/filter-dialog/filter-controls';
+
+.products-page {
+  @include filter-controls.controls;
+  .catalog-title { margin: 0 0 8px; font-size: 1.125rem; color: var(--gam-color-heading); }
+  .catalog-description { margin: 0 0 20px; color: var(--gam-color-text-muted); font-size: .875rem; }
+  .product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+  .product-card { display: flex; min-width: 0; flex-direction: column; padding: 16px; }
+  .product-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .product-heading > div { min-width: 0; }
+  .product-heading h2 { margin: 0; color: var(--gam-color-heading); font-size: 1rem; overflow-wrap: anywhere; }
+  .status { flex-shrink: 0; }
+  .muted { margin: 7px 0 14px; overflow-wrap: anywhere; }
+  .product-details { display: grid; gap: 12px; margin: 4px 0 20px; }
+  .product-details > div { display: flex; justify-content: space-between; gap: 12px; }
+  dt { color: var(--gam-color-text-muted); font-size: .875rem; }
+  dd { margin: 0; text-align: right; font-size: .875rem; font-weight: 600; }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--gam-color-border); }
+  .row-actions .button { flex: 1; padding-inline: 8px; }
+  .confirm-summary { padding: 12px; border: 1px solid var(--gam-color-border); border-radius: 7px; }
+  .confirm-summary p { margin: 0; }
+
+}

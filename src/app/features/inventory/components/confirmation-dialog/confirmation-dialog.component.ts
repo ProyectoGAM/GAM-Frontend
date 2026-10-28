@@ -9,6 +9,7 @@ export class InventoryConfirmationDialogComponent {
   @Input({ required: true }) title = '';
   @Input() message = '';
   @Input() confirmLabel = 'Confirmar';
+  @Input() cancelLabel = 'Cancelar';
   @Input() busy = false;
   @Input() errorMessage: string | null = null;
   @Output() readonly confirmed = new EventEmitter<void>();

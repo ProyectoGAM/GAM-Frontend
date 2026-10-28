@@ -1,0 +1,75 @@
+@use '../../catalog-ui';
+
+:host { display: block; }
+.breadcrumb { margin: 0 0 10px; color: var(--gam-color-text-muted); font-size: .75rem; }
+.back { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; margin-bottom: 10px; color: var(--gam-color-primary); text-decoration: none; font-size: .875rem; }
+.back:hover { text-decoration: underline; }
+h1, h2 { margin: 0; color: var(--gam-color-heading); }
+h1 { font-size: clamp(1.625rem, 3vw, 2.25rem); }
+h2 { font-size: 1.125rem; }
+.page-heading { display: grid; gap: 16px; margin-bottom: 22px; }
+.page-heading p, .list-heading p { margin: 6px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
+.unit-picker { display: grid; gap: 8px; max-width: 400px; margin-bottom: 18px; font-size: .875rem; font-weight: 600; }
+.stock-note { display: flex; gap: 12px; padding: 18px; margin-bottom: 20px; }
+.stock-note > ion-icon { flex-shrink: 0; font-size: 24px; color: var(--gam-color-primary); }
+.stock-note p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.stock-note small { display: block; margin-top: 6px; color: var(--gam-color-text-muted); }
+.checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: .875rem; }
+.checkbox input { width: 18px; height: 18px; accent-color: var(--gam-color-primary); }
+.list-heading { display: grid; gap: 12px; margin: 24px 0 16px; }
+.attention-summary { display: inline-flex; align-items: center; gap: 7px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+thead, .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+tbody { display: grid; gap: 14px; }
+tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 12px; padding: 18px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+td { min-width: 0; overflow-wrap: anywhere; }
+.recipe-cell { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; color: var(--gam-color-heading); }
+.recipe-icon { display: grid; place-items: center; width: 40px; min-height: 44px; flex-shrink: 0; border-radius: 8px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: 24px; }
+td small, .mobile-caption { display: block; margin-top: 5px; color: var(--gam-color-text-muted); font-size: .75rem; }
+.mobile-caption { margin: 0 0 6px; }
+.quantity-cell { font-variant-numeric: tabular-nums; color: var(--gam-color-heading); }
+.quantity-cell strong { font-size: 1.125rem; }
+.quantity-cell.negative, .quantity-cell.negative small { color: var(--gam-color-danger); }
+.minimum-cell { font-variant-numeric: tabular-nums; }
+.status-cell { grid-column: 1 / -1; }
+.feed-page .status.sin_configurar { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); border: 1px solid var(--gam-color-border); }
+.feed-page .status.en_minimo { color: var(--gam-color-warning); background: var(--gam-color-warning-soft); }
+.feed-page .status.por_debajo { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+.action-cell { grid-column: 1 / -1; border-top: 1px solid var(--gam-color-border); }
+.minimum-action { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 10px 0 0; border: 0; background: transparent; color: var(--gam-color-primary); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; text-align: left; }
+.minimum-dialog { box-sizing: border-box; width: min(540px, calc(100% - 24px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; padding: 20px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); color: var(--gam-color-text); box-shadow: 0 18px 60px color-mix(in srgb, var(--gam-color-heading) 25%, transparent); }
+.minimum-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-heading) 56%, transparent); }
+.minimum-dialog form { display: grid; gap: 16px; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.feed-page .close-button { padding: 0; flex: 0 0 44px; font-size: 1.5rem; }
+.minimum-dialog p { margin: 0; line-height: 1.5; }
+.minimum-context { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 16px; background: var(--gam-color-surface-alt); border-radius: 8px; }
+dt { margin-bottom: 6px; color: var(--gam-color-text-muted); font-size: .75rem; }
+dd { margin: 0; font-size: .875rem; overflow-wrap: anywhere; }
+.field small { line-height: 1.5; font-size: .8125rem; }
+.field-error { color: var(--gam-color-danger); font-size: .875rem; }
+.dialog-actions { display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid var(--gam-color-border); }
+.dialog-actions .button { flex: 1; }
+
+@media (min-width: 640px) {
+  .page-heading { display: flex; justify-content: space-between; align-items: center; }
+  tbody { grid-template-columns: 1fr 1fr; }
+  .minimum-dialog { padding: 24px; }
+}
+@media (min-width: 1000px) {
+  .feed-page .filters { grid-template-columns: minmax(240px, 1fr) auto auto; align-items: end; }
+  .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .table-card { overflow: hidden; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  thead { position: static; width: auto; height: auto; clip-path: none; }
+  tbody { display: table-row-group; }
+  tr { display: table-row; padding: 0; border: 0; }
+  th, td { padding: 16px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--gam-color-border); }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { background: var(--gam-color-surface-alt); color: var(--gam-color-text-muted); font-size: .75rem; font-weight: 600; }
+  .recipe-cell { display: table-cell; }
+  .recipe-icon { display: none; }
+  .quantity-cell strong { font-size: 1rem; }
+  .mobile-caption { display: none; }
+  .action-cell { border-top: 0; }
+  .minimum-action { padding: 0; }
+}

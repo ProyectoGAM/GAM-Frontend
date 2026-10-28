@@ -1,6 +1,7 @@
 import { Location } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
@@ -8,6 +9,7 @@ import { GeographyDepartment, GeographyLocality } from '../../production-units/i
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
 import { Supplier } from './suppliers.models';
 import { SuppliersApi } from './suppliers.api';
+import { SupplierFormComponent } from './components/supplier-form/supplier-form.component';
 import { SupplierEditPage } from './supplier-edit.page';
 
 const department: GeographyDepartment = { id: 12, name: 'Canelones' };
@@ -51,7 +53,7 @@ describe('Supplier edit page', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     expect(page.form.getRawValue()).toEqual({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28' });
     expect(page.selectedDepartmentId()).toBe(12);
     expect(page.selectedLocalityId()).toBe(603);
@@ -65,7 +67,7 @@ describe('Supplier edit page', () => {
   it('keeps both geography selections empty and sends locality_id null when the supplier has no locality', async () => {
     const { fixture, updateSupplier, navigateByUrl } = createFixture(supplierWithoutLocality);
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
 
     expect(page.selectedDepartmentId()).toBeNull();
     expect(page.selectedLocalityId()).toBeNull();
@@ -87,7 +89,7 @@ describe('Supplier edit page', () => {
   it('loads selected-department localities and submits the selected locality as a number', async () => {
     const { fixture, updateSupplier, localitiesRequest } = createFixture(supplierWithoutLocality);
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.onDepartmentChanged('12');
     await fixture.whenStable();
     page.onLocalityChanged('603');
@@ -113,7 +115,7 @@ describe('Supplier edit page', () => {
       departmentsRequest,
     );
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.form.setValue({ name: 'Nombre editado', address: 'Dirección editada' });
     await page.submit();
 
@@ -134,7 +136,7 @@ describe('Supplier edit page', () => {
     }))).mockReturnValueOnce(of({ data: supplierWithLocality }));
     const { fixture, navigateByUrl } = createFixture(supplierWithLocality, updateSupplier);
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.form.setValue({ name: 'Distribuidora repetida', address: 'Ruta 8 km 28' });
 
     await page.submit();
@@ -153,13 +155,13 @@ describe('Supplier edit page', () => {
   });
 
   it('cancel returns to the list without sending a PATCH', async () => {
-    const { fixture, updateSupplier } = createFixture();
+    const { fixture, updateSupplier, navigateByUrl } = createFixture();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const cancel = (fixture.nativeElement as HTMLElement).querySelector('a[routerlink]') as HTMLAnchorElement;
-    expect(cancel.getAttribute('href')).toBe('/administracion/proveedores/proveedores');
+    const cancel = (fixture.nativeElement as HTMLElement).querySelector('.button.secondary') as HTMLButtonElement;
     cancel.click();
+    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/proveedores/proveedores');
     expect(updateSupplier).not.toHaveBeenCalled();
     fixture.destroy();
   });
@@ -170,7 +172,7 @@ describe('Supplier edit page', () => {
       .mockReturnValueOnce(of({ data: supplierWithLocality }));
     const { fixture, navigateByUrl } = createFixture(supplierWithLocality, updateSupplier);
     await fixture.whenStable();
-    const page = fixture.componentInstance;
+    const page = fixture.debugElement.query(By.directive(SupplierFormComponent)).componentInstance as SupplierFormComponent;
     page.form.setValue({ name: 'Distribuidora Sur', address: 'Ruta 8 km 28' });
 
     await page.submit();

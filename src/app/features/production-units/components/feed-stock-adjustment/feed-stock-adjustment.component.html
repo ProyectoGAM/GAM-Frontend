@@ -1,0 +1,57 @@
+<form class="adjustment-form" [formGroup]="form" (ngSubmit)="submit()" novalidate aria-labelledby="stock-adjustment-title">
+  <div class="heading">
+    <div><h2 id="stock-adjustment-title" #title tabindex="-1">Ajustar Stock</h2><p>Materias primas de esta planta</p></div>
+    <button class="close" type="button" aria-label="Cerrar ajuste de stock" [disabled]="busy()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+  </div>
+  @if (!ingredients().length && !pending()) {
+    <p class="notice" role="status">Esta planta no tiene materias primas registradas para ajustar.</p>
+  } @else {
+    @if (!operational() && !pending()) { <p class="notice" role="status">La planta debe estar operativa para ajustar stock.</p> }
+    @if (pending() && !busy()) { <p class="notice" role="status">Hay un ajuste pendiente de confirmar. Reintentá el mismo ajuste antes de iniciar otro.</p> }
+    <fieldset [disabled]="locked()">
+      <label for="adjustment-ingredient">Materia prima</label>
+      <select id="adjustment-ingredient" formControlName="productId" [attr.aria-invalid]="submitted() && !selected() ? 'true' : null" aria-describedby="adjustment-ingredient-hint">
+        <option value="" disabled>Seleccioná una materia prima</option>
+        @if (pending() && !selected()) { <option [value]="form.controls.productId.value">Materia prima del ajuste pendiente</option> }
+        @for (ingredient of ingredients(); track ingredient.id) { <option [value]="ingredient.id">{{ ingredient.name }} · {{ ingredient.sku }}</option> }
+      </select>
+      <p id="adjustment-ingredient-hint" class="hint">Solo materias primas registradas en esta planta.</p>
+      @if (submitted() && !selected() && !pending()) { <p class="error">Seleccioná una materia prima.</p> }
+      <div class="current"><span>Stock actual</span><strong>{{ selected() ? currentLabel() : '—' }}</strong></div>
+      <div class="adjustment-fields">
+        <div class="field">
+          <label for="adjustment-action">Operación</label>
+          <select id="adjustment-action" formControlName="action">
+            <option value="sumar">Sumar</option>
+            <option value="restar">Restar</option>
+            <option value="establecer">Fijar stock</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="adjustment-quantity">Cantidad</label>
+          <div class="quantity"><input id="adjustment-quantity" type="text" inputmode="decimal" formControlName="quantity" placeholder="0" maxlength="16" [attr.aria-invalid]="quantityError() && submitted() ? 'true' : null" aria-describedby="adjustment-quantity-hint"><span aria-hidden="true">kg</span></div>
+        </div>
+      </div>
+      <p id="adjustment-quantity-hint" class="hint">En kg, con hasta 3 decimales. Podés usar coma o punto.</p>
+      @if (submitted() && quantityError()) { <p class="error" role="alert">{{ quantityError() }}</p> }
+      <p class="explanation">{{ explanation() }}</p>
+      @if (resultError()) { <p class="error" role="alert">{{ resultError() }}</p> }
+      @if (selected() && after() !== null) {
+        <section class="preview" aria-labelledby="adjustment-preview-title" aria-live="polite" aria-atomic="true">
+          <h3 id="adjustment-preview-title">Vista previa</h3>
+          <dl><div><dt>Stock actual</dt><dd>{{ currentLabel() }}</dd></div><div><dt>Operación</dt><dd>{{ operationLabel() }}</dd></div><div class="result"><dt>Stock resultante</dt><dd>{{ afterLabel() }}</dd></div></dl>
+        </section>
+      }
+      <label for="adjustment-reason">Motivo del ajuste</label>
+      <textarea id="adjustment-reason" formControlName="reason" rows="2" maxlength="2000" placeholder="Ej.: diferencia en el recuento físico" [attr.aria-invalid]="submitted() && reasonError() ? 'true' : null" aria-describedby="adjustment-reason-hint"></textarea>
+      <p id="adjustment-reason-hint" class="hint">Obligatorio para registrar el ajuste.</p>
+      @if (submitted() && reasonError()) { <p class="error" role="alert">{{ reasonError() }}</p> }
+    </fieldset>
+  }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  <p class="hint">{{ pending() ? 'El reintento conserva la operación original.' : 'El cambio se aplica al confirmar. La vista previa usa el último stock consultado.' }}</p>
+  <div class="actions">
+    <ion-button class="secondary" type="button" fill="outline" [disabled]="busy()" (click)="close()">Cancelar</ion-button>
+    <ion-button class="primary" type="submit" [disabled]="busy() || identityChanged() || (!pending() && (!operational() || !ingredients().length))">{{ busy() ? 'Aplicando…' : pending() ? 'Reintentar ajuste' : 'Aplicar ajuste' }}</ion-button>
+  </div>
+</form>

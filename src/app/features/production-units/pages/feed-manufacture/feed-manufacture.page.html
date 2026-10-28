@@ -1,0 +1,129 @@
+<main class="manufacture-page" aria-labelledby="page-title">
+  <a class="back-link" [routerLink]="busy() ? null : returnLink" [attr.aria-disabled]="busy()">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a la planta
+  </a>
+
+  @if (state() === 'loading') {
+    <div class="state-card" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando planta…</div>
+  } @else if (state() === 'ready' && plant(); as currentPlant) {
+    <header>
+      <p class="eyebrow">Planta de ración</p>
+      <h1 id="page-title" #stepTitle tabindex="-1">{{ step() === 'configure' ? 'Elaborar ración' : step() === 'review' ? 'Revisar elaboración' : receipt()?.estado === 'cancelada' ? 'Elaboración cancelada' : 'Elaboración registrada' }}</h1>
+      @if (step() !== 'result') {
+        <p class="intro">{{ step() === 'configure' ? 'Elegí la receta y cuántas veces querés elaborar su base.' : 'Revisá los ingredientes y los efectos antes de confirmar.' }}</p>
+        <ol class="steps" aria-label="Pasos de elaboración">
+          <li [attr.aria-current]="step() === 'configure' ? 'step' : null"><span>1</span>Receta y multiplicador</li>
+          <li [attr.aria-current]="step() === 'review' ? 'step' : null"><span>2</span>Revisión</li>
+        </ol>
+      }
+    </header>
+
+    <section class="context-card" aria-label="Planta y unidad productiva">
+      <ion-icon name="business-outline" aria-hidden="true" />
+      <div><strong>{{ currentPlant.name }}</strong><span>{{ currentPlant.production_unit.name }}</span></div>
+    </section>
+
+    @if (error()) { <p class="notice danger" role="alert">{{ error() }}</p> }
+
+    @if (step() === 'configure') {
+      @if (!canOperate()) {
+        <p class="notice warning" role="alert">La planta debe estar operativa para elaborar ración. Volvé a la planta para revisar su estado.</p>
+      } @else if (catalogState() === 'loading') {
+        <div class="state-card" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando recetas…</div>
+      } @else if (catalogState() === 'error') {
+        <section class="state-card" role="alert"><p>{{ catalogError() }}</p><ion-button class="secondary" fill="outline" (click)="loadRecipes()">Reintentar</ion-button></section>
+      } @else if (!recipes().length) {
+        <section class="state-card"><h2>No hay recetas activas</h2><p>Se necesita una receta activa para elaborar ración. Consultá con un administrador.</p></section>
+      } @else {
+        <form class="panel configuration" [formGroup]="form" (ngSubmit)="review()" aria-label="Receta y multiplicador de ración">
+          <h2>Receta y multiplicador</h2>
+          @if (recipes().length > 8) {
+            <ion-input fill="outline" label="Buscar receta" labelPlacement="stacked" type="search" [value]="search()" [disabled]="busy()" (ionInput)="search.set($event.detail.value ?? '')" />
+          }
+          <ion-select label="Receta" labelPlacement="stacked" fill="outline" interface="popover" placeholder="Seleccioná una receta" formControlName="recipeId" aria-describedby="recipe-error">
+            @for (recipe of visibleRecipes(); track recipe.id) {
+              <ion-select-option [value]="recipe.id">{{ recipe.nombre }} · #{{ recipe.id }} · {{ recipe.yieldLabel }}</ion-select-option>
+            }
+          </ion-select>
+          @if (submitted() && !selectedRecipe()) { <p id="recipe-error" class="field-error" role="alert">Seleccioná una receta activa.</p> }
+          @if (selectedRecipe(); as recipe) {
+            <p class="hint">Receta #{{ recipe.id }} · Rendimiento base: <strong>{{ yieldLabel() }}</strong></p>
+          }
+          <ion-input label="Multiplicador de la base" labelPlacement="stacked" fill="outline" type="text" inputmode="numeric" formControlName="multiplier" placeholder="Ej.: 2" [attr.aria-describedby]="submitted() && multiplierError() ? 'multiplier-help multiplier-error' : 'multiplier-help'" [attr.aria-invalid]="submitted() && multiplierError() ? 'true' : null" />
+          <p id="multiplier-help" class="hint">1 elabora una base; 2 elabora el doble. Usá números enteros.</p>
+          @if (submitted() && multiplierError()) { <p id="multiplier-error" class="field-error" role="alert">{{ multiplierError() }}</p> }
+          @if (multiplierLabel()) {
+            <output class="quantity-preview" aria-live="polite" aria-atomic="true"><span>Cantidad a elaborar</span><strong>{{ yieldLabel() }} × {{ multiplierLabel() }} = {{ quantityLabel() }}</strong></output>
+          }
+          <div class="notice info"><ion-icon name="information-circle-outline" aria-hidden="true" /><p>La elaboración utiliza ingredientes para producir ración. Revisar el cálculo todavía no modifica el stock.</p></div>
+          <ion-button class="primary" expand="block" type="submit" [disabled]="busy()">
+            @if (busy()) { <ion-spinner slot="start" name="crescent" aria-hidden="true" /> }
+            {{ busy() ? 'Calculando…' : 'Revisar elaboración' }}
+          </ion-button>
+          <a class="text-action" [routerLink]="busy() ? null : returnLink" [attr.aria-disabled]="busy()">Cancelar</a>
+        </form>
+      }
+    } @else if (step() === 'review') {
+      <section class="panel review" aria-label="Resumen de elaboración">
+        <div class="recipe-summary"><div><h2>{{ reviewName() }}</h2><span>Receta #{{ pending()?.request?.receta_id ?? calculation()?.receta_id }}</span></div><strong>{{ reviewQuantity() }}</strong></div>
+        @if (reviewBasis(); as basis) { <p class="hint review-basis">Base × multiplicador: {{ basis }} = {{ reviewQuantity() }}</p> }
+        @if (requiredIngredients().length) {
+          <h3>Ingredientes necesarios</h3>
+          <ul class="ingredient-list">
+            @for (ingredient of requiredIngredients(); track ingredient.producto_id) {
+              <li><span>{{ ingredient.nombre }}</span><strong>{{ ingredient.quantityLabel }}</strong></li>
+            }
+          </ul>
+        }
+        <h3>¿Qué pasará al elaborar?</h3>
+        <ul class="effects">
+          <li>Se descontarán primero los ingredientes de esta planta. Si no alcanzan, se usarán otras plantas operativas de {{ currentPlant.production_unit.name }}.</li>
+          <li>Se sumarán <strong>{{ reviewQuantity() }}</strong> al saldo de esta receta en la UP, compartido por sus plantas.</li>
+          <li>Si falta algún ingrediente, no se registrará la elaboración ni se aplicarán descuentos parciales.</li>
+        </ul>
+        @if (uncertain()) {
+          <p class="notice warning" role="status">Hay una elaboración pendiente de confirmar. Consultá su resultado antes de iniciar otra. Se intentará completar o recuperar la misma operación, sin duplicarla.</p>
+        } @else {
+          <p class="notice warning">Este cálculo no reserva stock. Se usará la receta vigente al confirmar.</p>
+        }
+        <ion-button class="primary" expand="block" [disabled]="busy() || (!pending() && !calculation())" (click)="confirm()">
+          @if (busy()) { <ion-spinner slot="start" name="crescent" aria-hidden="true" /> }
+          <ion-icon slot="start" name="leaf-outline" aria-hidden="true" />
+          {{ busy() ? uncertain() ? 'Consultando…' : 'Registrando…' : uncertain() ? 'Consultar resultado' : 'Confirmar elaboración' }}
+        </ion-button>
+        @if (!pending()) { <ion-button class="secondary" fill="clear" expand="block" [disabled]="busy()" (click)="edit()">Volver a editar</ion-button> }
+      </section>
+    } @else if (receipt(); as operation) {
+      <section class="panel result" aria-label="Resultado de la elaboración">
+        <ion-icon class="result-icon" name="checkmark-circle-outline" aria-hidden="true" />
+        <h2>{{ operation.quantityLabel }} de {{ operation.nombre_receta }}</h2>
+        <p class="hint">Elaboración #{{ operation.id }} · {{ operation.nombre_planta }}</p>
+        @if (operation.estado === 'cancelada') { <p class="notice warning">Esta elaboración fue cancelada. Los saldos siguientes corresponden a su registro original.</p> }
+        <section class="balance-card" aria-label="Saldo de alimento al registrar">
+          <h3>Saldo de alimento tras esta elaboración</h3>
+          <dl><div><dt>Anterior</dt><dd>{{ operation.beforeLabel }}</dd></div><div><dt>Elaborado</dt><dd>+ {{ operation.quantityLabel }}</dd></div><div class="balance-total"><dt>Resultante</dt><dd>{{ operation.afterLabel }}</dd></div></dl>
+          <p>Saldo de {{ operation.nombre_receta }} en {{ currentPlant.production_unit.name }}, compartido por sus plantas.</p>
+        </section>
+        <h3>Ingredientes utilizados</h3>
+        <ul class="ingredient-list used-ingredients">
+          @for (ingredient of operation.ingredients; track ingredient.producto_id) {
+            <li><div class="ingredient-total"><strong>{{ ingredient.nombre }}</strong><strong>{{ ingredient.quantityLabel }}</strong></div>
+              <ul class="allocations">
+                @for (line of ingredient.allocations; track line.linea_movimiento_id) {
+                  <li><span>{{ line.nombre_planta }}{{ line.planta_id === operation.planta_id ? ' (esta planta)' : '' }}</span><span>{{ line.quantityLabel }}</span></li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+        <ion-button class="primary" expand="block" [routerLink]="returnLink" [replaceUrl]="true">Volver a la planta</ion-button>
+      </section>
+    }
+  } @else {
+    <section class="state-card" role="alert">
+      <h1 id="page-title">{{ state() === 'forbidden' ? 'Acceso no disponible' : state() === 'notFound' ? 'No se encontró la planta' : 'No se pudo cargar la planta' }}</h1>
+      <p>{{ state() === 'forbidden' ? 'Tu sesión cambió o no tenés permiso para consultar esta planta.' : state() === 'notFound' ? 'La instalación debe ser una planta de ración de esta unidad productiva.' : 'Revisá tu conexión e intentá nuevamente.' }}</p>
+      @if (state() === 'error') { <ion-button class="secondary" fill="outline" (click)="load()">Reintentar</ion-button> }
+    </section>
+  }
+</main>

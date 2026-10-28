@@ -96,12 +96,12 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(28);
+    ).toBe(25);
+
+    expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
     expect(supplierItems).toEqual([
       { label: 'Proveedores', slug: 'proveedores' },
-      { label: 'Productos', slug: 'productos' },
-      { label: 'Nuevo producto', slug: 'productos/nuevo' },
     ]);
 
     expect(
@@ -126,6 +126,13 @@ describe('admin navigation visibility', () => {
     expect(navigation[0]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
     expect(firstVisibleAdminPath({ roles: ['employee'], permissions: ['management-plans.view'] }))
       .toBe('/administracion/manejo-lotes/planes');
+  });
+
+  it('shows only Recetas to a user with the recipe catalogue grant', () => {
+    const reader = { roles: ['employee'], permissions: ['feed-recipes.view'] };
+    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['manejo-lotes']);
+    expect(visibleAdminNavigation(reader)[0]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
+    expect(firstVisibleAdminPath(reader)).toBe('/administracion/manejo-lotes/Recetas');
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {
@@ -159,8 +166,8 @@ describe('admin navigation visibility', () => {
     expect(supplierRoutePaths).not.toContain('medicamentos');
     expect(supplierRoutePaths).not.toContain('vacunas');
 
-    const productsRoute = suppliersGroup
-      ?.children
+    const productsRoute = inventoryRoutes
+      ?.find((route) => route.path === 'existencias')?.children
       ?.find((route) => route.path === 'productos');
 
     const productsLoader = productsRoute
@@ -195,13 +202,16 @@ describe('admin navigation visibility', () => {
     expect(flocksRoutes?.find((route) => route.path === ':id/alimentacion')?.loadComponent).toBeTypeOf('function');
   });
 
-  it('renders nested menu slugs as their existing URL segments', () => {
+  it('renders existing menu URLs and keeps Registrar movimiento active with product context', async () => {
     const groups = visibleAdminNavigation({ roles: ['admin'] });
 
     TestBed.configureTestingModule({
       imports: [AdminSidebarComponent],
       providers: [
-        provideRouter([]),
+        provideRouter([
+          { path: 'administracion/inventario/ajustes-y-perdidas', children: [] },
+          { path: 'administracion/inventario/existencias', children: [] },
+        ]),
         {
           provide: AdminUnitContextService,
           useValue: {
@@ -240,16 +250,7 @@ describe('admin navigation visibility', () => {
       '/administracion/inventario/existencias/ubicaciones',
     );
 
-    expect(
-      links
-        .find(
-          (link) =>
-            link.textContent?.trim() === 'Nuevo producto',
-        )
-        ?.getAttribute('href'),
-    ).toBe(
-      '/administracion/proveedores/productos/nuevo',
-    );
+    expect(links.some((link) => link.textContent?.trim() === 'Nuevo producto')).toBe(false);
 
     expect(
       links
@@ -257,6 +258,22 @@ describe('admin navigation visibility', () => {
         ?.getAttribute('href'),
     ).toBe('/administracion/unidades-productivas');
 
+    const movementLink = links.find((link) => link.textContent?.trim() === 'Registrar movimiento')!;
+    const router = TestBed.inject(Router);
+    expect(movementLink.getAttribute('href')).toBe('/administracion/inventario/ajustes-y-perdidas');
+    for (const context of ['', '?product_id=17', '?product_id=17#productos']) {
+      await router.navigateByUrl(`/administracion/inventario/ajustes-y-perdidas${context}`);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(movementLink.classList.contains('active')).toBe(true);
+      expect(movementLink.getAttribute('aria-current')).toBe('page');
+      expect(fixture.componentInstance.expandedGroup()).toBe('inventario');
+    }
+    await router.navigateByUrl('/administracion/inventario/existencias');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(movementLink.classList.contains('active')).toBe(false);
+    expect(movementLink.hasAttribute('aria-current')).toBe(false);
     fixture.destroy();
   });
 
@@ -369,6 +386,27 @@ describe('admin navigation visibility', () => {
     ).toBe('inventario');
 
     expect(activeAdminGroup('/auth')).toBeNull();
+  });
+
+  it.each([
+    '/administracion/unidades-productivas/1/galpon/10',
+    '/administracion/unidades-productivas/1/galpon/11?tab=ingredientes',
+    '/administracion/unidades-productivas/1/galpon/10/editar',
+    '/administracion/unidades-productivas/1/galpon/11/elaborar#cantidad',
+    '/administracion/ubicaciones/unidades-productivas/1/galpon/10',
+    '/administracion/ubicaciones/unidades-productivas/1/galpon/11/elaborar',
+  ])('selects Instalaciones for facility route %s', (path) => {
+    expect(activeAdminGroup(path)).toBe('ubicaciones');
+  });
+
+  it.each([
+    '/administracion/unidades-productivas/1',
+    '/administracion/unidades-productivas/1/editar',
+    '/administracion/unidades-productivas/nueva',
+    '/administracion/ubicaciones/unidades-productivas/1',
+    '/administracion/unidades-productivas/1?returnTo=/galpon/10',
+  ])('keeps Unidades productivas selected for unit route %s', (path) => {
+    expect(activeAdminGroup(path)).toBe('unidades-productivas');
   });
 
   it('redirects the empty panel URL to the first visible route', () => {

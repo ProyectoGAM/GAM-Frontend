@@ -1,10 +1,26 @@
 # API Integration
 
+La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de UP, roles/permisos y exigencia de contraseña reciente en servidor.
+
 ## 1. Contract-first
 
 Laravel API contracts are authoritative.
 
+La elaboración desde plantas de ración usa el catálogo, cálculo y registro de
+`feed-recipes.yaml`; ver [`feed-manufacture.md`](feed-manufacture.md) para el
+recorrido, las unidades exactas y la recuperación idempotente de pendientes.
+
+La consulta de raciones y sus mínimos por receta y UP usa ese mismo contrato.
+Ver [`feed-stock.md`](feed-stock.md) para filtros, estados, permisos y unidades.
+
 The frontend must not guess undocumented fields, states or error semantics.
+
+Los catálogos globales de vacunas y medicamentos consumen `vaccination.yaml` y
+`medication.yaml` con acceso administrativo. Ver [`health-catalogs.md`](health-catalogs.md)
+para campos, filtros, proveedores y reintentos idempotentes de sus altas.
+
+El almacenamiento tipado, Sanidad histórica deshabilitada, proveedor interno y regularizaciones
+consumen `inventory-storage.yaml`; ver [integración de almacenamiento](inventory-storage-rules.md).
 
 La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
 `feed-recipes.yaml`, con consumos diarios y rectificaciones. Ver

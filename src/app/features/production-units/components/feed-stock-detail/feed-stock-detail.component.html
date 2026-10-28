@@ -1,6 +1,8 @@
 <section class="section" aria-labelledby="stock-title">
-  <div class="section-heading"><div><h2 id="stock-title">Stock de ingredientes</h2><p>Existencias registradas en esta planta de ración.</p></div></div>
-  @if (message()) { <p class="feedback" role="status">{{ message() }}</p> }
+  <h2 id="stock-title">Stock de ingredientes</h2>
+  <p class="section-description">Existencias registradas en esta planta de ración.</p>
+  @if (message() && !formOpen()) { <p class="feedback" role="status">{{ message() }}</p> }
+  @if (adjustmentMessage()) { <p class="feedback" role="status">{{ adjustmentMessage() }}</p> }
   <div class="stock-layout">
     <div class="stock-content">
       @if (state() === 'loading') {
@@ -21,11 +23,40 @@
     </div>
 
     <div class="add-content">
-      <div class="add-section"><h3>Agregar ingrediente</h3>
-        <ion-button class="action" fill="outline" [disabled]="state() !== 'success' || saving()" (click)="toggleForm.emit()">{{ formOpen() ? 'Cancelar' : 'Agregar ingrediente' }}</ion-button>
+      <div class="stock-actions" role="group" aria-label="Gestión del stock de la planta">
+        <button #ingredientTrigger class="stock-action product-trigger" type="button" aria-haspopup="dialog"
+          [attr.aria-expanded]="formOpen()" aria-controls="ingredient-modal"
+          [disabled]="!canManufacture() || state() !== 'success' || saving()" [attr.aria-describedby]="!canManufacture() ? 'plant-operation-hint' : null" (click)="openIngredientForm()">
+          <ion-icon name="cube-outline" aria-hidden="true" />Agregar Producto
+        </button>
+        <button #adjustmentTrigger class="stock-action adjustment-trigger" type="button" aria-haspopup="dialog"
+          [attr.aria-expanded]="adjustmentOpen()" aria-controls="stock-adjustment-modal" [disabled]="!canManufacture() || saving() || state() !== 'success'" [attr.aria-describedby]="!canManufacture() ? 'plant-operation-hint' : null" (click)="openAdjustment()">
+          <ion-icon name="options-outline" aria-hidden="true" />Ajustar Stock
+        </button>
       </div>
-      @if (formOpen()) {
-        <form class="ingredient-form" [formGroup]="form()" (ngSubmit)="saveIngredient.emit()" aria-label="Agregar ingrediente">
+      <div class="manufacture-action">
+        <ion-button class="manufacture-button" expand="block" [disabled]="!canManufacture() || saving()" (click)="manufacture.emit()">
+          <ion-icon name="leaf-outline" slot="start" aria-hidden="true" />Elaborar
+        </ion-button>
+        @if (!canManufacture()) { <p id="plant-operation-hint" class="form-hint">La planta debe estar operativa para agregar ingredientes, ajustar stock o elaborar ración.</p> }
+      </div>
+    </div>
+  </div>
+</section>
+
+<ion-modal id="ingredient-modal" class="ingredient-modal" [isOpen]="formOpen()" [canDismiss]="!saving()"
+  [keepContentsMounted]="true" (didPresent)="focusForm()" (didDismiss)="closeForm()" aria-labelledby="ingredient-form-title">
+  <ng-template>
+    @if (formOpen()) {
+      <div class="ingredient-dialog">
+        <form id="ingredient-form" class="ingredient-form" [formGroup]="form()" (ngSubmit)="saveIngredient.emit()" aria-labelledby="ingredient-form-title">
+          <div class="form-heading">
+            <h2 id="ingredient-form-title" #ingredientFormTitle tabindex="-1">Agregar Producto</h2>
+            <button class="close-trigger" type="button" aria-label="Cerrar formulario de ingrediente" [disabled]="saving()" (click)="closeForm()">
+              <ion-icon name="close-outline" aria-hidden="true" />
+            </button>
+          </div>
+          @if (message()) { <p class="feedback error-state" role="alert">{{ message() }}</p> }
           @if (catalogState() === 'loading') {
             <div class="catalog-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /><span>Cargando ingredientes…</span></div>
           } @else if (catalogState() === 'error') {
@@ -44,13 +75,30 @@
                 </ion-select>
               </div>
               <p class="form-hint">Se registrará el saldo inicial con la cantidad y unidad indicadas.</p>
-              <ion-button class="action" type="submit" fill="outline" [disabled]="saving()">{{ saving() ? 'Agregando…' : 'Guardar ingrediente' }}</ion-button>
             } @else {
               <p class="form-hint">No hay ingredientes disponibles para esta planta.</p>
             }
           }
+          <div class="form-actions">
+            <ion-button class="action" type="button" fill="outline" [disabled]="saving()" (click)="closeForm()">Cancelar</ion-button>
+            @if (catalogState() === 'success' && ingredients().length) {
+              <ion-button class="save-button" type="submit" [disabled]="!canManufacture() || saving()">{{ saving() ? 'Agregando…' : 'Guardar ingrediente' }}</ion-button>
+            }
+          </div>
         </form>
-      }
-    </div>
-  </div>
-</section>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<ion-modal id="stock-adjustment-modal" class="ingredient-modal" [isOpen]="adjustmentOpen()" [keepContentsMounted]="true" [canDismiss]="!adjustmentBusy()"
+  (didPresent)="focusAdjustment()" (didDismiss)="dismissAdjustment()" aria-labelledby="stock-adjustment-title">
+  <ng-template>
+    @if (adjustmentOpen()) {
+      <div class="ingredient-dialog">
+        <app-feed-stock-adjustment [plantId]="plantId()" [ingredients]="rows()" [operational]="canManufacture()"
+          (busyChanged)="adjustmentBusy.set($event)" (closed)="closeAdjustment()" (saved)="onAdjusted($event)" (refreshStock)="retry.emit()" />
+      </div>
+    }
+  </ng-template>
+</ion-modal>

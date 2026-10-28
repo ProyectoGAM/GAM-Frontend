@@ -1,12 +1,6 @@
-<dialog #dialog class="filters-dialog" aria-labelledby="filters-title" (cancel)="onCancel($event)">
-  <div class="sheet-handle" aria-hidden="true"></div>
-  <div class="sheet-header">
-    <h2 id="filters-title">Filtros</h2>
-    <button class="sheet-close" type="button" aria-label="Cerrar filtros" (click)="close()">
-      <ion-icon name="close-outline" aria-hidden="true" />
-    </button>
-  </div>
-  <div class="sheet-body">
+<app-filter-dialog titleId="filters-title"
+  [applyLabel]="'Ver ' + draftResultCount() + (draftResultCount() === 1 ? ' resultado' : ' resultados')"
+  (clearRequested)="clearRequested.emit()" (applyRequested)="applyRequested.emit()">
     <div class="filter-section">
       <h3>Unidad productiva</h3>
       @if (globalUnitId() !== null) {
@@ -44,11 +38,4 @@
         <p class="filter-help">Solo galpones con ocupación informada.</p>
       </fieldset>
     }
-  </div>
-  <div class="sheet-footer">
-    <button class="sheet-action secondary" type="button" (click)="clearRequested.emit()">Limpiar</button>
-    <button class="sheet-action primary" type="button" (click)="applyRequested.emit()">
-      Ver {{ draftResultCount() }} {{ draftResultCount() === 1 ? 'resultado' : 'resultados' }}
-    </button>
-  </div>
-</dialog>
+</app-filter-dialog>

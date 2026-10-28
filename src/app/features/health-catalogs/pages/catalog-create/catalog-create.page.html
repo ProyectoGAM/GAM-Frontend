@@ -1,0 +1,49 @@
+<section class="health-page create-page">
+  <a class="back" [routerLink]="saving() ? null : config.path" [queryParams]="returnQuery" [attr.aria-disabled]="saving() ? 'true' : null"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a {{ config.plural === 'vacunas' ? 'vacunación' : 'medicamentos' }}</a>
+  <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>{{ config.create }}</h1><p class="lead">Agregá {{ kind === 'vaccines' ? 'una vacuna' : 'un medicamento' }} al catálogo global.</p><p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" />Disponible para todas las UP</p></div></header>
+  @if (!allowed()) { <div class="feedback error" role="alert">Este catálogo está disponible únicamente para administradores.</div> }
+  @else if (created(); as item) {
+    <div class="feedback success" role="status"><h2 #successHeading tabindex="-1">{{ kind === 'vaccines' ? 'Vacuna creada' : 'Medicamento creado' }}</h2><p><strong>{{ item.name }}</strong> se agregó al catálogo global.</p><a class="button" [routerLink]="config.path" [queryParams]="returnQuery">Volver al listado</a>
+      @if (kind === 'vaccines') { <a class="button" [routerLink]="[config.path, item.id]" [queryParams]="returnQuery">Ver ficha</a> }
+      <p>La ficha está disponible para todas las UP. No requiere ubicación ni registra existencias físicas.</p>
+    </div>
+  } @else {
+    <form #catalogForm class="catalog-form" [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="saving()" novalidate>
+      @if (error(); as message) { <div class="feedback error command-error" role="alert" tabindex="-1">{{ message }}</div> }
+      @if (suppliersError(); as message) { <div class="feedback error" role="alert"><p>{{ message }}</p><button class="button" type="button" [disabled]="locked()" (click)="loadSuppliers()">Reintentar proveedores</button></div> }
+      @if (!suppliersLoading() && !suppliersError() && !suppliers().length) { <div class="state">No hay proveedores activos disponibles. Registra o activa un proveedor antes de crear {{ kind === 'vaccines' ? 'una vacuna' : 'un medicamento' }}.<button class="button" type="button" [disabled]="locked()" (click)="loadSuppliers()">Actualizar proveedores</button></div> }
+      <fieldset [disabled]="locked()">
+        <section class="card form-card" aria-labelledby="health-data-title">
+          <div class="section-heading">
+            <h2 id="health-data-title"><ion-icon [name]="kind === 'vaccines' ? 'medkit-outline' : 'bandage-outline'" aria-hidden="true" />Datos {{ kind === 'vaccines' ? 'de la vacuna' : 'del medicamento' }}</h2>
+            <app-info-help label="Catálogo global" [text]="(kind === 'medicines' ? 'El medicamento' : 'La vacuna') + ' queda disponible para todas las UP, sin ubicación ni control de existencias físicas. La aplicación al lote se registra por separado.'" />
+          </div>
+          <p class="helper">{{ kind === 'vaccines' ? 'Completá los datos de la ficha global. Los detalles adicionales son opcionales.' : 'Todos los campos son obligatorios.' }}</p>
+          <div class="data-grid">
+            <div class="field"><label for="health-name">Nombre <span aria-hidden="true">*</span></label><input id="health-name" formControlName="name" maxlength="160" autocomplete="off" required [attr.aria-invalid]="fieldError(form.controls.name) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.name) ? 'health-name-error' : null">
+              @if (fieldError(form.controls.name); as message) { <span class="field-error" id="health-name-error" role="alert">{{ message }}</span> }
+            </div>
+            @if (kind === 'vaccines') {
+              <div class="field"><label for="health-sku">Código de la vacuna <span aria-hidden="true">*</span></label><input id="health-sku" formControlName="sku" maxlength="80" autocomplete="off" spellcheck="false" required [attr.aria-invalid]="fieldError(form.controls.sku) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.sku) ? 'health-sku-error' : 'health-sku-help'">
+                <small class="helper" id="health-sku-help">Identifica la vacuna en el catálogo global.</small>
+                @if (fieldError(form.controls.sku); as message) { <span class="field-error" id="health-sku-error" role="alert">{{ message }}</span> }
+              </div>
+            }
+          </div>
+          <div class="field"><label for="health-description">Descripción <span aria-hidden="true">*</span></label><textarea id="health-description" formControlName="description" rows="4" maxlength="5000" required [attr.aria-invalid]="fieldError(form.controls.description) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.description) ? 'health-description-error' : null"></textarea>
+            @if (fieldError(form.controls.description); as message) { <span class="field-error" id="health-description-error" role="alert">{{ message }}</span> }
+          </div>
+          <div class="field"><label [for]="kind === 'vaccines' ? 'vaccine-supplier' : 'medicine-supplier'">Proveedor <span aria-hidden="true">*</span></label><app-searchable-select [inputId]="kind === 'vaccines' ? 'vaccine-supplier' : 'medicine-supplier'" formControlName="supplier" [options]="supplierOptions()" [showIcons]="true" [loading]="suppliersLoading()" [blocked]="locked() || !!suppliersError()" [required]="true" [invalid]="!!fieldError(form.controls.supplier)" [describedBy]="fieldError(form.controls.supplier) ? 'health-supplier-error' : 'health-supplier-help'" placeholder="Seleccioná un proveedor activo" /><small class="helper" id="health-supplier-help">Seleccioná un proveedor activo.</small>
+            @if (fieldError(form.controls.supplier); as message) { <span class="field-error" id="health-supplier-error" role="alert">{{ message }}</span> }
+          </div>
+          @if (kind === 'vaccines') {
+            <details [open]="!!fieldError(form.controls.details)"><summary>Detalles adicionales (opcional)</summary><div class="field details-field"><label for="health-details">Detalles</label><textarea id="health-details" formControlName="details" rows="4" maxlength="5000" [attr.aria-invalid]="fieldError(form.controls.details) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.details) ? 'health-details-error' : null"></textarea>
+              @if (fieldError(form.controls.details); as message) { <span class="field-error" id="health-details-error" role="alert">{{ message }}</span> }
+            </div></details>
+          }
+        </section>
+      </fieldset>
+      <footer class="action-bar" [class.keyboard-open]="viewportBottom() > 0"><div><button class="button primary" type="submit" [disabled]="saving() || (!uncertain() && (suppliersLoading() || !!suppliersError() || !suppliers().length))">{{ saving() ? 'Creando…' : uncertain() ? 'Reintentar creación' : config.button }}</button></div></footer>
+    </form>
+  }
+</section>

@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import {
   ApiEnvelope,
+  AllowedStockProduct,
+  AllowedStockProductFilters,
   AdjustmentInput,
   InventoryBalanceFilters,
   InventoryMovement,
@@ -13,6 +15,7 @@ import {
   PaginatedResponse,
   ReceiptInput,
   StockBalance,
+  StockRegularizationInput,
   TransferInput,
 } from '../interfaces/inventory';
 
@@ -20,9 +23,15 @@ import {
 export class InventoryApi {
   private readonly api = inject(ApiClient);
 
+  allowedProducts(filters: AllowedStockProductFilters): Observable<PaginatedResponse<AllowedStockProduct>> {
+    return this.api.get<PaginatedResponse<AllowedStockProduct>>('inventario/productos-permitidos', {
+      params: { ...filters },
+    });
+  }
+
   balances(filters: InventoryBalanceFilters): Observable<PaginatedResponse<StockBalance>> {
     return this.api.get<PaginatedResponse<StockBalance>>('inventory/balances', {
-      params: { ...filters, below_minimum: filters.below_minimum ? 1 : undefined },
+      params: { ...filters, below_minimum: filters.below_minimum ? 1 : undefined, incompatible_only: filters.incompatible_only ? 1 : undefined },
     });
   }
 
@@ -62,6 +71,10 @@ export class InventoryApi {
 
   reverse(id: number, reason: string, idempotencyKey: string): Observable<ApiEnvelope<InventoryMovement>> {
     return this.command(`inventory/movements/${id}/reversals`, { reason }, idempotencyKey);
+  }
+
+  regularize(balanceId: number, body: StockRegularizationInput, idempotencyKey: string): Observable<ApiEnvelope<InventoryMovement>> {
+    return this.command(`inventario/saldos/${balanceId}/regularizaciones`, body, idempotencyKey);
   }
 
   private command<T>(path: string, body: T, idempotencyKey: string): Observable<ApiEnvelope<InventoryMovement>> {

@@ -55,6 +55,7 @@ export class AuthPage {
   readonly submitting = signal(false);
   readonly showPassword = signal(false);
   readonly showPairing = signal(false);
+  readonly continuationPath = computed(() => postLoginPath(this.auth.user()));
 
   readonly loginForm = new FormGroup({
     email: new FormControl('', {

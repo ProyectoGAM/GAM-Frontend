@@ -1,16 +1,15 @@
 import { Component, computed, inject, signal, ViewChild } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { InventoryApi } from '../../services/inventory.api';
-import { createIdempotencyKey, signedQuantity, unitLabel } from '../../services/inventory-format';
+import { signedQuantity, unitLabel } from '../../services/inventory-format';
 import { inventoryErrorMessage } from '../../services/inventory-errors';
 import { InventoryMovement, InventoryMovementLine, InventoryMovementType } from '../../interfaces/inventory';
-import { LoadState, MutationState } from '../../types/inventory-state.type';
-import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
+import { LoadState } from '../../types/inventory-state.type';
+import { MovementReversalDialogComponent } from '../../components/movement-reversal-dialog/movement-reversal-dialog.component';
 
 const TYPE_LABELS: Record<InventoryMovementType, string> = {
   opening_balance: 'Saldo inicial', receipt: 'Ingreso', issue: 'Salida', loss: 'Pérdida',
@@ -21,7 +20,7 @@ const TYPE_LABELS: Record<InventoryMovementType, string> = {
   selector: 'app-inventory-movement-detail',
   templateUrl: './movement-detail.page.html',
   styleUrl: './movement-detail.page.scss',
-  imports: [InventoryConfirmationDialogComponent, ReactiveFormsModule, RouterLink],
+  imports: [MovementReversalDialogComponent, RouterLink],
 })
 export class MovementDetailPage {
   readonly auth = inject(AuthStore);
@@ -32,14 +31,11 @@ export class MovementDetailPage {
   readonly movement = signal<InventoryMovement | null>(null);
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
-  readonly mutation = signal<MutationState>('idle');
   readonly locationNames = signal<Record<number, string>>({});
   readonly productNames = signal<Record<number, string>>({});
   readonly referencesError = signal<string | null>(null);
-  readonly reverseForm = new FormGroup({ reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(255)] }) });
   readonly canReverse = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.adjust') === true);
-  @ViewChild(InventoryConfirmationDialogComponent) private reversalDialog!: InventoryConfirmationDialogComponent;
-  private reversalKey: string | null = null;
+  @ViewChild(MovementReversalDialogComponent) private reversalDialog!: MovementReversalDialogComponent;
 
   constructor() {
     void this.load();
@@ -77,37 +73,15 @@ export class MovementDetailPage {
 
   requestReverse(event: Event): void {
     const movement = this.movement();
-    if (!movement || !this.canReverse() || this.reverseForm.invalid || this.mutation() === 'submitting') {
-      this.reverseForm.markAllAsTouched();
-      return;
-    }
+    if (!movement || !this.canReverse() || this.state() !== 'success') return;
     this.error.set(null);
     this.success.set(null);
-    this.reversalDialog.open(event.currentTarget as HTMLElement | null);
+    this.reversalDialog.open(movement, this.typeLabel(movement.type), event.currentTarget instanceof HTMLElement ? event.currentTarget : null);
   }
 
-  async reverse(): Promise<void> {
-    const movement = this.movement();
-    if (!movement || !this.canReverse() || this.reverseForm.invalid || this.mutation() === 'submitting') {
-      this.reverseForm.markAllAsTouched();
-      return;
-    }
-    this.mutation.set('submitting');
-    this.error.set(null);
-    this.success.set(null);
-    this.reversalKey ??= createIdempotencyKey();
-    try {
-      await firstValueFrom(this.api.reverse(movement.id, this.reverseForm.controls.reason.value, this.reversalKey));
-      this.mutation.set('success');
-      this.success.set('Reversión registrada. El movimiento original se conserva en el historial.');
-      this.reversalKey = null;
-      this.reverseForm.reset();
-      this.reversalDialog.close();
-      await this.load();
-    } catch (error) {
-      this.mutation.set('error');
-      this.error.set(inventoryErrorMessage(error, 'No se pudo revertir el movimiento. Puedes reintentar con la misma operación.'));
-    }
+  async onReversed(): Promise<void> {
+    this.success.set('Reversión registrada. El movimiento original se conserva en el historial.');
+    await this.load();
   }
   typeLabel(type: InventoryMovementType): string { return TYPE_LABELS[type] ?? 'Otro movimiento'; }
   productName(line: InventoryMovementLine): string { return line.product?.name || this.productNames()[line.product_id] || 'Producto sin nombre disponible'; }

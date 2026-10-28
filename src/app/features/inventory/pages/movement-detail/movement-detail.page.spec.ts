@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
@@ -9,6 +10,7 @@ import { InventoryApi } from '../../services/inventory.api';
 import { InventoryReferenceApi } from '../../services/inventory-reference.api';
 import { stubNativeDialog } from '../../testing/native-dialog-test';
 import { MovementDetailPage } from './movement-detail.page';
+import { MovementReversalDialogComponent } from '../../components/movement-reversal-dialog/movement-reversal-dialog.component';
 
 const movement: InventoryMovement = {
   id: 11,
@@ -20,6 +22,7 @@ const movement: InventoryMovement = {
   reason: 'Uso diario',
   occurred_at: '2026-01-01T10:00:00Z',
   created_by: 3,
+  created_by_name: 'Ana Responsable',
   reverses_movement_id: null,
   created_at: '2026-01-01T10:01:00Z',
   lines: [{ id: 5, product_id: 4, stock_location_id: 2, unit: 'kg', physical_delta: '-1' }],
@@ -44,11 +47,20 @@ describe('Inventory movement detail', () => {
     const fixture = TestBed.createComponent(MovementDetailPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     const line = fixture.componentInstance.movement()?.lines?.[0];
     if (!line) throw new Error('Expected movement detail to include its line');
     expect(fixture.componentInstance.productName(line)).toBe('Alimento de postura');
     expect(fixture.nativeElement.textContent).not.toContain('Producto #4');
+    expect(fixture.nativeElement.querySelector('.summary-grid').textContent).toContain('ResponsableAna Responsable');
+    for (const name of [null, '   ']) {
+      fixture.componentInstance.movement.set({ ...movement, created_by: null, created_by_name: name });
+      fixture.detectChanges();
+      const responsible = Array.from(fixture.nativeElement.querySelectorAll('.summary') as NodeListOf<HTMLElement>)
+        .find((card) => card.querySelector('span')?.textContent === 'Responsable');
+      expect(responsible?.querySelector('strong')?.textContent).toBe('No disponible');
+    }
     fixture.destroy();
   });
 });
@@ -84,22 +96,23 @@ describe('Inventory movement reversal confirmation', () => {
     const reverse = vi.fn().mockReturnValue(pending);
     const fixture = await createFixture(reverse);
     const page = fixture.componentInstance;
-    page.reverseForm.controls.reason.setValue('Registro duplicado');
-    fixture.detectChanges();
-    const opener = fixture.nativeElement.querySelector('.reversal button[type="submit"]') as HTMLButtonElement;
+    const reversal = fixture.debugElement.query(By.directive(MovementReversalDialogComponent)).componentInstance as MovementReversalDialogComponent;
+    const opener = fixture.nativeElement.querySelector('.reversal-trigger') as HTMLButtonElement;
+    expect(fixture.nativeElement.querySelector('.card.reversal')).toBeNull();
 
     opener.click();
+    reversal.form.controls.reason.setValue('Registro duplicado'); reversal.review();
     fixture.detectChanges();
     let dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
     expect(dialog.open).toBe(true);
     expect(dialog.textContent).toContain('Alimento de postura');
     expect(dialog.textContent).toContain('Registro duplicado');
-    dialog.querySelector('button.secondary')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    reversal.close();
     expect(dialog.open).toBe(false);
     expect(reverse).not.toHaveBeenCalled();
-    expect(page.reverseForm.controls.reason.value).toBe('Registro duplicado');
 
     opener.click();
+    reversal.form.controls.reason.setValue('Registro duplicado'); reversal.review();
     fixture.detectChanges();
     dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
     (dialog.querySelector('button.danger') as HTMLButtonElement).click();
@@ -107,7 +120,7 @@ describe('Inventory movement reversal confirmation', () => {
     expect(reverse).toHaveBeenCalledTimes(1);
     expect(reverse).toHaveBeenCalledWith(11, 'Registro duplicado', expect.any(String));
     expect((dialog.querySelector('button.danger') as HTMLButtonElement).disabled).toBe(true);
-    await page.reverse();
+    await reversal.confirm();
     expect(reverse).toHaveBeenCalledTimes(1);
 
     pending.next({ data: movement });
@@ -122,9 +135,9 @@ describe('Inventory movement reversal confirmation', () => {
   it('keeps the dialog open and displays the API error for a retry', async () => {
     const reverse = vi.fn().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
     const fixture = await createFixture(reverse);
-    fixture.componentInstance.reverseForm.controls.reason.setValue('Motivo válido');
-    fixture.detectChanges();
-    (fixture.nativeElement.querySelector('.reversal button[type="submit"]') as HTMLButtonElement).click();
+    const reversal = fixture.debugElement.query(By.directive(MovementReversalDialogComponent)).componentInstance as MovementReversalDialogComponent;
+    (fixture.nativeElement.querySelector('.reversal-trigger') as HTMLButtonElement).click();
+    reversal.form.controls.reason.setValue('Motivo válido'); reversal.review();
     fixture.detectChanges();
     let dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
     (dialog.querySelector('button.danger') as HTMLButtonElement).click();
@@ -133,7 +146,7 @@ describe('Inventory movement reversal confirmation', () => {
     dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
     expect(dialog.open).toBe(true);
     expect(dialog.querySelector('[role="alert"]')?.textContent).toContain('No se pudo conectar con el servidor');
-    expect(fixture.componentInstance.reverseForm.controls.reason.value).toBe('Motivo válido');
+    expect(reversal.form.controls.reason.value).toBe('Motivo válido');
     fixture.destroy();
   });
 });

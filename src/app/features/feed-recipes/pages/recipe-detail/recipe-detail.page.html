@@ -1,0 +1,14 @@
+<section class="recipes-page">
+  <a class="back" routerLink="/administracion/manejo-lotes/Recetas" [queryParams]="returnQuery()"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a recetas</a>
+  @if (state() === 'loading' || state() === 'idle') { <div class="state" role="status">Cargando receta…</div> }
+  @if (state() === 'error' || state() === 'forbidden') { <div class="feedback error" role="alert"><p>{{ error() || 'No tienes permiso para consultar recetas.' }}</p>@if (state() === 'error') { <button class="button" type="button" (click)="load()">Reintentar</button> }</div> }
+  @if (state() === 'success') {
+    @if (recipe(); as item) {
+      <header class="page-heading"><div><p class="eyebrow">RECETA · ID {{ item.id }}</p><h1>{{ item.nombre }}</h1><p class="lead">Catálogo global de recetas</p></div><span class="status" [class.inactive]="item.estado === 'inactive'">{{ item.estado === 'active' ? 'Activa' : 'Inactiva' }}</span></header>
+      <section class="card summary" aria-label="Información de la receta"><div><span>Rendimiento base</span><strong>{{ yieldLabel() }}</strong></div><div><span>Ingredientes</span><strong>{{ ingredients().length }}</strong></div></section>
+      @if (item.nota) { <section class="card notes"><h2>Notas</h2><p>{{ item.nota }}</p></section> }
+      <section class="card composition" aria-labelledby="recipe-composition-title"><h2 id="recipe-composition-title">Composición base</h2><p class="muted">Cantidades de ingredientes para una base de la receta.</p><ul>@for (ingredient of ingredients(); track ingredient.producto_id) { <li><div><strong>{{ ingredient.nombre }}</strong><small>{{ ingredient.sku }}</small></div><span>{{ ingredient.quantity }}</span></li> }</ul></section>
+      <p class="muted updated">Actualizada el {{ item.actualizado_en | date:'dd/MM/yyyy HH:mm':'-0300' }}</p>
+    }
+  }
+</section>

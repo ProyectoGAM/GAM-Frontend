@@ -32,6 +32,13 @@ describe('Inventory API contracts', () => {
 
   afterEach(() => http.verify());
 
+  it('queries allowed products by stock location and stable operation using the public contract', () => {
+    generic.allowedProducts({ stock_location_id: 6, operation: 'loss', per_page: 100, page: 2 }).subscribe();
+    const request = http.expectOne('/api/v1/inventario/productos-permitidos?stock_location_id=6&operation=loss&per_page=100&page=2');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [], links: {}, meta: { current_page: 2, last_page: 2, per_page: 100, total: 100 } });
+  });
+
   it('omits below_minimum when the stock filter is inactive', () => {
     generic.balances({ below_minimum: false, per_page: 25, page: 1 }).subscribe();
 
@@ -46,6 +53,31 @@ describe('Inventory API contracts', () => {
     const request = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
     expect(request.request.params.get('below_minimum')).toBe('1');
     request.flush({ data: [] });
+  });
+
+  it('encodes the incompatible balance review without changing ordinary queries', () => {
+    generic.balances({ incompatible_only: true, product_id: 4 }).subscribe();
+    const active = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(active.request.params.get('incompatible_only')).toBe('1'); active.flush({ data: [] });
+    generic.balances({ incompatible_only: false }).subscribe();
+    const inactive = http.expectOne((req) => req.url === '/api/v1/inventory/balances');
+    expect(inactive.request.params.has('incompatible_only')).toBe(false); inactive.flush({ data: [] });
+  });
+
+  it('sends explicit location types to the location filter', () => {
+    stockLocations.list({ type: 'health', production_unit_id: 1 }).subscribe();
+    const request = http.expectOne('/api/v1/stock-locations?type=health&production_unit_id=1');
+    request.flush({ data: [] });
+  });
+
+  it('omits supplier_id for the server internal supplier and sends regularizations with idempotency', () => {
+    generic.receive({ lines: [{ product_id: 4, stock_location_id: 23, quantity: '2' }] }, 'receipt-key').subscribe();
+    const receipt = http.expectOne('/api/v1/inventory/receipts');
+    expect(receipt.request.body).not.toHaveProperty('supplier_id'); receipt.flush({ data: {} });
+    generic.regularize(8, { mode: 'recontar', reason: 'Recuento verificado' }, 'review-key').subscribe();
+    const regularization = http.expectOne('/api/v1/inventario/saldos/8/regularizaciones');
+    expect(regularization.request.method).toBe('POST'); expect(regularization.request.headers.get('Idempotency-Key')).toBe('review-key');
+    expect(regularization.request.body).toEqual({ mode: 'recontar', reason: 'Recuento verificado' }); regularization.flush({ data: {} });
   });
 
   it('sends the active status and pagination query for stock-location options', () => {
@@ -191,5 +223,22 @@ describe('Inventory API contracts', () => {
     expect(request.request.headers.get('Idempotency-Key')).toBe('00000000-0000-4000-8000-000000000002');
     expect(request.request.body).toEqual({ version: 3, correction_reason: 'Duplicado' });
     request.flush({ data: {} });
+  });
+
+  it('reads paginated donation units with the published query parameters', () => {
+    eggs.donationUnits('Ombú', 2).subscribe();
+    const request = http.expectOne('/api/v1/donaciones/unidades-productivas?search=Omb%C3%BA&page=2');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [], meta: { current_page: 2, last_page: 2 } });
+  });
+
+  it('registers donations through EggStock with the original intent key', () => {
+    const body = { quantity: 120, occurred_at: '2026-10-26T13:30:00Z', reason: 'Comedor', notes: 'Entrega' };
+    eggs.donate(19, body, 'donation-key').subscribe();
+    const request = http.expectOne('/api/v1/unidades-productivas/19/donaciones');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    expect(request.request.headers.get('Idempotency-Key')).toBe('donation-key');
+    request.flush({ data: { transaction: 'donation-one' } });
   });
 });

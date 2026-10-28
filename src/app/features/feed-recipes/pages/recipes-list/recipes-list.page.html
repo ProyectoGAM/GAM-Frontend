@@ -1,0 +1,43 @@
+<section class="recipes-page">
+  <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>Recetas</h1><p class="lead">Consulta las fórmulas y sus ingredientes.</p></div>@if (canCreate()) { <a class="button primary" routerLink="/administracion/manejo-lotes/Recetas/nueva" [queryParams]="returnQuery()"><ion-icon name="add-outline" aria-hidden="true" />Nueva receta</a> }</header>
+  <p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" /><span>Catálogo global · Disponible para todas las unidades productivas</span></p>
+  @if (state() === 'forbidden') {
+    <div class="feedback error" role="alert">{{ error() || 'No tienes permiso para consultar recetas.' }}</div>
+  } @else {
+    <form class="filter-toolbar" [formGroup]="searchForm" (ngSubmit)="searchRecipes()" aria-label="Búsqueda de recetas">
+      <label class="filter-search"><ion-icon name="search-outline" aria-hidden="true" /><input type="search" id="recipe-search" formControlName="buscar" maxlength="120" aria-label="Buscar receta por nombre" placeholder="Buscar por nombre" autocomplete="off"></label>
+      <button #filterTrigger class="filter-trigger" type="button" aria-haspopup="dialog" [attr.aria-label]="filterCount() ? 'Filtros, ' + filterCount() + ' aplicado' : 'Filtros'" (click)="openFilters(filterTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }</button>
+    </form>
+    @if (state() === 'loading' || state() === 'idle') { <div class="state" role="status">Cargando recetas…</div> }
+    @if (state() === 'error') { <div class="feedback error" role="alert"><p>{{ error() }}</p><button class="button" type="button" (click)="load()">Reintentar</button></div> }
+    @if (state() === 'empty') {
+      <div class="state">
+        <h2>{{ meta()?.total ? 'No hay recetas en esta página.' : hasCriteria() ? 'No hay recetas que coincidan con la búsqueda.' : 'Aún no hay recetas.' }}</h2>
+        <p>{{ meta()?.total ? 'Vuelve a la primera página para consultar los resultados.' : hasCriteria() ? 'Prueba otro nombre o cambia el estado en Filtros.' : 'Las recetas registradas aparecerán aquí.' }}</p>
+        @if (meta()?.total) { <button class="button" type="button" (click)="changePage(1)">Ir a la primera página</button> }
+        @else if (hasCriteria()) { <button class="button" type="button" (click)="clearCriteria()">Limpiar búsqueda y filtros</button> }
+      </div>
+    }
+    @if (state() === 'success') {
+      <p class="result-count" role="status">{{ meta()?.total }} {{ meta()?.total === 1 ? 'receta encontrada' : 'recetas encontradas' }}</p>
+      <div class="table-card"><table><caption class="sr-only">Catálogo global de recetas</caption><thead><tr><th scope="col">Receta</th><th scope="col">Ingredientes</th><th scope="col">Rendimiento base</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead><tbody>
+        @for (row of rows(); track row.recipe.id) {
+          <tr>
+            <td class="recipe-cell"><h2>{{ row.recipe.nombre }}</h2><small>ID {{ row.recipe.id }}</small></td>
+            <td class="ingredients-cell"><span class="mobile-label">Ingredientes</span><strong>{{ row.count }}<span class="desktop-count"> {{ row.count === 1 ? 'ingrediente' : 'ingredientes' }}</span></strong><small class="desktop-preview">{{ row.preview }}</small></td>
+            <td class="yield-cell"><span class="mobile-label">Rendimiento base</span><strong>{{ row.yield }}</strong></td>
+            <td class="status-cell"><span class="status" [class.inactive]="row.recipe.estado === 'inactive'">{{ row.recipe.estado === 'active' ? 'Activa' : 'Inactiva' }}</span></td>
+            <td class="mobile-preview">{{ row.preview }}</td>
+            <td class="detail-cell"><a [routerLink]="['/administracion/manejo-lotes/Recetas', row.recipe.id]" [queryParams]="returnQuery()" [attr.aria-label]="'Ver receta ' + row.recipe.nombre + ', ID ' + row.recipe.id">Ver receta<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a></td>
+          </tr>
+        }
+      </tbody></table></div>
+    }
+    @if (meta(); as pagination) {
+      <nav class="pagination" aria-label="Paginación de recetas"><button class="button" type="button" [disabled]="pagination.current_page <= 1" (click)="changePage(pagination.current_page - 1)">Anterior</button><span role="status">Página {{ pagination.current_page }} de {{ pagination.last_page }}</span><button class="button" type="button" [disabled]="pagination.current_page >= pagination.last_page" (click)="changePage(pagination.current_page + 1)">Siguiente</button></nav>
+    }
+  }
+  <app-filter-dialog titleId="recipe-filters-title" (clearRequested)="clearDraft()" (applyRequested)="applyFilters()">
+    <fieldset class="filter-section"><legend>Estado</legend><div class="filter-choices"><button type="button" [attr.aria-pressed]="draftStatus.value === ''" (click)="draftStatus.setValue('')">Todas</button><button type="button" [attr.aria-pressed]="draftStatus.value === 'active'" (click)="draftStatus.setValue('active')">Activas</button><button type="button" [attr.aria-pressed]="draftStatus.value === 'inactive'" (click)="draftStatus.setValue('inactive')">Inactivas</button></div></fieldset>
+  </app-filter-dialog>
+</section>

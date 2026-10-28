@@ -1,0 +1,8 @@
+@use '../../health-catalog-ui';
+:host { display: block; }
+.vaccine-detail { max-width: 760px;
+  .record-heading { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+  .record-heading h2 { overflow-wrap: anywhere; } .status { flex-shrink: 0; }
+  dl { display: grid; gap: 22px; margin: 20px 0 0; } dt { margin-bottom: 6px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  dd { margin: 0; line-height: 1.5; overflow-wrap: anywhere; } .long-text { white-space: pre-wrap; }
+}

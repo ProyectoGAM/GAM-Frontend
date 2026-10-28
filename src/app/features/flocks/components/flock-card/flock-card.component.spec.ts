@@ -40,6 +40,29 @@ describe('FlockCardComponent', () => {
     expect(card.textContent).toContain('Finalizado');
   });
 
+  it('keeps weighing navigation and emits modal tasks only for an enabled house context', () => {
+    const fixture = TestBed.createComponent(FlockCardComponent);
+    fixture.componentRef.setInput('flock', flock);
+    fixture.componentRef.setInput('returnHouse', { unitId: 7, houseId: 22 });
+    fixture.detectChanges();
+    const card = fixture.nativeElement as HTMLElement;
+    expect(card.querySelector('.flock-tasks')).toBeNull();
+    fixture.componentRef.setInput('showTasks', true); fixture.detectChanges();
+    const links = [...card.querySelectorAll<HTMLElement>('.task-link')];
+    expect(links[0].getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1/pesajes?lotFrom=house&unitId=7&houseId=22&task=entry');
+    expect(links.slice(1).every((link) => link.tagName === 'BUTTON' && link.getAttribute('aria-haspopup') === 'dialog')).toBe(true);
+    const tasks = vi.fn(); fixture.componentInstance.taskRequested.subscribe(tasks);
+    links[1].click(); links[2].click();
+    expect(tasks.mock.calls.map(([action]) => action)).toEqual([
+      { kind: 'mortality', flockId: flock.id, trigger: links[1] },
+      { kind: 'feeding', flockId: flock.id, trigger: links[2] },
+    ]);
+    expect(card.querySelector('.flock-card-button .task-link')).toBeNull();
+    expect((links[2].querySelector('ion-icon') as HTMLElement & { name: string }).name).toBe('leaf-outline');
+    fixture.componentRef.setInput('flock', { ...flock, status: 'finished' }); fixture.detectChanges();
+    expect(card.querySelector('.flock-tasks')).toBeNull();
+  });
+
   it('distinguishes pending or unavailable mortality from a genuine zero', () => {
     const fixture = TestBed.createComponent(FlockCardComponent);
     fixture.componentRef.setInput('flock', flock);

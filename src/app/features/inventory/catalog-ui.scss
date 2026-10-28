@@ -1,0 +1,24 @@
+.catalog-page { max-width: 1280px; margin: 0 auto; color: var(--gam-color-text); font-size: 1rem; }
+.catalog-page {
+  .card { border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  .button { box-sizing: border-box; display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; font-size: .875rem; font-weight: 600; text-decoration: none; text-align: center; cursor: pointer; }
+  .button.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
+  .button:disabled { opacity: .55; cursor: default; }
+  .button ion-icon { flex-shrink: 0; font-size: 20px; }
+  .filters { display: grid; gap: 14px; padding: 16px; margin-bottom: 18px; }
+  .field { display: grid; gap: 7px; min-width: 0; }
+  .field label { font-size: .875rem; font-weight: 600; }
+  input:not([type='checkbox']), select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
+  input::placeholder { color: var(--gam-color-text-muted); opacity: 1; }
+  .filter-actions { display: flex; gap: 10px; }
+  .filter-actions .button { flex: 1; }
+  .muted { color: var(--gam-color-text-muted); font-size: .875rem; }
+  .pagination { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 22px; color: var(--gam-color-text-muted); font-size: .875rem; }
+  .feedback, .state { margin-bottom: 16px; padding: 18px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
+  .state { text-align: center; }
+  .feedback.error { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+  .feedback.success { color: var(--gam-color-success); background: var(--gam-color-success-soft); }
+  .status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; font-size: .75rem; font-weight: 600; color: var(--gam-color-success); background: var(--gam-color-success-soft); }
+  .status.inactive { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+}

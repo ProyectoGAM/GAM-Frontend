@@ -26,6 +26,7 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .unit-copy p { margin: 5px 0 0; color: var(--gam-color-text-muted); }
 .unit-link { flex: 0 0 auto; font-size: .875rem; font-weight: 700; }
 .feedback { margin: 0 0 14px; }
+.task-feedback { padding: 12px 16px; border-radius: 8px; color: var(--gam-color-success); background: var(--gam-color-success-soft); }
 .state-panel { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; padding: 36px 20px; text-align: center; }
 .state-panel p { margin: 0; color: var(--gam-color-text-muted); line-height: 1.5; }
 .state-panel ion-button { min-height: 44px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-primary); }
