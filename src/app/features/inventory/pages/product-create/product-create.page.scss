@@ -1,5 +1,7 @@
 :host { display: block; color: var(--gam-color-text); }
-.product-create-page { max-width: 760px; margin-inline: auto; padding-bottom: calc(88px + env(safe-area-inset-bottom) + var(--product-keyboard-offset, 0px)); font-size: 1rem; }
+.product-create-page { max-width: 760px; margin-inline: auto; font-size: 1rem; }
+/* Reserve the 73px action bar plus a 16px gap, counting shell/safe-area space once. */
+.product-create-page:has(.create-bar) { padding-bottom: max(0px, calc(73px + env(safe-area-inset-bottom) + 16px + var(--product-keyboard-offset, 0px) - var(--gam-page-bottom-space, calc(48px + env(safe-area-inset-bottom))))); }
 .back-button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 12px; padding: 0; border: 0; background: transparent; color: var(--gam-color-primary); font: inherit; font-size: .875rem; font-weight: 600; text-align: left; cursor: pointer; }
 .back-button ion-icon { font-size: 20px; }
 .page-heading { margin-bottom: 22px; }

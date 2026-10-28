@@ -163,6 +163,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'Recetas') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../feed-recipes/feed-recipes.routes').then((module) => module.feedRecipesRoutes),
+                    };
+                  }
+
                   if (group.id === 'lotes' && item.slug === 'lotes') {
                     return {
                       path: item.slug,

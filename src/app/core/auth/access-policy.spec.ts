@@ -1,4 +1,4 @@
-import { canAccessGroup, hasDeliveryRole, hasManagementPlansPermission, isAdminUser, postLoginPath } from './access-policy';
+import { canAccessGroup, hasDeliveryRole, hasFeedRecipesPermission, hasManagementPlansPermission, isAdminUser, postLoginPath } from './access-policy';
 import { AuthUser } from './auth.types';
 
 const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
@@ -45,5 +45,16 @@ describe('admin access policy', () => {
     expect(postLoginPath({ roles: ['delivery'], permissions: ['egg-stock.view'] })).toBe('/administracion');
     expect(postLoginPath(user(['employee']))).toBe('/acceso-denegado');
     expect(postLoginPath(null)).toBe('/acceso-denegado');
+  });
+
+  it('allows recipe navigation without granting unrelated modules or inferring read from manage', () => {
+    const reader = { roles: ['employee'], permissions: ['feed-recipes.view'] };
+    expect(canAccessGroup(reader, 'manejo-lotes')).toBe(true);
+    expect(canAccessGroup(reader, 'inventario')).toBe(false);
+    expect(postLoginPath(reader)).toBe('/administracion');
+    expect(hasFeedRecipesPermission(reader, 'manage')).toBe(false);
+    const manager = { roles: ['employee'], permissions: ['feed-recipes.manage'] };
+    expect(canAccessGroup(manager, 'manejo-lotes')).toBe(true);
+    expect(hasFeedRecipesPermission(manager, 'view')).toBe(false);
   });
 });

@@ -1,0 +1,17 @@
+@use '../../recipes-ui';
+:host { display: block; }
+.recipes-page {
+  h1 { overflow-wrap: anywhere; }
+  .summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: 16px; padding: 20px; margin-bottom: 20px; }
+  .summary > div { min-width: 0; } .summary > div + div { padding-left: 16px; border-left: 1px solid var(--gam-color-border); }
+  .summary span { display: block; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  .summary strong { display: block; margin-top: 8px; color: var(--gam-color-heading); font-size: 1.5rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .notes, .composition { padding: 20px; margin-bottom: 20px; }
+  .notes p { margin: 12px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+  ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  li { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 0; border-top: 1px solid var(--gam-color-border); }
+  li > div { min-width: 0; overflow-wrap: anywhere; } li strong { color: var(--gam-color-heading); font-size: .9375rem; }
+  li small { display: block; margin-top: 5px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+  li > span { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+  li:last-child { padding-bottom: 0; } .updated { margin: 0 0 20px; }
+}

@@ -128,6 +128,13 @@ describe('admin navigation visibility', () => {
       .toBe('/administracion/manejo-lotes/planes');
   });
 
+  it('shows only Recetas to a user with the recipe catalogue grant', () => {
+    const reader = { roles: ['employee'], permissions: ['feed-recipes.view'] };
+    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['manejo-lotes']);
+    expect(visibleAdminNavigation(reader)[0]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
+    expect(firstVisibleAdminPath(reader)).toBe('/administracion/manejo-lotes/Recetas');
+  });
+
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {
     const groups = adminRoutes[0]?.children ?? [];
 

@@ -1,15 +1,20 @@
 import { Component, computed, ElementRef, forwardRef, HostListener, input, signal, ViewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { IonIcon } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { chevronDownOutline, searchOutline } from 'ionicons/icons';
 
 export interface SearchableSelectOption {
   readonly value: string | number;
   readonly label: string;
+  readonly description?: string;
 }
 
 let nextSearchableSelectId = 0;
 
 @Component({
   selector: 'app-searchable-select',
+  imports: [IonIcon],
   templateUrl: './searchable-select.component.html',
   styleUrl: './searchable-select.component.scss',
   providers: [{
@@ -20,6 +25,7 @@ let nextSearchableSelectId = 0;
 })
 export class SearchableSelectComponent implements ControlValueAccessor {
   readonly options = input<readonly SearchableSelectOption[]>([]);
+  readonly showIcons = input(false);
   readonly inputId = input(`searchable-select-${++nextSearchableSelectId}`);
   readonly placeholder = input('Selecciona una opción');
   readonly emptyOptionLabel = input<string | null>(null);
@@ -53,7 +59,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   readonly filteredOptions = computed(() => {
     const query = this.query().trim().toLocaleLowerCase();
     return query
-      ? this.allOptions().filter((option) => option.label.toLocaleLowerCase().includes(query))
+      ? this.allOptions().filter((option) => `${option.label} ${option.description ?? ''}`.toLocaleLowerCase().includes(query))
       : this.allOptions();
   });
 
@@ -66,6 +72,9 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   );
 
   readonly listboxId = computed(() => `${this.inputId()}-listbox`);
+  readonly accessibleDescription = computed(() => [this.describedBy(),
+    !this.isOpen() && this.selectedOption()?.description ? `${this.inputId()}-description` : null,
+  ].filter(Boolean).join(' ') || null);
   readonly activeOptionId = computed(() => {
     const index = this.activeIndex();
     return this.isOpen() && index >= 0 && index < this.filteredOptions().length
@@ -78,6 +87,8 @@ export class SearchableSelectComponent implements ControlValueAccessor {
 
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
+
+  constructor() { addIcons({ chevronDownOutline, searchOutline }); }
 
   writeValue(value: unknown): void {
     this.value.set(value === null || value === undefined ? '' : String(value));

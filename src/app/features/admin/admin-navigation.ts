@@ -1,4 +1,4 @@
-import { canAccessGroup, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
+import { canAccessGroup, hasFeedRecipesPermission, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
 import { AuthUser } from '../../core/auth/auth.types';
 
 export interface AdminNavigationGroup {
@@ -143,7 +143,8 @@ export function visibleAdminNavigation(user: (Pick<AuthUser, 'roles'> & Partial<
     if (group.id !== 'manejo-lotes') return group;
     const isAdmin = user?.roles.some((role) => role.trim().toLowerCase() === 'admin');
     const hasPlans = hasManagementPlansPermission(user, 'view');
-    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : isAdmin) };
+    const hasRecipes = hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage');
+    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : item.slug === 'Recetas' ? isAdmin || hasRecipes : isAdmin) };
   });
 }
 

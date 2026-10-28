@@ -93,6 +93,17 @@ describe('SearchableSelectComponent', () => {
     expect(options.map((option: HTMLElement) => option.textContent?.trim()))
       .toEqual(['DOS-5 — Dosis veterinaria']);
   });
+  it('searches optional descriptions and exposes the selected SKU to assistive technology', () => {
+    host.options.set([{ value: 1, label: 'Maíz', description: 'MAIZ-025 · Inactiva' }]); fixture.detectChanges();
+    input().focus(); fixture.detectChanges(); type('025');
+    expect(fixture.nativeElement.querySelector('[role="option"]')?.textContent).toContain('MaízMAIZ-025');
+    key('Enter');
+    expect(host.control.value).toBe('1');
+    expect(fixture.nativeElement.querySelector('.selected-description')?.textContent).toBe('MAIZ-025 · Inactiva');
+    expect(input().getAttribute('aria-describedby')).toBe('choice-description');
+    host.invalid.set(true); host.describedBy.set('field-error'); fixture.detectChanges();
+    expect(input().getAttribute('aria-describedby')).toBe('field-error choice-description');
+  });
 
   it('searches both product-code fragments and location-name fragments in the visible label', () => {
     host.options.set([{ value: 23, label: 'VAC-23 — Newcastle vacuna' }]);

@@ -140,7 +140,7 @@ The app uses Preferences for the non-secret deviceMode marker and the secure-sto
 ## Filter dialogs
 
 `shared/ui/filter-dialog` supplies the presentation shell used by installations,
-flocks, stock by location, stock locations, donations and the product catalogue. Its native dialog is centered
+flocks, stock by location, stock locations, donations, recipes and the product catalogue. Its native dialog is centered
 in the viewport on phone and desktop, with safe-area margins and a bounded height
 based on `100dvh`. Only the body scrolls; the heading, close action and footer stay
 available when more filters are added or the viewport height decreases.
@@ -150,3 +150,23 @@ Closing with the X or Escape restores focus to the trigger. Feature pages own th
 filter fields, draft selection, applied values and queries; **Limpiar** updates the
 draft and **Ver resultados** applies it. The shell projects content without
 knowing business types, permissions or endpoints.
+
+## Inventory action bars
+
+The admin shell exposes its existing bottom padding as `--gam-page-bottom-space`.
+Inventory's fixed bars in Nuevo producto and Registrar movimiento reserve their
+73px bar, safe area, keyboard offset and a 16px content gap, subtracting the space
+already supplied by the shell. This avoids stacking two bottom reserves. Screens
+without a visible bar use the normal shell spacing. Registrar movimiento uses an
+in-flow footer on desktop, so it needs no additional fixed-bar reserve there.
+Presentaciones y precios also relies on the shell for its bottom spacing instead
+of adding another 16px below its cards. Other list pages and modal layouts keep
+their own existing spacing.
+
+Browser verification covered 320/360px phones, desktop and light/dark themes.
+At the end of the fixed-bar forms, the measured content-to-bar gap changed from
+about 64px to 16px; Presentaciones ends with the shell's normal 48px spacing.
+Inventory list pages and the donation dialog were also reviewed. QA screenshots
+are in `.tmp/qa/inventory-*-bottom-{before,after}.png`. Lint, the 899-test suite
+and the production build passed. Physical Android/iOS keyboard and system-bar
+checks remain device validation.
