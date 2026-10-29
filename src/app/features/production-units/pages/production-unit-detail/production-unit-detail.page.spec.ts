@@ -59,18 +59,18 @@ describe('ProductionUnitDetailPage', () => {
 
     const active = fixture.nativeElement.querySelector('[aria-labelledby="active-houses-title"]');
     const inactive = fixture.nativeElement.querySelector('[aria-labelledby="inactive-houses-title"]');
-    expect(active.querySelectorAll('a.house-link')).toHaveLength(2);
-    expect(inactive.querySelectorAll('a.house-link')).toHaveLength(2);
+    expect(active.querySelectorAll('.house-link')).toHaveLength(2);
+    expect(inactive.querySelectorAll('.house-link')).toHaveLength(2);
 
-    const poultryLink = active.querySelector('a[aria-label="Ver galpón avícola Galpón Este"]');
+    const poultryLink = active.querySelector('a[aria-label="Ver galpón avícola Galpón Este"]').closest('.house-link');
     expect(poultryLink.textContent).toContain('Galpón avícola');
     expect(poultryLink.textContent).toContain('10 aves de 2.000 plazas');
     expect((poultryLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
       .toBe('egg-outline');
     expect(Number(poultryLink.querySelector('.occupancy-bar')?.getAttribute('aria-valuenow'))).toBe(0.5);
 
-    const feedLink = active.querySelector('a[aria-label="Ver planta de ración Planta Norte"]');
-    expect(feedLink.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/2');
+    const feedLink = active.querySelector('a[aria-label="Ver planta de ración Planta Norte"]').closest('.house-link');
+    expect(feedLink.querySelector('a.house-navigation').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/2');
     expect(feedLink.textContent).toContain('Planta de ración');
     expect(feedLink.textContent).toContain('Mantenimiento');
     expect((feedLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
@@ -92,7 +92,7 @@ describe('ProductionUnitDetailPage', () => {
 
     render();
 
-    const houseLink = fixture.nativeElement.querySelector('a.house-link');
+    const houseLink = fixture.nativeElement.querySelector('.house-link');
     expect(houseLink.querySelector('.capacity')?.textContent).toContain('Capacidad: 900 aves');
     expect(houseLink.querySelector('.occupancy-bar')).toBeNull();
   });

@@ -12,8 +12,9 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .house-group > h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--gam-color-heading); font-size: 1.125rem; }
 .house-group > h2 span { display: inline-grid; place-items: center; min-width: 25px; min-height: 25px; padding: 0 6px; border-radius: 999px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: .75rem; }
 .group-empty { margin: 0; padding: 14px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); color: var(--gam-color-text-muted); }
-.house-link { display: block; min-width: 0; border-radius: 12px; color: inherit; text-decoration: none; }
-.house-link:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+.house-link { position: relative; display: block; min-width: 0; border-radius: 12px; color: inherit; text-decoration: none; }
+.house-navigation { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.house-navigation:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
 .state-panel { display: grid; justify-items: center; gap: 10px; padding: 36px 20px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); text-align: center; }
 .state-panel h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.0625rem; }
 .state-panel ion-spinner { color: var(--gam-color-primary); }

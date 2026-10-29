@@ -70,9 +70,10 @@
         @if (activeHouses().length) {
           <div class="house-grid">
             @for (house of activeHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name">
+              <div class="house-link">
+                <a class="house-navigation" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name"></a>
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
-              </a>
+              </div>
             }
           </div>
         } @else {
@@ -87,9 +88,10 @@
         @if (inactiveHouses().length) {
           <div class="house-grid">
             @for (house of inactiveHouses(); track house.id) {
-              <a class="house-link" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'">
+              <div class="house-link">
+                <a class="house-navigation" [routerLink]="['/administracion/unidades-productivas', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Abrir el detalle ' + (isFeedList ? 'de la planta de ración ' : 'del galpón ') + house.name + ', inactivo'"></a>
                 <app-production-unit-house-card [house]="house" [productionUnit]="house.productionUnit" />
-              </a>
+              </div>
             }
           </div>
         } @else {

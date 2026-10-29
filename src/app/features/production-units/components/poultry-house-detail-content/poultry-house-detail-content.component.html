@@ -1,15 +1,21 @@
 <section class="section" aria-labelledby="capacity-title">
   <h2 id="capacity-title">Capacidad y ocupación</h2>
+  @if (capacityWarning(); as warning) {
+    <div class="capacity-warning" role="status">
+      <ion-icon name="warning-outline" aria-hidden="true" />
+      <div><strong>Se está sobrepasando el límite del galpón</strong><p>{{ warning }}</p></div>
+    </div>
+  }
   <div class="metrics">
     <article class="metric"><span>Capacidad</span><strong>{{ capacity() }}</strong></article>
     <article class="metric"><span>Aves alojadas</span><strong>{{ occupancy() }}</strong></article>
     <article class="metric"><span>Plazas libres</span><strong>{{ available() }}</strong></article>
   </div>
   @if (occupancyPercent() !== null) {
-    <div class="occupancy-card">
+    <div class="occupancy-card" [class.capacity-exceeded]="capacityWarning()">
       <div class="occupancy-copy"><strong>Uso de la capacidad</strong><span>{{ occupancyPercent() | number:'1.0-0' }} %</span></div>
-      <div class="progress" role="progressbar" [attr.aria-valuenow]="occupancyPercent()" aria-valuemin="0" aria-valuemax="100" aria-label="Porcentaje de ocupación">
-        <span [style.width.%]="occupancyPercent()"></span>
+      <div class="progress" role="progressbar" [attr.aria-valuenow]="occupancyBarPercent()" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuetext]="(occupancyPercent() | number:'1.0-0') + ' % de ocupación'" aria-label="Porcentaje de ocupación">
+        <span [style.width.%]="occupancyBarPercent()"></span>
       </div>
     </div>
   }

@@ -46,9 +46,10 @@
             @if (group.houses.length) {
               <div class="house-list">
                 @for (house of group.houses; track house.id) {
-                  <a class="house-link" [routerLink]="['/administracion/unidades-productivas', selectedUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver ' + (house.type === 'feed' ? 'planta de ración ' : 'galpón avícola ') + house.name">
+                  <div class="house-link">
+                    <a class="house-navigation" [routerLink]="['/administracion/unidades-productivas', selectedUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver ' + (house.type === 'feed' ? 'planta de ración ' : 'galpón avícola ') + house.name"></a>
                     <app-production-unit-house-card [house]="house" />
-                  </a>
+                  </div>
                 }
               </div>
             } @else { <p class="group-empty">No hay instalaciones {{ group.id === 'active' ? 'activas' : 'inactivas' }}.</p> }
