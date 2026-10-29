@@ -1,5 +1,5 @@
 <section class="presentations-page">
-  <div class="heading"><div><p>Inventario</p><h1>Presentaciones de huevos</h1><p>Catálogo común a todas las unidades productivas. Precios de venta en pesos uruguayos.</p></div><button type="button" (click)="load()" [disabled]="loading()">Actualizar</button></div>
+  <div class="heading"><div><p>Inventario</p><h1>Presentaciones de huevos</h1><p>Catálogo común a todas las unidades productivas. Precios de venta en pesos uruguayos.</p></div><div class="actions"><button type="button" (click)="openCreate($event)" [disabled]="locked() || loading() || busy()">Nueva presentación</button><button type="button" (click)="load()" [disabled]="loading() || busy()">Actualizar</button></div></div>
   @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
   @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
   @if (locked()) { <p class="feedback warning" role="status">Hay repartos activos. El catálogo completo se podrá modificar cuando todos hayan finalizado.</p> }
@@ -8,17 +8,34 @@
       <h2>Tipos y precios predeterminados</h2>
       @if (loading()) { <p role="status">Cargando presentaciones…</p> }
       @for (item of items(); track item.id) {
-        <article class="presentation-row"><div><strong>{{ item.label }}</strong><small>{{ item.eggs_per_unit }} huevos por unidad</small><span>Precio: @if (item.default_unit_price !== null) { $ {{ item.default_unit_price }} UYU } @else { Sin configurar }</span></div><button type="button" (click)="edit(item)" [disabled]="locked() || saving()" [attr.aria-label]="'Editar ' + item.label">Editar</button></article>
+        <article class="presentation-row"><div><strong>{{ item.label }}</strong><small>{{ item.eggs_per_unit }} huevos por unidad</small><span>Precio: @if (item.default_unit_price !== null) { $ {{ item.default_unit_price }} UYU } @else { Sin configurar }</span></div><div class="row-actions"><button type="button" (click)="edit(item)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Editar ' + item.label">Editar</button><button class="danger" type="button" (click)="requestDelete(item, $event)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Eliminar ' + item.label">Eliminar</button></div></article>
       } @empty { @if (!loading()) { <p>Todavía no hay presentaciones.</p> } }
     </section>
     <section class="card" aria-labelledby="presentation-form-title">
-      <h2 id="presentation-form-title">{{ editing() ? 'Editar presentación' : 'Nueva presentación' }}</h2>
+      <h2 id="presentation-form-title">Editar presentación</h2>
+      @if (editing()) {
       <form [formGroup]="form" (ngSubmit)="save()">
-        <label for="presentation-name">Nombre</label><input id="presentation-name" formControlName="name" maxlength="160" autocomplete="off">
+        <label for="presentation-name">Nombre</label><input id="presentation-name" formControlName="name" maxlength="160" autocomplete="off" required>
         <label for="presentation-eggs">Huevos por unidad</label><input id="presentation-eggs" formControlName="eggs_per_unit" type="number" inputmode="numeric" min="1" max="2147483647" step="1">
         <label for="presentation-price">Precio predeterminado (UYU)</label><input id="presentation-price" formControlName="default_unit_price" type="number" inputmode="numeric" min="0" max="2147483647" step="1" aria-describedby="presentation-price-hint"><small id="presentation-price-hint">Pesos enteros. El repartidor puede ajustar el precio para cada entrega.</small>
-        <div class="actions"><button type="submit" [disabled]="locked() || saving() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar presentación' }}</button>@if (editing()) { <button type="button" (click)="clear()" [disabled]="saving()">Cancelar edición</button> }</div>
+        <small>Completá el nombre, los huevos por unidad y el precio para guardar la presentación.</small>
+        <div class="actions"><button type="submit" [disabled]="locked() || loading() || busy() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</button><button type="button" (click)="clear()" [disabled]="busy()">Cancelar edición</button></div>
       </form>
+      } @else { <p>Seleccioná «Editar» en una presentación del catálogo para modificarla.</p> }
     </section>
   </div>
+  <app-inventory-confirmation-dialog title="Eliminar presentación" message="La presentación dejará de estar disponible para nuevas cargas. El historial de repartos se conservará." confirmLabel="Eliminar presentación" [busy]="deleting()" [errorMessage]="deletionError()" (confirmed)="remove()" (dismissed)="dismissDelete()">
+    @if (pendingDeletion(); as item) { <p><strong>{{ item.label }}</strong> · {{ item.eggs_per_unit }} huevos por unidad</p> }
+  </app-inventory-confirmation-dialog>
+  <dialog #creationDialog class="creation-dialog" aria-modal="true" aria-labelledby="creation-title" (cancel)="onCreateCancel($event)">
+    <h2 id="creation-title">Nueva presentación</h2>
+    <form [formGroup]="creationForm" (ngSubmit)="create()">
+      <label for="creation-name">Nombre</label><input #creationName id="creation-name" formControlName="name" maxlength="160" autocomplete="off" required [readonly]="creating()">
+      <label for="creation-eggs">Huevos por unidad</label><input id="creation-eggs" formControlName="eggs_per_unit" type="number" inputmode="numeric" min="1" max="2147483647" step="1" required [readonly]="creating()">
+      <label for="creation-price">Precio predeterminado (UYU)</label><input id="creation-price" formControlName="default_unit_price" type="number" inputmode="numeric" min="0" max="2147483647" step="1" required aria-describedby="creation-price-hint" [readonly]="creating()"><small id="creation-price-hint">Pesos enteros. El repartidor puede ajustar el precio para cada entrega.</small>
+      @if (creationError()) { <p class="feedback error" role="alert">{{ creationError() }}</p> }
+      @if (locked()) { <p class="feedback warning" role="status">El catálogo está bloqueado mientras haya repartos activos.</p> }
+      <div class="actions"><button class="secondary" type="button" (click)="cancelCreate()" [disabled]="creating()">Cancelar</button><button type="submit" [disabled]="locked() || loading() || busy() || creationForm.invalid">{{ creating() ? 'Creando…' : 'Crear presentación' }}</button></div>
+    </form>
+  </dialog>
 </section>

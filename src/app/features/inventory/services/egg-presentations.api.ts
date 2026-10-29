@@ -19,4 +19,8 @@ export class EggPresentationsApi {
   update(id: string, body: EggPresentationInput): Observable<{ data: EggPresentation }> {
     return this.api.patch<{ data: EggPresentation }, EggPresentationInput>(`inventario/presentaciones-huevos/${encodeURIComponent(id)}`, body);
   }
+
+  remove(id: string): Observable<void> {
+    return this.api.delete<void>(`inventario/presentaciones-huevos/${encodeURIComponent(id)}`);
+  }
 }
