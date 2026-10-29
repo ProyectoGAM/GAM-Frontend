@@ -19,7 +19,7 @@ export class FlockHouseTaskDialogComponent implements OnInit {
   readonly closed = output<string | null>();
   readonly task = inject(FlockHouseTaskService);
   readonly editorOpen = signal(true);
-  readonly title = computed(() => this.request().kind === 'mortality' ? 'Registrar mortalidad' : 'Cambiar ración');
+  readonly title = computed(() => this.request().kind === 'mortality' ? 'Registrar mortandad' : 'Cambiar ración');
   readonly context = computed(() => `Lote ${this.task.flock()?.code ?? ''} · ${this.request().houseName} · ${this.request().unitName}`);
   private readonly statusDialog = viewChild<ElementRef<HTMLDialogElement>>('statusDialog');
   private readonly mortality = viewChild(FlockMortalitySectionComponent);

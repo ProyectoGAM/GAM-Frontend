@@ -1,0 +1,80 @@
+<dialog #dialog class="status-dialog" [class.finalization-dialog]="finalizing()" aria-labelledby="status-title" aria-describedby="status-description" (cancel)="cancelled.emit($event)">
+  <form [formGroup]="form()" (ngSubmit)="submitted.emit()" [attr.aria-busy]="saving()">
+    <div class="status-body">
+      <header class="status-dialog-heading">
+        @if (finalizing()) {
+          <span class="finalization-icon"><ion-icon name="warning-outline" aria-hidden="true" /></span>
+        }
+        <div class="heading-copy">
+          <p class="status-eyebrow">{{ finalizing() ? 'Cierre del lote' : flock().code }}</p>
+          <h2 id="status-title" tabindex="-1">{{ finalizing() ? 'Finalizar lote' : 'Cambiar estado del lote' }}</h2>
+          @if (finalizing()) { <p id="status-description">Revisá las consecuencias antes de confirmar.</p> }
+        </div>
+        <button type="button" class="status-close" aria-label="Cerrar cambio de estado" [disabled]="locked()" (click)="closed.emit()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+      </header>
+      @if (!finalizing()) {
+        <p id="status-description">Estado actual: <strong>{{ statusText() }}</strong>. El cambio quedará registrado con su motivo.</p>
+      }
+      @if (flock().status === 'finished') {
+        <p class="status-notice" role="status">Este lote está finalizado. Actualmente no es posible reabrirlo como Activo o En cuarentena.</p>
+      } @else {
+        <fieldset [disabled]="locked() || conflict() || (!canManage() && !canFinalize())">
+          @if (finalizing()) {
+            <legend class="visually-hidden">Confirmar finalización del lote</legend>
+            <div class="flock-context">
+              <div><span>Lote a finalizar</span><strong>{{ flock().code }}</strong></div>
+              <span class="current-status">{{ statusText() }}</span>
+            </div>
+            <div id="finalization-impact">
+              <div class="finalization-warning">
+                <ion-icon name="lock-closed-outline" aria-hidden="true" />
+                <div><h3>El lote no podrá reabrirse</h3><p>Esta acción cerrará el lote y registrará el egreso de las aves remanentes.</p></div>
+              </div>
+              <div class="impact-summary">
+                <div><span>Aves actuales</span><strong>{{ departureText() }}</strong></div>
+                <ion-icon name="arrow-forward-outline" aria-hidden="true" />
+                <div><span>Aves al finalizar</span><strong>0</strong></div>
+                <p>Se registrará el egreso de {{ departureText() }} aves.</p>
+              </div>
+            </div>
+          } @else {
+            <legend>Nuevo estado</legend>
+            <label class="status-choice active-choice" [class.selected]="selectedStatus() === 'active'">
+              <input type="radio" formControlName="status" value="active" [attr.disabled]="!canManage() ? '' : null" />
+              <span><strong>Activo</strong><small>Estado habitual de un lote en operación.</small></span>
+            </label>
+            <label class="status-choice quarantine-choice" [class.selected]="selectedStatus() === 'quarantined'">
+              <input type="radio" formControlName="status" value="quarantined" [attr.disabled]="!canManage() ? '' : null" />
+              <span><strong>En cuarentena</strong><small>Identificá el lote bajo observación sanitaria.</small></span>
+            </label>
+            @if (canFinalize()) {
+              <button class="start-finalization" type="button" (click)="finalizeRequested.emit()"><ion-icon name="lock-closed-outline" aria-hidden="true" />Finalizar</button>
+            }
+          }
+          <label class="status-reason" for="status-reason">{{ finalizing() ? 'Motivo de finalización' : 'Motivo del cambio' }} <span>(obligatorio)</span></label>
+          <textarea id="status-reason" formControlName="reason" rows="3" maxlength="500" [placeholder]="finalizing() ? 'Explicá por qué finaliza el lote' : 'Explicá por qué cambia el estado del lote'" [attr.aria-invalid]="form().controls.reason.touched && form().controls.reason.invalid" aria-describedby="status-reason-help"></textarea>
+          <p id="status-reason-help" class="status-help" [class.field-error]="form().controls.reason.touched && form().controls.reason.invalid">@if (form().controls.reason.touched && form().controls.reason.invalid) { Ingresá un motivo de hasta 500 caracteres. } @else { Hasta 500 caracteres. }</p>
+          @if (finalizing()) {
+            <label class="finalization-confirmation">
+              <input type="checkbox" formControlName="confirmFinalization" aria-describedby="finalization-impact finalization-help" [attr.aria-invalid]="form().controls.confirmFinalization.touched && !form().controls.confirmFinalization.value" />
+              <span>Entiendo que el lote quedará cerrado y con 0 aves.</span>
+            </label>
+            <p class="status-help field-error" id="finalization-help">@if (form().controls.confirmFinalization.touched && !form().controls.confirmFinalization.value) { Confirmá la finalización para continuar. }</p>
+          }
+        </fieldset>
+      }
+      @if (error()) { <p class="status-error" role="alert">{{ error() }}</p> }
+    </div>
+    <footer class="status-dialog-actions">
+      <button class="status-secondary" type="button" [disabled]="locked()" (click)="finalizing() ? backRequested.emit() : closed.emit()">{{ flock().status === 'finished' ? 'Entendido' : finalizing() ? 'Volver' : 'Cancelar' }}</button>
+      @if (conflict()) {
+        <button class="status-primary" type="button" (click)="reloadRequested.emit()">Actualizar detalle</button>
+      } @else if (flock().status !== 'finished' && (finalizing() || canManage())) {
+        <button class="status-primary" [class.finalize-button]="finalizing()" type="submit" [disabled]="saving() || (!uncertain() && selectedStatus() === flock().status) || (selectedStatus() === 'finished' ? !canFinalize() : !canManage())">
+          @if (finalizing()) { <ion-icon name="lock-closed-outline" aria-hidden="true" /> }
+          {{ saving() ? 'Guardando…' : uncertain() ? 'Reintentar confirmación' : finalizing() ? 'Finalizar lote' : 'Guardar estado' }}
+        </button>
+      }
+    </footer>
+  </form>
+</dialog>

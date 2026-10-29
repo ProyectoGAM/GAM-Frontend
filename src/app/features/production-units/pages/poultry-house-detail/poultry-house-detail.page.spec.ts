@@ -176,12 +176,12 @@ describe('PoultryHouseDetailPage', () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 749 } }));
     houseFlocks.mockReturnValue(of([{ ...flock, current_quantity: 749 }]));
     totals.mockReturnValue(of(new Map([['lot-1', { state: 'ready', value: 10 }]])));
-    fixture.componentInstance.closeFlockTask('Mortalidad registrada.');
+    fixture.componentInstance.closeFlockTask('Mortandad registrada.');
     await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.componentInstance.state()).toBe('success'); expect(fixture.componentInstance.occupancyLabel()).toBe('749 aves');
     const counts = fixture.nativeElement.querySelectorAll('app-flock-card dd') as NodeListOf<HTMLElement>;
     expect(counts[0].textContent).toBe('10'); expect(counts[1].textContent).toBe('749');
-    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortalidad registrada.');
+    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortandad registrada.');
   });
 
   it('renders feed stock without avian sections', () => {

@@ -20,6 +20,7 @@ describe('FlockCardComponent', () => {
     expect(card.textContent).toContain('Ingreso: 07-10-2026');
     expect(card.textContent).toContain('Galpón Norte');
     expect(card.textContent).toContain('Activo');
+    expect(card.textContent).toContain('Mortandad');
     expect(card.querySelectorAll('dd')[0].textContent).toBe('12');
     expect(card.querySelectorAll('dd')[1].textContent).toBe('950');
     expect(card.querySelector('a')?.getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1');
@@ -49,6 +50,8 @@ describe('FlockCardComponent', () => {
     expect(card.querySelector('.flock-tasks')).toBeNull();
     fixture.componentRef.setInput('showTasks', true); fixture.detectChanges();
     const links = [...card.querySelectorAll<HTMLElement>('.task-link')];
+    expect(links[0].textContent).toContain('Registrar postura');
+    expect(links[1].textContent).toContain('Registrar mortandad');
     expect(links[0].getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1/pesajes?lotFrom=house&unitId=7&houseId=22&task=entry');
     expect(links.slice(1).every((link) => link.tagName === 'BUTTON' && link.getAttribute('aria-haspopup') === 'dialog')).toBe(true);
     const tasks = vi.fn(); fixture.componentInstance.taskRequested.subscribe(tasks);

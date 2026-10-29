@@ -28,6 +28,9 @@ La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
 selección de recetas por UP y el nombre del responsable pendiente del backend.
 
 Las cards de lotes comparten el resumen de ingreso, estado, agrupación y aves.
+El fraccionamiento usa el lote original para limitar los destinos a su UP,
+sin filtrar por capacidad; ver [fraccionamiento de lotes](flock-fractionation.md)
+para ocupación, versiones, idempotencia y el cambio de capacidad pendiente en backend.
 La mortalidad vigente se consulta de forma independiente y paginada; ver
 [`flock-cards.md`](flock-cards.md) para carga progresiva y permisos.
 

@@ -20,6 +20,7 @@ import { FlockCollectionsService } from '../../services/flock-collections.servic
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { dateBefore, FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockDetailPage } from '../flock-detail/flock-detail.page';
+import { FlockStatusService } from '../../services/flock-status.service';
 import { FlockCollectionsPage } from './flock-collections.page';
 
 const today = todayInLotsTimezone();
@@ -48,8 +49,9 @@ describe('Flock collection behavior', () => {
     getFlock.mockReset(); getFlock.mockImplementation((flockId) => of({ ...flock, id: flockId }));
     user.set({ roles: ['admin'], permissions: [] });
     TestBed.configureTestingModule({ providers: [
+      { provide: FlockStatusService, useValue: {} },
       provideRouter([{ path: 'administracion/lotes/lotes', children: flocksRoutes }]),
-      { provide: AuthStore, useValue: { user, isAdmin: () => user().roles.includes('admin') } },
+      { provide: AuthStore, useValue: { user, session: signal(null), isAdmin: () => user().roles.includes('admin') } },
       { provide: FlockDetailService, useValue: { flock: getFlock, mortalityTotal: () => of(0), latestWeighing: () => of(null) } },
       { provide: FlockFeedingService, useValue: { overview: () => of(null) } },
       { provide: FlockCollectionsService, useValue: { history, days, record: save, summary: () => of(collectionSummary(metricDays, flock.entry_date, today)) } },

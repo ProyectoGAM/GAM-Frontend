@@ -112,11 +112,11 @@ export class TemplateCreatePage {
     { value: 'vaccination', label: 'Vacunación' },
     { value: 'medication', label: 'Medicación' },
     { value: 'ration_change', label: 'Ración' },
-    { value: 'weighing', label: 'Pesaje' },
+    { value: 'weighing', label: 'Postura' },
     { value: 'manual_practice', label: 'Práctica manual' },
     { value: 'flock_movement', label: 'Movimiento del lote' },
     { value: 'egg_collection', label: 'Recolección de huevos' },
-    { value: 'mortality', label: 'Mortalidad' },
+    { value: 'mortality', label: 'Mortandad' },
   ];
   readonly timingKinds: readonly { value: PlanTimingKind; label: string }[] = [
     { value: 'day', label: 'Día' },

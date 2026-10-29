@@ -11,15 +11,15 @@ export const reportHelpText = {
 };
 
 const fieldHelp: Record<string, string> = {
-  mode: 'Indica cómo se pesaron las aves.\nTodos: incluye pesadas individuales y grupales.\nIndividual: cada ave se pesó por separado.\nGrupal: varias aves se pesaron juntas; se registraron cuántas eran y su peso total. El peso promedio se calcula repartiendo ese peso entre las aves.',
+  mode: 'Indica cómo se pesaron las aves.\nTodos: incluye posturas individuales y grupales.\nIndividual: cada ave se pesó por separado.\nGrupal: varias aves se pesaron juntas; se registraron cuántas eran y su peso total. El peso promedio se calcula repartiendo ese peso entre las aves.',
   base_unit: 'Es la medida usada para expresar la cantidad de un producto, por ejemplo, gramos, mililitros o unidades.\nEste filtro sólo muestra productos con esa medida. No convierte ni cambia las cantidades.',
   below_minimum: 'Compara la cantidad disponible con el mínimo configurado para el producto y la ubicación.\nSí: muestra los que están por debajo del mínimo.\nNo: muestra los que alcanzan o superan el mínimo.\nTodos: incluye ambos casos.',
   minimum_quantity: 'La cantidad mínima configurada para ese producto en esa ubicación. Sirve para reconocer cuándo hay que reponer. No es la cantidad que hay disponible.',
   below_minimum_count: 'Cuenta los casos en que un producto está por debajo de su mínimo en una ubicación. El mismo producto puede contar más de una vez si le falta stock en varios lugares. No suma las cantidades que faltan.',
-  weighted_average_g: 'Calcula el peso promedio teniendo en cuenta cuántas aves representa cada pesada.\nUna pesada grupal de 10 aves cuenta como 10 aves; una individual cuenta como 1. Así un grupo grande no tiene el mismo peso en el promedio que una sola ave.',
-  average_weight_g: 'Peso promedio de un ave en esa pesada. En una pesada grupal, se obtiene repartiendo el peso total entre la cantidad de aves del grupo. En una individual, coincide con el peso de esa ave.',
-  represented_birds: 'Cantidad de aves representadas en las pesadas consultadas. Una pesada individual representa 1 ave y una grupal, la cantidad de aves que se cargó.\nNo es el total de aves del lote ni un conteo de aves distintas: un ave puede haberse pesado más de una vez.',
-  bird_count: 'Cantidad de aves incluidas en esa pesada. En una pesada individual es 1; en una grupal es la cantidad registrada para el grupo.',
+  weighted_average_g: 'Calcula el peso promedio teniendo en cuenta cuántas aves representa cada postura.\nUna postura grupal de 10 aves cuenta como 10 aves; una individual cuenta como 1. Así un grupo grande no tiene el mismo peso en el promedio que una sola ave.',
+  average_weight_g: 'Peso promedio de un ave en esa postura. En una postura grupal, se obtiene repartiendo el peso total entre la cantidad de aves del grupo. En una individual, coincide con el peso de esa ave.',
+  represented_birds: 'Cantidad de aves representadas en las posturas consultadas. Una postura individual representa 1 ave y una grupal, la cantidad de aves que se cargó.\nNo es el total de aves del lote ni un conteo de aves distintas: un ave puede haberse pesado más de una vez.',
+  bird_count: 'Cantidad de aves incluidas en esa postura. En una postura individual es 1; en una grupal es la cantidad registrada para el grupo.',
   feed_quantity: 'Suma la ración efectivamente registrada en el sistema. No agrega las cantidades estimadas de los días sin carga.',
   estimated_feed_quantity: 'Para los días sin una carga, repite la última cantidad diaria registrada. La estimación se corta ante una nueva carga, un cambio de galpón, el cierre del lote o el fin del período.\nNo es una medición nueva ni se agrega al total registrado.',
   covered_days: 'Cantidad de días que representa esta fila del reporte de alimentación. Permite distinguir el período cubierto por una cantidad.',
@@ -32,7 +32,7 @@ const fieldHelp: Record<string, string> = {
 const scopedHelp: Record<string, Record<string, string>> = {
   'management.feed-supply': { kind: 'Indica de dónde sale la cantidad de ración.\nRegistrado: una persona cargó el suministro.\nEstimado: se repite la última cantidad diaria en días sin carga; no es una medición nueva.\nTodos: incluye ambos orígenes, manteniendo registrados y estimados por separado.' },
   'commerce.egg-outflow': { kind: 'Elige qué salidas de huevos incluir.\nVenta: huevos vendidos. Donación: huevos entregados sin venta.\nTodos: incluye ventas y donaciones; sus cantidades se muestran por separado. No incluye pérdidas ni cargas de reparto.' },
-  'lots.weighing-measurements': { origin: 'Indica de qué registro viene la pesada.\nHistórico: el registro anterior de pesajes.\nDiario: las jornadas de pesaje.\nNo indica la edad de las aves ni cambia cómo se calcula el promedio.' },
+  'lots.weighing-measurements': { origin: 'Indica de qué registro viene la postura.\nHistórico: el registro anterior de posturas.\nDiario: las jornadas de postura.\nNo indica la edad de las aves ni cambia cómo se calcula el promedio.' },
   'inventory.movements': { type: 'Elige la clase de movimiento.\nSaldo inicial: la cantidad de partida. Ingreso: entra producto. Salida: sale producto. Pérdida: se descuenta producto perdido. Ajuste: corrige una cantidad. Traslado: cambia de ubicación. Reversión: compensa un movimiento anterior.\nTodos: incluye todas las clases.' },
 };
 

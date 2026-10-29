@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
+import { AuthStore } from '../../../../core/auth/auth.store';
+import { FlockStatusService } from '../../services/flock-status.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -53,6 +55,8 @@ describe('Mortality navigation', () => {
     cancel.mockReset(); cancel.mockReturnValue(of(cancelled));
     getFlock.mockReset(); getFlock.mockImplementation((flockId) => of({ ...flock, id: flockId }));
     TestBed.configureTestingModule({ providers: [
+      { provide: AuthStore, useValue: { user: signal({ roles: ['admin'] }), session: signal(null) } },
+      { provide: FlockStatusService, useValue: {} },
       provideRouter([{ path: 'administracion/lotes/lotes', children: flocksRoutes }]),
       { provide: FlockDetailService, useValue: {
         flock: getFlock, mortalityTotal: () => of(13),
@@ -89,7 +93,7 @@ describe('Mortality navigation', () => {
     expect(dialog.close).toHaveBeenCalledOnce();
     expect(page.flock()).toMatchObject({ current_quantity: 84, version: 2 });
     expect(form.leaders()[0].quantity).toBe(6);
-    expect(page.success()).toBe('Mortalidad registrada.');
+    expect(page.success()).toBe('Mortandad registrada.');
     expect(form.form.controls.reason.value).toBe('');
   });
 
@@ -112,14 +116,14 @@ describe('Mortality navigation', () => {
 
   it('keeps backend validation next to the text field and preserves the draft after rejection', async () => {
     save.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 422,
-      error: { errors: { notes: ['Revisá el motivo de la mortalidad.'] } } })));
+      error: { errors: { notes: ['Revisá el motivo de la mortandad.'] } } })));
     const harness = await RouterTestingHarness.create();
     const page = await harness.navigateByUrl(`${prefix}/${id}/mortalidad`, FlockMortalitiesPage);
     const form = section(harness);
     form.form.setValue({ date: todayInLotsTimezone(), quantity: 3, reason: 'Golpe de calor' });
     form.submitForm();
     harness.detectChanges();
-    expect(page.fieldErrors()).toEqual({ reason: 'Revisá el motivo de la mortalidad.' });
+    expect(page.fieldErrors()).toEqual({ reason: 'Revisá el motivo de la mortandad.' });
     expect(harness.routeNativeElement!.querySelector('#mortality-reason-error')?.textContent).toContain('Revisá el motivo');
     expect(form.form.controls.reason.value).toBe('Golpe de calor');
     expect(harness.routeNativeElement!.querySelector('dialog')!.close).not.toHaveBeenCalled();
@@ -156,23 +160,26 @@ describe('Mortality navigation', () => {
     expect(page.saveError()).toContain('cantidad viva actual');
   });
 
-  it('keeps the original summary cards and opens the dedicated lazy page through Ir a mortalidad', async () => {
+  it('keeps the original summary cards and opens the dedicated lazy page through Ir a mortandad', async () => {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl(`${prefix}/${id}`, FlockDetailPage);
     const detail = harness.routeNativeElement!;
-    expect(detail.querySelector('#mortality-title')?.textContent).toBe('Mortalidad acumulada');
+    expect(detail.querySelector('#mortality-title')?.textContent).toBe('Mortandad acumulada');
+    expect(detail.querySelector('#weighing-title')?.textContent).toBe('Última postura');
+    const postureLink = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a posturas'))!;
+    expect(postureLink.getAttribute('href')).toBe(`${prefix}/${id}/pesajes`);
     expect(detail.querySelectorAll('.metric-grid > .small-card')).toHaveLength(2);
     expect(detail.querySelector('.metric-grid')?.textContent).toContain('13 aves');
     expect(detail.querySelector('[aria-labelledby="mortality-title"]')?.textContent).toContain('Aves vivas: 87');
     expect(detail.querySelector('app-flock-mortality-section')).toBeNull();
     expect(list).not.toHaveBeenCalled();
-    const link = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a mortalidad'))!;
+    const link = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a mortandad'))!;
     expect(link.getAttribute('href')).toBe(`${prefix}/${id}/mortalidad`);
     link.click();
     await harness.fixture.whenStable();
     harness.detectChanges();
     const page = harness.routeNativeElement!;
-    expect(page.querySelector('h1')?.textContent).toBe('Mortalidad del lote');
+    expect(page.querySelector('h1')?.textContent).toBe('Mortandad del lote');
     expect(page.querySelector('.back-link')?.getAttribute('href')).toBe(`${prefix}/${id}`);
     expect(page.querySelector('tbody')?.textContent).toContain('Golpe de calor');
     expect(page.querySelector('#mortality-reason')?.tagName).toBe('TEXTAREA');
@@ -184,7 +191,7 @@ describe('Mortality navigation', () => {
     list.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 403 })));
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl(`${prefix}/${id}/mortalidad`, FlockMortalitiesPage);
-    expect(harness.routeNativeElement?.textContent).toContain('No tenés permiso para consultar la mortalidad');
+    expect(harness.routeNativeElement?.textContent).toContain('No tenés permiso para consultar la mortandad');
     expect(harness.routeNativeElement?.querySelector('table')).toBeNull();
     (harness.routeNativeElement?.querySelector('.page-state button') as HTMLButtonElement).click();
     await harness.fixture.whenStable();

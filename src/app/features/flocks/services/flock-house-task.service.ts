@@ -116,7 +116,7 @@ export class FlockHouseTaskService {
     this.attempt = { fingerprint, key, mortality: request };
     this.saving.set(true);
     this.mortalityApi.record(flock.id, request, key).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.saving.set(false); this.attempt = null; this.result.set('Mortalidad registrada.'); },
+      next: () => { this.saving.set(false); this.attempt = null; this.result.set('Mortandad registrada.'); },
       error: (error: unknown) => this.handleSaveError(error),
     });
   }

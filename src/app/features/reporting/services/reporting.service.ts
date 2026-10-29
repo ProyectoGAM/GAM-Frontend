@@ -1,15 +1,23 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, exhaustMap, takeWhile, timer } from 'rxjs';
+import { Observable, exhaustMap, map, takeWhile, timer } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import { FileDownloadService } from '../../../core/native/file-download.service';
 import { ReportEnvelope, ReportExport, ReportOptions, ReportPage, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
+import { reportHelp } from './report-presentation';
 
 @Injectable({ providedIn: 'root' })
 export class ReportingService {
   private readonly api = inject(ApiClient);
   private readonly files = inject(FileDownloadService);
 
-  sources(): Observable<ReportEnvelope<ReportSource[]>> { return this.api.get('reportes/fuentes'); }
+  sources(): Observable<ReportEnvelope<ReportSource[]>> {
+    return this.api.get<ReportEnvelope<ReportSource[]>>('reportes/fuentes').pipe(map((response) => ({
+      ...response,
+      data: response.data.map((source) => source.key === 'lots.weighing-measurements'
+        ? { ...source, label: 'Posturas', description: reportHelp[source.key] }
+        : source),
+    })));
+  }
   preview(source: string, query: ReportQuery): Observable<ReportEnvelope<ReportResult>> {
     return this.api.post('reportes/' + encodeURIComponent(source) + '/previsualizaciones', query);
   }

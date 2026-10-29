@@ -1,0 +1,85 @@
+<section class="fractionation-page" aria-labelledby="fractionation-title">
+  <a class="back-link" [routerLink]="backLink()" [queryParams]="backQuery()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote</a>
+  <header class="page-heading"><h1 id="fractionation-title">Fraccionar lote</h1><p>Trasladá todas o una parte de las aves.</p></header>
+
+  @if (state() === 'loading') {
+    <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando lote y destinos…</div>
+  } @else if (state() !== 'ready') {
+    <div class="card page-state" role="alert">
+      <p>{{ state() === 'forbidden' ? 'No tenés permiso para fraccionar este lote.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : state() === 'not-found' ? 'Lote no encontrado.' : 'No se pudieron cargar el lote y sus destinos.' }}</p>
+      @if (canEdit()) { <button type="button" (click)="load()">Reintentar</button> }
+    </div>
+  } @else if (context(); as data) {
+    <section class="card origin" aria-label="Lote de origen"><div><span>Lote de origen</span><h2>{{ data.source.code }} · {{ sourceHouse() }}</h2><p>{{ data.unitName }}</p></div><strong>{{ data.source.current_quantity }} aves vivas</strong></section>
+
+    @if (result(); as saved) {
+      <section class="card page-state" role="status"><h2>Fraccionamiento registrado</h2><p>Se actualizaron las aves y el destino del lote.</p>
+        <p class="destination-code">Lote de destino: {{ saved.destination_flock.code }}</p>
+        <a class="primary destination-link" [routerLink]="['/administracion/lotes/lotes', saved.destination_flock.id]"><span>Ver lote de destino</span><span aria-hidden="true">→</span></a>
+      </section>
+    } @else if (!available()) {
+      <p class="card page-state" role="status">Este lote está finalizado o no tiene aves disponibles para trasladar.</p>
+    } @else {
+      <form #fractionationForm [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="saving()">
+        <div class="workspace">
+          <div class="form-column">
+            <section class="card choices">
+              <fieldset [disabled]="locked()"><legend>1. Tipo de fraccionamiento</legend>
+                <div class="radio-grid">
+                  <label class="radio-option" [class.selected]="kind() === 'partial'"><input type="radio" name="fractionation-kind" [checked]="kind() === 'partial'" (change)="setKind('partial')" /><span><strong>Parcial</strong><small>Una parte de las aves</small></span></label>
+                  <label class="radio-option" [class.selected]="kind() === 'total'"><input type="radio" name="fractionation-kind" [checked]="kind() === 'total'" (change)="setKind('total')" /><span><strong>Total</strong><small>Todas las aves</small></span></label>
+                </div>
+                @if (kind() === 'total') { <p class="hint">Se trasladarán las {{ data.source.current_quantity }} aves.</p> }
+              </fieldset>
+              <fieldset [disabled]="locked()"><legend>2. Destino</legend>
+                <div class="radio-grid">
+                  <label class="radio-option" [class.selected]="destination() === 'empty'"><input type="radio" name="fractionation-destination" [checked]="destination() === 'empty'" (change)="setDestination('empty')" /><span><strong>Galpón vacío</strong><small>Misma UP</small></span></label>
+                  <label class="radio-option" [class.selected]="destination() === 'existing'"><input type="radio" name="fractionation-destination" [checked]="destination() === 'existing'" (change)="setDestination('existing')" /><span><strong>Lote existente</strong><small>Misma UP y raza</small></span></label>
+                </div>
+              </fieldset>
+            </section>
+            <section class="card fields" aria-labelledby="fractionation-data-title">
+              <h2 id="fractionation-data-title">Datos del fraccionamiento</h2>
+              @if (kind() === 'partial') {
+                <div class="field"><label for="fractionation-quantity">Aves a trasladar</label>
+                  <input id="fractionation-quantity" type="text" inputmode="numeric" formControlName="quantity" [attr.aria-invalid]="errors().quantity ? 'true' : null" aria-describedby="quantity-hint quantity-error" />
+                  <small id="quantity-hint">@if (remaining() !== null) { Quedarán {{ remaining() }} aves en el origen. } @else { Debe quedar al menos un ave en el origen. }</small>
+                  <p class="field-error" id="quantity-error">{{ errors().quantity }}</p>
+                </div>
+              }
+              <div class="field"><label for="fractionation-target">{{ destination() === 'empty' ? 'Galpón de destino' : 'Galpón y lote receptor' }}</label>
+                <app-searchable-select inputId="fractionation-target" [options]="targets()" formControlName="target" [showIcons]="true" [required]="true" [invalid]="!!errors().target" describedBy="target-hint target-error" placeholder="Buscar galpón" emptyMessage="No hay destinos disponibles para esta opción." />
+                <small id="target-hint">{{ destination() === 'empty' ? 'Galpones sin aves o con lotes finalizados de ' + data.unitName + '.' : 'Galpones con un lote vigente de la misma raza, en ' + data.unitName + '.' }}</small>
+                <p class="field-error" id="target-error">{{ errors().target }}</p>
+                @if (targets().length === 0) { <p class="hint" role="status">No hay destinos disponibles. Podés actualizar la lista o cambiar el tipo de destino.</p> }
+              </div>
+              @if (kind() === 'partial' && destination() === 'empty') {
+                <div class="field"><label for="fractionation-code">Código del nuevo lote</label><input id="fractionation-code" type="text" formControlName="code" maxlength="60" [attr.aria-invalid]="errors().code ? 'true' : null" aria-describedby="code-error" /><p class="field-error" id="code-error">{{ errors().code }}</p></div>
+              }
+              <details class="optional"><summary>Agregar fecha o motivo</summary>
+                <div class="field"><label for="fractionation-time">Fecha y hora (opcional)</label><input id="fractionation-time" type="datetime-local" formControlName="occurredAt" [attr.aria-invalid]="errors().occurredAt ? 'true' : null" aria-describedby="time-hint time-error" /><small id="time-hint">Hora local del dispositivo. Si no la indicás, se registra el momento actual.</small><p class="field-error" id="time-error">{{ errors().occurredAt }}</p></div>
+                <div class="field"><label for="fractionation-reason">Motivo (opcional)</label><textarea id="fractionation-reason" formControlName="reason" rows="3" maxlength="500" [attr.aria-invalid]="errors().reason ? 'true' : null" aria-describedby="reason-error"></textarea><p class="field-error" id="reason-error">{{ errors().reason }}</p></div>
+              </details>
+              <button type="button" class="refresh" [disabled]="locked()" (click)="load()">Actualizar destinos</button>
+            </section>
+          </div>
+          <aside class="card summary" aria-labelledby="fractionation-summary-title">
+            <div class="summary-heading"><h2 id="fractionation-summary-title">Resumen del fraccionamiento</h2><span class="badge">{{ kind() === 'partial' ? 'Parcial' : 'Total' }}</span></div>
+            @if (validQuantity() && selected(); as target) {
+              <dl>
+                <div><dt>{{ data.source.code }} · {{ sourceHouse() }}</dt><dd>{{ finalizes() ? 'Finalizado' : kind() === 'total' ? 'Se traslada' : remaining() + ' aves' }}</dd></div>
+                <div><dt>{{ destination() === 'existing' ? target.flock?.code : kind() === 'partial' ? draft().code || 'Nuevo lote' : data.source.code }} · {{ target.house.name }}</dt><dd>{{ received() }} aves</dd></div>
+              </dl>
+              @if (finalizes()) {
+                <p class="notice warning"><ion-icon name="warning-outline" aria-hidden="true" /><span>El lote de origen quedará finalizado.</span></p>
+              }
+              <p class="notice"><ion-icon name="information-circle-outline" aria-hidden="true" /><span>{{ destination() === 'existing' ? 'Se conservan el plan, la edad y la alimentación del lote receptor.' : kind() === 'total' ? 'Se traslada el mismo lote: conserva su identidad, edad, alimentación y plan.' : 'El nuevo lote conserva edad y alimentación del origen. Se copian las actividades futuras del plan.' }}</span></p>
+            } @else { <p class="hint">Completá la cantidad y el destino para ver cómo quedarán los lotes.</p> }
+          </aside>
+        </div>
+        @if (error(); as message) { <p class="submit-error" role="alert" tabindex="-1">{{ message }}</p> }
+        <footer class="actions"><a class="cancel" [routerLink]="backLink()" [queryParams]="backQuery()">Cancelar</a><button class="primary" type="submit" [disabled]="saving() || !canEdit()">{{ saving() ? 'Registrando…' : uncertain() ? 'Reintentar fraccionamiento' : 'Confirmar fraccionamiento' }}</button></footer>
+      </form>
+    }
+  }
+</section>

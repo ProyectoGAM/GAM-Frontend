@@ -143,9 +143,9 @@ export class FlockMortalitiesPage {
         this.saveAttempt = null;
         this.saving.set(false);
         this.flock.update((current) => current ? { ...current, ...response.flock } : null);
-        this.success.set('Mortalidad registrada.');
+        this.success.set('Mortandad registrada.');
         this.savedSequence.update((sequence) => sequence + 1);
-        if (this.houseTask.isTask()) this.houseTask.returnToHouse('Mortalidad registrada.');
+        if (this.houseTask.isTask()) this.houseTask.returnToHouse('Mortandad registrada.');
         else this.loadHistory();
       },
       error: (error: unknown) => {
@@ -189,7 +189,7 @@ export class FlockMortalitiesPage {
         } },
       });
     } else if (error.status === 401 || error.status === 403) {
-      this.saveError.set('No tenés permiso para registrar mortalidad.');
+      this.saveError.set('No tenés permiso para registrar mortandad.');
     } else if (error.status === 0) {
       this.saveError.set('Sin conexión. Reintentá con los mismos datos para evitar duplicados.');
     } else {
@@ -239,7 +239,7 @@ export class FlockMortalitiesPage {
         this.cancelling.set(false);
         this.flock.update((current) => current ? { ...current, ...response.flock } : null);
         this.records.update((records) => records.filter((item) => item.id !== recordId));
-        this.success.set('Registro de mortalidad deshecho. La acción quedó auditada.');
+        this.success.set('Registro de mortandad deshecho. La acción quedó auditada.');
         this.cancelledSequence.update((sequence) => sequence + 1);
         this.loadHistory();
       },
@@ -286,7 +286,7 @@ export class FlockMortalitiesPage {
           },
         });
     } else if (error.status === 401 || error.status === 403) {
-      this.cancellationError.set('No tenés permiso para deshacer registros de mortalidad.');
+      this.cancellationError.set('No tenés permiso para deshacer registros de mortandad.');
     } else if (error.status === 0) {
       this.cancellationError.set('Sin conexión. Reintentá con los mismos datos para evitar repetir la acción.');
     } else {

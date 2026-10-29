@@ -55,7 +55,7 @@ describe('FlockHouseTaskService', () => {
     task.start(request); task.saveMortality(draft); task.saveMortality(draft);
     expect(task.saving()).toBe(true); expect(record).toHaveBeenCalledOnce();
     expect(record.mock.calls[0][1]).toMatchObject({ version: 1, quantity: 1, notes: 'Lesión' });
-    response.next({}); expect(task.saving()).toBe(false); expect(task.result()).toBe('Mortalidad registrada.');
+    response.next({}); expect(task.saving()).toBe(false); expect(task.result()).toBe('Mortandad registrada.');
     task.saveMortality(draft); expect(record).toHaveBeenCalledOnce(); expect(current).not.toHaveBeenCalled();
   });
 

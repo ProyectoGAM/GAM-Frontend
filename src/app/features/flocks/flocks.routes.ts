@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import type { FlockFractionationPage } from './pages/flock-fractionation/flock-fractionation.page';
 
 export const flocksRoutes: Routes = [
   {
@@ -30,6 +31,12 @@ export const flocksRoutes: Routes = [
     path: ':id/alimentacion',
     loadComponent: () => import('./pages/flock-feeding/flock-feeding.page')
       .then((module) => module.FlockFeedingPage),
+  },
+  {
+    path: ':id/fraccionar',
+    loadComponent: () => import('./pages/flock-fractionation/flock-fractionation.page')
+      .then((module) => module.FlockFractionationPage),
+    canDeactivate: [(page: FlockFractionationPage) => page.canLeave()],
   },
   {
     path: ':id',
