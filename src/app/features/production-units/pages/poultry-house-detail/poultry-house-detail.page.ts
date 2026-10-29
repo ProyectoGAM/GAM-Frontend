@@ -29,6 +29,7 @@ import {
   PoultryHouseDetail as PoultryHouseDetailData,
 } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { poultryHouseCapacityWarning } from '../../services/poultry-house-capacity';
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
 import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
@@ -67,6 +68,7 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly unitId = Number(this.route.snapshot.paramMap.get('id'));
   readonly state = signal<DetailState>('loading');
   readonly house = signal<PoultryHouseDetailData | null>(null);
+  readonly capacityWarning = computed(() => poultryHouseCapacityWarning(this.house()));
   readonly flocks = signal<HouseFlock[]>([]);
   readonly flocksState = signal<RelatedState>('loading');
   readonly feedStock = signal<FeedStock | null>(null);
@@ -104,8 +106,10 @@ export class PoultryHouseDetailPage implements OnInit {
   });
   readonly occupancyPercent = computed(() => {
     const house = this.house();
-    if (!house || house.type !== 'poultry' || !house.bird_capacity || typeof house.current_occupancy !== 'number') return null;
-    return Math.min(100, Math.max(0, (house.current_occupancy / house.bird_capacity) * 100));
+    if (!house || house.type !== 'poultry' || typeof house.bird_capacity !== 'number'
+      || !Number.isFinite(house.bird_capacity) || house.bird_capacity <= 0
+      || typeof house.current_occupancy !== 'number' || !Number.isFinite(house.current_occupancy)) return null;
+    return Math.max(0, (house.current_occupancy / house.bird_capacity) * 100);
   });
   readonly currentFlocks = computed(() => this.flocks().filter(
     (flock) => flock.status === 'active' || flock.status === 'quarantined',

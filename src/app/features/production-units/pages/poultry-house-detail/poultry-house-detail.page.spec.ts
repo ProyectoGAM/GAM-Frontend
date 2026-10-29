@@ -109,6 +109,23 @@ describe('PoultryHouseDetailPage', () => {
     });
   });
 
+  it('shows excess, real percentage and zero free places while keeping the bar within its range', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 6200 } }));
+    render();
+    const warning = fixture.nativeElement.querySelector('.capacity-warning');
+    expect(warning.textContent).toContain('Se está sobrepasando el límite del galpón');
+    expect(warning.textContent).toContain('Se excede en 200 aves.');
+    expect(fixture.nativeElement.querySelector('.occupancy-copy').textContent).toContain('103 %');
+    const progress = fixture.nativeElement.querySelector('.progress');
+    expect(progress.getAttribute('aria-valuenow')).toBe('100');
+    expect(progress.getAttribute('aria-valuetext')).toBe('103 % de ocupación');
+    expect(progress.querySelector('span').style.width).toBe('100%');
+    expect(fixture.componentInstance.availableCapacityLabel()).toBe('0 plazas');
+    fixture.componentInstance.house.set({ ...house, current_occupancy: 6000 }); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.capacity-warning')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.occupancy-copy').textContent).toContain('100 %');
+  });
+
   it('does not offer lot creation when the house is not operational', () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 0 } }));
     render();
