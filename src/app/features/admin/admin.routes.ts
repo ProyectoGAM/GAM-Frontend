@@ -13,6 +13,8 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   children:
     group.id === 'usuarios'
       ? [{ path: '', loadChildren: () => import('../users/users.routes').then((module) => module.usersRoutes) }]
+      : group.id === 'clientes'
+      ? [{ path: '', loadChildren: () => import('../customers/customers.routes').then((module) => module.customersRoutes) }]
       : group.id === 'inventario'
       ? [
           {

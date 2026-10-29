@@ -2,13 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, tap, throwError } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
 import { LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
 import { ThemeService } from '../../core/theme/theme.service';
-import { DeliveryOutboxService } from './delivery-outbox.service';
+import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.service';
 import { DeliveryPage } from './delivery.page';
 import { DeliveriesApi } from './deliveries.api';
 import { Delivery, DeliveryClient } from './delivery.models';
@@ -42,9 +42,14 @@ describe('DeliveryPage', () => {
     close: ReturnType<typeof vi.fn>;
     current: ReturnType<typeof vi.fn>;
     detail: ReturnType<typeof vi.fn>;
+    payment: ReturnType<typeof vi.fn>;
+    markers: ReturnType<typeof vi.fn>;
     locations: ReturnType<typeof vi.fn>;
   };
   let outbox: {
+    claimLegacy: ReturnType<typeof vi.fn>;
+    reject: ReturnType<typeof vi.fn>;
+    retry: ReturnType<typeof vi.fn>;
     enqueue: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
@@ -56,6 +61,7 @@ describe('DeliveryPage', () => {
 
   beforeEach(() => {
     online = signal(true);
+    let queue: DeliveryOutboxEntry[] = [];
     api = {
       start: vi.fn(() => of({ data: activeDelivery })),
       clients: vi.fn(() => of({ data: [demoClient] })),
@@ -71,18 +77,27 @@ describe('DeliveryPage', () => {
             loaded_amount: '1', delivered_amount: '0', remaining_amount: '1', loaded_eggs: 30, delivered_eggs: 0 },
         ] },
         loads: [{ id: 1, quantity: 120, type: 'initial', created_at: '2026-09-29T12:00:00Z' },
-          { id: 2, quantity: 30, type: 'additional', created_at: '2026-09-29T12:10:00Z' }] } })),
+          { id: 2, quantity: 30, type: 'additional', created_at: '2026-09-29T12:10:00Z' }] } }).pipe(tap((response) => api.detail.mockReturnValue(of(response))))),
       stop: vi.fn(() => of({ data: {} })),
       close: vi.fn(() => of({ data: { ...activeDelivery, status: 'completed' } })),
       current: vi.fn(() => of({ data: [activeDelivery] })),
       detail: vi.fn(() => of({ data: activeDelivery })),
+      payment: vi.fn(() => of({ data: [] })),
+      markers: vi.fn(() => of({ data: [], meta: { has_more: false, limit: 200 } })),
       locations: vi.fn(() => of({ data: { accepted: 0, duplicates: 0, pending: 0 } })),
     };
     outbox = {
-      enqueue: vi.fn().mockResolvedValue(undefined),
-      list: vi.fn().mockResolvedValue([]),
+      enqueue: vi.fn(async (entry, replacing) => {
+        if (replacing) queue = queue.filter((row) => row.id !== replacing.id);
+        const value = { ...entry, actorId: 2, id: crypto.randomUUID(), attempts: 0, createdAt: new Date().toISOString(), state: 'pending' };
+        queue.push(value); return value;
+      }),
+      list: vi.fn(async () => [...queue].sort((a, b) => a.createdAt.localeCompare(b.createdAt))),
+      claimLegacy: vi.fn().mockResolvedValue(undefined),
+      reject: vi.fn(async (entry, error) => { queue = queue.map((row) => row.id === entry.id ? { ...row, state: 'needs_review', error } : row); }),
+      retry: vi.fn().mockResolvedValue(undefined),
       count: vi.fn().mockResolvedValue(0),
-      remove: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn(async (id) => { queue = queue.filter((row) => row.id !== id); }),
       saveReferences: vi.fn().mockResolvedValue(undefined),
       referencesFor: vi.fn().mockResolvedValue(null),
     };
@@ -111,11 +126,12 @@ describe('DeliveryPage', () => {
 
   afterEach(() => page.ngOnDestroy());
 
-  it('shows only up to 50 searched clients', () => {
+  it('keeps the server page and searches all cached clients offline', () => {
     page.clients.set(Array.from({ length: 80 }, (_, index) => ({
       ...demoClient, id: String(index), name: `Cliente ${index}`,
     })));
-    expect(page.visibleClients()).toHaveLength(50);
+    expect(page.visibleClients()).toHaveLength(80);
+    page.cachedClients.set(page.clients()); online.set(false);
     page.search.set('Cliente 79');
     expect(page.visibleClients()).toHaveLength(1);
   });
@@ -206,7 +222,7 @@ describe('DeliveryPage', () => {
     fixture.destroy();
   });
 
-  it('keeps the map primary, shows honest unit details, and separates clients and summary', async () => {
+  it('keeps clients primary, shows honest unit details, and separates clients and summary', async () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -224,7 +240,8 @@ describe('DeliveryPage', () => {
     });
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    expect(fixture.componentInstance.panel()).toBe('map');
+    expect(fixture.componentInstance.panel()).toBe('clients');
+    fixture.componentInstance.selectPanel('map'); fixture.detectChanges();
     const cards = root.querySelectorAll<HTMLButtonElement>('.metrics button');
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain('Huevos totales');
@@ -275,6 +292,7 @@ describe('DeliveryPage', () => {
   it('loads the client catalog independently of the visits in the delivery', async () => {
     await page.ngAfterViewInit();
     expect(page.clients()).toEqual([demoClient]);
+    expect(api.current).toHaveBeenCalledWith();
     expect(page.delivery()?.stops).toEqual([]);
     expect(page.completedStops()).toBe(0);
   });
@@ -319,6 +337,7 @@ describe('DeliveryPage', () => {
         notes: null, visited_at: '2026-09-29T12:10:00Z' }],
     } }));
     page.openClient(client);
+    page.paymentChoice.set('fiado');
     page.stopSelections.set({ 'huevo|1': 12 });
     await page.saveStop();
     expect(api.stop).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
@@ -328,20 +347,23 @@ describe('DeliveryPage', () => {
     expect(page.selectedClient()).toBeNull();
   });
 
-  it('never queues a server rejection as an offline success', async () => {
+  it('retains a server rejection for review and restores confirmed stock', async () => {
     api.stop.mockReturnValue(throwError(() => new HttpErrorResponse({
       status: 403, error: { message: 'No autorizado' },
     })));
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     page.stopSelections.set({ 'huevo|1': 1 });
     await page.saveStop();
-    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(outbox.reject).toHaveBeenCalledWith(expect.objectContaining({ kind: 'stop' }), 'No autorizado');
     expect(page.error()).toBe('No autorizado');
-    expect(page.selectedClient()).not.toBeNull();
+    expect(page.delivery()?.remaining_quantity).toBe(120);
+    expect(page.reviewEntries()).toHaveLength(1);
   });
 
   it('requires a reason for a visit without delivery and sends no units', async () => {
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     page.stopMode.set('not_delivered');
     await page.saveStop();
     expect(api.stop).not.toHaveBeenCalled();
@@ -359,6 +381,7 @@ describe('DeliveryPage', () => {
       unit_balances: { rows: [{ ...activeDelivery.unit_balances!.rows[0], remaining_amount: null }],
         unallocated_delivered_eggs: 4, unallocated_returned_eggs: 0 } });
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     expect(page.canIncrementStopUnit(page.delivery()!.unit_balances!.rows[0])).toBe(false);
     await page.saveStop();
     expect(api.stop).not.toHaveBeenCalled();
@@ -369,9 +392,10 @@ describe('DeliveryPage', () => {
     api.stop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
     const client = demoClient;
     page.openClient(client);
+    page.paymentChoice.set('fiado');
     page.stopSelections.set({ 'huevo|1': 12 });
     await page.saveStop();
-    expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'stop' }));
+    expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'stop' }), undefined);
     expect(page.statusFor(client)).toBe('delivered');
     expect(page.delivery()?.remaining_quantity).toBe(108);
     expect(page.delivery()?.unit_balances?.rows[0].remaining_amount).toBe('108');
@@ -399,7 +423,7 @@ describe('DeliveryPage', () => {
     expect(api.load).not.toHaveBeenCalled();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'load', payload: { production_unit_id: 7, items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }] },
-    }));
+    }), undefined);
     expect(page.delivery()?.loaded_quantity).toBe(150);
     expect(page.delivery()?.remaining_quantity).toBe(150);
     expect(page.loadedPresentations().maples).toBe(1);
@@ -408,11 +432,12 @@ describe('DeliveryPage', () => {
       actorId: 2, delivery: expect.objectContaining({ loaded_quantity: 150, remaining_quantity: 150 }),
     }));
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     page.stopSelections.set({ 'maple|30': 1 });
     await page.saveStop();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'stop', payload: expect.objectContaining({ items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30, unit_price: 100 }] }),
-    }));
+    }), undefined);
     expect(page.delivery()?.unit_balances?.rows[1].remaining_amount).toBe('0');
     expect(page.delivery()?.remaining_quantity).toBe(120);
     expect(outbox.saveReferences).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -426,7 +451,7 @@ describe('DeliveryPage', () => {
       actorId: 2, units: page.units(), productionUnits: page.productionUnits(), clients: [demoClient],
       delivery: { ...activeDelivery, loaded_quantity: 150, remaining_quantity: 108 },
     });
-    outbox.count.mockResolvedValue(2);
+    outbox.list.mockResolvedValue([{ id: 'one', kind: 'load' }, { id: 'two', kind: 'payment' }]);
     page.delivery.set(null);
     page.units.set([]);
     page.productionUnits.set([]);
@@ -452,7 +477,7 @@ describe('DeliveryPage', () => {
       { unit: 'maple', amount: '0.5', eggs_per_unit: 30 },
       { unit: 'huevo', amount: '5', eggs_per_unit: 1 },
     ] }, expect.any(String));
-    expect(page.panel()).toBe('map');
+    expect(page.panel()).toBe('clients');
   });
 
   it('rejects a fraction that cannot become whole eggs', async () => {
@@ -464,7 +489,7 @@ describe('DeliveryPage', () => {
     expect(page.error()).toContain('huevos enteros');
   });
 
-  it('shows a changed conversion error without queuing a rejected load', async () => {
+  it('retains a rejected conversion for manual correction', async () => {
     api.load.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 422, error: {
       message: 'Los datos proporcionados no son válidos.',
       errors: { 'items.0.eggs_per_unit': ['La equivalencia cambió.'] },
@@ -473,7 +498,7 @@ describe('DeliveryPage', () => {
     page.loadForm.controls.production_unit_id.setValue(7);
     await page.addLoad();
     expect(page.error()).toBe('La equivalencia cambió.');
-    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(outbox.reject).toHaveBeenCalledWith(expect.objectContaining({ kind: 'load' }), 'La equivalencia cambió.');
   });
 
   it('reapplies a queued load after refresh without counting an accepted load twice', async () => {
@@ -553,10 +578,10 @@ describe('DeliveryPage', () => {
         idempotencyKey: 'load-key', createdAt: '2026-09-29T12:00:00Z' },
     ]);
     await page.syncNow();
-    expect(sent).toEqual(['load', 'stop']);
-    expect(outbox.remove).toHaveBeenCalledWith('close');
+    expect(sent).toEqual(['stop', 'load']);
+    expect(outbox.remove).not.toHaveBeenCalledWith('close');
     expect(page.delivery()?.status).toBe('active');
-    expect(page.message()).toContain('PIN');
+    expect(api.close).not.toHaveBeenCalled();
   });
   it('requires a selected UP and sends the chosen recharge origin', async () => {
     page.openLoad();
@@ -578,6 +603,7 @@ describe('DeliveryPage', () => {
     page.delivery.set({ ...activeDelivery, loaded_quantity: 360, remaining_quantity: 360,
       unit_balances: { rows: [row], unallocated_delivered_eggs: 0, unallocated_returned_eggs: 0 } });
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     const input = document.createElement('input');
     input.value = '0,125';
     page.setStopAmount(row, { target: input } as unknown as Event);
@@ -593,6 +619,7 @@ describe('DeliveryPage', () => {
   it('rejects fractional unit prices before recording or queuing an operation', async () => {
     const row = activeDelivery.unit_balances!.rows[0];
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     page.adjustStopUnit(row, 1);
     page.priceControl(row).setValue('100.01');
     await page.saveStop();
@@ -607,6 +634,7 @@ describe('DeliveryPage', () => {
       remaining_amount: '0.5', loaded_eggs: 15, delivered_eggs: 0 };
     page.delivery.set({ ...activeDelivery, unit_balances: { ...activeDelivery.unit_balances!, rows: [row] } });
     page.openClient(demoClient);
+    page.paymentChoice.set('fiado');
     const input = document.createElement('input');
     input.value = '0,6';
     page.setStopAmount(row, { target: input } as unknown as Event);
@@ -638,6 +666,64 @@ describe('DeliveryPage', () => {
     expect(api.close).not.toHaveBeenCalled();
     expect(page.delivery()?.status).toBe('active');
     expect(page.error()).toContain('todos los huevos sobrantes');
+  });
+
+  it('requires an explicit fiado or payment choice before recording goods', async () => {
+    page.openClient(demoClient); page.stopSelections.set({ 'huevo|1': 1 });
+    await page.saveStop();
+    expect(outbox.enqueue).not.toHaveBeenCalled(); expect(page.error()).toContain('fiada');
+    page.paymentChoice.set('fiado'); await page.saveStop();
+    const payload = api.stop.mock.calls[0][1]; const key = api.stop.mock.calls[0][2];
+    expect(payload).toMatchObject({ accounting_version: 2, client_event_id: key, payment: { amount: '0.000' } });
+  });
+
+  it('records multiple standalone payments without modifying stock or blocking a later delivery', async () => {
+    for (const amount of ['150,125', '20']) {
+      page.openClient(demoClient); page.stopMode.set('payment');
+      page.stopForm.patchValue({ amount, payment_method: 'transfer', payment_reference: 'Banco' });
+      await page.saveStop();
+    }
+    expect(api.payment).toHaveBeenCalledTimes(2); expect(api.stop).not.toHaveBeenCalled();
+    expect(api.payment.mock.calls[0][1]).toMatchObject({ client_reference: demoClient.id, amount: '150.125', payment_method: 'transfer', payment_reference: 'Banco' });
+    expect(api.payment.mock.calls[0][1].client_event_id).toBe(api.payment.mock.calls[0][2]);
+    expect(api.payment.mock.calls[0][2]).not.toBe(api.payment.mock.calls[1][2]);
+    expect(page.delivery()?.remaining_quantity).toBe(120); expect(page.statusFor(demoClient)).toBe('pending');
+  });
+
+  it('never sends a business operation when the durable commit fails', async () => {
+    outbox.enqueue.mockRejectedValue(new Error('Almacenamiento lleno'));
+    page.openClient(demoClient); page.paymentChoice.set('fiado'); page.stopSelections.set({ 'huevo|1': 1 });
+    await page.saveStop();
+    expect(api.stop).not.toHaveBeenCalled(); expect(page.error()).toBe('Almacenamiento lleno');
+    expect(page.selectedClient()?.id).toBe(demoClient.id); expect(page.delivery()?.remaining_quantity).toBe(120);
+    expect(page.message()).toBeNull();
+  });
+
+  it('preserves the same key after a lost payment response and stops automatic retries after a permanent rejection', async () => {
+    api.payment.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
+    page.openClient(demoClient); page.stopMode.set('payment'); page.stopForm.controls.amount.setValue('100');
+    await page.saveStop();
+    const key = api.payment.mock.calls[0][2]; expect(page.pendingCount()).toBe(1);
+    api.payment.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Revisá el cliente' } })));
+    await page.syncNow(); expect(api.payment.mock.calls[1][2]).toBe(key);
+    expect(page.reviewEntries()).toHaveLength(1); await page.syncNow();
+    expect(api.payment).toHaveBeenCalledTimes(2); expect(page.pendingCount()).toBe(1);
+  });
+
+  it('navigates past the first 100 clients using server pagination', async () => {
+    api.clients.mockReturnValue(of({ data: [{ ...demoClient, id: 'customer-151' }], meta: { current_page: 4, last_page: 4, total: 151, per_page: 50 } }));
+    await page.refreshClients('', 4);
+    expect(api.clients).toHaveBeenCalledWith('', 4, undefined); expect(page.visibleClients()[0].id).toBe('customer-151');
+    expect(page.clientPage()).toBe(4); expect(page.clientTotal()).toBe(151);
+  });
+
+  it('previews fractional merchandise and credit balances exactly', () => {
+    const row = { unit: 'crate', label: 'Cajón', eggs_per_unit: 24, loaded_amount: '1', delivered_amount: '0', remaining_amount: '1', loaded_eggs: 24, delivered_eggs: 0 };
+    page.delivery.set({ ...activeDelivery, unit_balances: { rows: [row], unallocated_delivered_eggs: 0, unallocated_returned_eggs: 0 } });
+    page.openClient({ ...demoClient, account: { balance: '10.000', debt: '10.000', credit: '0.000', version: 1, currency: 'UYU', as_of: '2026-10-29T17:00:00Z' } });
+    page.stopSelections.set({ 'crate|24': 0.125 }); page.priceControl(row).setValue('101');
+    page.paymentChoice.set('payment'); page.stopForm.controls.amount.setValue('25');
+    expect(page.preview()).toEqual({ charge: '12.625', paid: '25.000', after: '-2.375' });
   });
 
 });

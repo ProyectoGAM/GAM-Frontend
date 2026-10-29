@@ -60,6 +60,8 @@
               }
             </div>
           }
+          <app-delivery-financial-summary [summary]="delivery.financial_summary" [customerLinks]="true" title="Dinero y cuentas vigentes del reparto" />
+          @if (delivery.closed_financial_summary) { <app-delivery-financial-summary [summary]="delivery.closed_financial_summary" [customerLinks]="true" title="Resumen conservado al cierre" /> }
           <p><strong>Valor entregado:</strong> {{ money(delivery.delivered_amount) }}</p>
           @if (delivery.status === 'completed') {
             <div class="stops-detail"><strong>Descarga final</strong>

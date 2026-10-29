@@ -1,0 +1,31 @@
+<form class="customers-page" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (error(); as message) { <p class="feedback error" role="alert">{{ message }}</p> }
+  @if (pending()) { <p class="feedback warning" role="status">Hay una solicitud por confirmar. Reintentá para comprobar el resultado antes de cambiar los datos.</p> }
+  <fieldset class="form-section" [disabled]="locked()"><legend>Datos del cliente</legend><p class="hint">Los datos fiscales son opcionales. Cada ficha tiene su propio identificador.</p>
+    <div class="form-grid">
+      <div class="field"><label for="customer-name">Nombre <span class="optional">(opcional)</span></label><input id="customer-name" formControlName="name" maxlength="160" autocomplete="organization"></div>
+      <div class="field"><label for="customer-business-name">Razón social <span class="optional">(opcional)</span></label><input id="customer-business-name" formControlName="business_name" maxlength="160" autocomplete="organization"></div>
+      <div class="field"><label for="customer-document-type">Tipo de documento <span class="optional">(opcional)</span></label><input id="customer-document-type" formControlName="document_type" maxlength="40" placeholder="RUT, cédula u otro"></div>
+      <div class="field"><label for="customer-document-number">Número de documento <span class="optional">(opcional)</span></label><input id="customer-document-number" formControlName="document_number" maxlength="80"></div>
+    </div>
+  </fieldset>
+  <fieldset class="form-section" [disabled]="locked()"><legend>Contacto y ubicación</legend><div class="form-grid">
+    <div class="field"><label for="customer-phone">Teléfono <span class="optional">(opcional)</span></label><input id="customer-phone" formControlName="phone" type="tel" autocomplete="tel" maxlength="80"></div>
+    <div class="field"><label for="customer-email">Correo <span class="optional">(opcional)</span></label><input id="customer-email" formControlName="email" type="email" autocomplete="email" maxlength="254"></div>
+    <div class="field"><label for="customer-department">Departamento <span class="optional">(opcional)</span></label><select #department id="customer-department" [value]="departmentId() ?? ''" (change)="selectDepartment(department.value)"><option value="">Sin seleccionar</option>@for (item of departments(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></div>
+    <div class="field"><label for="customer-locality">Localidad <span class="optional">(opcional)</span></label><select id="customer-locality" formControlName="locality_id"><option value="">Sin seleccionar</option>@for (item of localities(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></div>
+    @if (geographyError()) { <p class="hint full" role="status">{{ geographyError() }} <button class="button" type="button" (click)="loadGeography()">Reintentar</button></p> }
+    <div class="field full"><label for="customer-address">Dirección <span class="optional">(opcional)</span></label><input id="customer-address" formControlName="address" autocomplete="street-address" maxlength="240"></div>
+    <div class="field"><label for="customer-latitude">Latitud <span class="optional">(opcional)</span></label><input id="customer-latitude" formControlName="latitude" inputmode="decimal" placeholder="−34.7301000"></div>
+    <div class="field"><label for="customer-longitude">Longitud <span class="optional">(opcional)</span></label><input id="customer-longitude" formControlName="longitude" inputmode="decimal" placeholder="−56.2181000"></div>
+    <app-customer-location class="full" [latitude]="value().latitude ?? null" [longitude]="value().longitude ?? null" [disabled]="locked()" (pointSelected)="pointSelected($event)" />
+    <p class="hint full">Para entregar mercadería en un reparto, completá una dirección y un punto válido en Uruguay. Podés guardar la ficha y completarlos después.</p>
+  </div></fieldset>
+  <fieldset class="form-section" [disabled]="locked()"><legend>Condiciones y notas</legend><div class="form-grid">
+    <div class="field full"><label for="customer-frequency">Frecuencia de visita <span class="optional">(opcional)</span></label><input id="customer-frequency" formControlName="visit_frequency" maxlength="240" placeholder="Ej.: martes y viernes"></div>
+    <div class="field full"><label for="customer-conditions">Condiciones comerciales <span class="optional">(opcional)</span></label><textarea id="customer-conditions" formControlName="commercial_conditions" rows="3" maxlength="5000"></textarea></div>
+    <div class="field full"><label for="customer-notes">Observaciones administrativas <span class="optional">(opcional)</span></label><textarea id="customer-notes" formControlName="notes" rows="3" maxlength="5000"></textarea></div>
+    <div class="field full"><label for="customer-delivery-notes">Notas importantes para reparto <span class="optional">(opcional)</span></label><textarea id="customer-delivery-notes" formControlName="delivery_notes" rows="3" maxlength="5000" placeholder="Indicaciones de acceso, horario u otras referencias"></textarea></div>
+  </div></fieldset>
+  <div class="form-footer"><button class="button" type="button" [disabled]="busy()" (click)="cancelled.emit()">Cancelar</button><button class="button primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : pending() ? 'Reintentar solicitud' : customer() ? 'Guardar cambios' : 'Crear cliente' }}</button></div>
+</form>

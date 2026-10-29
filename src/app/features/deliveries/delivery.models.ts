@@ -1,3 +1,5 @@
+import type { CustomerAccountSnapshot, CustomerMovement, CustomerPaymentInput } from '../customers/interfaces/customer';
+
 export type DeliveryStatus = 'active' | 'completed' | 'cancelled';
 export type DeliveryStopStatus = 'pending' | 'delivered' | 'not_delivered';
 
@@ -9,9 +11,16 @@ export interface DeliveryProductionUnit {
 export interface DeliveryClient {
   id: string;
   name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
+  address: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  status?: 'active' | 'inactive';
+  ready_for_delivery?: boolean;
+  delivery_notes?: string | null;
+  visit_frequency?: string | null;
+  account?: CustomerAccountSnapshot;
+  last_delivery?: { id: number; delivery_id: string; visited_at: string; delivered_quantity: number; total_amount: string | null; items?: DeliveryStopItem[] } | null;
+  visit_status?: 'pending' | 'visited' | 'delivered' | 'paid';
 }
 
 export interface DeliveryStop {
@@ -30,6 +39,9 @@ export interface DeliveryStop {
   visit_reason: string | null;
   notes: string | null;
   visited_at: string | null;
+  delivery_id?: string;
+  accounting_status?: 'legacy_unreconciled' | 'posted' | 'not_applicable';
+  account_movements?: CustomerMovement[];
 }
 
 export interface DeliveryLocation {
@@ -113,6 +125,9 @@ export interface Delivery {
   returned_quantity: number;
   returned_items?: DeliveryStopItem[] | null;
   return_production_unit?: DeliveryProductionUnit | null;
+  financial_summary?: DeliveryFinancialSummary;
+  closed_financial_summary?: DeliveryFinancialSummary | null;
+  account_movements?: CustomerMovement[];
   delivered_amount?: string | null;
   currency?: 'UYU';
   remaining_quantity: number;
@@ -151,7 +166,31 @@ export interface AddDeliveryLoadInput {
   items?: DeliveryLoadItemInput[];
 }
 
+export interface DeliveryFinancialSummary {
+  currency: 'UYU';
+  merchandise_amount: string | null;
+  collected_amount: string | null;
+  recorded_collected_amount: string;
+  account_delta: string;
+  by_method: { cash: string; transfer: string; other: string };
+  legacy_unreconciled_count: number;
+  customers: { customer_id: string; customer_name: string; merchandise_amount: string; collected_amount: string; account_delta: string; balance_before: string; balance_after: string }[];
+}
+
+export interface DeliveryPaymentInput extends CustomerPaymentInput {
+  client_reference: string;
+  client_event_id: string;
+}
+
+export interface DeliveryClientPage {
+  data: DeliveryClient[];
+  meta?: { current_page: number; last_page: number; per_page: number; total: number };
+}
+
 export interface StopInput {
+  accounting_version?: 2;
+  client_event_id?: string;
+  payment?: { amount: string; payment_method?: CustomerPaymentInput['payment_method']; payment_reference?: string };
   client_reference: string;
   status: DeliveryStopStatus;
   items?: DeliveryStopItemInput[];

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
@@ -189,4 +190,10 @@ describe('AdminDeliveriesPage', () => {
     expect(mapState.markerCoordinates).toEqual([]);
     fixture.destroy();
   });
+  it('loads a customer-linked origin even when it is beyond the first history page', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ reparto: 'older-origin' }) } } }] });
+    const page = await render();
+    expect(detail).toHaveBeenCalledWith('older-origin'); expect(page.selected()?.id).toBe('older-origin');
+  });
+
 });

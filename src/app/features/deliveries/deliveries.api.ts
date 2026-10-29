@@ -6,6 +6,8 @@ import {
   AddDeliveryLoadInput,
   CloseDeliveryInput,
   DeliveryClient,
+  DeliveryClientPage,
+  DeliveryPaymentInput,
   DeliveryEnvelope,
   DeliveryListResponse,
   DeliveryUnit,
@@ -23,8 +25,16 @@ export class DeliveriesApi {
     return this.api.post<DeliveryEnvelope, StartDeliveryInput>('repartos', body, this.commandOptions(idempotencyKey));
   }
 
-  clients(search = ''): Observable<{ data: DeliveryClient[] }> {
-    return this.api.get<{ data: DeliveryClient[] }>('repartos/clientes', { params: { ...(search ? { search } : {}), limit: 50 } });
+  clients(search = '', page = 1, status?: string): Observable<DeliveryClientPage> {
+    return this.api.get<DeliveryClientPage>('repartos/clientes', { params: { ...(search ? { search } : {}), per_page: 50, page, ...(status ? { status } : {}) } });
+  }
+
+  markers(params: Record<string, string | number>): Observable<{ data: DeliveryClient[]; meta: { has_more: boolean; limit: number } }> {
+    return this.api.get<{ data: DeliveryClient[]; meta: { has_more: boolean; limit: number } }>('clientes/mapa', { params });
+  }
+
+  payment(id: string, body: DeliveryPaymentInput, key: string): Observable<{ data: unknown[] }> {
+    return this.api.post<{ data: unknown[] }, DeliveryPaymentInput>(`repartos/${id}/cobros`, body, this.commandOptions(key));
   }
 
   units(): Observable<{ data: DeliveryUnit[] }> {

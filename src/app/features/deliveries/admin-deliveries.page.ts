@@ -1,5 +1,7 @@
 import { formatDeliveryMoney } from './delivery-money';
 import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, viewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { DeliveryFinancialSummaryComponent } from './components/delivery-financial-summary.component';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText } from '@ionic/angular';
@@ -21,16 +23,17 @@ const URUGUAY_CENTER: [number, number] = [-56.1645, -34.9011];
   selector: 'app-admin-deliveries',
   templateUrl: './admin-deliveries.page.html',
   styleUrl: './admin-deliveries.page.scss',
-  imports: [DatePipe, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText],
+  imports: [DeliveryFinancialSummaryComponent, DatePipe, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText],
 })
 export class AdminDeliveriesPage {
   readonly money = formatDeliveryMoney;
   private readonly api = inject(DeliveriesApi);
+  private readonly sourceId = inject(ActivatedRoute, { optional: true })?.snapshot.queryParamMap.get('reparto');
   private readonly destroyRef = inject(DestroyRef);
   private readonly accessToken = inject(MAPBOX_ACCESS_TOKEN, { optional: true }) ?? '';
   private readonly mapHost = viewChild<ElementRef<HTMLDivElement>>('adminMap');
   private readonly refreshRequests = new Subject<void>();
-  private readonly selectedDeliveryRequests = new Subject<Delivery | null>();
+  private readonly selectedDeliveryRequests = new Subject<Delivery | string | null>();
   private readonly unitSelectionRequests = new Subject<number | null>();
   private map: MapboxMap | null = null;
   private mapLoadListener: (() => void) | null = null;
@@ -63,11 +66,11 @@ export class AdminDeliveriesPage {
           return of(null);
         }
         this.detailLoading.set(true);
-        return this.api.detail(delivery.id).pipe(
+        return this.api.detail(typeof delivery === 'string' ? delivery : delivery.id).pipe(
           map((response) => response.data),
           catchError(() => {
             this.detailError.set('No se pudo cargar el detalle del reparto.');
-            return of(delivery);
+            return of(typeof delivery === 'string' ? null : delivery);
           }),
           finalize(() => this.detailLoading.set(false)),
         );
@@ -97,8 +100,10 @@ export class AdminDeliveriesPage {
             const currentSelectionId = this.selected()?.id;
             const refreshed = currentSelectionId === undefined ? undefined
               : [...current.data, ...all.data].find((delivery) => delivery.id === currentSelectionId);
-            const next = refreshed ?? (!currentSelectionId ? current.data[0] : undefined);
+            const source = this.sourceId ? [...current.data, ...all.data].find((delivery) => delivery.id === this.sourceId) : undefined;
+            const next = refreshed ?? source ?? (!currentSelectionId && !this.sourceId ? current.data[0] : undefined);
             if (next) this.select(next);
+            else if (this.sourceId) this.selectedDeliveryRequests.next(this.sourceId);
             else this.selectedDeliveryRequests.next(null);
             this.loading.set(false);
           }),

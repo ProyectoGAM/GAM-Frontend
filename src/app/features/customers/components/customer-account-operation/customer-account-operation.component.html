@@ -1,0 +1,20 @@
+<form class="customers-page operation-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <header class="operation-heading"><div><h2 #heading id="customer-operation-title" tabindex="-1">{{ title() }}</h2><p class="muted">{{ customer().display_name }}</p></div><button class="button close" type="button" aria-label="Cerrar operación" [disabled]="busy()" (click)="closed.emit()">×</button></header>
+  @if (pending()) { <p class="feedback warning" role="status">La solicitud está por confirmar. El reintento conserva el importe y los datos originales.</p> }
+  <fieldset [disabled]="locked()">
+    @if (kind() === 'adjustment') {
+      <div class="direction-options" role="group" aria-label="Tipo de ajuste"><label [class.selected]="value().direction === 'increase'"><input type="radio" formControlName="direction" value="increase">Aumentar deuda</label><label [class.selected]="value().direction === 'decrease'"><input type="radio" formControlName="direction" value="decrease">Disminuir deuda</label></div>
+    }
+    @if (kind() !== 'reversal') { <div class="field"><label for="account-operation-amount">Importe (UYU)</label><input id="account-operation-amount" formControlName="amount" inputmode="decimal" placeholder="0,000" [attr.aria-invalid]="submitted() && amountError() ? 'true' : null" aria-describedby="account-amount-help"><small id="account-amount-help" class="hint">Mayor a cero, con hasta tres decimales.</small>@if (submitted() && amountError()) { <span class="field-error" role="alert">{{ amountError() }}</span> }</div> }
+    @else if (original(); as movement) { <div class="feedback warning">Se registrará una compensación de {{ money(deltaText()) }}. El movimiento original se conserva.</div> }
+    @if (kind() === 'payment') {
+      <div class="field"><label for="account-payment-method">Medio de pago</label><select id="account-payment-method" formControlName="payment_method"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="other">Otro</option></select></div>
+      <div class="field"><label for="account-payment-reference">Referencia <span class="optional">(opcional)</span></label><input id="account-payment-reference" formControlName="payment_reference" maxlength="240"></div>
+    }
+    <div class="field"><label for="account-operation-reason">{{ kind() === 'payment' ? 'Observación (opcional)' : 'Motivo de la operación' }}</label><textarea id="account-operation-reason" formControlName="reason" rows="3" maxlength="2000" [required]="kind() !== 'payment'" [attr.aria-invalid]="submitted() && reasonError() ? 'true' : null"></textarea>@if (submitted() && reasonError()) { <span class="field-error" role="alert">{{ reasonError() }}</span> }</div>
+  </fieldset>
+  <section class="preview" aria-labelledby="account-preview-title"><h3 id="account-preview-title">Vista previa</h3><dl><div><dt>Último saldo consultado</dt><dd>{{ money(account().balance) }}</dd></div><div><dt>Variación</dt><dd>{{ deltaText() === null ? '—' : money(deltaText()) }}</dd></div><div class="preview-result"><dt>{{ pending() ? 'Saldo resultante por confirmar' : 'Saldo resultante' }}</dt><dd>{{ after() === null ? '—' : money(after()) }}</dd></div></dl><p class="hint">El saldo positivo indica deuda. El saldo negativo indica saldo a favor.</p></section>
+  @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+  @if (refreshing()) { <p class="hint" role="status">Actualizando el saldo…</p> }
+  <div class="form-footer"><button class="button" type="button" [disabled]="busy()" (click)="closed.emit()">Cancelar</button><button class="button primary" type="submit" [disabled]="busy() || refreshing()">{{ busy() ? 'Registrando…' : pending() ? 'Reintentar operación' : kind() === 'adjustment' ? 'Aplicar ajuste' : kind() === 'reversal' ? 'Confirmar reversión' : 'Registrar pago' }}</button></div>
+</form>

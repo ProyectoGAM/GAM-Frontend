@@ -59,7 +59,7 @@ describe('DeliveriesApi', () => {
     expect(clientRequests).toHaveLength(2);
     const [clients, emptySearch] = clientRequests;
     expect(clients.request.params.get('search')).toBe('Ombú');
-    expect(clients.request.params.get('limit')).toBe('50');
+    expect(clients.request.params.get('per_page')).toBe('50');
     clients.flush({ data: [] });
 
     expect(emptySearch.request.params.has('search')).toBe(false);
@@ -83,5 +83,14 @@ describe('DeliveriesApi', () => {
     const history = http.expectOne('/api/v1/repartos?per_page=50&production_unit_id=17');
     expect(history.request.method).toBe('GET');
     history.flush({ data: [] });
+  });
+  it('sends standalone collection keys and queries a bounded map independently of list pages', () => {
+    api.payment('delivery-1', { client_reference: 'client-1', client_event_id: 'payment-key', amount: '12.625', payment_method: 'other' }, 'payment-key').subscribe();
+    api.markers({ west: -57, east: -56, south: -35, north: -34, limit: 200 }).subscribe();
+    const payment = http.expectOne('/api/v1/repartos/delivery-1/cobros');
+    expect(payment.request.headers.get('Idempotency-Key')).toBe('payment-key');
+    expect(payment.request.body.amount).toBe('12.625'); payment.flush({ data: [] });
+    const map = http.expectOne((request) => request.url === '/api/v1/clientes/mapa');
+    expect(map.request.params.get('limit')).toBe('200'); expect(map.request.params.get('west')).toBe('-57'); map.flush({ data: [], meta: { has_more: true, limit: 200 } });
   });
 });

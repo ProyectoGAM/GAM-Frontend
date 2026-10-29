@@ -1,0 +1,40 @@
+<section class="customers-page" aria-labelledby="customers-title">
+  <header class="page-heading">
+    <div><p class="eyebrow">Administración / Clientes</p><h1 id="customers-title">Clientes</h1><p class="lead">Fichas, entregas y cuentas corrientes.</p></div>
+    @if (canManage()) { <a class="button primary" routerLink="/administracion/clientes/nuevo-cliente" [state]="{ customersReturnUrl: router.url }"><ion-icon name="add-outline" aria-hidden="true" />Nuevo cliente</a> }
+  </header>
+  <form class="search-bar" (submit)="$event.preventDefault(); searchCustomers()">
+    <div class="search-control"><label class="sr-only" for="customer-search">Buscar cliente</label><ion-icon name="search-outline" aria-hidden="true" /><input #searchInput id="customer-search" type="search" placeholder="Nombre, documento, contacto o dirección" [value]="search()" (input)="search.set(searchInput.value)" maxlength="100"><button class="button" type="submit" [disabled]="loading()">Buscar</button></div>
+    <button #filterButton class="button" type="button" (click)="openFilters(filterButton)"><ion-icon name="options-outline" aria-hidden="true" />Filtros @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }</button>
+  </form>
+  @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load(meta()?.current_page ?? 1)">Reintentar</button></div> }
+  @if (loading()) { <p class="state card" role="status">Cargando clientes…</p> }
+  @if (!loading() && !error()) {
+    <p class="result-summary" role="status">{{ meta()?.total ?? 0 }} {{ meta()?.total === 1 ? 'cliente' : 'clientes' }}</p>
+    <ul class="customer-list" aria-label="Clientes">
+      @for (customer of customers(); track customer.id) {
+        <li class="customer-card card">
+          <div class="customer-heading"><a class="customer-title" [routerLink]="[customer.id]" [state]="{ customersReturnUrl: router.url }">{{ customer.display_name }}</a><span class="status" [class.inactive]="customer.status === 'inactive'">{{ customer.status === 'active' ? 'Activo' : 'Inactivo' }}</span></div>
+          <p class="customer-address"><ion-icon name="location-outline" aria-hidden="true" />{{ customer.address || 'Sin dirección' }}</p>
+          @if (customer.business_name && customer.business_name !== customer.name) { <p class="muted">{{ customer.business_name }}</p> }
+          @if (canViewAccounts() && customer.account; as account) {
+            <div class="account-summary">
+              @if (account.debt !== '0.000') { <span class="status debt">Deuda</span><strong>{{ money(account.debt) }}</strong> }
+              @else if (account.credit !== '0.000') { <span class="status credit">Saldo a favor</span><strong>{{ money(account.credit) }}</strong> }
+              @else { <span class="muted">Cuenta al día</span> }
+            </div>
+          }
+          @if (!customer.ready_for_delivery && customer.status === 'active') { <p class="hint">Completá dirección y ubicación para entregar mercadería.</p> }
+          <div class="customer-actions"><a class="button" [routerLink]="[customer.id]" [state]="{ customersReturnUrl: router.url }">Ver ficha<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>@if (canManage()) { <a class="button" [routerLink]="[customer.id, 'editar']" [state]="{ customersReturnUrl: router.url }"><ion-icon name="create-outline" aria-hidden="true" />Editar</a> }</div>
+        </li>
+      } @empty { <li class="state card"><strong>No hay clientes para esta búsqueda.</strong><p class="muted">Podés cambiar los filtros o registrar una nueva ficha.</p></li> }
+    </ul>
+    @if (meta(); as pagination) {
+      <nav class="pagination" aria-label="Paginación de clientes"><button class="button" type="button" [disabled]="pagination.current_page <= 1" (click)="load(pagination.current_page - 1)">Anterior</button><span>Página {{ pagination.current_page }} de {{ pagination.last_page }}</span><button class="button" type="button" [disabled]="pagination.current_page >= pagination.last_page" (click)="load(pagination.current_page + 1)">Siguiente</button></nav>
+    }
+  }
+  <app-filter-dialog titleId="customer-filters" (clearRequested)="clearFilters()" (applyRequested)="applyFilters()">
+    <div class="field"><label for="customer-status">Estado</label><select #statusInput id="customer-status" [value]="status()" (change)="setStatus(statusInput.value)"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
+    @if (canViewAccounts()) { <div class="field"><label for="customer-account-status">Cuenta corriente</label><select #situationInput id="customer-account-status" [value]="situation()" (change)="setSituation(situationInput.value)"><option value="">Todas</option><option value="debt">Con deuda</option><option value="settled">Al día</option><option value="credit">Con saldo a favor</option></select></div> }
+  </app-filter-dialog>
+</section>

@@ -1,4 +1,4 @@
-<ion-header class="delivery-header">
+<ion-header [inert]="dialogOpen()" class="delivery-header">
   <ion-toolbar>
     <div slot="start" class="brand">
       <span class="brand-mark" aria-hidden="true">G</span>
@@ -14,12 +14,12 @@
   }
 </ion-header>
 
-<ion-content [fullscreen]="true" [fixedSlotPlacement]="'before'" [class.map-content]="delivery()?.status === 'active' && panel() === 'map'">
+<ion-content [inert]="dialogOpen()" [fullscreen]="true" [fixedSlotPlacement]="'before'" [class.map-content]="delivery()?.status === 'active' && panel() === 'map'">
   @if (delivery()?.status === 'active' && panel() === 'map') {
     <div slot="fixed" class="map-background"><div #deliveryMap class="delivery-map" aria-label="Mapa interactivo de clientes"></div></div>
   }
   <main class="delivery-page" [class.has-nav]="delivery()?.status === 'active'" [class.map-mode]="delivery()?.status === 'active' && panel() === 'map'">
-    @if (error() && !startConfirmation() && !closeConfirmation()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    @if (error() && !startConfirmation() && !closeConfirmation() && !selectedClient() && !loadOpen()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
 
     @if (!delivery() || delivery()?.status !== 'active') {
@@ -29,6 +29,7 @@
           <p class="eyebrow">REPARTO FINALIZADO</p>
           <h1>¡Buen trabajo!</h1>
           <p>Entregaste {{ delivery()?.delivered_quantity }} huevos. El resumen queda disponible para administración.</p>
+          <app-delivery-financial-summary [summary]="delivery()?.closed_financial_summary ?? delivery()?.financial_summary" title="Resumen al cierre" />
           <p>Valor entregado: {{ money(delivery()?.delivered_amount) }}</p>
           @if (delivery()?.return_production_unit; as unit) { <p>Descarga final en {{ unit.name }}</p> }
           @for (item of delivery()?.returned_items ?? []; track $index) { <p>{{ item.amount }} {{ item.label }}</p> }
@@ -78,23 +79,25 @@
 
       @if (panel() === 'clients') {
         <section class="route-panel" id="clients-panel" role="tabpanel" aria-labelledby="clients-tab">
-          <div class="section-heading"><h2>Clientes</h2></div>
+          <div class="section-heading"><h2>Clientes</h2><button type="button" class="secondary-action" (click)="openLoad()" [disabled]="busy() || !canOperate">+ Agregar carga</button></div>
+          <p class="connection-line" role="status">{{ online() ? 'Conectado' : 'Sin conexión · sólo clientes guardados en este dispositivo' }} · {{ pendingCount() }} pendientes</p>
+          <label for="client-status">Estado</label><select id="client-status" [value]="clientStatus()" (change)="changeClientStatus($event)"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
           <label class="search-box" for="client-search"><ion-icon name="people-outline" aria-hidden="true" /><input id="client-search" type="search" aria-label="Buscar cliente" placeholder="Buscar cliente" [value]="search()" (input)="setSearch($event)"></label>
           <div class="client-list">
             @for (client of visibleClients(); track client.id) {
-              <button type="button" class="client-row" [class.visited]="statusFor(client) !== 'pending'" (click)="openClient(client)" [disabled]="!canOperate || statusFor(client) !== 'pending' || closePending()">
-                <span class="client-number" aria-hidden="true"><ion-icon name="location-outline" /></span>
-                <span class="client-info"><strong>{{ client.name }}</strong><small>{{ client.address }}</small>@if (statusFor(client) !== 'pending') { <em>{{ statusFor(client) === 'delivered' ? 'Visitado · Entregado' : 'Visitado · Sin entrega' }}</em> }</span>
-                <ion-icon [name]="statusFor(client) === 'pending' ? 'location-outline' : 'checkmark-circle-outline'" aria-hidden="true" />
-              </button>
+              <app-delivery-client-row [client]="client" [status]="statusFor(client)" [paid]="paidCustomerIds().has(client.id)" [disabled]="!canOperate || closePending() || busy()" (selected)="openClient(client)" />
             } @empty { <p class="empty-state">No hay clientes para esa búsqueda.</p> }
           </div>
+          @if (online()) { <nav class="client-pagination" aria-label="Páginas de clientes"><button type="button" (click)="refreshClients(search(), clientPage() - 1)" [disabled]="clientPage() <= 1 || clientsLoading()">Anterior</button><span>{{ clientPage() }} / {{ clientLastPage() }} · {{ clientTotal() }} clientes</span><button type="button" (click)="refreshClients(search(), clientPage() + 1)" [disabled]="clientPage() >= clientLastPage() || clientsLoading()">Siguiente</button></nav> }
         </section>
       }
 
       @if (panel() === 'map') {
         <section class="route-panel map-panel" id="map-panel" role="tabpanel" aria-labelledby="map-tab">
           <label class="search-box map-search" for="map-search"><ion-icon name="people-outline" aria-hidden="true" /><input id="map-search" type="search" aria-label="Buscar cliente" placeholder="Buscar cliente" [value]="search()" (input)="setSearch($event)"></label>
+          <div class="map-controls"><label for="map-visit">Visitas</label><select id="map-visit" [value]="mapVisitStatus()" (change)="changeMapVisit($event)"><option value="">Todas</option><option value="pending">Pendientes</option><option value="visited">Visitados</option><option value="delivered">Con entrega</option><option value="paid">Con cobro</option></select>
+          @if (mapHasMore()) { <p role="status">Hay más clientes en esta zona. Acercá el mapa para verlos.</p> }
+          @if (mapError()) { <p role="status">{{ mapError() }}</p> }</div>
         </section>
       }
 
@@ -103,10 +106,12 @@
           <div class="section-heading"><div><p class="eyebrow">REPARTO DE HOY</p><h2>Resumen</h2></div></div>
           <article class="summary-card"><small>Huevos en vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong><span>de {{ delivery()?.loaded_quantity }} cargados en este reparto</span></article>
           <article class="balance-card"><h3>Balance de carga</h3><dl><div><dt>Cargados en {{ delivery()?.loads?.length ?? 0 }} carga(s)</dt><dd>{{ delivery()?.loaded_quantity }} huevos</dd></div>@for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) { <div><dt>{{ row.label }}</dt><dd>{{ displayUnitAmount(row.loaded_amount) }}</dd></div> }<div><dt>Entregados</dt><dd>{{ delivery()?.delivered_quantity }} huevos</dd></div><div><dt>En vehículo</dt><dd>{{ delivery()?.remaining_quantity }} huevos</dd></div><div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div><div><dt>Valor entregado</dt><dd>{{ money(delivery()?.delivered_amount) }}</dd></div></dl></article>
+          <app-delivery-financial-summary [summary]="delivery()?.financial_summary" />
+          <app-delivery-pending-operations [entries]="pendingEntries()" [clients]="cachedClients()" [busy]="busy() || syncing()" [online]="online()" (review)="reviewEntry($event.entry, $event.customerId)" (retry)="retryEntry($event)" />
           @if (delivery()?.loads?.length) {
             <article class="balance-card"><h3>Cargas registradas</h3><dl>
               @for (load of delivery()?.loads; track load.id) {
-                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.production_unit?.name ?? delivery()?.production_unit?.name }} · {{ load.created_at | date:'short' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · } </small></dt><dd>{{ load.quantity }} huevos</dd></div>
+                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.production_unit?.name ?? delivery()?.production_unit?.name }} · {{ load.created_at | date:'dd/MM/yyyy HH:mm':'-0300' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · } </small></dt><dd>{{ load.quantity }} huevos</dd></div>
               }
             </dl></article>
           }
@@ -125,7 +130,7 @@
 </ion-content>
 
 @if (delivery()?.status === 'active') {
-  <nav class="bottom-nav" aria-label="Navegación del reparto" role="tablist">
+  <nav [inert]="dialogOpen()" class="bottom-nav" aria-label="Navegación del reparto" role="tablist">
     <button id="clients-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'clients'" [class.active]="panel() === 'clients'" (click)="selectPanel('clients')"><ion-icon name="people-outline" aria-hidden="true" />Clientes</button>
     <button id="map-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'map'" [class.active]="panel() === 'map'" (click)="selectPanel('map')"><ion-icon name="map-outline" aria-hidden="true" />Mapa</button>
     <button id="summary-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'summary'" [class.active]="panel() === 'summary'" (click)="selectPanel('summary')"><ion-icon name="stats-chart-outline" aria-hidden="true" />Resumen</button>
@@ -134,7 +139,7 @@
 
 @if (startConfirmation()) {
   <div class="sheet-backdrop" (click)="startConfirmation.set(false); startPin.reset()" aria-hidden="true"></div>
-  <section #pinSheet class="client-sheet pin-sheet" role="dialog" aria-modal="true" aria-labelledby="start-pin-title" tabindex="-1" (keydown.escape)="startConfirmation.set(false); startPin.reset()">
+  <section #pinSheet class="client-sheet pin-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="start-pin-title" tabindex="-1" (keydown.escape)="startConfirmation.set(false); startPin.reset()">
     <div class="sheet-handle" aria-hidden="true"></div>
     <h2 id="start-pin-title">Confirmar inicio</h2>
     <p>Vas a iniciar el reparto con {{ formEggs(startForm) }} huevos.</p>
@@ -151,8 +156,9 @@
 
 @if (closeConfirmation()) {
   <div class="sheet-backdrop" (click)="closeConfirmation.set(false); closePin.reset()" aria-hidden="true"></div>
-  <section #pinSheet class="client-sheet pin-sheet pin-dialog" role="dialog" aria-modal="true" aria-labelledby="close-pin-title" tabindex="-1" (keydown.escape)="closeConfirmation.set(false); closePin.reset()">
+  <section #pinSheet class="client-sheet pin-sheet pin-dialog" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="close-pin-title" tabindex="-1" (keydown.escape)="closeConfirmation.set(false); closePin.reset()">
     <h2 id="close-pin-title">¿Finalizar este reparto?</h2>
+    <app-delivery-financial-summary [summary]="delivery()?.financial_summary" />
     <p>Confirmá las presentaciones que descargás y su unidad productiva de destino.</p>
     @if (returnLegacy()) {
       <label for="return-legacy">Huevos a devolver</label><input id="return-legacy" [formControl]="returnLegacyQuantity" inputmode="numeric"><small>Este reparto anterior no permite reconstruir el desglose de presentaciones.</small>
@@ -180,36 +186,51 @@
 
 @if (selectedClient(); as client) {
   <div class="sheet-backdrop" (click)="selectedClient.set(null)" aria-hidden="true"></div>
-  <section #clientSheet class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="client-sheet-title" tabindex="-1" (keydown.escape)="selectedClient.set(null)">
+  <section #clientSheet class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="client-sheet-title" tabindex="-1" (keydown.escape)="selectedClient.set(null)">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-heading"><div><p class="eyebrow">REGISTRAR VISITA</p><h2 id="client-sheet-title">{{ client.name }}</h2><p>{{ client.address }}</p></div><button type="button" class="sheet-close" (click)="selectedClient.set(null)" aria-label="Cerrar cliente">×</button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    @if (client.account; as account) { <p>{{ account.balance.startsWith("-") ? "Saldo a favor" : "Deuda confirmada" }}: <strong>{{ money(account.balance.startsWith("-") ? account.credit : account.debt) }}</strong><small> · {{ account.as_of | date:'dd/MM/yyyy HH:mm':'-0300' }}</small></p> }
+    @if (client.last_delivery; as last) { <p>Última entrega: {{ last.visited_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · {{ last.delivered_quantity }} huevos · {{ money(last.total_amount) }}</p> }
+    @if (client.delivery_notes) { <p class="customer-note">{{ client.delivery_notes }}</p> }
+    @if (client.visit_frequency) { <p>Frecuencia: {{ client.visit_frequency }}</p> }
+    @if (reviewing()) { <p role="status">Revisá y confirmá los datos. Se conservará el evento original y se enviará esta corrección con una nueva clave.</p> }
     <form [formGroup]="stopForm" (ngSubmit)="saveStop()" class="stop-form">
-      <div class="mode-choice" role="group" aria-label="Resultado de la visita"><button type="button" [class.active]="stopMode() === 'delivered'" (click)="stopMode.set('delivered')">Entregado</button><button type="button" [class.active]="stopMode() === 'not_delivered'" (click)="stopMode.set('not_delivered')">No entregado</button></div>
+      <div class="mode-choice" role="group" aria-label="Resultado de la visita"><button type="button" [disabled]="statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false || reviewing()?.kind === 'payment'" [class.active]="stopMode() === 'delivered'" (click)="stopMode.set('delivered')">Entregado</button><button type="button" [disabled]="statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false || reviewing()?.kind === 'payment'" [class.active]="stopMode() === 'not_delivered'" (click)="stopMode.set('not_delivered')">Sin entrega</button><button type="button" [disabled]="reviewing()?.kind === 'stop'" [class.active]="stopMode() === 'payment'" (click)="stopMode.set('payment')">Sólo cobro</button></div>
       @if (stopMode() === 'delivered') {
         <strong>¿Qué presentaciones entregaste?</strong>
-        <div class="delivery-units" role="group" aria-label="Presentaciones entregadas">
+        <div class="delivery-units" (input)="previewRevision.update(incrementPreview)" role="group" aria-label="Presentaciones entregadas">
           @for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) {
             <app-delivery-unit-row [row]="row" [quantity]="quantityControl(row)" [price]="priceControl(row)" [canIncrease]="canIncrementStopUnit(row)" [canDecrease]="selectedUnitAmount(row) > 0" (increase)="adjustStopUnit(row, 1)" (decrease)="adjustStopUnit(row, -1)" (amountChanged)="setStopAmount(row, $event)" />
           } @empty { <small>Primero cargá huevos para poder registrar una entrega.</small> }
         </div>
         @if ((delivery()?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0) { <small class="field-error">Este reparto anterior no tiene saldo por presentación verificable. Para entregar por unidades, iniciá uno nuevo.</small> }
         <strong>Entregás: {{ selectedStopEggs() }} huevos</strong><small>En vehículo: {{ delivery()?.remaining_quantity }} huevos</small>
-      } @else {
+      } @else if (stopMode() === 'not_delivered') {
         <label for="visit-reason">Motivo de no entrega</label><input id="visit-reason" type="text" formControlName="reason" maxlength="240" placeholder="Ej.: negocio cerrado" required>
       }
-      <label for="visit-notes">Nota opcional</label><textarea id="visit-notes" formControlName="notes" maxlength="5000" rows="2" placeholder="Agregá un detalle si hace falta"></textarea>
-      <button type="submit" class="primary-action" [disabled]="busy()">@if (busy()) { <ion-spinner name="crescent" aria-label="Guardando visita" /> } @else { Guardar visita }</button>
+      @if (stopMode() === 'delivered') {
+        <div class="mode-choice" role="group" aria-label="Cobro de la entrega"><button type="button" [class.active]="paymentChoice() === 'fiado'" (click)="paymentChoice.set('fiado')">Fiado · sin cobro</button><button type="button" [class.active]="paymentChoice() === 'payment'" (click)="paymentChoice.set('payment')">Registrar cobro</button></div>
+      }
+      @if (stopMode() === 'payment' || stopMode() === 'delivered' && paymentChoice() === 'payment') {
+        <label for="payment-amount">Importe cobrado (UYU)</label><input id="payment-amount" formControlName="amount" type="text" inputmode="decimal" maxlength="24" placeholder="0,000" required>
+        <label for="payment-method">Medio de cobro</label><select id="payment-method" formControlName="payment_method"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="other">Otro</option></select>
+        <label for="payment-reference">Referencia opcional</label><input id="payment-reference" formControlName="payment_reference" maxlength="240">
+      }
+      @if (preview(); as value) { <div class="account-preview"><p>Mercadería: {{ money(value.charge) }} · Cobro: {{ money(value.paid) }}</p><strong>Saldo previsto: {{ money(value.after) }}</strong><small>Estimación sobre el saldo confirmado. Otros movimientos y los pendientes pueden modificarlo.</small></div> }
+      <label for="visit-notes">Nota opcional</label><textarea id="visit-notes" formControlName="notes" maxlength="2000" rows="2" placeholder="Agregá un detalle si hace falta"></textarea>
+      <button type="submit" class="primary-action" [disabled]="busy()">@if (busy()) { <ion-spinner name="crescent" aria-label="Guardando visita" /> } @else { {{ stopMode() === 'payment' ? 'Guardar cobro' : 'Guardar visita' }} }</button>
     </form>
   </section>
 }
 
 @if (loadOpen()) {
   <div class="sheet-backdrop" (click)="loadOpen.set(false)" aria-hidden="true"></div>
-  <section class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="load-sheet-title" tabindex="-1" (keydown.escape)="loadOpen.set(false)">
+  <section class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="load-sheet-title" tabindex="-1" (keydown.escape)="loadOpen.set(false)">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-heading"><div><p class="eyebrow">DURANTE EL REPARTO</p><h2 id="load-sheet-title">Agregar carga</h2><p>Registrá los huevos que subís ahora al vehículo.</p></div><button type="button" class="sheet-close" (click)="loadOpen.set(false)" aria-label="Cerrar carga">×</button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    @if (reviewing()) { <p>Confirmá los datos corregidos de la carga pendiente.</p> }
     <form [formGroup]="loadForm" (ngSubmit)="addLoad()" class="stock-form">
       <label for="load-up">Unidad productiva de origen</label>
       <select id="load-up" formControlName="production_unit_id" required><option [ngValue]="null">Seleccioná una UP</option>@for (unit of productionUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
@@ -237,7 +258,7 @@
 
 @if (selectedMetric() && delivery()?.status === 'active') {
   <div class="sheet-backdrop" (click)="selectedMetric.set(null)" aria-hidden="true"></div>
-  <section #metricSheet class="client-sheet" role="dialog" aria-modal="true" aria-labelledby="metric-sheet-title" tabindex="-1" (keydown.escape)="selectedMetric.set(null)">
+  <section #metricSheet class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="metric-sheet-title" tabindex="-1" (keydown.escape)="selectedMetric.set(null)">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-heading"><div><p class="eyebrow">DETALLE DEL REPARTO</p><h2 id="metric-sheet-title">{{ metricTitle() }}</h2></div><button type="button" class="sheet-close" (click)="selectedMetric.set(null)" aria-label="Cerrar detalle">×</button></div>
     <strong class="metric-total">{{ metricEggs() }} huevos</strong>
