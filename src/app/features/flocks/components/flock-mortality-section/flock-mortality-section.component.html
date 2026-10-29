@@ -1,14 +1,14 @@
 <section class="mortality-card" aria-labelledby="mortality-section-title" [hidden]="registrationOnly()">
   <header class="heading">
-    <div><h2 id="mortality-section-title">Mortalidad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
-    <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortalidad</button>
+    <div><h2 id="mortality-section-title">Mortandad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
+    <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortandad</button>
   </header>
 
   @if (state() === 'loading') {
-    <div class="page-state" role="status"><ion-spinner name="crescent" /> Cargando mortalidad…</div>
+    <div class="page-state" role="status"><ion-spinner name="crescent" /> Cargando mortandad…</div>
   } @else if (state() !== 'ready') {
     <div class="page-state" role="alert">
-      <p>{{ state() === 'forbidden' ? 'No tenés permiso para consultar la mortalidad.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : 'No se pudo cargar la mortalidad.' }}</p>
+      <p>{{ state() === 'forbidden' ? 'No tenés permiso para consultar la mortandad.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : 'No se pudo cargar la mortandad.' }}</p>
       <button type="button" (click)="retry.emit()">Reintentar</button>
     </div>
   } @else {
@@ -47,7 +47,7 @@
         </div>
       </section>
       <section class="history" aria-labelledby="mortality-history-title">
-        <h3 id="mortality-history-title">Registros de mortalidad</h3>
+        <h3 id="mortality-history-title">Registros de mortandad</h3>
         <p>Registros del período mostrado. Las filas resaltadas corresponden al punto seleccionado.</p>
         <table>
           <thead><tr><th scope="col">Fecha de muerte</th><th scope="col">Cantidad</th><th scope="col">Motivo</th><th scope="col">Acción</th></tr></thead>
@@ -67,8 +67,8 @@
 </section>
 
 <dialog #registrationDialog class="registration-dialog" aria-labelledby="mortality-form-title" (cancel)="onDialogCancel($event)">
-  <header class="dialog-heading"><div><h2 id="mortality-form-title">Registrar mortalidad</h2><p>Registrá cuándo murieron, cuántas y por qué.</p></div>
-    <button type="button" class="icon-button" aria-label="Cerrar registro de mortalidad" [disabled]="saving()" (click)="closeForm()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+  <header class="dialog-heading"><div><h2 id="mortality-form-title">Registrar mortandad</h2><p>Registrá cuándo murieron, cuántas y por qué.</p></div>
+    <button type="button" class="icon-button" aria-label="Cerrar registro de mortandad" [disabled]="saving()" (click)="closeForm()"><ion-icon name="close-outline" aria-hidden="true" /></button>
   </header>
   <div class="lot-context"><strong>Lote {{ flock().code }}</strong><span>{{ houseName() ?? 'Galpón no disponible' }}@if (unitName()) { · {{ unitName() }} }</span></div>
   <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
@@ -100,7 +100,7 @@
 </dialog>
 
 <dialog #cancellationDialog class="registration-dialog confirmation-dialog cancellation-dialog" aria-labelledby="mortality-cancellation-title" (cancel)="onCancellationCancel($event)">
-  <h2 id="mortality-cancellation-title">Deshacer registro de mortalidad</h2>
+  <h2 id="mortality-cancellation-title">Deshacer registro de mortandad</h2>
   @if (cancellationDetails(); as record) {
     <p class="cancellation-context">Lote {{ flock().code }}</p>
     <dl class="cancellation-record">

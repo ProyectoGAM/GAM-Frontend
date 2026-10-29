@@ -22,8 +22,8 @@ export class FlockCardComponent {
   readonly showTasks = input(false);
   readonly taskRequested = output<FlockHouseTaskAction>();
   readonly tasks = [
-    { path: 'pesajes', label: 'Registrar pesaje', description: 'Individual o grupal', icon: 'scale-outline' },
-    { path: 'mortalidad', kind: 'mortality' as const, label: 'Registrar mortalidad', description: 'Fecha, cantidad y motivo', icon: 'clipboard-outline' },
+    { path: 'pesajes', label: 'Registrar postura', description: 'Individual o grupal', icon: 'scale-outline' },
+    { path: 'mortalidad', kind: 'mortality' as const, label: 'Registrar mortandad', description: 'Fecha, cantidad y motivo', icon: 'clipboard-outline' },
     { path: 'alimentacion', kind: 'feeding' as const, label: 'Cambiar ración', description: 'Ración y cantidad diaria', icon: 'leaf-outline' },
   ];
   readonly taskQueryParams = computed(() => ({ ...this.originQueryParams(), task: 'entry' }));

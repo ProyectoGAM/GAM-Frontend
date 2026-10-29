@@ -49,15 +49,15 @@ describe('daily weighing growth', () => {
   it('shows an empty period, then a single-date notice and its real latest average', () => {
     const fixture = TestBed.createComponent(WeighingGrowthChartComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Sin registros de pesaje en este período');
+    expect(fixture.nativeElement.textContent).toContain('Sin registros de postura en este período');
     fixture.componentRef.setInput('days', [day]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Hay un solo pesaje diario');
+    expect(fixture.nativeElement.textContent).toContain('Hay una sola postura diaria');
     expect(fixture.nativeElement.querySelector('.latest').textContent).toContain('97,5 g/ave');
     expect(fixture.nativeElement.querySelector('.latest').textContent).toContain('12 aves');
     fixture.componentRef.setInput('days', [day, { ...day, id: 'newer', date: '2026-10-10', average_weight_g: '130' }]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Hay un solo pesaje diario');
+    expect(fixture.nativeElement.textContent).not.toContain('Hay una sola postura diaria');
     expect(fixture.nativeElement.querySelector('.latest.anomalous').textContent).toContain('130 g/ave');
     expect(fixture.nativeElement.querySelector('.latest.anomalous').textContent).toContain('Fuera del rango esperado');
   });

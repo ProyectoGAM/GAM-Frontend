@@ -68,7 +68,7 @@ describe('FlockHouseTaskDialogComponent', () => {
     fixture.detectChanges(); section.closeForm(); fixture.componentInstance.close();
     expect(closed).not.toHaveBeenCalled(); expect(section.saving()).toBe(true);
     pending.next({}); fixture.detectChanges(); await fixture.whenStable();
-    expect(closed).toHaveBeenCalledExactlyOnceWith('Mortalidad registrada.');
+    expect(closed).toHaveBeenCalledExactlyOnceWith('Mortandad registrada.');
     expect(TestBed.inject(Router).url).toBe('/'); fixture.destroy();
   });
 

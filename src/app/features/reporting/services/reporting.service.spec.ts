@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { FileDownloadService } from '../../../core/native/file-download.service';
+import { reportSourceFixture } from '../testing/report-source.fixture';
 import { ReportingService } from './reporting.service';
 
 describe('Reporting service', () => {
@@ -19,6 +20,15 @@ describe('Reporting service', () => {
     api.requestExport('lots.egg-production', { page: 4, filters: [] }, 'xlsx', 'stable-key').subscribe();
     const request = http.expectOne('/api/v1/reportes/lots.egg-production/exportaciones');
     expect(request.request.headers.get('Idempotency-Key')).toBe('stable-key'); expect(request.request.body.page).toBe(1); expect(request.request.body.format).toBe('xlsx'); request.flush({ data: {} });
+  });
+  it('presents weight reports as posturas while preserving their query contract', () => {
+    const source = { ...reportSourceFixture(), key: 'lots.weighing-measurements', label: 'Pesajes', description: 'Historial de pesajes' };
+    const other = reportSourceFixture();
+    api.sources().subscribe((response) => {
+      expect(response.data[0]).toEqual({ ...source, label: 'Posturas', description: 'Consulta las posturas y el peso promedio de las aves.' });
+      expect(response.data[1]).toEqual(other);
+    });
+    http.expectOne('/api/v1/reportes/fuentes').flush({ data: [source, other] });
   });
   it('stops polling after the completed response', async () => {
     vi.useFakeTimers(); const updates: string[] = [];

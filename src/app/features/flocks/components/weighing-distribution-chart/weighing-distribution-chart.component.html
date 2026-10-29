@@ -1,5 +1,5 @@
 @if (!distribution().available) {
-  <div class="chart-empty" role="status">La distribución requiere pesajes individuales.</div>
+  <div class="chart-empty" role="status">La distribución requiere posturas individuales.</div>
 } @else {
   <div class="chart-range">
     @if (weighing()?.expected_range; as range) {
@@ -14,7 +14,7 @@
   }
 }
 <div #chartHost class="chart-wrap" [hidden]="!histogram()"
-  role="img" [attr.aria-label]="distribution().available ? 'Histograma de ' + distribution().n + ' aves de la muestra individual. Media ' + formatGrams(distribution().mean!) + ' gramos.' : 'Sin pesajes individuales válidos'"></div>
+  role="img" [attr.aria-label]="distribution().available ? 'Histograma de ' + distribution().n + ' aves de la muestra individual. Media ' + formatGrams(distribution().mean!) + ' gramos.' : 'Sin posturas individuales válidas'"></div>
 @if (histogram()) {
   <div class="chart-legend">
     <span><i class="legend-bar" aria-hidden="true"></i> Aves observadas</span>

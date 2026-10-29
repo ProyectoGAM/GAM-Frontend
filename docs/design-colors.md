@@ -44,6 +44,7 @@ El panel administrativo actual usa un lienzo claro (`#eef2f6`), barra superior c
 | `--gam-color-warning` | Texto/icono de advertencia | `#8a5a00` | `#f4cc7a` |
 | `--gam-color-warning-soft` | Fondo de advertencia | `#fff2d6` | `#44351d` |
 | `--gam-color-danger` | Texto/icono de error o acción destructiva | `#a93239` | `#ffb3b8` |
+| `--gam-color-on-danger` | Texto/iconos sobre botón destructivo con fondo `danger` | `#ffffff` | `#3a1116` |
 | `--gam-color-danger-soft` | Fondo de error | `#fdebed` | `#4c2930` |
 
 ## Reglas para toda interfaz futura
@@ -75,6 +76,10 @@ ion-button.primary-action {
 El acceso secundario usa `secondary` con `on-secondary`: contraste de 7.00:1 en claro y 9.35:1 en oscuro. Permite distinguir accesos por función sin usar los colores de estado como decoración.
 
 Los pares base se revisaron con WCAG: texto principal sobre superficie supera 10:1 en ambos temas; texto secundario sobre `canvas` supera 4.5:1; acción principal con su texto supera 9:1. Los pares de mensajes de éxito, advertencia y error superan 5:1. El borde de control supera 3:1 frente a las superficies de ambos temas. Cualquier nuevo par debe verificarse antes de incorporarlo.
+
+El botón de finalización usa `danger` con `on-danger`: contraste de 6.56:1 en
+claro y 9.74:1 en oscuro. La advertencia usa `danger` sobre `danger-soft` y
+acompaña el color con un candado y texto sobre las consecuencias del cierre.
 
 El selector de alimentación usa roles propios para sus modos: automático celeste
 y manual amarillo tenue, sin comunicar éxito ni advertencia. Automático aparece
