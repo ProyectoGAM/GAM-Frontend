@@ -24,6 +24,37 @@ Policy:
 - track upstream fixes
 - keep `npm audit --omit=dev` clean
 
+## Corrección de Zod — 26 de octubre de 2026
+
+El aviso [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)
+afecta a Zod anterior a 4.6.6. El proyecto resolvía 4.6.5 tanto para
+`@angular/forms` como para Angular CLI, que exigía esa versión exacta. Por eso
+actualizar únicamente la dependencia transitiva no resolvía el problema.
+
+Se ejecutó dentro de Docker el actualizador oficial:
+
+```bash
+docker compose -f compose.dev.yaml exec -T frontend npx ng update @angular/cli@22.2.4
+```
+
+La actualización deja CLI, builder y DevKit en 22.2.4, y alinea los paquetes del
+framework, compilador y servicio de lenguaje en 22.2.3. El lockfile contiene una
+sola versión de Zod, 4.6.6, compartida por Forms, CLI y sus dependencias MCP.
+No se agregaron overrides ni dependencias directas de Zod. No cambiaron plugins
+ni configuración nativa de Capacitor.
+
+`npm audit --omit=dev` vuelve a dar **0 vulnerabilidades**. La auditoría completa
+conserva nueve entradas de herramientas de desarrollo: `@angular/build`, Vite,
+`source-map-js`, Vitest, `@vitest/mocker`, `fast-uri` y la cadena de Capacitor
+CLI → xcode → uuid. Dos entradas son altas (`vite` y `source-map-js`); no se
+declara limpia la auditoría completa ni se aplican downgrades o cambios ajenos
+a esta corrección. Zod y las dependencias MCP actualizadas ya no figuran como
+vulnerables.
+
+Validación dentro de Docker: lint aprobado, 808 pruebas en 110 archivos aprobadas
+y build de producción aprobado. La modificación conserva la arquitectura y los
+flujos de la aplicación; no requiere sincronización de plugins nativos.
+
 ## Secrets
 
 Never commit:

@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { concatMap, forkJoin, from, map, Observable, of, switchMap, toArray } from 'rxjs';
+import { catchError, concatMap, forkJoin, from, map, mergeMap, Observable, of, scan, startWith, switchMap, toArray } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
-import { EggHistorySummary, EggMetrics, FlockLatestWeighing } from '../interfaces/flock-detail.interface';
+import { DetailMetric, EggHistorySummary, EggMetrics, FlockLatestWeighing } from '../interfaces/flock-detail.interface';
 import { DailyWeighingPage } from '../interfaces/flock-weighing.interface';
 import { Flock } from '../interfaces/flock.interface';
 
@@ -65,6 +65,18 @@ export class FlockDetailService {
         );
       }),
       map((records) => records.reduce((total, record) => total + record.quantity, 0)),
+    );
+  }
+
+  /** Publish each result independently; a missing permission never turns into zero deaths. */
+  mortalityTotals(ids: readonly string[]): Observable<ReadonlyMap<string, DetailMetric<number>>> {
+    return from([...new Set(ids)]).pipe(
+      mergeMap((id) => this.mortalityTotal(id).pipe(
+        map((value): readonly [string, DetailMetric<number>] => [id, { state: 'ready', value }]),
+        catchError(() => of<readonly [string, DetailMetric<number>]>([id, { state: 'unavailable', value: null }])),
+      ), 4),
+      scan((totals, [id, metric]) => new Map(totals).set(id, metric), new Map<string, DetailMetric<number>>()),
+      startWith(new Map<string, DetailMetric<number>>()),
     );
   }
 

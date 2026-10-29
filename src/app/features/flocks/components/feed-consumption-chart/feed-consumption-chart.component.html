@@ -1,0 +1,11 @@
+<div #chartHost class="chart" role="img" [attr.aria-label]="description()"></div>
+<details>
+  <summary>Ver cantidades por fecha</summary>
+  <table>
+    <caption>Consumo diario de {{ recipeName() }}</caption>
+    <thead><tr><th scope="col">Fecha</th><th scope="col">Cantidad (kg)</th></tr></thead>
+    <tbody>@for (point of accessibleRows(); track point.date) {
+      <tr><td>{{ point.dateText }}</td><td>{{ point.quantityText }}</td></tr>
+    }</tbody>
+  </table>
+</details>

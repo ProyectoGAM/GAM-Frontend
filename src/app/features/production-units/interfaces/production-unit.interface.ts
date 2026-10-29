@@ -66,6 +66,8 @@ export interface HouseFlock {
   poultry_house_id: number;
   current_quantity: number;
   current_week: number;
+  entry_date: string;
+  is_grouped: boolean;
   status: 'active' | 'quarantined' | 'finished';
 }
 

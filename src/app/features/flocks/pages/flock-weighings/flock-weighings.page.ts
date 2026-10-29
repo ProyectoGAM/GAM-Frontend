@@ -17,6 +17,7 @@ import {
 } from '../../interfaces/flock-weighing.interface';
 import { dateBefore, FlockDetailService } from '../../services/flock-detail.service';
 import { FlockWeighingsService } from '../../services/flock-weighings.service';
+import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
 
 type LoadState = 'loading' | 'ready' | 'forbidden' | 'offline' | 'error';
 type Tab = 'summary' | 'entry';
@@ -62,8 +63,11 @@ const problemCode = (error: unknown): string | null => {
   templateUrl: './flock-weighings.page.html',
   styleUrl: './flock-weighings.page.scss',
   imports: [RouterLink, ReactiveFormsModule, IonIcon, IonSpinner, WeighingDistributionChartComponent, WeighingGrowthChartComponent],
+  providers: [FlockHouseTaskContext],
 })
 export class FlockWeighingsPage {
+  readonly houseTask = inject(FlockHouseTaskContext);
+  readonly houseMismatch = computed(() => !this.houseTask.matches(this.flock()));
   readonly formatTime = formatTime;
   readonly formatGrams = formatGrams;
   private readonly route = inject(ActivatedRoute);
@@ -125,7 +129,7 @@ export class FlockWeighingsPage {
   readonly groupTotal = new FormControl('', { nonNullable: true });
   readonly deleteReason = new FormControl('', { nonNullable: true });
 
-  readonly backLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
+  readonly backLink = computed(() => this.houseTask.backLink() ?? `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly selected = computed(() => this.days().find((day) => day.id === this.selectedId()) ?? null);
   readonly rangeBreedId = computed(() => this.selectedDetail()?.expected_range?.breed_id
     ?? this.selected()?.expected_range?.breed_id ?? this.flock()?.breed_id ?? null);
@@ -180,6 +184,7 @@ export class FlockWeighingsPage {
     addIcons({ arrowBackOutline, createOutline, scaleOutline, warningOutline });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.flockId.set(params.get('id') ?? '');
+      this.tab.set(this.houseTask.isTask() ? 'entry' : 'summary');
       this.load();
     });
   }
@@ -240,7 +245,7 @@ export class FlockWeighingsPage {
         if (version !== this.loadVersion) return;
         this.flock.set(flock);
         this.flockState.set('ready');
-        this.loadHistory();
+        if (!this.houseTask.isTask()) this.loadHistory();
         this.loadToday();
       },
       error: (error: unknown) => { if (version === this.loadVersion) this.flockState.set(this.errorState(error)); },
@@ -338,7 +343,7 @@ export class FlockWeighingsPage {
   }
 
   submitEntry(): void {
-    if (this.savingEntry() || this.todayState() !== 'ready') return;
+    if (this.savingEntry() || this.todayState() !== 'ready' || this.houseMismatch() || this.flock()?.status === 'finished') return;
     this.entryError.set(null);
     this.entrySuccess.set(null);
     const payload = this.entryMode() === 'individual' ? this.individualPayload() : this.groupPayload();
@@ -387,7 +392,7 @@ export class FlockWeighingsPage {
         else { this.groupCount.reset(); this.groupTotal.reset(); }
         this.entrySuccess.set('Ingreso registrado. La muestra y el historial fueron actualizados.');
         this.loadToday();
-        this.loadHistory();
+        if (!this.houseTask.isTask()) this.loadHistory();
       },
       error: (error: unknown) => {
         this.savingEntry.set(false);
@@ -398,9 +403,9 @@ export class FlockWeighingsPage {
         } else if (code === 'DAILY_WEIGHING_POPULATION_EXCEEDED') {
           this.entryError.set('La muestra superaría la cantidad de aves vivas del lote.');
         } else if (code === 'DAILY_WEIGHING_FLOCK_LIFECYCLE_CONFLICT') {
-          this.entryError.set('Este lote ya no admite nuevos pesajes.');
+          this.entryError.set('Este lote ya no admite nuevas posturas.');
         } else if (error instanceof HttpErrorResponse && error.status === 403) {
-          this.entryError.set('No tenés permiso para registrar pesajes.');
+          this.entryError.set('No tenés permiso para registrar posturas.');
         } else if (error instanceof HttpErrorResponse && error.status === 0) {
           this.entryError.set('Sin conexión. Podés reintentar el mismo ingreso.');
         } else {

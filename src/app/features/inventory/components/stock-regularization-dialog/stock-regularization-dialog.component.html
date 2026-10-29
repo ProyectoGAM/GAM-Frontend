@@ -1,0 +1,28 @@
+<dialog #dialog aria-labelledby="regularization-title" (cancel)="cancel($event)">
+  <div class="dialog-content">
+    <header><h2 #heading id="regularization-title" tabindex="-1">{{ step() === 'form' ? 'Regularizar saldo incompatible' : 'Confirmar regularización' }}</h2><button type="button" class="close" aria-label="Cerrar" [disabled]="locked()" (click)="cancel()">×</button></header>
+    @if (balance(); as item) {
+      <dl><div><dt>Producto</dt><dd>{{ item.product.name }}</dd></div><div><dt>Origen</dt><dd>{{ item.stock_location.name }}</dd></div><div><dt>Saldo actual</dt><dd>{{ available() }}</dd></div></dl>
+      @if (step() === 'form') {
+        <form [formGroup]="form" (ngSubmit)="review()">
+          <label for="regularization-mode">Acción</label><select id="regularization-mode" formControlName="mode"><option value="trasladar" [disabled]="!canTransfer()">Trasladar stock</option><option value="recontar">Cerrar saldo a cero</option></select>
+          @if (mode() === 'trasladar') {
+            <label for="regularization-destination">Ubicación de destino</label><app-searchable-select inputId="regularization-destination" formControlName="destination" [options]="destinationOptions()" [loading]="loading()" [showIcons]="true" placeholder="Selecciona un destino compatible" />
+            @if (locationError(); as message) { <p class="error" role="alert">{{ message }}</p><button type="button" (click)="loadDestinations()">Reintentar destinos</button> }
+            @if (destinationState() === 'loading') { <p role="status">Verificando producto en el destino…</p> }
+            @if (destinationState() === 'error') { <p class="error" role="alert">No se pudo verificar que el destino admita este producto.</p><button type="button" (click)="checkDestination()">Reintentar verificación</button> }
+            <label for="regularization-quantity">Cantidad a trasladar</label><input id="regularization-quantity" formControlName="quantity" [attr.inputmode]="discrete() ? 'numeric' : 'decimal'" maxlength="19">
+          } @else { <p class="warning">Usa esta acción sólo si un recuento confirma que el saldo debe quedar en cero. No sustituye un traslado físico.</p> }
+          <label for="regularization-reason">Motivo de la regularización</label><textarea id="regularization-reason" formControlName="reason" rows="3" maxlength="255" required></textarea>
+          @if (error(); as message) { <p class="error" role="alert">{{ message }}</p> }
+          <footer><button type="button" (click)="cancel()">Cancelar</button><button class="primary" type="submit">Revisar regularización</button></footer>
+        </form>
+      } @else {
+        <p class="warning">{{ reviewSummary() }}</p><p><strong>Motivo:</strong> {{ form.controls.reason.value }}</p><p>La operación conservará el historial y no admite reversión genérica.</p>
+        @if (error(); as message) { <p class="error" role="alert">{{ message }}</p> }
+        @if (uncertain()) { <p role="status">No se pudo confirmar el resultado. Reintenta con la misma operación para evitar duplicados.</p> }
+        <footer><button type="button" [disabled]="locked()" (click)="edit()">Volver a editar</button><button class="primary" type="button" [disabled]="saving()" (click)="confirm()">{{ saving() ? 'Confirmando…' : uncertain() ? 'Reintentar confirmación' : 'Confirmar regularización' }}</button></footer>
+      }
+    }
+  </div>
+</dialog>

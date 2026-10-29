@@ -1,4 +1,5 @@
-<div class="searchable-select">
+<div class="searchable-select" [class.with-icons]="showIcons()" [class.with-description]="!isOpen() && selectedOption()?.description">
+  @if (showIcons()) { <ion-icon class="search-icon" name="search-outline" aria-hidden="true" /><ion-icon class="chevron-icon" name="chevron-down-outline" aria-hidden="true" /> }
   <input
     #searchInput
     [id]="inputId()"
@@ -10,7 +11,7 @@
     [attr.aria-controls]="isOpen() && !loading() && filteredOptions().length ? listboxId() : null"
     [attr.aria-activedescendant]="activeOptionId()"
     [attr.aria-invalid]="invalid() ? 'true' : null"
-    [attr.aria-describedby]="describedBy()"
+    [attr.aria-describedby]="accessibleDescription()"
     [attr.aria-required]="required() ? 'true' : null"
     [attr.aria-busy]="loading() ? 'true' : null"
     [required]="required()"
@@ -24,6 +25,7 @@
     (input)="onInput($any($event.target).value)"
     (keydown)="onKeydown($event)"
   >
+  @if (!isOpen() && selectedOption()?.description) { <small class="selected-description" [id]="inputId() + '-description'">{{ selectedOption()?.description }}</small> }
 
   @if (loading() && loadingMessage()) {
     <p class="loading-message" role="status" aria-live="polite">{{ loadingMessage() }}</p>
@@ -54,7 +56,7 @@
               [class.active]="activeIndex() === index"
               (mousedown)="$event.preventDefault()"
               (click)="select(option)"
-            >{{ option.label }}</div>
+            ><span>{{ option.label }}@if (option.description) { <small class="option-description">{{ option.description }}</small> }</span></div>
           }
         </div>
         }

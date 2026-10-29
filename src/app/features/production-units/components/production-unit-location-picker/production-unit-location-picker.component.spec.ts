@@ -22,7 +22,7 @@ const mapboxState = vi.hoisted(() => ({
   mapFlyTo: vi.fn(),
 }));
 
-vi.mock('mapbox-gl', () => {
+vi.mock('mapbox-gl/esm', () => {
   class MockMap {
     constructor(options: unknown) { mapboxState.mapOptions = options; }
     on(event: string, listener: (event?: unknown) => void): this { mapboxState.mapListeners.set(event, listener); return this; }

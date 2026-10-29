@@ -37,3 +37,15 @@ describe('inventory formatting', () => {
     expect(decimalCompare('-1.5', '0')).toBe(-1);
   });
 });
+import { formatStockQuantity } from './inventory-format';
+
+describe('stock presentation units', () => {
+  it('converts grams exactly while retaining fractional and large decimal precision', () => {
+    expect(formatStockQuantity('1230000.000000', 'g')).toBe('1.230 kg');
+    expect(formatStockQuantity('1234.567891', 'g')).toBe('1,234567891 kg');
+    expect(formatStockQuantity('999.999999', 'g')).toBe('999,999999 g');
+    expect(formatStockQuantity('-1230000', 'g')).toBe('-1.230 kg');
+    expect(formatStockQuantity('9007199254740993123456.123456', 'g')).toBe('9.007.199.254.740.993.123,456123456 kg');
+    expect(formatStockQuantity('85.5', 'l')).toBe('85,5 L');
+  });
+});

@@ -2,6 +2,27 @@
 
 ## Baseline validation
 
+### Dependencias: exclusivamente dentro de Docker
+
+Toda instalación, actualización, eliminación, resolución y auditoría de dependencias
+debe ejecutarse dentro de Docker. No ejecutar `npm install`, `npm ci`, `npm update`,
+`npm uninstall`, `npm audit` ni `npx` en el host. Usar el servicio `frontend` de
+`compose.dev.yaml`; `package.json` y `package-lock.json` se actualizan mediante el
+bind mount y `node_modules` permanece en su volumen Docker.
+
+```bash
+docker compose -f compose.dev.yaml exec -T frontend npm ci
+docker compose -f compose.dev.yaml exec -T frontend npm install <paquete>
+docker compose -f compose.dev.yaml exec -T frontend npm audit --omit=dev
+docker compose -f compose.dev.yaml exec -T frontend npm run lint
+docker compose -f compose.dev.yaml exec -T frontend npm run test:ci
+docker compose -f compose.dev.yaml exec -T frontend npm run build
+```
+
+Los comandos npm/npx del resto de la documentación se entienden ejecutados dentro
+del contenedor, también para Angular y Capacitor. La construcción de las etapas
+`dependencies` y `verification` del Dockerfile también cumple esta regla.
+
 Before feature work begins:
 
 ```bash
@@ -97,6 +118,10 @@ Do not:
 - duplicate API base URL handling
 
 ## Before finishing
+
+Los presupuestos de compilación y los entry points ESM de los mapas se explican en
+[Advertencias de compilación y presupuestos](build-budgets.md). El límite por
+componente permanece en 12 KB y el CSS global tiene presupuesto propio.
 
 Run:
 

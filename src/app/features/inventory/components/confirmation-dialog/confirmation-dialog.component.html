@@ -5,7 +5,7 @@
     <ng-content />
     @if (errorMessage) { <p class="error" role="alert">{{ errorMessage }}</p> }
     <div class="actions">
-      <button #cancelButton class="button secondary" type="button" [disabled]="busy" (click)="dismiss()">Cancelar</button>
+      <button #cancelButton class="button secondary" type="button" [disabled]="busy" (click)="dismiss()">{{ cancelLabel }}</button>
       <button class="button danger" type="button" [disabled]="busy" (click)="confirmed.emit()">{{ busy ? 'Procesando…' : confirmLabel }}</button>
     </div>
   </div>

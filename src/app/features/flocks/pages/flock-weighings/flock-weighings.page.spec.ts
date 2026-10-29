@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { NEVER, of, Subject, throwError } from 'rxjs';
 
 import { BreedWeighingSettings, DailyWeighingDetail, DailyWeighingEntry } from '../../interfaces/flock-weighing.interface';
@@ -41,7 +41,7 @@ describe('flock weighing summary', () => {
     imports: [FlockWeighingsPage],
     providers: [
       provideRouter([]),
-      { provide: ActivatedRoute, useValue: { paramMap: NEVER } },
+      { provide: ActivatedRoute, useValue: { paramMap: NEVER, queryParamMap: of(convertToParamMap({})) } },
       { provide: FlockDetailService, useValue: {} },
       { provide: FlockWeighingsService, useValue: { addDailyEntry: addEntry, breedSettings, saveBreedSettings, dailyEvolution } },
     ],

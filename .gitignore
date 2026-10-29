@@ -12,6 +12,17 @@ $RECYCLE.BIN/
 *.log
 log.txt
 
+# Local environment files (keep sample configuration versioned)
+/.env
+/.env.*
+!/.env.example
+
+# Local native signing credentials
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
 
 /.sourcemaps
 /.versions
@@ -64,6 +75,8 @@ yarn-error.log
 /libpeerconnection.log
 testem.log
 /typings
+/playwright-report
+/test-results
 
 # System files
 .DS_Store

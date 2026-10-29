@@ -15,6 +15,7 @@ export interface ActivityDraft {
   condition: string;
   notes: string;
   catalogRef: string;
+  gramsPerBird: string;
 }
 
 export interface TemplateDraft {
@@ -28,7 +29,7 @@ export type EditorErrors = Record<string, string>;
 export function emptyActivity(clientId: number): ActivityDraft {
   return {
     clientId, type: '', title: '', timingKind: '', startDay: '', endDay: '', startWeek: '', endWeek: '',
-    intervalDays: '', recurrenceEnd: 'day', conditional: false, condition: '', notes: '', catalogRef: '',
+    intervalDays: '', recurrenceEnd: 'day', conditional: false, condition: '', notes: '', catalogRef: '', gramsPerBird: '',
   };
 }
 
@@ -37,7 +38,9 @@ export function draftFromTemplate(template: PlanTemplate): TemplateDraft {
     name: template.name,
     description: template.description ?? '',
     activities: template.activities.map((activity, index) => {
-      const reference = activity.catalog_snapshot?.['id'];
+      const reference = activity.type === 'ration_change'
+        ? activity.feed_recipe_id ?? (activity.catalog_type === 'feed_recipe' ? activity.catalog_snapshot?.['id'] : undefined)
+        : activity.catalog_snapshot?.['id'];
       return {
         clientId: index + 1,
         type: activity.type as PlanActivityType,
@@ -49,10 +52,11 @@ export function draftFromTemplate(template: PlanTemplate): TemplateDraft {
         endWeek: activity.end_week?.toString() ?? '',
         intervalDays: activity.interval_days?.toString() ?? '',
         recurrenceEnd: activity.end_week === null ? 'day' : 'week',
-        conditional: activity.conditional,
-        condition: activity.condition ?? '',
+        conditional: activity.type === 'ration_change' ? false : activity.conditional,
+        condition: activity.type === 'ration_change' ? '' : activity.condition ?? '',
         notes: activity.notes ?? '',
         catalogRef: typeof reference === 'string' || typeof reference === 'number' ? String(reference) : '',
+        gramsPerBird: activity.grams_per_bird?.toString() ?? '',
       };
     }),
   };
@@ -98,8 +102,8 @@ export function validateTemplateDraft(draft: TemplateDraft): EditorErrors {
     if (!title) errors[field('title')] = 'Ingresá un título.';
     else if (title.length > 200) errors[field('title')] = 'El título no puede superar 200 caracteres.';
     if (!activity.timingKind) errors[field('timing_kind')] = 'Seleccioná el momento previsto.';
-    if (activity.type === 'ration_change' && activity.timingKind && !['week', 'week_range'].includes(activity.timingKind)) {
-      errors[field('timing_kind')] = 'El cambio de ración requiere una semana o un tramo de semanas.';
+    if (activity.type === 'ration_change' && activity.timingKind && !['day', 'week', 'week_range'].includes(activity.timingKind)) {
+      errors[field('timing_kind')] = 'La ración requiere un día, una semana o un tramo de semanas.';
     }
 
     const day = activity.startDay ? positiveInteger(activity.startDay, 100000) : null;
@@ -127,8 +131,10 @@ export function validateTemplateDraft(draft: TemplateDraft): EditorErrors {
     if (activity.conditional && !activity.condition.trim()) errors[field('condition')] = 'Describí la condición de esta actividad.';
     else if (activity.condition.trim().length > 1000) errors[field('condition')] = 'La condición no puede superar 1000 caracteres.';
     if (activity.notes.trim().length > 5000) errors[field('notes')] = 'Las notas no pueden superar 5000 caracteres.';
-    if (activity.catalogRef && activity.type === 'ration_change' && positiveInteger(activity.catalogRef, Number.MAX_SAFE_INTEGER) === null) {
-      errors[field('catalog_ref')] = 'Seleccioná un producto válido.';
+    if (activity.type === 'ration_change') {
+      if (positiveInteger(activity.catalogRef, Number.MAX_SAFE_INTEGER) === null) errors[field('catalog_ref')] = 'Seleccioná una receta de ración activa.';
+      if (positiveInteger(activity.gramsPerBird, 999999999999) === null) errors[field('grams_per_bird')] = 'Ingresá gramos enteros por ave entre 1 y 999999999999.';
+      if (activity.conditional) errors[field('conditional')] = 'La ración no puede ser condicional.';
     }
   });
   return errors;
@@ -151,6 +157,7 @@ export function createTemplateRequest(draft: TemplateDraft): CreatePlanTemplateR
       condition: activity.conditional ? activity.condition.trim() : null,
       notes: activity.notes.trim() || null,
       catalog_ref: activity.catalogRef ? (activity.type === 'ration_change' ? Number(activity.catalogRef) : activity.catalogRef) : null,
+      ...(activity.type === 'ration_change' ? { grams_per_bird: Number(activity.gramsPerBird) } : {}),
     })),
   };
 }

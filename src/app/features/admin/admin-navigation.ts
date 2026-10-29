@@ -1,4 +1,4 @@
-import { canAccessGroup, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
+import { canAccessGroup, hasFeedRecipesPermission, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
 import { AuthUser } from '../../core/auth/auth.types';
 
 export interface AdminNavigationGroup {
@@ -43,9 +43,9 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
       { label: 'Existencias', slug: 'existencias' },
       { label: 'Presentaciones y precios', slug: 'presentaciones-huevos' },
       { label: 'Ubicaciones de stock', slug: 'existencias/ubicaciones' },
-      { label: 'Movimientos', slug: 'movimientos' },
       { label: 'Donaciones', slug: 'donaciones' },
-      { label: 'Ajustes y pérdidas', slug: 'ajustes-y-perdidas' },
+      { label: 'Movimientos', slug: 'movimientos' },
+      { label: 'Registrar movimiento', slug: 'ajustes-y-perdidas' },
     ],
   },
   {
@@ -61,8 +61,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     icon: 'people-outline',
     section: 'global',
     items: [
-      { label: 'Usuarios', slug: 'usuarios' },
-      { label: 'Nuevo usuario', slug: 'nuevo-usuario' },
+      { label: 'Usuarios', slug: '' },
     ],
   },
   {
@@ -82,8 +81,6 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     section: 'global',
     items: [
       { label: 'Proveedores', slug: 'proveedores' },
-      { label: 'Productos', slug: 'productos' },
-      { label: 'Nuevo producto', slug: 'productos/nuevo' },
     ],
   },
   {
@@ -146,7 +143,8 @@ export function visibleAdminNavigation(user: (Pick<AuthUser, 'roles'> & Partial<
     if (group.id !== 'manejo-lotes') return group;
     const isAdmin = user?.roles.some((role) => role.trim().toLowerCase() === 'admin');
     const hasPlans = hasManagementPlansPermission(user, 'view');
-    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : isAdmin) };
+    const hasRecipes = hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage');
+    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : item.slug === 'Recetas' ? isAdmin || hasRecipes : isAdmin) };
   });
 }
 
@@ -157,8 +155,14 @@ export function firstVisibleAdminPath(user: (Pick<AuthUser, 'roles'> & Partial<P
 }
 
 export function activeAdminGroup(path: string): AdminGroup | null {
-  const groupId = path.split('?')[0]?.split('/')[2];
-  if (groupId === 'ubicaciones' && path.split('?')[0]?.split('/')[3] === 'unidades-productivas') {
+  const segments = path.split(/[?#]/)[0]?.split('/') ?? [];
+  const groupId = segments[2];
+  const isLegacyUnitRoute = groupId === 'ubicaciones' && segments[3] === 'unidades-productivas';
+  if (groupId === 'unidades-productivas' || isLegacyUnitRoute) {
+    const unitIndex = isLegacyUnitRoute ? 4 : 3;
+    if (segments[unitIndex + 1] === 'galpon' && segments[unitIndex + 2]) {
+      return 'ubicaciones';
+    }
     return 'unidades-productivas';
   }
   return ADMIN_NAVIGATION.find((group) => group.id === groupId)?.id ?? null;

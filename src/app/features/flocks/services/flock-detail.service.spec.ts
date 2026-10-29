@@ -1,12 +1,29 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom, of, throwError } from 'rxjs';
+import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { ApiClient } from '../../../core/api/api-client';
 import { FlockDetailService, splitMetricsPeriods, todayInLotsTimezone } from './flock-detail.service';
 
 describe('FlockDetailService', () => {
+  it('loads mortality progressively with bounded concurrency, deduplicating lots and isolating errors', () => {
+    TestBed.configureTestingModule({ providers: [{ provide: ApiClient, useValue: {} }] });
+    const service = TestBed.inject(FlockDetailService);
+    const requests = Array.from({ length: 5 }, () => new Subject<number>());
+    const total = vi.spyOn(service, 'mortalityTotal').mockImplementation((id) => requests[Number(id) - 1]);
+    const emissions: Array<ReadonlyMap<string, { state: string; value: number | null }>> = [];
+    const subscription = service.mortalityTotals(['1', '2', '3', '4', '5', '1']).subscribe((value) => emissions.push(value));
+    expect(total).toHaveBeenCalledTimes(4);
+    requests[1].next(7); requests[1].complete();
+    expect(total).toHaveBeenCalledTimes(5);
+    expect(emissions.at(-1)?.get('2')).toEqual({ state: 'ready', value: 7 });
+    requests[0].error(new Error('Forbidden'));
+    expect(emissions.at(-1)?.get('1')).toEqual({ state: 'unavailable', value: null });
+    expect(emissions.at(-1)?.get('2')?.value).toBe(7);
+    subscription.unsubscribe();
+    expect(requests[4].observed).toBe(false);
+  });
   it('uses the latest daily sample average, including groups, rather than the last entry or legacy weighings', async () => {
     const get = vi.fn(() => of({ data: [
       { date: '2026-10-09', represented_bird_count: 12, average_weight_g: '97.5',

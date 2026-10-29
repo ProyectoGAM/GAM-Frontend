@@ -16,6 +16,19 @@ describe('ManagementPlansService', () => {
 
   afterEach(() => http.verify());
 
+  it('loads all active global recipes for rations using the recipe catalogue contract', async () => {
+    const result = service.catalogOptions('ration_change');
+    const first = http.expectOne((request) => request.url.endsWith('/recetas') && request.params.get('page') === '1');
+    expect(first.request.params.get('estado')).toBe('active');
+    expect(first.request.params.get('por_pagina')).toBe('100');
+    first.flush({ data: [{ id: 42, nombre: 'Crecimiento' }], meta: { last_page: 2 } });
+    await Promise.resolve();
+    http.expectOne((request) => request.url.endsWith('/recetas') && request.params.get('page') === '2')
+      .flush({ data: [{ id: 7, nombre: 'BB' }], meta: { last_page: 2 } });
+    expect(await result).toEqual([{ value: '7', label: 'BB' }, { value: '42', label: 'Crecimiento' }]);
+    http.expectNone((request) => request.url.endsWith('/products'));
+  });
+
   it('omits the revisions flag normally and sends the backend boolean integer when expanded', () => {
     service.flockPlan('01J00000000000000000000000').subscribe();
     const current = http.expectOne((request) => request.url.endsWith('/plan-manejo'));

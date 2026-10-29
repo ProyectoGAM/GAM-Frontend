@@ -1,6 +1,6 @@
 <section class="detail-page" aria-labelledby="flock-title">
-  <a class="back-link" routerLink="/administracion/lotes/lotes">
-    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a lotes
+  <a class="back-link" [routerLink]="backLink()">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ returnHouse() ? 'Volver al galpón' : 'Volver a lotes' }}
   </a>
 
   @if (state() === 'loading') {
@@ -19,10 +19,22 @@
               @if (unitName(); as unit) { <span aria-hidden="true"> · </span>{{ unit }} }
             </p>
           </div>
-          <span class="status-badge" [class.quarantined]="item.status === 'quarantined'"
-            [class.finished]="item.status === 'finished'">{{ statusText() }}</span>
+          <div class="status-actions">
+            <span class="status-badge" [class.quarantined]="item.status === 'quarantined'"
+              [class.finished]="item.status === 'finished'">{{ statusText() }}</span>
+            @if (canEditStatus()) {
+              <button class="status-edit" type="button" (click)="openStatusEditor()">Cambiar estado</button>
+            }
+          </div>
         </div>
       </header>
+      @if (statusSuccess()) { <p class="status-success" role="status">{{ statusSuccess() }}</p> }
+
+      <app-flock-status-dialog #statusDialog [flock]="item" [statusText]="statusText()" [form]="statusForm"
+        [selectedStatus]="statusDraft()"
+        [saving]="statusSaving()" [uncertain]="statusUncertain()" [locked]="statusLocked()"
+        [conflict]="statusConflict()" [canManage]="canManageStatus()" [canFinalize]="canFinalizeStatus()" [error]="statusError()"
+        (submitted)="saveStatus()" (closed)="closeStatusEditor()" (cancelled)="closeStatusEditor($event)" (backRequested)="backToStatusChoices()" (finalizeRequested)="openFinalization()" (reloadRequested)="load()" />
 
       <section class="alerts-card" aria-labelledby="alerts-title">
         <ion-icon name="notifications-outline" aria-hidden="true" />
@@ -46,21 +58,22 @@
             <circle cx="16.4" cy="6.2" r=".5" fill="currentColor" stroke="none" />
           </svg>
           <div>
-            <h2 id="mortality-title">Mortalidad acumulada</h2>
+            <h2 id="mortality-title">Mortandad acumulada</h2>
             @if (mortality().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
             @else if (mortality().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
             @else { <p class="metric-value">{{ mortalityText() }} aves</p> }
+            <p class="metric-note">Aves vivas: <strong>{{ liveBirdsText() }}</strong></p>
+            @if (negativeBalanceText(); as balance) { <p class="metric-note">Saldo registrado: {{ balance }} aves.</p> }
           </div>
           <div class="register-action">
-            <button type="button" disabled aria-describedby="mortality-action-status">Registrar mortalidad</button>
-            <small id="mortality-action-status">Próximamente</small>
+            <a [routerLink]="mortalityLink()">Ir a mortandad <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </section>
 
         <section class="card small-card" aria-labelledby="weighing-title">
           <ion-icon class="card-icon" name="scale-outline" aria-hidden="true" />
           <div>
-            <h2 id="weighing-title">Último pesaje</h2>
+            <h2 id="weighing-title">Última postura</h2>
             @if (weighing().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
             @else if (weighing().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
             @else if (weighing().value) {
@@ -69,7 +82,7 @@
             } @else { <p class="metric-note">Sin registros</p> }
           </div>
           <div class="register-action">
-            <a [routerLink]="weighingsLink()">Ir a pesajes <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
+            <a [routerLink]="weighingsLink()">Ir a posturas <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </section>
       </div>
@@ -79,37 +92,10 @@
           <ion-icon class="card-icon" name="egg-outline" aria-hidden="true" />
           <h2 id="production-title">Producción de huevo</h2>
           <div class="register-action">
-            <button type="button" disabled aria-describedby="eggs-action-status">Registrar recolección</button>
-            <small id="eggs-action-status">Próximamente</small>
+            <a [routerLink]="collectionsLink()">Ir a recolección <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </div>
-        <div class="production-metrics">
-          <div>
-            <h3>Último registro</h3>
-            @if (eggHistory().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggHistory().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggHistory().value?.latestDay) {
-              <p class="metric-value">{{ lastEggDayText() }} huevos</p>
-              <p class="metric-note">{{ lastEggDateText() }} · total del día</p>
-            } @else { <p class="metric-note">Sin registros</p> }
-          </div>
-          <div>
-            <h3>Promedio diario estimado</h3>
-            @if (eggAverage().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggAverage().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggAverage().value !== null) {
-              <p class="metric-value">{{ eggAverageText() }} huevos/día</p>
-              <p class="metric-note">Últimos 7 días</p>
-            } @else { <p class="metric-note">Sin registros en los últimos 7 días</p> }
-          </div>
-          <div>
-            <h3>Acumulado histórico</h3>
-            @if (eggHistory().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (eggHistory().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else if (eggHistory().value?.latestDay) { <p class="metric-value">{{ eggHistoryText() }} huevos</p> }
-            @else { <p class="metric-note">Sin registros</p> }
-          </div>
-        </div>
+        <app-collection-summary [metric]="eggs()" />
       </section>
 
       <section class="card feeding-card" aria-labelledby="feeding-title">
@@ -121,17 +107,51 @@
             <path d="M16 29V16m0 7c-4 0-6-2-6-5 4 0 6 2 6 5Zm0 3c4 0 6-2 6-5-4 0-6 2-6 5Z" />
           </svg>
           <div>
-            <h2 id="feeding-title">Alimentación actual</h2>
-            <p class="metric-note">Pendiente de implementación</p>
+            <h2 id="feeding-title">Alimentación</h2>
+            @if (feeding().state === 'loading') { <p class="metric-note" role="status">Cargando alimentación…</p> }
+            @else if (feeding().state === 'unavailable') { <p class="metric-note">Alimentación no disponible</p> }
+            @else if (feeding().value; as overview) {
+              <p class="metric-note">Ración vigente</p>
+              <p class="metric-value">{{ overview.recipeName }}</p>
+              <span class="feeding-mode" [class.manual]="overview.current.modo === 'manual'">{{ overview.current.modo === 'manual' ? 'Manual' : 'Automático' }}</span>
+              @if (overview.current.finalizado || item.status === 'finished') {
+                <p class="metric-note">Lote finalizado · sin próximos cambios</p>
+              } @else {
+                @if (!overview.scheduleAvailable) { <p class="metric-note">Próximo cambio previsto: dato no disponible</p> }
+                @else if (overview.nextChange) { <p class="metric-note">Próximo cambio previsto: <strong>{{ nextFeedingDateText() }}</strong></p> }
+                @else { <p class="metric-note">Sin próximos cambios previstos en el plan</p> }
+                @if (overview.current.modo === 'manual') { <p class="metric-note">La ración y cantidad quedan fijas. Los cambios del plan requieren volver a automático.</p> }
+                @else if (overview.nextChange) { <p class="metric-note">Según el plan; sujeto a disponibilidad de la receta al llegar la fecha.</p> }
+              }
+            }
           </div>
         </div>
         <div class="feeding-action">
-          <button type="button" disabled aria-describedby="feeding-explanation">Cambiar</button>
-          <p id="feeding-explanation">Disponible cuando se implemente la alimentación del lote.</p>
+          <a [routerLink]="['/administracion/lotes/lotes', item.id, 'alimentacion']">Consultar alimentación <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
         </div>
       </section>
 
-      <a class="card plan-card" [routerLink]="planLink()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
+      <section class="card operations-card" aria-labelledby="operations-title" aria-describedby="operations-availability">
+        <header class="operations-heading">
+          <h2 id="operations-title">Operaciones del lote</h2>
+          <p>Organizá las aves de este lote.</p>
+        </header>
+        <article class="operation-option" aria-labelledby="fractionate-title">
+          <span class="operation-icon"><ion-icon name="git-branch-outline" aria-hidden="true" /></span>
+          <div class="operation-copy">
+            <h3 id="fractionate-title">Fraccionar lote</h3>
+            <p>Trasladá todas o una parte de las aves a un galpón vacío o a un lote existente.</p>
+          </div>
+          @if (canFractionate()) {
+            <a class="operation-button" [routerLink]="['/administracion/lotes/lotes', item.id, 'fraccionar']" [queryParams]="planQueryParams()" aria-describedby="operations-availability">Fraccionar lote</a>
+          } @else {
+            <button class="operation-button" type="button" disabled aria-describedby="operations-availability">Fraccionar lote</button>
+          }
+        </article>
+        <p class="operations-note" id="operations-availability"><ion-icon name="information-circle-outline" aria-hidden="true" /> {{ canFractionate() ? 'Los destinos pertenecen a la misma UP del lote original.' : 'Este lote está finalizado o no tiene aves disponibles para trasladar.' }}</p>
+      </section>
+
+      <a class="card plan-card" [routerLink]="planLink()" [queryParams]="planQueryParams()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
         <ion-icon class="card-icon" name="document-text-outline" aria-hidden="true" />
         <span class="plan-copy"><strong>Plan de manejo</strong><small>Actividades previstas para este lote</small></span>
         <span class="plan-action">Ver plan <ion-icon name="chevron-forward-outline" aria-hidden="true" /></span>

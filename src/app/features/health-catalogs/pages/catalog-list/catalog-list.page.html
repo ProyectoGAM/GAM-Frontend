@@ -1,0 +1,56 @@
+<section class="health-page catalog-list">
+  <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>{{ config.title }}</h1><p class="lead">Catálogo global de {{ config.plural }} para los planes de manejo.</p><p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" />Disponible para todas las UP</p></div>
+    @if (allowed()) { <a class="button primary" [routerLink]="[config.path, 'nuevo']" [queryParams]="returnQuery()"><ion-icon name="add-outline" aria-hidden="true" />{{ config.create }}</a> }
+  </header>
+  @if (!allowed()) { <div class="feedback error" role="alert">Este catálogo está disponible únicamente para administradores.</div> }
+  @else {
+    <form class="filter-toolbar" [formGroup]="searchForm" (ngSubmit)="searchRecords()" aria-label="Búsqueda del catálogo">
+      <label class="filter-search"><span class="sr-only">{{ kind === 'vaccines' ? 'Buscar por nombre o código' : 'Buscar medicamento' }}</span><ion-icon name="search-outline" aria-hidden="true" /><input type="search" formControlName="search" maxlength="160" [placeholder]="kind === 'vaccines' ? 'Buscar por nombre o código' : 'Buscar medicamento'"></label>
+      <button #filtersTrigger class="filter-trigger" type="button" aria-haspopup="dialog" (click)="openFilters(filtersTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }</button>
+    </form>
+    @if (state() === 'loading' || state() === 'idle') { <div class="state" role="status">Cargando {{ config.plural }}…</div> }
+    @else if (state() === 'error') { <div class="feedback error" role="alert"><p>{{ error() }}</p><button class="button" type="button" (click)="load()">Reintentar</button></div> }
+    @else if (state() === 'empty') {
+      <div class="state"><h2>{{ hasCriteria() ? 'No hay coincidencias con estos filtros.' : 'Aún no hay registros en este catálogo.' }}</h2><p>{{ hasCriteria() ? 'Prueba otro nombre o modifica los filtros.' : 'Los registros creados aparecerán aquí.' }}</p>
+        @if (hasCriteria()) { <button class="button" type="button" (click)="clearCriteria()">Limpiar filtros</button> }
+        @else if (meta() && meta()!.current_page > 1) { <button class="button" type="button" (click)="changePage(1)">Volver a la primera página</button> }
+      </div>
+    }
+    @else if (state() === 'success') {
+      <p class="result-count" role="status">{{ meta()?.total }} {{ meta()?.total === 1 ? config.noun : config.plural }}</p>
+      <div class="table-card"><table [class.vaccines]="kind === 'vaccines'"><caption class="sr-only">Catálogo global de {{ config.plural }}</caption>
+        <thead><tr><th scope="col">{{ kind === 'vaccines' ? 'Vacuna' : 'Medicamento' }}</th><th scope="col">Proveedor</th>
+          @if (kind === 'vaccines') { <th scope="col">Unidad</th><th scope="col">Estado</th><th scope="col">Acciones</th> }
+          @else { <th scope="col">Registrado por</th><th scope="col">Fecha de registro</th> }
+        </tr></thead>
+        <tbody>@for (row of rows(); track row.item.id) {
+          <tr>
+            <td class="name-cell"><h2>{{ row.item.name }}</h2>@if (row.item.vaccine; as vaccine) { <small>{{ vaccine.sku }}</small> } @else { <p class="description">{{ row.preview }}</p>@if (row.hasMore) { <details><summary>Ver descripción completa</summary><p class="full-description">{{ row.item.description }}</p></details> } }
+            </td>
+            <td class="supplier-cell"><span class="mobile-label">Proveedor</span>{{ row.item.supplier }}</td>
+            @if (row.item.vaccine; as vaccine) {
+              <td class="unit-cell"><span class="mobile-label">Unidad</span>{{ row.unit }}</td>
+              <td class="status-cell"><span class="status" [class.inactive]="vaccine.status === 'inactive'">{{ vaccine.status === 'active' ? 'Activa' : 'Inactiva' }}</span></td>
+              <td class="detail-cell"><a [routerLink]="[config.path, row.item.id]" [queryParams]="returnQuery()" [attr.aria-label]="'Ver ficha de ' + row.item.name">Ver ficha<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a></td>
+            } @else {
+              <td class="creator-cell"><span class="mobile-label">Registrado por</span>{{ row.item.creator }}</td>
+              <td class="date-cell"><span class="mobile-label">Fecha de registro</span><time [attr.datetime]="row.item.createdAt">{{ row.item.createdAt | date:'dd/MM/yyyy':'-0300' }}</time></td>
+            }
+          </tr>
+        }</tbody>
+      </table></div>
+    }
+    @if (meta(); as page) { <nav class="pagination" aria-label="Paginación del catálogo"><button class="button" type="button" [disabled]="page.current_page <= 1 || state() === 'loading'" (click)="changePage(page.current_page - 1)">Anterior</button><span role="status">Página {{ page.current_page }} de {{ page.last_page }}</span><button class="button" type="button" [disabled]="page.current_page >= page.last_page || state() === 'loading'" (click)="changePage(page.current_page + 1)">Siguiente</button></nav> }
+  }
+  <app-filter-dialog titleId="health-catalog-filters" (clearRequested)="clearDraft()" (applyRequested)="applyFilters()">
+    <form class="filter-fields" [formGroup]="draft" (ngSubmit)="applyFilters()">
+      <div class="filter-section"><label for="catalog-supplier-filter">Proveedor</label><app-searchable-select inputId="catalog-supplier-filter" formControlName="supplier" [options]="supplierOptions()" [loading]="suppliersLoading()" [showIcons]="true" emptyOptionLabel="Todos los proveedores" placeholder="Todos los proveedores" />
+        @if (suppliersError(); as message) { <p class="field-error" role="alert">{{ message }}</p><button class="button" type="button" (click)="loadSuppliers()">Reintentar proveedores</button> }
+      </div>
+      @if (kind === 'vaccines') {
+        <fieldset class="filter-section"><legend>Estado</legend><div class="filter-choices"><button type="button" [attr.aria-pressed]="draft.controls.status.value === ''" (click)="draft.controls.status.setValue('')">Todas</button><button type="button" [attr.aria-pressed]="draft.controls.status.value === 'active'" (click)="draft.controls.status.setValue('active')">Activas</button><button type="button" [attr.aria-pressed]="draft.controls.status.value === 'inactive'" (click)="draft.controls.status.setValue('inactive')">Inactivas</button></div></fieldset>
+        <div class="filter-section"><label for="catalog-sku-filter">Código exacto</label><input id="catalog-sku-filter" formControlName="sku" maxlength="80" autocomplete="off"></div>
+      }
+    </form>
+  </app-filter-dialog>
+</section>

@@ -1,0 +1,7 @@
+:host { display: block; min-width: 0; color: var(--gam-color-text); }
+.chart { width: 100%; height: 280px; }
+summary { min-height: 44px; padding-block: 12px; color: var(--gam-color-primary); cursor: pointer; }
+table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+th, td { padding: 9px; border-bottom: 1px solid var(--gam-color-border); text-align: left; }
+caption { padding: 8px; color: var(--gam-color-text-muted); }
+summary:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }

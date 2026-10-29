@@ -26,6 +26,8 @@ De las 25 entradas, `ubicaciones/unidades-productivas` y `ubicaciones/nueva-unid
 
 ## Gestión heredada y autenticación
 
-La pantalla funcional de usuarios y dispositivos sigue disponible en `/gestion-accesos`, protegida por `authGuard` y `adminGuard`; Home muestra su acceso en un enlace aparte para no sumarlo a las 25 entradas. El shell y Home cierran sesión y navegan a `/auth`. Si la sesión expira mientras el shell está abierto, el shell observa el estado de `AuthStore` y vuelve al login.
+La gestión de usuarios y dispositivos está integrada en `/administracion/usuarios`, con las subpestañas Usuarios, Crear, Dispositivos y Roles. `/gestion-accesos` redirige al módulo. La pantalla Home fue eliminada: `/home` es únicamente una redirección a `/administracion`, cuyos guards conservan la autenticación y autorización. El padre de Usuarios conserva `authGuard` y `adminGroupGuard`; el servicio y la página pertenecen a `features/users`. Los contratos disponibles y pendientes se detallan en [Gestión de usuarios](user-management.md). El shell cierra sesión y navega a `/auth`. Si la sesión expira mientras el shell está abierto, el shell observa el estado de `AuthStore` y vuelve al login.
+
+Después de iniciar sesión o continuar una sesión compartida, las cuentas con acceso a algún módulo entran al panel; las cuentas con rol de reparto sin acceso al panel entran al modo repartidor. Las cuentas sin secciones habilitadas reciben acceso restringido, donde pueden cerrar sesión sin volver a intentar entrar al mismo panel. En Repartidor, el enlace a otras vistas solo aparece cuando la cuenta tiene acceso al panel.
 
 El login visual sigue `Demos/design-a` y `Demos/shared/auth.css`: escena azul marino, panel claro y composición adaptable. Mantiene el login real, CSRF/cookies web, PAT nativo, pairing compartido, selector y PIN. No se incluyen credenciales ni usuarios ficticios del prototipo.

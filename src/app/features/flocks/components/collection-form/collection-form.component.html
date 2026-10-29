@@ -1,0 +1,35 @@
+<dialog #registrationDialog aria-labelledby="collection-form-title" (cancel)="onCancel($event)">
+  <header>
+    <div><h2 id="collection-form-title">Recolectar huevos</h2><p>Lote {{ flock().code }}</p></div>
+    <button type="button" class="icon-button" aria-label="Cerrar recolección" [disabled]="saving()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+  </header>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <fieldset [disabled]="saving()">
+      <div class="field">
+        <label for="collection-quantity">Cantidad de huevos <span aria-hidden="true">*</span></label>
+        <input id="collection-quantity" type="number" inputmode="numeric" min="1" max="2147483647" step="1" required formControlName="quantity"
+          aria-describedby="collection-quantity-error" [attr.aria-invalid]="form.controls.quantity.touched && form.controls.quantity.invalid || !!fieldErrors()['quantity']" />
+        <small id="collection-quantity-error" class="field-error">{{ fieldErrors()['quantity'] ?? (form.controls.quantity.touched && form.controls.quantity.invalid ? 'Ingresá una cantidad entera entre 1 y 2.147.483.647.' : '') }}</small>
+      </div>
+      <div class="field">
+        <label for="collection-time">Fecha y hora <small>(opcional)</small></label>
+        <input id="collection-time" type="datetime-local" formControlName="occurredAt" [min]="minimumTime()" [max]="maximumTime()"
+          aria-describedby="collection-time-help collection-time-error" [attr.aria-invalid]="!!fieldErrors()['occurred_at']" />
+        <small id="collection-time-help">Hora de Uruguay. Si dejás el campo vacío, se usa la fecha y hora del servidor.</small>
+        <small id="collection-time-error" class="field-error">{{ fieldErrors()['occurred_at'] }}</small>
+      </div>
+      <div class="field">
+        <label for="collection-notes">Notas <small>(opcional)</small></label>
+        <textarea id="collection-notes" rows="3" maxlength="5000" formControlName="notes" aria-describedby="collection-notes-error"
+          [attr.aria-invalid]="form.controls.notes.touched && form.controls.notes.invalid || !!fieldErrors()['notes']"></textarea>
+        <small id="collection-notes-error" class="field-error">{{ fieldErrors()['notes'] ?? (form.controls.notes.invalid ? 'Las notas admiten hasta 5.000 caracteres.' : '') }}</small>
+      </div>
+    </fieldset>
+    <p class="info">Esta recolección ingresará al inventario de huevos de la unidad productiva.</p>
+    @if (error() || reviewError()) { <p class="error" role="alert">{{ error() ?? reviewError() }}</p> }
+    <footer>
+      <button type="button" [disabled]="saving()" (click)="close()">Volver</button>
+      <button type="submit" class="primary" [disabled]="saving()">@if (saving()) { <ion-spinner name="crescent" aria-hidden="true" /> Guardando… } @else { Guardar recolección }</button>
+    </footer>
+  </form>
+</dialog>

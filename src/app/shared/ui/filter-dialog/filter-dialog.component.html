@@ -1,0 +1,12 @@
+<dialog #dialog class="filters-dialog" [attr.aria-labelledby]="titleId()" (cancel)="onCancel($event)">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <header class="sheet-header">
+    <h2 #heading [id]="titleId()" tabindex="-1">Filtros</h2>
+    <button class="sheet-close" type="button" aria-label="Cerrar filtros" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+  </header>
+  <div #body class="sheet-body"><ng-content /></div>
+  <footer class="sheet-footer">
+    @if (showClear()) { <button class="sheet-action secondary" type="button" (click)="clearRequested.emit()">Limpiar</button> }
+    <button class="sheet-action primary" type="button" (click)="applyRequested.emit()">{{ applyLabel() }}</button>
+  </footer>
+</dialog>

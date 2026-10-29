@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -19,6 +19,9 @@ export class TemplateCreatePage {
   private readonly service = inject(ManagementPlansService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly errorSummary = viewChild<ElementRef<HTMLElement>>('errorSummary');
+  private readonly editorForm = viewChild<ElementRef<HTMLFormElement>>('editorForm');
   readonly templateId = this.route.snapshot.paramMap.get('id');
   readonly editing = this.templateId !== null;
   private sourceTemplate: PlanTemplate | null = null;
@@ -31,12 +34,23 @@ export class TemplateCreatePage {
   readonly activities = signal<ActivityDraft[]>([emptyActivity(1)]);
   readonly expandedId = signal<number | null>(1);
   readonly errors = signal<EditorErrors>({});
+  readonly hasFieldErrors = computed(() => Object.keys(this.errors()).length > 0);
+  readonly invalidActivityIds = computed(() => {
+    const ids = new Set<number>();
+    for (const field of Object.keys(this.errors())) {
+      const match = field.match(/^activities\.(\d+)\./);
+      const activity = match ? this.activities()[Number(match[1])] : null;
+      if (activity) ids.add(activity.clientId);
+    }
+    return ids;
+  });
   readonly submitError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly loadState = signal<'loading' | 'ready' | 'error'>(this.editing ? 'loading' : 'ready');
   readonly latestTemplate = signal<PlanTemplate | null>(null);
   readonly conflictChanges = signal<string[]>([]);
   readonly catalogOptions = signal<Record<PlanCatalogType, PlanCatalogOption[]>>({ vaccination: [], medication: [], ration_change: [] });
+  readonly activeRecipeIds = computed(() => new Set(this.catalogOptions().ration_change.map((option) => option.value)));
   readonly catalogState = signal<Record<PlanCatalogType, CatalogState>>({ vaccination: 'idle', medication: 'idle', ration_change: 'idle' });
 
   constructor() {
@@ -85,7 +99,7 @@ export class TemplateCreatePage {
         const type = activity.type as PlanCatalogType;
         const reference = activity.catalog_snapshot?.['id'];
         const name = activity.catalog_snapshot?.['name'];
-        if ((typeof reference === 'string' || typeof reference === 'number') && typeof name === 'string') {
+        if (type !== 'ration_change' && (typeof reference === 'string' || typeof reference === 'number') && typeof name === 'string') {
           const option = { value: String(reference), label: `${name} (referencia de esta versión)` };
           this.catalogOptions.update((all) => ({ ...all, [type]: [...all[type].filter((item) => item.value !== option.value), option] }));
         }
@@ -97,12 +111,12 @@ export class TemplateCreatePage {
   readonly activityTypes: readonly { value: PlanActivityType; label: string }[] = [
     { value: 'vaccination', label: 'Vacunación' },
     { value: 'medication', label: 'Medicación' },
-    { value: 'ration_change', label: 'Cambio de ración' },
-    { value: 'weighing', label: 'Pesaje' },
+    { value: 'ration_change', label: 'Ración' },
+    { value: 'weighing', label: 'Postura' },
     { value: 'manual_practice', label: 'Práctica manual' },
     { value: 'flock_movement', label: 'Movimiento del lote' },
     { value: 'egg_collection', label: 'Recolección de huevos' },
-    { value: 'mortality', label: 'Mortalidad' },
+    { value: 'mortality', label: 'Mortandad' },
   ];
   readonly timingKinds: readonly { value: PlanTimingKind; label: string }[] = [
     { value: 'day', label: 'Día' },
@@ -120,7 +134,7 @@ export class TemplateCreatePage {
     return type === 'vaccination' || type === 'medication' || type === 'ration_change';
   }
   catalogLabel(type: ActivityDraft['type']): string {
-    return type === 'vaccination' ? 'Vacuna de catálogo' : type === 'medication' ? 'Medicamento de catálogo' : 'Producto de catálogo';
+    return type === 'vaccination' ? 'Vacuna de catálogo' : type === 'medication' ? 'Medicamento de catálogo' : 'Receta de ración';
   }
   optionsFor(type: ActivityDraft['type']): PlanCatalogOption[] { return this.hasCatalog(type) ? this.catalogOptions()[type] : []; }
   catalogStateFor(type: ActivityDraft['type']): CatalogState { return this.hasCatalog(type) ? this.catalogState()[type] : 'idle'; }
@@ -146,9 +160,10 @@ export class TemplateCreatePage {
   changeType(clientId: number, event: Event): void {
     const type = this.inputValue(event) as PlanActivityType | '';
     const activity = this.activities().find((item) => item.clientId === clientId);
-    const timingKind = type === 'ration_change' && activity?.timingKind !== 'week' && activity?.timingKind !== 'week_range'
+    const timingKind = type === 'ration_change' && !['day', 'week', 'week_range'].includes(activity?.timingKind ?? '')
       ? 'week_range' : activity?.timingKind ?? '';
-    this.patchActivity(clientId, { type, timingKind, catalogRef: '' });
+    this.patchActivity(clientId, { type, timingKind, catalogRef: '', gramsPerBird: '',
+      ...(type === 'ration_change' ? { conditional: false, condition: '' } : {}) });
     if (this.hasCatalog(type)) void this.loadCatalog(type);
   }
 
@@ -193,10 +208,16 @@ export class TemplateCreatePage {
     if (this.saving() || this.latestTemplate() || (this.editing && (this.loadState() !== 'ready' || this.sourceTemplate?.status !== 'active'))) return;
     const draft = { name: this.name(), description: this.description(), activities: this.activities() };
     const errors = validateTemplateDraft(draft);
+    draft.activities.forEach((activity, index) => {
+      if (activity.type !== 'ration_change' || !activity.catalogRef) return;
+      if (this.catalogState().ration_change !== 'ready') errors[`activities.${index}.catalog_ref`] = 'Esperá a que carguen las recetas o reintentá la consulta.';
+      else if (!this.activeRecipeIds().has(activity.catalogRef)) errors[`activities.${index}.catalog_ref`] = 'Seleccioná una receta de ración activa disponible.';
+    });
     this.errors.set(errors);
     if (Object.keys(errors).length) {
       this.submitError.set('Revisá los campos señalados antes de crear el borrador.');
       this.expandFirstActivityError(errors);
+      this.focusSubmitError();
       return;
     }
 
@@ -220,7 +241,26 @@ export class TemplateCreatePage {
       else this.handleSubmitError(error);
     } finally {
       this.saving.set(false);
+      if (this.submitError()) this.focusSubmitError();
     }
+  }
+
+  focusSubmitError(): void {
+    afterNextRender(() => {
+      const summary = this.errorSummary()?.nativeElement;
+      summary?.focus({ preventScroll: true });
+      summary?.scrollIntoView({ block: 'center' });
+    }, { injector: this.injector });
+  }
+
+  reviewFirstError(): void {
+    this.expandFirstActivityError(this.errors());
+    afterNextRender(() => {
+      const form = this.editorForm()?.nativeElement;
+      const target = form?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? form;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: 'center' });
+    }, { injector: this.injector });
   }
 
   private async loadConflict(error: HttpErrorResponse): Promise<void> {
@@ -253,6 +293,12 @@ export class TemplateCreatePage {
     } catch {
       this.catalogState.update((states) => ({ ...states, [type]: 'error' }));
     }
+  }
+
+  retryCatalog(type: ActivityDraft['type']): void {
+    if (!this.hasCatalog(type) || this.catalogState()[type] !== 'error') return;
+    this.catalogState.update((states) => ({ ...states, [type]: 'idle' }));
+    void this.loadCatalog(type);
   }
 
   private clearFeedback(): void { this.errors.set({}); if (!this.latestTemplate()) this.submitError.set(null); }

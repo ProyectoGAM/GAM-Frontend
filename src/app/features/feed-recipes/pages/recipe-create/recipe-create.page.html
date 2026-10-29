@@ -1,0 +1,47 @@
+<section class="recipes-page recipe-create-page">
+  <a class="back" routerLink="/administracion/manejo-lotes/Recetas" [queryParams]="returnQuery" [attr.aria-disabled]="saving() ? 'true' : null"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a recetas</a>
+  <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>Nueva receta</h1><p class="lead">Define una base y las cantidades de sus ingredientes.</p></div></header>
+
+  @if (!canCreate()) {
+    <div class="feedback error" role="alert">No tienes permiso para crear recetas.</div>
+  } @else if (created(); as recipe) {
+    <section class="card created" role="status"><h2>Receta creada</h2><p>{{ recipe.nombre }} · ID {{ recipe.id }}</p><p>La receta está disponible en el catálogo global.</p><a class="button" routerLink="/administracion/manejo-lotes/Recetas" [queryParams]="returnQuery">Volver al listado</a>@if (canRead()) { <a class="button primary" [routerLink]="['/administracion/manejo-lotes/Recetas', recipe.id]" [queryParams]="returnQuery">Ver receta</a> }</section>
+  } @else {
+    <p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" /><span>Receta global · Disponible para todas las UP</span></p>
+    <form #recipeForm id="recipe-create-form" [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="saving()" novalidate>
+      @if (error()) { <div class="feedback error" role="alert" tabindex="-1">{{ error() }}</div> }
+      <fieldset class="form-fields" [disabled]="locked()">
+        <section class="card form-card" aria-labelledby="recipe-data-title">
+          <h2 id="recipe-data-title"><span class="section-number" aria-hidden="true">1</span>Datos de la receta</h2>
+          <div class="data-grid">
+            <div class="field"><label for="recipe-name">Nombre <span aria-hidden="true">*</span></label><input id="recipe-name" formControlName="nombre" maxlength="160" required autocomplete="off" [attr.aria-invalid]="fieldError(form.controls.nombre) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.nombre) ? 'recipe-name-error' : null">@if (fieldError(form.controls.nombre); as error) { <small class="field-error" id="recipe-name-error">{{ error }}</small> }</div>
+            <div class="field"><label for="recipe-yield">Rendimiento por base <span aria-hidden="true">*</span></label><div class="quantity"><input id="recipe-yield" formControlName="rendimiento" type="text" inputmode="decimal" maxlength="24" required [attr.aria-invalid]="fieldError(form.controls.rendimiento) ? 'true' : null" aria-describedby="recipe-yield-help recipe-yield-error"><span aria-hidden="true">kg</span></div><small class="help" id="recipe-yield-help">Ración obtenida al elaborar una base, en kg.</small>@if (fieldError(form.controls.rendimiento); as error) { <small class="field-error" id="recipe-yield-error">{{ error }}</small> }</div>
+            <div class="field notes"><label for="recipe-notes">Notas <span class="optional">(opcional)</span></label><textarea id="recipe-notes" formControlName="nota" rows="3" maxlength="5000" [attr.aria-invalid]="fieldError(form.controls.nota) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.nota) ? 'recipe-notes-error' : null"></textarea>@if (fieldError(form.controls.nota); as error) { <small class="field-error" id="recipe-notes-error">{{ error }}</small> }</div>
+          </div>
+        </section>
+
+        <section class="card form-card" aria-labelledby="recipe-ingredients-title">
+          <div class="section-heading"><h2 id="recipe-ingredients-title"><span class="section-number" aria-hidden="true">2</span>Ingredientes</h2><span class="count">{{ ingredientRows().length }} {{ ingredientRows().length === 1 ? 'ingrediente' : 'ingredientes' }}</span></div>
+          <p class="help section-help">Cantidades necesarias para una base. Selecciona materias primas existentes.</p>
+          @if (materialsLoading()) { <p class="help" role="status">Cargando materias primas…</p> }
+          @else if (materialsError()) { <div class="feedback error" role="alert"><p>{{ materialsError() }}</p><button type="button" class="button" (click)="loadMaterials()">Reintentar carga</button></div> }
+          @else if (!materials().length) { <p class="empty-materials" role="status">No hay materias primas compatibles en el catálogo. Debe existir al menos una para crear una receta.</p> }
+          <div class="ingredient-list">
+            @for (row of ingredientRows(); track row.group; let index = $index) {
+              <div class="ingredient-row" [formGroup]="row.group">
+                <h3 class="ingredient-title">Ingrediente {{ index + 1 }}</h3>
+                <div class="field product-field"><label [for]="'recipe-material-' + index">Materia prima <span aria-hidden="true">*</span></label><app-searchable-select formControlName="producto_id" [inputId]="'recipe-material-' + index" [options]="row.options" [showIcons]="true" placeholder="Selecciona una materia prima" emptyMessage="No quedan materias primas para agregar." noResultsMessage="No se encontraron materias primas." [loading]="materialsLoading()" loadingMessage="" [blocked]="locked() || !!materialsError()" [required]="true" [invalid]="!!fieldError(row.group.controls.producto_id)" [describedBy]="fieldError(row.group.controls.producto_id) ? 'recipe-material-error-' + index : null" />@if (fieldError(row.group.controls.producto_id); as error) { <small class="field-error" [id]="'recipe-material-error-' + index">{{ error }}</small> }</div>
+                <div class="field amount-field"><label [for]="'recipe-quantity-' + index">Cantidad por base <span aria-hidden="true">*</span></label><div class="quantity"><input [id]="'recipe-quantity-' + index" formControlName="cantidad" type="text" inputmode="decimal" maxlength="24" required [attr.aria-invalid]="fieldError(row.group.controls.cantidad) ? 'true' : null" [attr.aria-label]="'Cantidad por base del ingrediente ' + (index + 1) + ', en kg'" [attr.aria-describedby]="fieldError(row.group.controls.cantidad) ? 'recipe-quantity-error-' + index : null"><span aria-hidden="true">kg</span></div>@if (fieldError(row.group.controls.cantidad); as error) { <small class="field-error" [id]="'recipe-quantity-error-' + index">{{ error }}</small> }</div>
+                <button class="remove-button" type="button" [disabled]="ingredients.length <= 1" [attr.aria-label]="'Quitar ingrediente ' + (index + 1)" (click)="removeIngredient(index)"><ion-icon name="trash-outline" aria-hidden="true" />Quitar</button>
+              </div>
+            }
+          </div>
+          @if (fieldError(ingredients); as error) { <p class="field-error" role="alert">{{ error }}</p> }
+          <button class="button add-ingredient" type="button" [disabled]="ingredients.length >= 1000 || materialsLoading() || !!materialsError() || ingredients.length >= materials().length" (click)="addIngredient()"><ion-icon name="add-outline" aria-hidden="true" />Agregar ingrediente</button>
+          <p class="review-note"><ion-icon name="information-circle-outline" aria-hidden="true" /><span>Revisa el nombre, el rendimiento y los ingredientes. Después sólo podrás ajustar las cantidades.</span></p>
+        </section>
+      </fieldset>
+    </form>
+    <footer class="create-bar"><div class="create-bar-content"><p>{{ ingredientRows().length }} {{ ingredientRows().length === 1 ? 'ingrediente' : 'ingredientes' }} · {{ baseSummary() }}</p><button class="button primary" type="submit" form="recipe-create-form" [disabled]="saving() || materialsLoading() || !!materialsError() || !materials().length">{{ saving() ? 'Creando receta…' : uncertain() ? 'Reintentar creación' : 'Crear receta' }}</button></div></footer>
+  }
+</section>

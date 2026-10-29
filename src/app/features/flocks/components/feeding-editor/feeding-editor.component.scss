@@ -1,0 +1,48 @@
+ion-modal { --background: var(--gam-color-surface); --color: var(--gam-color-text); }
+ion-toolbar { --background: var(--gam-color-surface-alt); --color: var(--gam-color-heading); }
+ion-title { font-size: .9375rem; padding-inline: 16px; }
+.toolbar-title { display: flex; align-items: center; white-space: normal; }
+ion-content { --background: var(--gam-color-surface); --color: var(--gam-color-text); }
+ion-footer ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); margin: 8px 16px; min-height: 44px; }
+ion-buttons ion-button { --color: var(--gam-color-primary); }
+form { padding: 16px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+label, legend { font-weight: 700; color: var(--gam-color-heading); }
+label { display: block; margin: 18px 0 8px; }
+input, select, textarea { box-sizing: border-box; width: 100%; min-height: 46px; padding: 10px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; color: var(--gam-color-text); background: var(--gam-color-surface); font: inherit; }
+input::placeholder { color: var(--gam-color-text-muted); opacity: 1; }
+select, input { font-size: .875rem; }
+.context { margin-top: 0; }
+.note { color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
+.mode-picker { margin-top: 24px; }
+.mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.mode-option { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; box-sizing: border-box; margin: 0; padding: 10px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; font-size: .875rem; cursor: pointer; }
+.mode-option.automatic { color: var(--gam-color-mode-automatic); background: var(--gam-color-mode-automatic-soft); }
+.mode-option.manual { color: var(--gam-color-mode-manual); background: var(--gam-color-mode-manual-soft); }
+.mode-option.selected { border: 2px solid currentColor; padding: 9px; }
+.mode-option input { appearance: none; flex: 0 0 20px; display: grid; place-content: center; width: 20px; min-height: 20px; height: 20px; margin: 0; padding: 0; border: 2px solid currentColor; border-radius: 50%; background: transparent; color: inherit; }
+.mode-option input::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: currentColor; transform: scale(0); }
+.mode-option input:checked::before { transform: scale(1); }
+.mode-current { margin-top: 8px; }
+.label-with-help { display: flex; align-items: center; margin-top: 12px; }
+.label-with-help label { margin: 0; }
+.quantity-field, .locked-field { display: flex; align-items: center; border: 1px solid var(--gam-color-control-border); border-radius: 8px; overflow: hidden; }
+.quantity-field input, .locked-field input { min-width: 0; flex: 1; border: 0; border-radius: 0; }
+.quantity-field > span { padding: 10px 14px; border-left: 1px solid var(--gam-color-control-border); color: var(--gam-color-text); }
+.quantity-field:focus-within { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.quantity-field input:focus-visible { outline: none; }
+.locked-field, .locked-field input:disabled { background: var(--gam-color-surface-alt); color: var(--gam-color-text-muted); opacity: 1; -webkit-text-fill-color: var(--gam-color-text-muted); }
+.locked-field ion-icon { flex: 0 0 20px; margin-inline: 10px; }
+.error { padding: 12px; color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+button { min-height: 44px; color: var(--gam-color-primary); border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); padding: 8px 12px; font: inherit; cursor: pointer; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+fieldset:disabled .mode-option, button:disabled { cursor: default; opacity: .65; }
+.manual-confirmation { box-sizing: border-box; width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 20px; overflow-y: auto; border: 1px solid var(--gam-color-border); border-radius: 12px; color: var(--gam-color-text); background: var(--gam-color-surface); box-shadow: 0 8px 32px color-mix(in srgb, var(--gam-color-heading) 25%, transparent); }
+.manual-confirmation::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 65%, transparent); }
+.manual-confirmation h2 { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--gam-color-heading); font-size: 1.2rem; }
+.manual-confirmation h2 ion-icon { flex: 0 0 24px; padding: 10px; color: var(--gam-color-warning); background: var(--gam-color-warning-soft); border-radius: 50%; }
+.manual-confirmation p { line-height: 1.5; }
+.confirmation-summary { color: var(--gam-color-text-muted); }
+.confirmation-actions { display: grid; gap: 10px; }
+.confirmation-actions button { min-height: 48px; font-weight: 600; }
+.confirmation-actions .primary { border-color: var(--gam-color-primary); background: var(--gam-color-primary); color: var(--gam-color-on-primary); }

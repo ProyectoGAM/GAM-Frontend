@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { forkJoin, switchMap } from 'rxjs';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { addIcons } from 'ionicons';
@@ -28,6 +29,10 @@ import {
   PoultryHouseDetail as PoultryHouseDetailData,
 } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
+import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface';
+import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
+import { FlockHouseTaskAction, FlockHouseTaskRequest } from '../../../flocks/interfaces/flock-house-task.interface';
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
 type RelatedState = 'loading' | 'success' | 'error';
@@ -47,14 +52,18 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
     RouterLink,
     FeedStockDetailComponent,
     PoultryHouseDetailContentComponent,
+    FlockHouseTaskDialogComponent,
   ],
 })
 export class PoultryHouseDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly flockDetail = inject(FlockDetailService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly alertController = inject(AlertController);
+  private readonly injector = inject(Injector);
+  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly unitId = Number(this.route.snapshot.paramMap.get('id'));
   readonly state = signal<DetailState>('loading');
   readonly house = signal<PoultryHouseDetailData | null>(null);
@@ -67,6 +76,9 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly deleteError = signal<string | null>(null);
   readonly isChangingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
+  private readonly navigationFeedback: unknown = this.router.currentNavigation()?.extras.state?.['flockTaskMessage'];
+  readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
+  readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -98,6 +110,9 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly currentFlocks = computed(() => this.flocks().filter(
     (flock) => flock.status === 'active' || flock.status === 'quarantined',
   ));
+  readonly mortalities = toSignal(toObservable(this.currentFlocks).pipe(
+    switchMap((flocks) => this.flockDetail.mortalityTotals(flocks.map((flock) => flock.id))),
+  ), { initialValue: new Map<string, DetailMetric<number>>() });
   readonly canAddLot = computed(() => {
     const house = this.house();
     return house?.type === 'poultry' && house.status === 'operational'
@@ -114,6 +129,7 @@ export class PoultryHouseDetailPage implements OnInit {
         id: item.product_id,
         name: item.product.name,
         sku: item.product.sku,
+        stockGrams: quantity,
         quantity: quantityFormatter.format(unit === 'kg' ? amountInKg : Number(quantity)),
         unit,
         negative: Number(quantity) < 0,
@@ -153,6 +169,12 @@ export class PoultryHouseDetailPage implements OnInit {
     this.load();
   }
 
+  elaborate(): void {
+    const house = this.house();
+    if (!house || house.type !== 'feed' || house.status !== 'operational' || this.isAddingIngredient()) return;
+    void this.router.navigate(['/administracion/unidades-productivas', house.production_unit_id, 'galpon', house.id, 'elaborar']);
+  }
+
   retry(): void {
     this.load();
   }
@@ -162,6 +184,40 @@ export class PoultryHouseDetailPage implements OnInit {
     if (!house) return;
     if (house.type === 'poultry') this.loadFlocks(house.id);
     else this.loadFeedStock(house.id);
+  }
+
+  openFlockTask(action: FlockHouseTaskAction): void {
+    const house = this.house();
+    const flocks = this.currentFlocks();
+    if (this.flockTask() || !house || house.type !== 'poultry' || this.flocksState() !== 'success'
+      || flocks.length !== 1 || flocks[0].id !== action.flockId) return;
+    this.taskMessage.set(null);
+    this.flockTask.set({ ...action, origin: { unitId: house.production_unit_id, houseId: house.id },
+      houseName: house.name, unitName: house.production_unit.name });
+  }
+
+  closeFlockTask(message: string | null): void {
+    const task = this.flockTask();
+    if (!task) return;
+    this.flockTask.set(null);
+    this.taskMessage.set(message);
+    this.restoreTaskFocus(task.trigger);
+    if (!message) return;
+    forkJoin({ house: this.service.getPoultryHouseById(task.origin.houseId), flocks: this.service.houseFlocks(task.origin.houseId) })
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: ({ house, flocks }) => {
+          this.house.set(house.data); this.flocks.set(flocks);
+          if (!this.flockTask() && !task.trigger?.isConnected) this.restoreTaskFocus(task.trigger);
+        },
+        error: () => this.statusError.set('El cambio se guardó, pero no se pudo actualizar el resumen. Volvé a cargar la instalación.'),
+      });
+  }
+
+  private restoreTaskFocus(trigger: HTMLElement | null): void {
+    afterNextRender(() => {
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+      else this.element.nativeElement.querySelector<HTMLElement>('#page-title')?.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
 
   houseStatus(status: PoultryHouse['status']): string {
@@ -256,6 +312,9 @@ export class PoultryHouseDetailPage implements OnInit {
   }
 
   toggleIngredientForm(): void {
+    if (this.isAddingIngredient()) return;
+    const house = this.house();
+    if (!this.ingredientFormOpen() && (!house || house.type !== 'feed' || house.status !== 'operational')) return;
     this.ingredientFormOpen.update((open) => !open);
     this.ingredientMessage.set(null);
     if (this.ingredientFormOpen()) this.loadInventoryIngredients();
@@ -271,7 +330,7 @@ export class PoultryHouseDetailPage implements OnInit {
       return;
     }
     const house = this.house();
-    if (!house || house.type !== 'feed' || this.feedStockState() !== 'success' || this.catalogState() !== 'success') return;
+    if (!house || house.type !== 'feed' || house.status !== 'operational' || this.feedStockState() !== 'success' || this.catalogState() !== 'success') return;
     const form = this.ingredientForm.getRawValue();
     const product = this.availableIngredients().find((ingredient) => ingredient.id === form.productId);
     if (!product) {

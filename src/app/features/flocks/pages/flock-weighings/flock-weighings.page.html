@@ -1,29 +1,33 @@
 <section class="weighings-page" aria-labelledby="weighings-title">
-  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote</a>
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ houseTask.backLabel() }}</a>
 
   @if (flockState() === 'loading') {
-    <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando pesajes…</div>
+    <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando posturas…</div>
   } @else if (flockState() !== 'ready') {
     <div class="page-state" role="alert">
-      <h1 id="weighings-title">Pesajes del lote</h1>
+      <h1 id="weighings-title">Posturas del lote</h1>
       @if (flockState() === 'forbidden') { <p>No tenés permiso para consultar este lote.</p> }
       @else if (flockState() === 'offline') { <p>Sin conexión. Revisá la conexión e intentá de nuevo.</p> }
       @else { <p>No se pudo cargar el lote.</p> }
       <button type="button" (click)="load()">Reintentar</button>
     </div>
+  } @else if (houseMismatch()) {
+    <div class="page-state" role="alert"><h1 id="weighings-title">El lote cambió de galpón</h1><p>Volvé al galpón para consultar el lote alojado actualmente.</p></div>
   } @else {
     <header class="page-heading">
-      <p class="breadcrumb">Lotes <span aria-hidden="true">/</span> {{ flock()?.code }} <span aria-hidden="true">/</span> Pesajes</p>
-      <h1 id="weighings-title">Pesajes del lote</h1>
+      <p class="breadcrumb">Lotes <span aria-hidden="true">/</span> {{ flock()?.code }} <span aria-hidden="true">/</span> Posturas</p>
+      <h1 id="weighings-title">Posturas del lote</h1>
       <p>{{ flock()?.code }}</p>
     </header>
 
-    <div class="tabs" role="tablist" aria-label="Secciones de pesajes">
+    @if (!houseTask.isTask()) {
+    <div class="tabs" role="tablist" aria-label="Secciones de posturas">
       <button type="button" role="tab" id="summary-tab" [attr.aria-selected]="tab() === 'summary'"
         [class.active]="tab() === 'summary'" aria-controls="summary-panel" (click)="setTab('summary')">Gráficas</button>
       <button type="button" role="tab" id="entry-tab" [attr.aria-selected]="tab() === 'entry'"
-        [class.active]="tab() === 'entry'" aria-controls="entry-panel" (click)="setTab('entry')">Pesaje</button>
+        [class.active]="tab() === 'entry'" aria-controls="entry-panel" (click)="setTab('entry')">Postura</button>
     </div>
+    }
 
     @if (tab() === 'summary') {
       <div id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
@@ -31,13 +35,13 @@
           <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando historial…</div>
         } @else if (historyState() !== 'ready') {
           <div class="page-state" role="alert">
-            @if (historyState() === 'forbidden') { <p>Dato no disponible. No tenés permiso para ver pesajes.</p> }
+            @if (historyState() === 'forbidden') { <p>Dato no disponible. No tenés permiso para ver posturas.</p> }
             @else if (historyState() === 'offline') { <p>Sin conexión. Revisá la conexión e intentá de nuevo.</p> }
-            @else { <p>No se pudo cargar el historial de pesajes.</p> }
+            @else { <p>No se pudo cargar el historial de posturas.</p> }
             <button type="button" (click)="loadHistory()">Reintentar</button>
           </div>
         } @else if (days().length === 0) {
-          <div class="page-state"><ion-icon name="scale-outline" aria-hidden="true" /><h2>Sin registros</h2><p>Este lote todavía no tiene pesajes diarios.</p></div>
+          <div class="page-state"><ion-icon name="scale-outline" aria-hidden="true" /><h2>Sin registros</h2><p>Este lote todavía no tiene posturas diarias.</p></div>
         } @else {
           <div class="mode-switch chart-switch" role="group" aria-label="Tipo de gráfica">
             <button type="button" [class.active]="chartView() === 'distribution'"
@@ -72,7 +76,7 @@
           <div class="summary-grid">
             <section class="card chart-card" aria-labelledby="distribution-title">
               <div class="card-heading">
-                <h2 id="distribution-title">Distribución del pesaje seleccionado</h2>
+                <h2 id="distribution-title">Distribución de la postura seleccionada</h2>
                 <label class="selection-label">Seleccionar fecha
                   <select #recordSelect [value]="selectedId() ?? ''" (change)="selectDay(recordSelect.value)">
                     @for (day of days(); track day.id) {
@@ -92,14 +96,14 @@
             </section>
 
             <section class="card metrics-card" aria-labelledby="metrics-title">
-              <h2 id="metrics-title">Resumen del pesaje seleccionado</h2>
-              <div class="metric"><span>Promedio general del pesaje</span>
+              <h2 id="metrics-title">Resumen de la postura seleccionada</h2>
+              <div class="metric"><span>Promedio general de la postura</span>
                 <strong>{{ selected()?.average_weight_g === null ? 'Sin registros' : selectedAverage() + ' g' }}</strong>
                 <small>Incluye ingresos individuales y grupales · {{ selected()?.represented_bird_count }} aves pesadas</small></div>
               @if (selectedState() === 'loading') {
                 <p class="sample-state" role="status">Cargando estadísticas individuales…</p>
               } @else if (individualSummary(); as sample) {
-                <div class="sample-metrics" role="group" aria-label="Estadísticas de los pesajes individuales">
+                <div class="sample-metrics" role="group" aria-label="Estadísticas de las posturas individuales">
                   <div class="sample-metric"><span>Aves de la muestra individual</span><strong>{{ sample.n }}</strong></div>
                   <div class="sample-metric"><span>Media individual (μ)</span><strong>{{ sample.mean === null ? 'Sin registros' : formatGrams(sample.mean) + ' g' }}</strong></div>
                   <div class="sample-metric"><span>Desviación muestral (s)</span><strong>{{ sample.n === 0 ? 'Sin registros' : sample.sample_stddev === null ? 'No disponible' : formatGrams(sample.sample_stddev) + ' g' }}</strong></div>
@@ -133,14 +137,14 @@
           }
 
           <section class="card history-card" aria-labelledby="history-title">
-            <h2 id="history-title">Historial de pesajes</h2>
+            <h2 id="history-title">Historial de posturas</h2>
             <div class="table-scroll"><table>
               <thead><tr><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Aves</th>
                 <th scope="col">Peso promedio</th><th scope="col">Rango esperado</th><th scope="col">Anomalías</th><th scope="col">Acción</th></tr></thead>
               <tbody>
                 @for (row of historyRows(); track row.id) {
                   <tr [class.selected-row]="row.id === selectedId()">
-                    <td><button type="button" class="row-select" (click)="selectDay(row.id)" [attr.aria-label]="'Seleccionar pesaje del ' + row.date">{{ row.date }}</button></td>
+                    <td><button type="button" class="row-select" (click)="selectDay(row.id)" [attr.aria-label]="'Seleccionar postura del ' + row.date">{{ row.date }}</button></td>
                     <td>{{ row.status }}</td><td>{{ row.birds }}</td>
                     <td>{{ row.average === 'Dato no disponible' ? 'Sin registros' : row.average + ' g' }}</td><td>{{ row.range }}</td>
                     <td [class.anomaly-count]="row.anomalies > 0">{{ row.anomalies }}</td>
@@ -151,18 +155,18 @@
             </table></div>
             @if (historyCursor()) {
               <div class="pagination"><button type="button" [disabled]="historyLoadingMore()" (click)="loadHistory(historyCursor())">
-                {{ historyLoadingMore() ? 'Cargando…' : 'Cargar más pesajes' }}</button></div>
-              @if (historyMoreError()) { <p class="form-error" role="alert">No se pudieron cargar más pesajes. Intentá de nuevo.</p> }
+                {{ historyLoadingMore() ? 'Cargando…' : 'Cargar más posturas' }}</button></div>
+              @if (historyMoreError()) { <p class="form-error" role="alert">No se pudieron cargar más posturas. Intentá de nuevo.</p> }
             }
           </section>
         }
       </div>
     } @else {
-      <div id="entry-panel" role="tabpanel" aria-labelledby="entry-tab">
+      <div id="entry-panel" [attr.role]="houseTask.isTask() ? null : 'tabpanel'" [attr.aria-labelledby]="houseTask.isTask() ? 'entry-title' : 'entry-tab'">
         <div class="entry-grid">
           <section class="card entry-card" aria-labelledby="entry-title">
             <div class="card-heading">
-              <div><h2 id="entry-title">Registrar pesaje</h2><p>Cada ingreso se suma a la muestra de hoy, {{ todayDate() }}.</p></div>
+              <div><h2 id="entry-title">Registrar postura</h2><p>Cada ingreso se suma a la muestra de hoy, {{ todayDate() }}.</p></div>
               @if (entryRangeBreedId()) {
                 <button type="button" class="edit-button" (click)="openSettings('entry')" aria-label="Editar rangos de la raza">
                   <ion-icon name="create-outline" aria-hidden="true" /> Editar rango
@@ -173,7 +177,8 @@
               <button type="button" [class.active]="entryMode() === 'individual'" [attr.aria-pressed]="entryMode() === 'individual'" (click)="setEntryMode('individual')">Individual</button>
               <button type="button" [class.active]="entryMode() === 'group'" [attr.aria-pressed]="entryMode() === 'group'" (click)="setEntryMode('group')">Grupal</button>
             </div>
-            <fieldset [disabled]="todayState() !== 'ready' || savingEntry()">
+            @if (flock()?.status === 'finished') { <p class="availability-note">Este lote ya no admite nuevas posturas.</p> }
+            <fieldset [disabled]="todayState() !== 'ready' || savingEntry() || flock()?.status === 'finished'">
               @if (entryMode() === 'individual') {
                 <label>Peso del ave (g)<input type="text" inputmode="decimal" autocomplete="off" [formControl]="individualWeight" /></label>
                 <button type="button" class="primary-button" (click)="submitEntry()">{{ savingEntry() ? 'Guardando…' : 'Agregar ave' }}</button>
@@ -201,7 +206,7 @@
             }
           </section>
         </div>
-        <section class="card entries-card" aria-labelledby="entries-title"><h2 id="entries-title">Ingresos del pesaje</h2>
+        <section class="card entries-card" aria-labelledby="entries-title"><h2 id="entries-title">Ingresos de la postura</h2>
           @if (todayState() === 'loading') { <p role="status">Cargando ingresos…</p> }
           @else if (todayState() !== 'ready') { <p>Dato no disponible.</p> }
           @else if (todayEntries().length === 0) { <p>Sin ingresos para la muestra de hoy.</p> }
@@ -252,7 +257,7 @@
     @if (settingsState() === 'loading') { <p role="status">Cargando raza y rangos…</p> }
     @if (settings(); as breed) {
     <p class="breed-context"><span>Raza</span><strong>{{ breed.name }}</strong></p>
-    <p>Los cambios se aplican a los pesajes diarios en curso de los lotes de esta raza. Los pesajes cerrados conservan el rango histórico.</p>
+    <p>Los cambios se aplican a las posturas diarias en curso de los lotes de esta raza. Las posturas cerradas conservan el rango histórico.</p>
     @if (breed.expected_ranges; as ranges) { <p>Se considera adulta desde la semana {{ ranges.adult_from_week }} (configuración global).</p> }
     <fieldset [disabled]="savingSettings() || settingsState() !== 'ready'">
     <div class="settings-fields"><h3>Pollitos · gramos por ave</h3>

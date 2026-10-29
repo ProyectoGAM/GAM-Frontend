@@ -1,0 +1,31 @@
+@if (!editor()) {
+  <div class="heading"><h2>Roles y permisos</h2><button type="button" (click)="open(null)"><ion-icon name="add-outline" aria-hidden="true" />Nuevo rol</button></div>
+  <p class="intro">Los roles definen acciones; la UP limitará dónde pueden realizarlas.</p>
+  <p class="pending" role="status"><strong>Roles personalizados y catálogo de permisos: Por implementar.</strong> Actualmente solo se pueden asignar los tres roles del contrato desde la gestión de una cuenta.</p>
+  <div class="role-list">
+    @for (role of roles; track role.id) {
+      <article class="card"><div class="role-heading"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /><h3>{{ role.label }}</h3><span class="tag">Sistema</span></div><p>{{ role.description }}</p>
+        <button type="button" (click)="open(role)" [attr.aria-label]="'Ver permisos de ' + role.label">Ver permisos</button>
+      </article>
+    }
+  </div>
+} @else {
+  <button class="back" type="button" (click)="back()"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a roles</button>
+  <section class="card editor" aria-labelledby="role-editor-title">
+    <h2 id="role-editor-title" #editorTitle tabindex="-1">{{ selected() ? 'Permisos de ' + selected()?.label : 'Crear rol' }}</h2>
+    <p class="pending"><strong>Por implementar.</strong> La API aún no permite consultar ni guardar la definición de un rol y sus permisos.</p>
+    <label>Nombre del rol<input disabled [value]="selected()?.label ?? ''" placeholder="Por implementar" /></label>
+    <label>Descripción<textarea disabled placeholder="Por implementar"></textarea></label>
+    <h3>Permisos</h3>
+    <p class="intro">Se usarán casillas agrupadas por módulo cuando esté disponible el catálogo.</p>
+    <fieldset disabled><legend>Estructura del permiso · Por implementar</legend>
+      <label>Módulo<input placeholder="Ej.: LOTS" /></label>
+      <label class="checkbox"><input type="checkbox" />Permiso del módulo · Por implementar</label>
+      <label>Identificador del permiso<input placeholder="Ej.: ALLOW_EDIT" /></label>
+      <p class="intro">Los ejemplos no son permisos disponibles. Los demás atributos están por implementar.</p>
+    </fieldset>
+    <p class="intro">El aislamiento por UP también está por implementar en el servidor.</p>
+    <button class="save" disabled>{{ selected() ? 'Guardar cambios' : 'Crear rol' }} · Por implementar</button>
+    <button type="button" (click)="back()">Volver</button>
+  </section>
+}

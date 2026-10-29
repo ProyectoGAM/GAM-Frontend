@@ -1,10 +1,21 @@
 .activities { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .activity { display: flex; gap: 16px; align-items: flex-start; padding: 16px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); }
+.activity.current { border-color: var(--gam-color-primary); background: var(--gam-color-primary-soft); box-shadow: inset 4px 0 0 var(--gam-color-primary); }
+.activity.current .number { color: var(--gam-color-on-primary); background: var(--gam-color-primary); }
 .number { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); font-size: 19px; font-weight: 800; }
 .content { min-width: 0; flex: 1; }
 .activity-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.activity-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.current-tag { padding: 4px 9px; border-radius: 999px; color: var(--gam-color-on-primary); background: var(--gam-color-primary); font-size: 12px; }
 .kind, .time { color: var(--gam-color-text-muted); font-size: 13px; }
+.activity.current .kind, .activity.current .time { color: var(--gam-color-text); }
 .conditional { border-radius: 999px; padding: 4px 9px; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); font-size: 12px; }
 h3 { margin: 4px 0; color: var(--gam-color-heading); font-size: 17px; }
 p { margin: 0; line-height: 1.5; }
 .detail { margin-top: 8px; color: var(--gam-color-text); white-space: pre-wrap; }
+@media (max-width: 480px) {
+  .activity { gap: 10px; padding: 14px; }
+  .number { width: 36px; height: 36px; font-size: 16px; }
+  .activity-top { flex-wrap: wrap; }
+  .activity-tags { justify-content: flex-start; }
+}

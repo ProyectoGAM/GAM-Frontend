@@ -37,12 +37,10 @@ export function hasDeliveryRole(user: Pick<AuthUser, 'roles'> | null): boolean {
   return normalizedRoles(user).has('delivery');
 }
 
-export function postLoginPath(user: Pick<AuthUser, 'roles'> | null): string {
-  const roles = normalizedRoles(user);
-
-  if (roles.has('delivery') && roles.size === 1) return '/repartidor';
-
-  return isAdminUser(user) ? '/administracion' : '/home';
+export function postLoginPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string {
+  if (ADMIN_GROUP_IDS.some((group) => canAccessGroup(user, group))) return '/administracion';
+  if (hasDeliveryRole(user)) return '/repartidor';
+  return '/acceso-denegado';
 }
 
 export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, permission: 'view' | 'manage'): boolean {
@@ -51,9 +49,16 @@ export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Pa
     || (permission === 'view' && permissions.has('management-plans.manage'));
 }
 
+export function hasFeedRecipesPermission(user: Partial<Pick<AuthUser, 'permissions'>> | null, permission: 'view' | 'manage'): boolean {
+  return user?.permissions?.includes(`feed-recipes.${permission}`) === true;
+}
+
 export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, group: AdminGroup): boolean {
   if (isAdminUser(user)) return true;
   if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
+  if (group === 'manejo-lotes' && (hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage'))) return true;
+  if (group === 'reportes' && user?.permissions?.includes('reports.view')) return true;
+  if (group === 'inventario' && user?.permissions?.some((permission) => ['inventory.view', 'egg-stock.view', 'egg-stock.move', 'products.view', 'products.manage', 'management-plans.manage'].includes(permission))) return true;
   const roles = normalizedRoles(user);
   return GROUP_ROLE_GRANTS[group].some((role) => roles.has(role.trim().toLocaleLowerCase()));
 }

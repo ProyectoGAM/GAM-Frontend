@@ -11,7 +11,9 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   canActivate: [authGuard, adminGroupGuard],
   data: { group: group.id },
   children:
-    group.id === 'inventario'
+    group.id === 'usuarios'
+      ? [{ path: '', loadChildren: () => import('../users/users.routes').then((module) => module.usersRoutes) }]
+      : group.id === 'inventario'
       ? [
           {
             path: '',
@@ -75,6 +77,9 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               ...group.items
                 .filter((item) => !item.slug.includes('/'))
                 .map((item) => {
+                  if (group.id === 'reportes' && item.slug === 'reportes') {
+                    return { path: item.slug, loadChildren: () => import('../reporting/reporting.routes').then((module) => module.reportingRoutes) };
+                  }
                   if (
                     group.id === 'ubicaciones' &&
                     item.slug === 'galpones'
@@ -151,29 +156,31 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
-                  if (
-                    group.id === 'proveedores' &&
-                    item.slug === 'productos'
-                  ) {
-                    return {
-                      path: item.slug,
-                      data: {
-                        title: item.label,
-                        groupLabel: group.label,
-                      },
-                      loadChildren: () =>
-                        import(
-                          '../suppliers-catalogs/products/products.routes'
-                        ).then(
-                          (module) => module.productsRoutes,
-                        ),
-                    };
-                  }
-
                   if (group.id === 'manejo-lotes' && item.slug === 'planes') {
                     return {
                       path: 'planes',
                       loadChildren: () => import('../management-plans/management-plans.routes').then((module) => module.managementPlansRoutes),
+                    };
+                  }
+
+                  if (group.id === 'manejo-lotes' && item.slug === 'Recetas') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../feed-recipes/feed-recipes.routes').then((module) => module.feedRecipesRoutes),
+                    };
+                  }
+
+                  if (group.id === 'manejo-lotes' && item.slug === 'vacunacion') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../health-catalogs/health-catalogs.routes').then((module) => module.vaccinationRoutes),
+                    };
+                  }
+
+                  if (group.id === 'manejo-lotes' && item.slug === 'medicacion') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../health-catalogs/health-catalogs.routes').then((module) => module.medicationRoutes),
                     };
                   }
 
@@ -215,6 +222,9 @@ export const adminRoutes: Routes = [
         (module) => module.AdminShellPage,
       ),
     children: [
+      { path: 'proveedores/productos/nuevo', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/nuevo' },
+      { path: 'proveedores/productos/:id/editar', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/:id/editar' },
+      { path: 'proveedores/productos', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos' },
       {
         path: '',
         pathMatch: 'full',

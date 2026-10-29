@@ -1,5 +1,5 @@
 <main class="plans-page">
-  <a class="back-link" routerLink="/administracion/manejo-lotes/planes/lotes">← Volver a lotes</a>
+  <a class="back-link" [routerLink]="backLink()" [queryParams]="backQueryParams()">← {{ fromFlock() ? 'Volver al lote' : 'Volver a planes por lote' }}</a>
   <p class="breadcrumb">Manejo de Lotes / Planes / Lote</p>
   <header class="heading"><div><h1>Plan de manejo</h1><p>{{ flock()?.code ?? flockId }}</p></div></header>
   @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
@@ -11,8 +11,25 @@
   }
   @else if (plan(); as item) {
     <section class="summary"><div><span>Ingreso del lote</span><strong>{{ item.baseline_date }}</strong></div><div><span>Plantilla de origen</span><strong>{{ item.source_template?.name_at_assignment ?? 'Sin plantilla de origen' }}</strong></div><div><span>Versión copiada</span><strong>{{ item.source_template?.version ?? '—' }}</strong></div><div><span>Revisión del lote</span><strong>{{ item.current_revision }}</strong></div></section>
+    <section class="plan-position" aria-labelledby="plan-position-title">
+      <h2 id="plan-position-title">Posición actual en el plan</h2>
+      @if (flockState() === 'loading') { <p role="status">Consultando el estado del lote…</p> }
+      @else if (flock()?.status === 'finished') { <p>Lote finalizado · sin actividades actuales resaltadas.</p> }
+      @else if (!flock()) { <p>Estado del lote no disponible. No se puede indicar su posición actual.</p> }
+      @else if (position(); as current) {
+        <p class="plan-age"><strong>Día {{ current.day }}</strong><span aria-hidden="true"> · </span>Semana {{ current.week }}</p>
+        @if (!viewingCurrentRevision()) { <p>Revisión anterior. El resaltado actual se muestra en la revisión vigente.</p> }
+        @else {
+          <p>{{ currentIds().size }} {{ currentIds().size === 1 ? 'actividad prevista ahora' : 'actividades previstas ahora' }}.</p>
+          @if (!currentIds().size) { <p>No hay actividades que coincidan con este momento del plan.</p> }
+          @else if (currentRevision(); as revision) {
+            <app-plan-activities class="current-activities" [activities]="revision.activities" [currentIds]="currentIds()" [currentOnly]="true" />
+          }
+        }
+      } @else { <p>La fecha de inicio del plan no permite calcular una posición actual.</p> }
+    </section>
     <div class="section-heading"><h2>Actividades previstas</h2><p>Tiempos relativos al ingreso: día 1 es la fecha de ingreso y semana 1 abarca los días 1 a 7.</p></div>
-    @if (currentRevision(); as revision) { <app-plan-activities [activities]="revision.activities" /> }
+    @if (currentRevision(); as revision) { <app-plan-activities class="all-activities" [activities]="revision.activities" [currentIds]="currentIds()" /> }
     @if (item.current_revision > 1) {
       <div class="revisions"><button class="revision-toggle" type="button" [attr.aria-expanded]="revisionsExpanded()" (click)="showRevisions()">{{ revisionsExpanded() ? 'Ocultar revisiones anteriores' : 'Ver revisiones anteriores' }}</button>
         @if (revisionsExpanded()) { <label>Revisión mostrada <select [value]="selectedRevision() ?? item.current_revision" (change)="selectRevision($event)"><option [value]="item.current_revision">Actual · revisión {{ item.current_revision }}</option>@for (revision of pastRevisions(); track revision.number) { <option [value]="revision.number">Revisión {{ revision.number }}{{ revision.reason ? ' · ' + revision.reason : '' }}</option> }</select></label> }

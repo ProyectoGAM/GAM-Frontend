@@ -1,0 +1,35 @@
+:host { display: block; min-width: 0; height: 100%; }
+.flock-card { height: 100%; border: 1px solid var(--gam-color-border); border-radius: 11px; background: var(--gam-color-surface); }
+.flock-card-button { position: relative; display: flex; flex-direction: column; box-sizing: border-box; height: 100%; min-width: 0; padding: 16px; border-radius: inherit; color: var(--gam-color-text); text-decoration: none; }
+.flock-card-button:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.card-heading, .card-title { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+.card-heading { justify-content: space-between; }
+.card-title { flex: 1; min-width: 0; align-items: center; }
+.flock-name { min-width: 0; margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; }
+.grouped-badge, .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+.grouped-badge { color: var(--gam-color-heading); background: var(--gam-color-primary-soft); white-space: nowrap; }
+.grouped-badge svg { flex: none; }
+.status-badge { color: var(--gam-color-success); background: var(--gam-color-success-soft); }
+.status-badge.quarantined { color: var(--gam-color-warning); background: var(--gam-color-warning-soft); }
+.status-badge.finished { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); }
+.house-name, .entry-date, .balance-note { margin: 8px 0 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.4; overflow-wrap: anywhere; }
+.entry-date { display: flex; align-items: center; gap: 6px; }
+.entry-date ion-icon { flex: none; font-size: 1rem; }
+.bird-metrics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 16px 0 0; padding: 14px 22px 0 0; border-top: 1px solid var(--gam-color-border); }
+.bird-metrics > div + div { padding-left: 14px; border-left: 1px solid var(--gam-color-border); }
+dt { color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.4; }
+dd { margin: 4px 0 0; color: var(--gam-color-heading); font-size: 1.375rem; font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; }
+dd.pending { font-size: .875rem; font-weight: 500; }
+.card-chevron { position: absolute; right: 14px; bottom: 20px; display: inline-flex; color: var(--gam-color-primary); font-size: 1.25rem; }
+.with-tasks .flock-card-button { height: auto; }
+.flock-tasks { display: grid; gap: 8px; margin: 0 16px; padding: 14px 0 16px; border-top: 1px solid var(--gam-color-border); }
+.flock-tasks h4 { margin: 0 0 2px; color: var(--gam-color-heading); font-size: .875rem; }
+.task-link { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px; box-sizing: border-box; border: 1px solid var(--gam-color-control-border); border-radius: 10px; color: var(--gam-color-primary); background: var(--gam-color-surface); text-decoration: none; }
+.task-link:hover { background: var(--gam-color-surface-alt); }
+button.task-link { width: 100%; font: inherit; text-align: start; cursor: pointer; }
+.task-link:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.task-icon { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 8px; background: var(--gam-color-primary-soft); font-size: 20px; }
+.task-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.task-copy strong { font-size: .875rem; overflow-wrap: anywhere; }
+.task-copy small { color: var(--gam-color-text-muted); font-size: .75rem; }
+.task-link > ion-icon { flex: none; font-size: 18px; }

@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { refreshOutline } from 'ionicons/icons';
-import mapboxgl from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl/esm';
 import type { LngLatBounds, Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import { EMPTY, Subject, catchError, distinctUntilChanged, finalize, forkJoin, interval, map, merge, of, switchMap, tap } from 'rxjs';
 
