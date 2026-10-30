@@ -13,16 +13,16 @@
   } @else {
     @if (canCreateRecipe()) {
       <aside class="recipe-shortcut" aria-label="Creación de raciones">
-        <p><strong>¿Querés crear una ración?</strong>Definí su composición y rendimiento en Recetas.</p>
+        <div><div class="help-heading"><strong>¿Querés crear una ración?</strong><app-info-help label="Recetas" text="Las recetas definen la composición y el rendimiento de una ración a partir de materias primas. Registrá esas materias primas como Insumos para recetas para controlar el stock dedicado a alimentación. Crear una receta no agrega existencias de ración; la elaboración se registra por separado." /></div><p>Definí su composición y rendimiento en Recetas.</p></div>
         <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/Recetas/nueva'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear receta<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
       </aside>
     }
     @if (canCreateHealthCatalog()) {
       <aside class="recipe-shortcut" aria-label="Catálogos globales de sanidad">
-        <p><strong>Vacunas y medicamentos</strong>Se crean en sus catálogos globales, sin ubicación ni control de existencias.</p>
+        <div><div class="help-heading"><strong>Vacunas y medicamentos</strong><app-info-help label="Vacunas y medicamentos" text="Las vacunas y los medicamentos se crean en sus catálogos de Sanidad y quedan disponibles para todas las UP. Son fichas globales, sin ubicación ni control de existencias físicas. Su aplicación a los lotes se registra por separado." /></div><p>Se crean en sus catálogos globales, sin ubicación ni control de existencias.</p></div>
         <div class="health-shortcut-links">
-          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/medicacion/nuevo'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear medicamento<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
-          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/vacunacion/nuevo'" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear vacuna<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
+          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/medicacion/nuevo'" [queryParams]="healthCatalogQuery" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear medicamento<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
+          <a class="recipe-link" [routerLink]="saving() ? null : '/administracion/manejo-lotes/vacunacion/nuevo'" [queryParams]="healthCatalogQuery" [attr.aria-disabled]="saving() ? 'true' : null" [attr.tabindex]="saving() ? -1 : null">Crear vacuna<ion-icon name="arrow-forward-outline" aria-hidden="true" /></a>
         </div>
       </aside>
     }
@@ -41,7 +41,7 @@
             <small class="muted" id="sku-help">Usá un código único para identificarlo.</small>
             @if (fieldError(form.controls.sku); as message) { <span class="field-error" id="sku-error" role="alert">{{ message }}</span> }
           </div>
-          <div class="field"><label for="product-kind">Tipo de producto <span aria-hidden="true">*</span></label>
+          <div class="field"><div class="help-heading"><label for="product-kind">Tipo de producto <span aria-hidden="true">*</span></label><app-info-help label="Tipos de producto" text="Insumos y Otros permiten ingresar productos o materia sobrante para controlar su stock. Se manejan en el stock genérico de las unidades productivas (UP), en cámaras de insumos.&#10;&#10;Insumos para recetas son materias primas: se identifican así para controlar el stock dedicado a alimentación, en plantas de ración. Se registran en gramos y siempre controlan existencias." /></div>
             <select id="product-kind" formControlName="kind" (change)="kindChanged()" required [attr.aria-invalid]="fieldError(form.controls.kind) ? 'true' : null" [attr.aria-describedby]="fieldError(form.controls.kind) ? 'kind-error' : null"><option value="" disabled>Seleccioná un tipo</option>@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select>
             @if (fieldError(form.controls.kind); as message) { <span class="field-error" id="kind-error" role="alert">{{ message }}</span> }
           </div>

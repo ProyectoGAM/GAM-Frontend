@@ -46,6 +46,15 @@ ofrecen ingresar stock en Sanidad, consultar stock físico o preparar vínculos,
 tampoco para fichas históricas que conserven un ID de producto. La aplicación al
 lote continúa por separado. Nuevo producto ofrece enlaces de página completa
 a Nueva vacuna y Nuevo medicamento sólo para administradores.
+Esos accesos envían el origen reconocido `from=products`. Al entrar desde Nuevo
+producto, el enlace superior y la confirmación de creación permiten volver a ese
+formulario y conservan su parámetro `returnTo`. La confirmación mantiene también
+el acceso al listado y, para vacunas, a la ficha. Al entrar desde los listados
+sanitarios, se conserva el regreso al listado con sus filtros. No se acepta un
+destino arbitrario para este regreso: el formulario de producto es una ruta fija.
+Las pruebas de navegación recorren ambos catálogos, regresan después de crear o
+cancelar y comprueban que luego se puede crear un producto. Las entradas directas
+mantienen el listado sanitario como destino, con sus filtros.
 Ver [alcance del almacenamiento](inventory-storage-rules.md).
 
 Actualización de alcance global (28/10/2026): lint, las 963 pruebas en 126

@@ -25,6 +25,11 @@ h3 { margin: 20px 0 12px; font-size: 1rem; }
 .context-card span { color: var(--gam-color-text-muted); font-size: .875rem; }
 .panel { padding: 18px; }
 .configuration { display: grid; gap: 16px; }
+.multiplier-selector { display: grid; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface-alt); }
+ion-range { min-width: 0; padding: 0; --bar-height: 6px; --bar-background: var(--gam-color-control-border); --bar-background-active: var(--gam-color-primary); --knob-background: var(--gam-color-primary); --knob-size: 26px; --pin-background: var(--gam-color-primary); --pin-color: var(--gam-color-on-primary); color: var(--gam-color-text); }
+ion-range::part(label) { font-weight: 600; }
+ion-range::part(knob-handle):focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+ion-range [slot] { color: var(--gam-color-text-muted); font-size: .875rem; font-weight: 600; }
 ion-input, ion-select { width: 100%; min-width: 0; min-height: 56px; --background: var(--gam-color-surface); --color: var(--gam-color-text); --border-color: var(--gam-color-control-border); --border-radius: 8px; --highlight-color-focused: var(--gam-color-focus); --highlight-color-valid: var(--gam-color-primary); --highlight-color-invalid: var(--gam-color-danger); }
 .field-error { margin: -8px 0 0; color: var(--gam-color-danger); font-size: .875rem; line-height: 1.5; }
 .quantity-preview { display: grid; gap: 6px; padding: 14px; border-radius: 9px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); overflow-wrap: anywhere; line-height: 1.5; }

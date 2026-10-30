@@ -8,6 +8,7 @@ import { hasFeedRecipesPermission } from '../../../../core/auth/access-policy';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, arrowForwardOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline } from 'ionicons/icons';
+import { InfoHelpComponent } from '../../../../shared/components/info-help.component';
 
 import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
 import { ProductsApi } from '../../services/products.api';
@@ -26,7 +27,7 @@ export function safeReturnTo(value: string | null): string | null {
   selector: 'app-product-create',
   templateUrl: './product-create.page.html',
   styleUrl: './product-create.page.scss',
-  imports: [ReactiveFormsModule, RouterLink, IonIcon, InventoryConfirmationDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, IonIcon, InventoryConfirmationDialogComponent, InfoHelpComponent],
   host: { '[style.--product-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class ProductCreatePage {
@@ -46,7 +47,10 @@ export class ProductCreatePage {
   private readonly api = inject(ProductsApi);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  readonly kinds = CREATABLE_PRODUCT_KINDS;
+  readonly healthCatalogQuery = { from: 'products', returnTo: this.route.snapshot.queryParamMap.get('returnTo') };
+  readonly kinds = CREATABLE_PRODUCT_KINDS.map((kind) => ({
+    ...kind, label: kind.value === 'raw_material' ? 'Insumos para recetas' : kind.label,
+  }));
   readonly units = BASE_UNITS;
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -92,7 +96,7 @@ export class ProductCreatePage {
     if (typeof serverError === 'string') return serverError;
     if (control.touched && control.hasError('required')) return 'Completa este campo.';
     if (control.touched && control.hasError('maxlength')) return 'El valor supera el máximo permitido.';
-    if (control.hasError('unavailableKind')) return 'Elegí Insumo, Materia prima u Otros. Las vacunas, medicamentos, huevos y raciones se gestionan en sus apartados específicos.';
+    if (control.hasError('unavailableKind')) return 'Elegí Insumo, Insumos para recetas u Otros. Las vacunas, medicamentos, huevos y raciones se gestionan en sus apartados específicos.';
     return null;
   }
 

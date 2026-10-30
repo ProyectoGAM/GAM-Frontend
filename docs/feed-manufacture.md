@@ -62,6 +62,15 @@ multiplicador (por ejemplo, 13 kg × 2 = 26 kg). Al cambiar de receta se conserv
 el multiplicador y se recalcula desde su base. La revisión muestra también esta
 relación con el rendimiento y factor devueltos por el servidor.
 
+El selector rápido utiliza un slider Ionic de **×1 a ×10**, con pasos enteros y
+valor inicial ×1. Permanece deshabilitado hasta seleccionar una ración activa;
+si la selección se pierde, vuelve a bloquearse y no acepta cambios. Al soltarlo
+o ajustarlo con el teclado se sincronizan el campo
+manual y el total. El campo manual también admite multiplicadores mayores a diez,
+dentro del límite de cantidad existente: el slider queda en su extremo ×10 sin
+recortar el valor ingresado ni el cálculo. Ambos controles se bloquean durante
+el cálculo; cambiar de receta conserva el multiplicador.
+
 El cálculo utiliza enteros `BigInt`, respeta el máximo de 999999999999 gramos y
 envía el total en `cantidad_g` al contrato existente. Se rechazan cero, negativos,
 fracciones, notación científica y totales fuera de rango antes de llamar al API.
@@ -97,6 +106,16 @@ estado y conexión se presentan dentro del flujo.
 No hay cambios de plugins, configuración o integraciones nativas. Se utilizan
 controles Ionic, el scroll existente de `ion-content`, áreas seguras y tokens
 GAM compartidos para claro y oscuro.
+
+## Verificación del slider — 29/10/2026
+
+Las pruebas del formulario cubren los extremos ×1/×10, la sincronización con el
+campo manual, valores mayores a diez, cambio de receta y bloqueo durante el
+cálculo. El navegador integrado comprobó arrastre y flechas, 13 kg × 10 = 130 kg,
+el ingreso manual de ×25 y su cálculo real de 325 kg, conservado al volver a
+editar. Se revisaron 320 y 1280 px en claro y oscuro sin desbordamientos. No se
+confirmó ninguna elaboración ni se modificó stock. No se probaron dispositivos
+físicos.
 
 ## Verificación del multiplicador — 26/10/2026
 

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { IonModal } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { hasManagementPlansPermission } from '../../../core/auth/access-policy';
@@ -10,8 +11,9 @@ import { describeTemplateChanges } from '../services/management-plan-editor';
 import { ManagementPlansService } from '../services/management-plans.service';
 
 @Component({
-  selector: 'app-template-detail', imports: [RouterLink, PlanActivitiesComponent],
+  selector: 'app-template-detail', imports: [RouterLink, PlanActivitiesComponent, IonModal],
   templateUrl: './template-detail.page.html',
+  styleUrl: './template-detail.page.scss',
 })
 export class TemplateDetailPage {
   private readonly service = inject(ManagementPlansService);
@@ -19,6 +21,7 @@ export class TemplateDetailPage {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthStore);
   private readonly actionKeys = new Map<string, string>();
+  private readonly publicationTitle = viewChild<ElementRef<HTMLElement>>('publicationTitle');
   readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   readonly template = signal<PlanTemplate | null>(null);
   readonly selectedVersion = signal<number | null>(null);
@@ -55,6 +58,18 @@ export class TemplateDetailPage {
 
   detailPath(): string { return `/administracion/manejo-lotes/planes/plantillas/${this.route.snapshot.paramMap.get('id') ?? ''}`; }
 
+  openPublication(): void {
+    if (!this.canPublish() || this.workingAction() || this.conflictVersion()) return;
+    this.actionError.set(null);
+    this.confirmation.set('publish');
+  }
+
+  closePublication(): void {
+    if (!this.workingAction() && this.confirmation() === 'publish') this.confirmation.set(null);
+  }
+
+  focusPublication(): void { this.publicationTitle()?.nativeElement.focus({ preventScroll: true }); }
+
   async showCurrentVersion(): Promise<void> {
     const version = this.conflictVersion();
     if (version) {
@@ -67,7 +82,7 @@ export class TemplateDetailPage {
     const item = this.template();
     if (!item || !this.canManage() || this.workingAction() || this.conflictVersion()) return;
     if (action === 'activate' ? item.status !== 'retired' : item.status !== 'active') return;
-    if (action === 'publish' && !this.canPublish()) return;
+    if (action === 'publish' && (!this.canPublish() || this.confirmation() !== 'publish')) return;
     this.workingAction.set(action);
     this.actionError.set(null);
     const keyName = `${action}:${item.id}:${item.current_version}`;

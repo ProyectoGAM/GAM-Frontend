@@ -85,6 +85,11 @@ describe('FeedManufacturePage', () => {
     render();
     fixture.componentInstance.form.controls.recipeId.setValue(12); fixture.detectChanges();
     expect(fixture.componentInstance.form.controls.multiplier.value).toBe('1');
+    const slider = fixture.nativeElement.querySelector('ion-range') as HTMLIonRangeElement;
+    expect(slider.min).toBe(1);
+    expect(slider.max).toBe(10);
+    expect(slider.step).toBe(1);
+    expect(slider.value).toBe(1);
     expect(fixture.nativeElement.querySelector('ion-input[formControlName="kilograms"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('13 kg × 1 = 13 kg');
     fixture.componentInstance.form.controls.multiplier.setValue('2'); fixture.detectChanges();
@@ -93,6 +98,79 @@ describe('FeedManufacturePage', () => {
     expect(service.calculate).toHaveBeenCalledWith(12, '26000');
     expect(fixture.nativeElement.querySelector('.review-basis')?.textContent).toContain('13 kg × 2 = 26 kg');
     expect(service.manufacture).not.toHaveBeenCalled();
+  });
+
+  it('keeps the slider locked until a recipe is selected and locks it again when the selection is cleared', () => {
+    render();
+    const page = fixture.componentInstance;
+    const slider = fixture.nativeElement.querySelector('ion-range') as HTMLIonRangeElement;
+    expect(slider.disabled).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Seleccioná una ración para habilitar el deslizador');
+    slider.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 10 } }));
+    expect(page.form.controls.multiplier.value).toBe('1');
+    page.form.controls.recipeId.setValue(12); fixture.detectChanges();
+    expect(slider.disabled).toBe(false);
+    slider.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 4 } }));
+    expect(page.form.controls.multiplier.value).toBe('4');
+    page.form.controls.recipeId.setValue(null); fixture.detectChanges();
+    expect(slider.disabled).toBe(true);
+    slider.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 10 } }));
+    expect(page.form.controls.multiplier.value).toBe('4');
+    expect(service.calculate).not.toHaveBeenCalled();
+  });
+
+  it('uses the slider endpoints to update the manual factor and total before requesting a review', () => {
+    render();
+    const page = fixture.componentInstance;
+    page.form.controls.recipeId.setValue(12); fixture.detectChanges();
+    const slider = fixture.nativeElement.querySelector('ion-range') as HTMLIonRangeElement;
+    for (const factor of [10, 1, 5, 10]) {
+      slider.dispatchEvent(new CustomEvent('ionChange', { detail: { value: factor } })); fixture.detectChanges();
+      expect(page.form.controls.multiplier.value).toBe(String(factor));
+      expect(fixture.nativeElement.querySelector('output')?.textContent).toContain(`13 kg × ${factor} = ${13 * factor} kg`);
+    }
+    expect(service.calculate).not.toHaveBeenCalled();
+    expect(service.manufacture).not.toHaveBeenCalled();
+    page.review();
+    expect(service.calculate).toHaveBeenCalledWith(12, '130000');
+  });
+
+  it('synchronizes manual factors and preserves values above ten when the slider display or recipe changes', async () => {
+    service.recipes.mockReturnValue(of([recipe, { ...recipe, id: 13, nombre: 'Otra ración', rendimiento_g: '25000' }]));
+    render(); await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.form.controls.recipeId.setValue(12); fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('ion-input[formControlName="multiplier"]') as HTMLIonInputElement;
+    const slider = fixture.nativeElement.querySelector('ion-range') as HTMLIonRangeElement;
+    for (const factor of ['4', '25']) {
+      input.value = factor;
+      input.dispatchEvent(new CustomEvent('ionInput', { detail: { value: factor }, bubbles: true }));
+      await fixture.whenStable(); fixture.detectChanges();
+      expect(page.form.controls.multiplier.value).toBe(factor);
+      expect(slider.value).toBe(Math.min(10, Number(factor)));
+    }
+    // Ionic emits ionInput for programmatic range updates; only user commits change the form.
+    slider.dispatchEvent(new CustomEvent('ionInput', { detail: { value: 10 } })); fixture.detectChanges();
+    expect(page.form.controls.multiplier.value).toBe('25');
+    expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('13 kg × 25 = 325 kg');
+    page.form.controls.recipeId.setValue(13); fixture.detectChanges();
+    expect(page.form.controls.multiplier.value).toBe('25');
+    expect(fixture.nativeElement.querySelector('output')?.textContent).toContain('25 kg × 25 = 625 kg');
+    page.review();
+    expect(service.calculate).toHaveBeenCalledWith(13, '625000');
+  });
+
+  it('locks the slider with the form while a calculation is pending', () => {
+    const pendingCalculation = new Subject<ManufactureCalculation>(); service.calculate.mockReturnValue(pendingCalculation);
+    render(); review();
+    const page = fixture.componentInstance;
+    const slider = fixture.nativeElement.querySelector('ion-range') as HTMLIonRangeElement;
+    expect(slider.disabled).toBe(true);
+    slider.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 10 } }));
+    expect(page.form.controls.multiplier.value).toBe('2');
+    pendingCalculation.error(new HttpErrorResponse({ status: 0 })); fixture.detectChanges();
+    expect(slider.disabled).toBe(false);
+    expect(page.form.controls.multiplier.enabled).toBe(true);
   });
 
   it('recalculates from the selected recipe base and invalidates an old review after editing', () => {
