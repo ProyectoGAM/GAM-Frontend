@@ -1,0 +1,4 @@
+:host { display: contents; }
+dialog { box-sizing: border-box; position: fixed; inset: 0; width: calc(100% - 24px); max-width: 600px; max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--gam-color-border); border-radius: 14px; background: var(--gam-color-surface); color: var(--gam-color-text); }
+dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 65%, transparent); }
+@media (max-width: 450px) { dialog { width: calc(100% - 16px); max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); } }

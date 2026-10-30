@@ -1,9 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { switchMap, of } from 'rxjs';
 
 import { AuthStore } from '../../../core/auth/auth.store';
+import { isAdminUser } from '../../../core/auth/access-policy';
+import { RecordCollectionRequest } from '../interfaces/flock-collection.interface';
 import { FeedBalance, FeedingRecipeOption, FeedingSubmission, FlockFeeding } from '../interfaces/flock-feeding.interface';
 import { FlockHouseTaskRequest } from '../interfaces/flock-house-task.interface';
 import { MortalityFieldErrors, MortalitySubmission, RecordMortalityRequest } from '../interfaces/flock-mortality.interface';
@@ -11,6 +13,7 @@ import { Flock } from '../interfaces/flock.interface';
 import { FeedingLoadState } from '../types/feeding-state.type';
 import { snapshotRecipeName } from './feeding-summary';
 import { FlockDetailService } from './flock-detail.service';
+import { FlockCollectionsService } from './flock-collections.service';
 import { FlockFeedingService } from './flock-feeding.service';
 import { FlockMortalitiesService } from './flock-mortalities.service';
 import { buildMortalityRequest } from './mortality-record-form';
@@ -19,6 +22,7 @@ import { buildMortalityRequest } from './mortality-record-form';
 @Injectable()
 export class FlockHouseTaskService {
   private readonly detail = inject(FlockDetailService);
+  private readonly injector = inject(Injector);
   private readonly mortalityApi = inject(FlockMortalitiesService);
   private readonly feedingApi = inject(FlockFeedingService);
   private readonly auth = inject(AuthStore);
@@ -27,7 +31,7 @@ export class FlockHouseTaskService {
   private loadVersion = 0;
   private balancesVersion = 0;
   private actorId: number | undefined;
-  private attempt: { fingerprint: string; key: string; mortality?: RecordMortalityRequest } | null = null;
+  private attempt: { fingerprint: string; key: string; mortality?: RecordMortalityRequest; collection?: RecordCollectionRequest } | null = null;
   readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   readonly loadError = signal<string | null>(null);
   readonly flock = signal<Flock | null>(null);
@@ -37,6 +41,7 @@ export class FlockHouseTaskService {
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
   readonly fieldErrors = signal<MortalityFieldErrors>({});
+  readonly collectionFieldErrors = signal<Record<string, string>>({});
   readonly result = signal<string | null>(null);
   readonly options = computed<FeedingRecipeOption[]>(() => this.balances()
     .filter((balance) => balance.up_id === this.flock()?.production_unit_id
@@ -66,6 +71,10 @@ export class FlockHouseTaskService {
     if (!this.auth.user()) { this.fail('No tenés acceso para realizar esta tarea.'); return; }
     this.detail.flock(request.flockId).pipe(switchMap((flock) => {
       if (version !== this.loadVersion || !this.acceptFlock(flock)) return of(null);
+      if (request.kind === 'collection' && (flock.current_quantity <= 0 || !this.canCollect())) {
+        this.fail(flock.current_quantity <= 0 ? 'Este lote no tiene aves vivas para registrar postura.' : 'No tenés permiso para registrar postura.');
+        return of(null);
+      }
       this.flock.set(flock);
       return request.kind === 'feeding' ? this.feedingApi.current(flock.id) : of(null);
     }), takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -97,7 +106,28 @@ export class FlockHouseTaskService {
     });
   }
 
-  clearErrors(): void { this.saveError.set(null); this.fieldErrors.set({}); }
+  clearErrors(): void { this.saveError.set(null); this.fieldErrors.set({}); this.collectionFieldErrors.set({}); }
+
+  saveCollection(submission: RecordCollectionRequest): void {
+    const flock = this.flock();
+    if (this.request?.kind !== 'collection' || !flock || !this.canSave(flock) || flock.current_quantity <= 0 || !this.canCollect()) return;
+    this.clearErrors();
+    const fingerprint = JSON.stringify([flock.id, submission]);
+    if (this.attempt?.fingerprint !== fingerprint) {
+      this.attempt = { fingerprint, key: crypto.randomUUID(), collection: { ...submission } };
+    }
+    const request = this.attempt.collection;
+    if (!request) return;
+    this.saving.set(true);
+    this.injector.get(FlockCollectionsService).record(flock.id, request, this.attempt.key).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.saving.set(false); this.attempt = null; this.result.set('Postura registrada. El inventario de huevos se actualizó.'); },
+      error: (error: unknown) => this.handleSaveError(error),
+    });
+  }
+
+  private canCollect(): boolean {
+    return isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('egg-collections.manage') === true;
+  }
 
   saveMortality(submission: MortalitySubmission): void {
     const flock = this.flock();
@@ -168,6 +198,15 @@ export class FlockHouseTaskService {
     this.saveError.set(this.errorMessage(error, 'No se pudo guardar. Podés reintentar con los mismos datos.'));
     if (!(error instanceof HttpErrorResponse)) return;
     if ([401, 403, 409, 422].includes(error.status)) this.attempt = null;
+    if (error.status === 422 && this.request?.kind === 'collection') {
+      const errors = this.problem(error)?.['errors'];
+      const fields: Record<string, string> = {};
+      if (errors && typeof errors === 'object') for (const [name, values] of Object.entries(errors)) {
+        const message: unknown = Array.isArray(values) ? values.find((value: unknown) => typeof value === 'string') : null;
+        if (typeof message === 'string') fields[name] = message;
+      }
+      this.collectionFieldErrors.set(fields);
+    }
     if (error.status === 422 && this.request?.kind === 'mortality') {
       const problem = this.problem(error);
       const errors = problem?.['errors'];

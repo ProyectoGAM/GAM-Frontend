@@ -74,7 +74,7 @@ export class FlockCollectionsPage {
   readonly rangeText = computed(() => `${collectionDate(this.range().from)} – ${collectionDate(this.range().to)}`);
   readonly grouping = computed(() => collectionGrouping(this.period(), this.range().from, this.range().to));
   readonly groupingText = computed(() => ({ day: 'Puntos diarios', week: 'Promedios semanales', month: 'Promedios mensuales' })[this.grouping()]);
-  readonly seriesLabel = computed(() => this.grouping() === 'day' ? 'Recolección diaria' : 'Promedio diario del intervalo');
+  readonly seriesLabel = computed(() => this.grouping() === 'day' ? 'Postura diaria' : 'Promedio diario del intervalo');
   readonly points = computed(() => collectionPoints(this.days(), this.range().from, this.range().to, this.grouping(), this.firstHistoricalDate()));
   readonly firstHistoricalDate = computed(() => this.days().reduce<string | null>((first, day) =>
     first === null || day.date < first ? day.date : first, null));
@@ -177,7 +177,7 @@ export class FlockCollectionsPage {
       next: () => {
         if (version !== this.version) return;
         this.saving.set(false); this.attempt = null;
-        this.registration()?.saved(); this.success.set('Recolección registrada. El inventario de huevos se actualizó.'); this.refreshData();
+        this.registration()?.saved(); this.success.set('Postura registrada. El inventario de huevos se actualizó.'); this.refreshData();
       },
       error: (error: unknown) => {
         if (version !== this.version) return;

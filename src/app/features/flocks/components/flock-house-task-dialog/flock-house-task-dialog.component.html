@@ -9,7 +9,10 @@
   }
 </dialog>
 @if (task.state() === 'ready' && task.flock(); as flock) {
-  @if (request().kind === 'mortality') {
+  @if (request().kind === 'collection') {
+    <app-collection-form [flock]="flock" [context]="context()" [saving]="task.saving()" [error]="task.saveError()"
+      [fieldErrors]="task.collectionFieldErrors()" (submitted)="task.saveCollection($event)" (closed)="finish()" />
+  } @else if (request().kind === 'mortality') {
     <app-flock-mortality-section [flock]="flock" [registrationOnly]="true"
       [houseName]="request().houseName" [unitName]="request().unitName"
       [saving]="task.saving()" [saveError]="task.saveError()" [fieldErrors]="task.fieldErrors()"

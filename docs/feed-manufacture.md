@@ -46,6 +46,27 @@ El resultado solo existe durante ese recorrido: no hay ruta de comprobante,
 historial, cancelación ni acceso adicional desde Inventario. Volver a la planta
 reemplaza la entrada de navegación y vuelve a consultar su stock.
 
+Acceso rápido reutiliza este mismo flujo dentro de una modal nativa, centrada
+en escritorio y adaptable al teléfono. `FeedManufactureFlowComponent` es dueño
+del formulario, cálculo, confirmación, resultado y recuperación; la página de
+elaboración sólo aporta los identificadores de su ruta. La modal aporta esos
+identificadores desde la tarjeta y revalida tipo, pertenencia y estado con el
+servidor, sin confiar en los datos de presentación.
+
+En la modal, encabezado con planta/UP y pie de acciones permanecen visibles;
+sólo desplaza el cuerpo. El selector de receta es nativo para no abrir una capa
+Ionic por detrás del diálogo. Se conserva multiplicador ×1 al iniciar, slider
+×1–×10, entrada manual para valores mayores y total de sólo lectura. El resultado
+compacto muestra la cantidad y saldo confirmados. Listo cierra sin navegar y
+Acceso rápido conserva la búsqueda y la selección de Planta.
+
+El cálculo y guardado bloquean cierre y navegación en ambos accesos. Un resultado
+incierto conserva cuerpo y clave en el servicio compartido; se permite cerrar
+la modal y reabrir la operación pendiente para Consultar resultado, incluso si
+la planta dejó de estar operativa. No se vuelve a calcular ni se crea otra clave.
+Escape y el fondo cancelan sólo cuando no hay una petición en curso; el foco
+regresa al origen o al título de Acceso rápido tras actualizar sus tarjetas.
+
 `FeedManufactureService` usa `ApiClient` y el contrato del backend
 `contracts/openapi/feed-recipes.yaml`:
 

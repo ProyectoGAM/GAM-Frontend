@@ -48,7 +48,8 @@ directamente la misma modal, sin navegar ni cargar el historial. Antes de
 habilitar el registro se consulta nuevamente el lote y se verifica que siga
 en ese galpón y UP y que no esté finalizado. Al guardar se cierra la modal,
 se informa **Aplicación registrada.** y se actualiza el detalle del galpón;
-al cancelar se devuelve el foco al botón. El acceso rápido queda pendiente.
+al cancelar se devuelve el foco al botón. La pantalla de [Acceso rápido](quick-access.md)
+reutiliza esta misma modal desde la tarjeta de cada galpón.
 Ambas entradas comparten `FlockHealthApplicationService`, con una sesión aislada
 por página/modal, además del mismo formulario y confirmación fuera del plan.
 

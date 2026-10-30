@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 import type { PoultryHouseDetailPage } from './pages/poultry-house-detail/poultry-house-detail.page';
+import type { FeedManufacturePage } from './pages/feed-manufacture/feed-manufacture.page';
 
 export const productionUnitsRoutes: Routes = [
   {
     path: ':id/galpon/:houseId/elaborar',
+    canDeactivate: [(page: FeedManufacturePage) => page.canLeave()],
     loadComponent: () => import('./pages/feed-manufacture/feed-manufacture.page')
       .then((module) => module.FeedManufacturePage),
   },

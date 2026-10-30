@@ -1,8 +1,8 @@
 @if (points().length === 0) {
-  <p class="empty" role="status">Sin registros de postura en este período.</p>
+  <p class="empty" role="status">Sin registros de pesaje en este período.</p>
 } @else {
   @if (points().length === 1) {
-    <p class="note" role="status">Hay una sola postura diaria. Se necesitan al menos dos fechas para evaluar la tendencia.</p>
+    <p class="note" role="status">Hay un solo pesaje diario. Se necesitan al menos dos fechas para evaluar la tendencia.</p>
   }
   <div #chartHost class="chart" role="img" [attr.aria-label]="description()"></div>
   <div class="legend">

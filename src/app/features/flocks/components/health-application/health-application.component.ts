@@ -22,6 +22,7 @@ import { HealthApplicationKind } from '../../types/flock-health.type';
 export class HealthApplicationComponent {
   private readonly auth = inject(AuthStore);
   readonly flock = input.required<Flock>();
+  readonly context = input<string | null>(null);
   readonly plan = input<FlockPlan | null>(null);
   readonly vaccines = input<PlanCatalogOption[]>([]);
   readonly medicines = input<PlanCatalogOption[]>([]);

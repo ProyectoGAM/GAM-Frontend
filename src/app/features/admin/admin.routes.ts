@@ -11,7 +11,9 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   canActivate: [authGuard, adminGroupGuard],
   data: { group: group.id },
   children:
-    group.id === 'usuarios'
+    group.id === 'acceso-rapido'
+      ? [{ path: '', loadChildren: () => import('../quick-access/quick-access.routes').then((module) => module.quickAccessRoutes) }]
+      : group.id === 'usuarios'
       ? [{ path: '', loadChildren: () => import('../users/users.routes').then((module) => module.usersRoutes) }]
       : group.id === 'clientes'
       ? [{ path: '', loadChildren: () => import('../customers/customers.routes').then((module) => module.customersRoutes) }]

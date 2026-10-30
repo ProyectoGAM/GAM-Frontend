@@ -1,6 +1,6 @@
 <dialog #dialog class="health-dialog" aria-labelledby="application-title" (cancel)="close($event)">
   <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="saving()">
-    <header><div><h2 id="application-title" tabindex="-1">Registrar aplicación</h2><p>Lote {{ flock().code }}</p></div>
+    <header><div><h2 id="application-title" tabindex="-1">Registrar aplicación</h2><p>{{ context() ?? 'Lote ' + flock().code }}</p></div>
       <button class="icon-button" type="button" aria-label="Cerrar aplicación" [disabled]="locked()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
     </header>
     <div class="dialog-body">

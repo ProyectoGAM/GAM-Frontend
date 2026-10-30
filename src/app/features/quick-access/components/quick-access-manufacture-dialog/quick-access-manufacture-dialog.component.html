@@ -1,0 +1,3 @@
+<dialog #dialog aria-labelledby="page-title" (cancel)="close($event)" (keydown.escape)="close($event)" (click)="backdrop($event)">
+  <app-feed-manufacture-flow class="dialog-flow" [unitId]="request().unitId" [plantId]="request().plantId" [embedded]="true" (closed)="finish($event)" />
+</dialog>

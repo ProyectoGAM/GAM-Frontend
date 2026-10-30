@@ -73,7 +73,7 @@
         <section class="card small-card" aria-labelledby="weighing-title">
           <ion-icon class="card-icon" name="scale-outline" aria-hidden="true" />
           <div>
-            <h2 id="weighing-title">Última postura</h2>
+            <h2 id="weighing-title">Último pesaje</h2>
             @if (weighing().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
             @else if (weighing().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
             @else if (weighing().value) {
@@ -82,7 +82,7 @@
             } @else { <p class="metric-note">Sin registros</p> }
           </div>
           <div class="register-action">
-            <a [routerLink]="weighingsLink()">Ir a posturas <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
+            <a [routerLink]="weighingsLink()">Ir a pesajes <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </section>
       </div>
@@ -92,7 +92,7 @@
           <ion-icon class="card-icon" name="egg-outline" aria-hidden="true" />
           <h2 id="production-title">Producción de huevo</h2>
           <div class="register-action">
-            <a [routerLink]="collectionsLink()">Ir a recolección <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
+            <a [routerLink]="collectionsLink()">Ir a postura <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
         </div>
         <app-collection-summary [metric]="eggs()" />

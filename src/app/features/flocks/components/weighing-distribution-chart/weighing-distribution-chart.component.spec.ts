@@ -65,7 +65,7 @@ describe('individual weight distribution', () => {
     const distribution = dailyWeighingDistribution(groups);
     expect(distribution).toMatchObject({ available: false, n: 0, mean: null, sample_stddev: null, bins: [], curve: null });
     const fixture = render(groups);
-    expect(fixture.nativeElement.textContent).toContain('La distribución requiere posturas individuales');
+    expect(fixture.nativeElement.textContent).toContain('La distribución requiere pesajes individuales');
     expect(fixture.nativeElement.querySelector('.chart-wrap')?.hasAttribute('hidden')).toBe(true);
     expect(fixture.nativeElement.textContent).not.toContain('Distribución de promedios grupales');
   });
