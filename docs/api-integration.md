@@ -4,6 +4,10 @@ La gestión de cuentas y dispositivos usa `features/users/services/users.service
 
 ## 1. Contract-first
 
+La aplicación sanitaria desde el detalle del lote consume `management-plans.yaml`
+sin cantidad ni stock. Ver [Sanidad del lote](flock-health.md) para historial,
+coincidencia con el calendario del plan, motivo condicional e idempotencia.
+
 Laravel API contracts are authoritative.
 
 La elaboración desde plantas de ración usa el catálogo, cálculo y registro de
@@ -33,6 +37,11 @@ sin filtrar por capacidad; ver [fraccionamiento de lotes](flock-fractionation.md
 para ocupación, versiones, idempotencia y el cambio de capacidad pendiente en backend.
 La mortalidad vigente se consulta de forma independiente y paginada; ver
 [`flock-cards.md`](flock-cards.md) para carga progresiva y permisos.
+
+El alta de lotes no compara la cantidad inicial de aves con `bird_capacity`:
+superar la capacidad del galpón no bloquea la creación, igual que en el backend.
+Se mantiene el entero positivo hasta 2147483647 y la selección de un galpón
+operativo y vacío de la UP elegida.
 
 El detalle del plan de manejo resalta todas las actividades previstas que
 coinciden con el día o semana actuales. Ver

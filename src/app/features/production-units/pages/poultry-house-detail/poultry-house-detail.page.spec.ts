@@ -12,6 +12,12 @@ import { FlockDetailService } from '../../../flocks/services/flock-detail.servic
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FeedAdjustmentService } from '../../services/feed-adjustment.service';
 import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
+import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
+import { FlockHealthService } from '../../../flocks/services/flock-health.service';
+import { ManagementPlansService } from '../../../management-plans/services/management-plans.service';
+import { HealthApplicationComponent } from '../../../flocks/components/health-application/health-application.component';
+import { HealthOperation } from '../../../flocks/interfaces/flock-health.interface';
+import { healthFlock, healthPlan } from '../../../flocks/testing/health-fixtures';
 
 describe('PoultryHouseDetailPage', () => {
   let fixture: ComponentFixture<PoultryHouseDetailPage>;
@@ -199,6 +205,47 @@ describe('PoultryHouseDetailPage', () => {
     const counts = fixture.nativeElement.querySelectorAll('app-flock-card dd') as NodeListOf<HTMLElement>;
     expect(counts[0].textContent).toBe('10'); expect(counts[1].textContent).toBe('749');
     expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortandad registrada.');
+  });
+
+  it('opens Sanidad from the house card, blocks leaving during save and refreshes the same detail on success', async () => {
+    const restore = stubNativeDialog();
+    const pending = new Subject<HealthOperation>();
+    const record = vi.fn(() => pending); const history = vi.fn();
+    const actor = { id: 1, name: 'María', roles: ['admin'], permissions: [] };
+    const flock = { ...healthFlock, poultry_house_id: 22, production_unit_id: 7 };
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(AuthStore, { useValue: { user: () => actor, session: () => null } });
+    TestBed.overrideProvider(FlockDetailService, { useValue: { flock: () => of(flock), mortalityTotals: () => of(new Map()) } });
+    TestBed.configureTestingModule({ providers: [
+      { provide: FlockHealthService, useValue: { record, history } },
+      { provide: ManagementPlansService, useValue: { catalogOptions: async () => [{ value: 'vaccine-1', label: 'Vacuna A' }], flockPlan: () => of({ data: healthPlan }) } },
+    ] });
+    try {
+      render(); await fixture.whenStable(); fixture.detectChanges();
+      const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.task-link')]
+        .find((item) => item.textContent?.includes('Sanidad'))!;
+      expect(button).toBeDefined(); button.click(); fixture.detectChanges();
+      await vi.waitFor(async () => {
+        await fixture.whenStable(); fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.health-dialog')?.open).toBe(true);
+      });
+      expect(fixture.nativeElement.querySelector('app-flock-house-task-dialog')).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain(house.name);
+      expect(history).not.toHaveBeenCalled(); expect(TestBed.inject(Router).url).toBe('/');
+      const editor = fixture.debugElement.query(By.directive(HealthApplicationComponent)).componentInstance as HealthApplicationComponent;
+      editor.submitted.emit({ kind: 'vaccination', body: { vaccine_id: 'vaccine-1', occurred_at: '2026-10-20T10:00:00-03:00', reason: 'Indicación' } });
+      expect(fixture.componentInstance.canLeave()).toBe(false);
+      pending.next({ operation_id: 'op-1', vaccination_application: { id: 'app-1' } }); pending.complete();
+      await vi.waitFor(async () => {
+        await fixture.whenStable(); fixture.detectChanges();
+        expect(fixture.componentInstance.taskMessage()).toBe('Aplicación registrada.');
+      });
+      expect(fixture.componentInstance.flockTask()).toBeNull();
+      expect(fixture.componentInstance.canLeave()).toBe(true);
+      expect(houseFlocks).toHaveBeenCalledTimes(2);
+      expect(document.activeElement?.textContent).toContain('Sanidad');
+      expect(TestBed.inject(Router).url).toBe('/');
+    } finally { fixture?.destroy(); restore(); }
   });
 
   it('renders feed stock without avian sections', () => {

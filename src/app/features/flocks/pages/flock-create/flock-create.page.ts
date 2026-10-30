@@ -198,7 +198,6 @@ export class FlockCreatePage {
     const errors = validateFlockCreateStep(step, this.draft(), {
       unitId: this.unitContext.selectedUnit()?.status === 'active' ? this.unitContext.selectedId() : null,
       houseIds: this.houses().map((house) => house.id),
-      houseCapacity: this.selectedHouse()?.bird_capacity ?? null,
       breedIds: this.breeds().map((breed) => breed.id),
       supplierIds: this.suppliers().map((supplier) => supplier.id),
       templates: this.templates(),

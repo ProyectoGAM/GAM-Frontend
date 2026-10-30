@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import type { PoultryHouseDetailPage } from './pages/poultry-house-detail/poultry-house-detail.page';
 
 export const productionUnitsRoutes: Routes = [
   {
@@ -20,6 +21,7 @@ export const productionUnitsRoutes: Routes = [
     path: ':id/galpon/:houseId',
     loadComponent: () => import('./pages/poultry-house-detail/poultry-house-detail.page')
       .then((module) => module.PoultryHouseDetailPage),
+    canDeactivate: [(page: PoultryHouseDetailPage) => page.canLeave()],
   },
   {
     path: ':id',

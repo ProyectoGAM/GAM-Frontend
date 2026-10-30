@@ -1,0 +1,13 @@
+<dialog #statusDialog class="task-status-dialog" aria-labelledby="house-health-title" (cancel)="close($event)">
+  <header><h2 id="house-health-title" tabindex="-1">Sanidad</h2><button type="button" aria-label="Cerrar sanidad" (click)="close()">Cerrar</button></header>
+  <p>{{ request().houseName }} · {{ request().unitName }}</p>
+  @if (application.contextError() || application.dataError(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+    <button type="button" class="primary" (click)="application.loadEditorData()">Reintentar</button>
+  } @else { <p class="loading" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando sanidad del lote…</p> }
+</dialog>
+@if (!application.contextError() && application.flock(); as flock) {
+  <app-health-application [flock]="flock" [plan]="application.plan()" [vaccines]="application.vaccines()" [medicines]="application.medicines()"
+    [dataReady]="application.dataReady()" [dataError]="application.dataError()" [saving]="application.saving()" [uncertain]="application.uncertain()" [error]="application.actionError()"
+    (submitted)="application.save($event)" (retried)="application.retry()" (reloadRequested)="application.loadEditorData()" (closed)="close()" />
+}

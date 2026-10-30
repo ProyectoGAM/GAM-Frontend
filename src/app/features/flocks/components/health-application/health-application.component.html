@@ -1,0 +1,66 @@
+<dialog #dialog class="health-dialog" aria-labelledby="application-title" (cancel)="close($event)">
+  <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="saving()">
+    <header><div><h2 id="application-title" tabindex="-1">Registrar aplicación</h2><p>Lote {{ flock().code }}</p></div>
+      <button class="icon-button" type="button" aria-label="Cerrar aplicación" [disabled]="locked()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+    </header>
+    <div class="dialog-body">
+      @if (!dataReady()) {
+        <p [attr.role]="dataError() ? 'alert' : 'status'">{{ dataError() ?? 'Cargando catálogos y plan del lote…' }}</p>
+        @if (dataError()) { <button class="secondary" type="button" (click)="reloadRequested.emit()">Reintentar carga</button> }
+      }
+      <fieldset [disabled]="locked() || !dataReady()">
+        <legend class="visually-hidden">Datos de la aplicación</legend>
+        <div class="segment" role="group" aria-label="Tipo de aplicación">
+          <button type="button" [attr.aria-pressed]="kind() === 'vaccination'" (click)="setKind('vaccination')">Vacuna</button>
+          <button type="button" [attr.aria-pressed]="kind() === 'medication'" (click)="setKind('medication')">Medicamento</button>
+        </div>
+        <label for="health-product">{{ kind() === 'vaccination' ? 'Vacuna' : 'Medicamento' }}</label>
+        <select id="health-product" formControlName="product" required>
+          <option value="">Seleccionar {{ label() }}</option>
+          @for (product of products(); track product.value) { <option [value]="product.value">{{ product.label }}</option> }
+        </select>
+        @if (dataReady() && !products().length) { <p class="help">No hay {{ kind() === 'vaccination' ? 'vacunas activas' : 'medicamentos' }} disponibles.</p> }
+        <div class="field-pair">
+          <div><label for="health-date">Fecha de aplicación</label><input id="health-date" type="date" formControlName="date" [min]="minDate()" [max]="maxDate()" required /></div>
+          <div><label for="health-time">Hora</label><input id="health-time" type="time" formControlName="time" required /></div>
+        </div>
+        <label for="health-activity">Actividad del plan</label>
+        <select id="health-activity" formControlName="activity" aria-describedby="health-plan-status">
+          <option value="">Sin actividad del plan</option>
+          @for (activity of activities(); track activity.id) { <option [value]="activity.id">{{ activity.title }} · {{ activity.timing }}</option> }
+        </select>
+        @if (dataReady()) {
+          <div id="health-plan-status" class="plan-status" [class.planned]="withinPlan()" [attr.role]="withinPlan() ? 'status' : 'alert'">
+            <ion-icon [name]="withinPlan() ? 'checkmark-circle-outline' : 'warning-outline'" aria-hidden="true" />
+            <div><strong>{{ withinPlan() ? 'Dentro del plan' : 'Fuera del plan' }}</strong><p>{{ planMessage() }}</p></div>
+          </div>
+        }
+        @if (kind() === 'vaccination') {
+          <label for="health-batch">Partida de la vacuna <span>· Opcional</span></label>
+          <input id="health-batch" formControlName="batch" maxlength="160" placeholder="Ej. VC-2026-018" />
+        }
+        <label for="health-reason">Motivo <span>{{ withinPlan() ? '· Opcional' : '· Obligatorio fuera del plan' }}</span></label>
+        <textarea id="health-reason" formControlName="reason" rows="2" maxlength="500" [required]="!withinPlan()"
+          [attr.aria-invalid]="attempted() && !withinPlan() && !form.controls.reason.value.trim()" placeholder="Explicar el motivo de la aplicación"></textarea>
+        <details><summary>Agregar notas</summary><label for="health-notes">Notas <span>· Opcional</span></label>
+          <textarea id="health-notes" formControlName="notes" rows="2" maxlength="5000" placeholder="Agregar una observación"></textarea>
+        </details>
+      </fieldset>
+      <p class="help">Responsable: {{ responsible() }}</p>
+      @if (localError() || error()) { <p class="error" role="alert">{{ localError() ?? error() }}</p> }
+      @if (uncertain()) { <p class="notice" role="status">La respuesta no pudo confirmarse. El reintento conserva los mismos datos para evitar duplicar la aplicación.</p> }
+    </div>
+    <footer><button class="secondary" type="button" [disabled]="locked()" (click)="close()">Cancelar</button>
+      <button class="primary" type="submit" [disabled]="saving() || (!uncertain() && !dataReady())">{{ saving() ? 'Guardando…' : uncertain() ? 'Reintentar confirmación' : 'Registrar ' + label() }}</button>
+    </footer>
+  </form>
+</dialog>
+<dialog #confirmation class="health-dialog confirmation" role="alertdialog" aria-labelledby="outside-title" aria-describedby="outside-description" (cancel)="back($event)">
+  <div class="dialog-body">
+    <ion-icon class="warning-icon" name="warning-outline" aria-hidden="true" />
+    <h2 id="outside-title">¿Registrar fuera del plan?</h2>
+    <p id="outside-description">{{ planMessage() }} Se guardará en el historial como <strong>Fuera del plan</strong>.</p>
+    <div class="confirmation-summary"><strong>{{ productName() }}</strong><span>Lote {{ flock().code }} · {{ form.controls.date.value }} · {{ form.controls.time.value }}</span><span>Motivo: {{ form.controls.reason.value }}</span></div>
+  </div>
+  <footer><button class="secondary" type="button" (click)="back()">Volver</button><button class="primary" type="button" (click)="confirm()">Confirmar aplicación</button></footer>
+</dialog>

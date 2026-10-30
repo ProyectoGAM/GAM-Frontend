@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { forkJoin, switchMap } from 'rxjs';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
@@ -33,6 +33,7 @@ import { poultryHouseCapacityWarning } from '../../services/poultry-house-capaci
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
 import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
+import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskAction, FlockHouseTaskRequest } from '../../../flocks/interfaces/flock-house-task.interface';
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
@@ -54,6 +55,7 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
     FeedStockDetailComponent,
     PoultryHouseDetailContentComponent,
     FlockHouseTaskDialogComponent,
+    FlockHouseHealthDialogComponent,
   ],
 })
 export class PoultryHouseDetailPage implements OnInit {
@@ -81,6 +83,7 @@ export class PoultryHouseDetailPage implements OnInit {
   private readonly navigationFeedback: unknown = this.router.currentNavigation()?.extras.state?.['flockTaskMessage'];
   readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
   readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
+  private readonly healthDialog = viewChild(FlockHouseHealthDialogComponent);
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -189,6 +192,8 @@ export class PoultryHouseDetailPage implements OnInit {
     if (house.type === 'poultry') this.loadFlocks(house.id);
     else this.loadFeedStock(house.id);
   }
+
+  canLeave(): boolean { return this.healthDialog()?.canLeave() ?? true; }
 
   openFlockTask(action: FlockHouseTaskAction): void {
     const house = this.house();

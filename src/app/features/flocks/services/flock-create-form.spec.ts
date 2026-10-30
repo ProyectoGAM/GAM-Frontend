@@ -6,7 +6,6 @@ const template = { id: '01J00000000000000000000000', name: 'Ponedoras', status: 
 const choices: FlockCreateChoices = {
   unitId: 7,
   houseIds: [22],
-  houseCapacity: 1800,
   breedIds: [4],
   supplierIds: [9],
   templates: [template],
@@ -34,9 +33,13 @@ describe('flock creation form', () => {
       .toMatchObject({ entryDate: expect.any(String), houseId: expect.any(String) });
   });
 
-  it('rejects quantities beyond the selected galpón capacity', () => {
-    expect(validateFlockCreateStep(1, { ...draft, initialQuantity: '1801' }, choices).initialQuantity)
-      .toContain('capacidad del galpón');
+  it('accepts quantities up to the API integer limit without comparing house capacity', () => {
+    expect(validateFlockCreateStep(1, { ...draft, initialQuantity: '2147483647' }, choices)).toEqual({});
+  });
+
+  it.each(['', '0', '-1', '1.5', 'abc', '2147483648'])('rejects invalid initial quantity %j', (initialQuantity) => {
+    expect(validateFlockCreateStep(1, { ...draft, initialQuantity }, choices).initialQuantity)
+      .toBe('Ingresá una cantidad entera mayor que cero.');
   });
 
   it('accepts a written origin instead of a supplier', () => {
