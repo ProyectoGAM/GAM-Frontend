@@ -60,6 +60,15 @@ describe('FlockDetailPage feeding overview', () => {
       card: fixture.nativeElement.querySelector('.feeding-card') as HTMLElement };
   };
 
+  it('opens health history from the detail and hides its entry without history permission', async () => {
+    const { fixture } = await setup();
+    const link = fixture.nativeElement.querySelector('a[href$="/sanidad?from=flock"]') as HTMLAnchorElement | null;
+    expect(link?.textContent).toContain('Ver sanidad');
+    user.set({ id: 1, roles: [], permissions: [] });
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('a[href*="/sanidad"]')).toBeNull();
+  });
+
   it('requires a reason, prevents duplicate submissions and updates the badge from the saved snapshot', async () => {
     const { fixture, page } = await setup();
     const pending = new Subject<ReturnType<typeof statusResult>>();

@@ -4,6 +4,10 @@ La gestión de cuentas y dispositivos usa `features/users/services/users.service
 
 ## 1. Contract-first
 
+La aplicación sanitaria desde el detalle del lote consume `management-plans.yaml`
+sin cantidad ni stock. Ver [Sanidad del lote](flock-health.md) para historial,
+coincidencia con el calendario del plan, motivo condicional e idempotencia.
+
 Laravel API contracts are authoritative.
 
 La elaboración desde plantas de ración usa el catálogo, cálculo y registro de

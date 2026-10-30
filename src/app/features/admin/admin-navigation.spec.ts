@@ -196,10 +196,11 @@ describe('admin navigation visibility', () => {
     const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
     const flocksRoutes = await loader?.();
 
-    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id/fraccionar', ':id', '']);
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id/sanidad', ':id/fraccionar', ':id', '']);
     expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.[1]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.find((route) => route.path === ':id/alimentacion')?.loadComponent).toBeTypeOf('function');
+    expect(flocksRoutes?.find((route) => route.path === ':id/sanidad')?.loadComponent).toBeTypeOf('function');
   });
 
   it('renders existing menu URLs and keeps Registrar movimiento active with product context', async () => {

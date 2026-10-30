@@ -7,7 +7,7 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
-  eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline,
+  eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
 } from 'ionicons/icons';
 import { Observable } from 'rxjs';
 
@@ -55,6 +55,7 @@ export class FlockDetailPage {
   readonly canManageStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.manage') === true);
   readonly canFinalizeStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.finalize') === true);
   readonly canEditStatus = computed(() => this.canManageStatus() || this.canFinalizeStatus());
+  readonly canViewHealth = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('management-plans.view') === true);
   readonly statusSaving = signal(false);
   readonly statusUncertain = signal(false);
   readonly statusConflict = signal(false);
@@ -131,7 +132,7 @@ export class FlockDetailPage {
     });
     addIcons({
       arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
-      eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline,
+      eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
     });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.resetStatusEditor();
