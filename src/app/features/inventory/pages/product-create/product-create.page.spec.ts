@@ -49,6 +49,37 @@ describe('Product create page', () => {
     const { fixture } = createFixture(vi.fn());
     const select = fixture.nativeElement.querySelector('#product-kind') as HTMLSelectElement;
     expect(Array.from(select.options).map((option) => option.value)).toEqual(['', 'raw_material', 'supply', 'other']);
+    expect(select.options[1].textContent).toBe('Insumos para recetas');
+    fixture.destroy();
+  });
+
+  it('explains specialized catalogs and stock types in collapsed, interactive help without submitting', async () => {
+    const create = vi.fn();
+    const fixture = TestBed.configureTestingModule({ imports: [ProductCreatePage], providers: [
+      provideRouter([]), { provide: AuthStore, useValue: { isAdmin: () => true, user: () => ({ permissions: [] }) } },
+      { provide: ProductsApi, useValue: { create } },
+    ] }).createComponent(ProductCreatePage);
+    await fixture.whenStable(); fixture.detectChanges();
+    const helps = Array.from(fixture.nativeElement.querySelectorAll('app-info-help') as NodeListOf<HTMLElement>);
+    expect(helps).toHaveLength(3);
+    for (const help of helps) {
+      const trigger = help.querySelector('button') as HTMLButtonElement;
+      const tooltip = help.querySelector('[role="tooltip"]') as HTMLElement;
+      expect(trigger.getAttribute('aria-expanded')).toBe('false');
+      expect(tooltip.hidden).toBe(true);
+      trigger.click(); fixture.detectChanges();
+      expect(trigger.getAttribute('aria-expanded')).toBe('true');
+      expect(tooltip.hidden).toBe(false);
+      trigger.click(); fixture.detectChanges();
+      expect(tooltip.hidden).toBe(true);
+    }
+    expect(helps[0].textContent).toContain('composición y el rendimiento de una ración');
+    expect(helps[1].textContent).toContain('sin ubicación ni control de existencias físicas');
+    expect(helps[2].textContent).toContain('productos o materia sobrante');
+    expect(helps[2].textContent).toContain('stock genérico de las unidades productivas');
+    expect(helps[2].textContent).toContain('Insumos para recetas son materias primas');
+    expect(helps[2].textContent).toContain('stock dedicado a alimentación');
+    expect(create).not.toHaveBeenCalled();
     fixture.destroy();
   });
 
@@ -60,7 +91,7 @@ describe('Product create page', () => {
     await fixture.whenStable(); fixture.detectChanges();
     const shortcuts = fixture.nativeElement.querySelector('.health-shortcut-links') as HTMLElement;
     const hrefs = Array.from(shortcuts.querySelectorAll('a')).map((link) => link.getAttribute('href'));
-    expect(hrefs).toEqual(['/administracion/manejo-lotes/medicacion/nuevo', '/administracion/manejo-lotes/vacunacion/nuevo']);
+    expect(hrefs).toEqual(['/administracion/manejo-lotes/medicacion/nuevo?from=products', '/administracion/manejo-lotes/vacunacion/nuevo?from=products']);
     fixture.destroy();
   });
 
@@ -73,7 +104,7 @@ describe('Product create page', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await page.submit(); fixture.detectChanges();
     expect(create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain('Elegí Insumo, Materia prima u Otros');
+    expect(fixture.nativeElement.textContent).toContain('Elegí Insumo, Insumos para recetas u Otros');
     fixture.destroy();
   });
   it('forces raw material to grams and tracked stock in the submitted payload', async () => {

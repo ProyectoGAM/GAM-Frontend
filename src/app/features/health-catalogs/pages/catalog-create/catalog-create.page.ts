@@ -33,6 +33,9 @@ export class CatalogCreatePage {
   readonly kind = this.route.snapshot.data['catalogKind'] as HealthCatalogKind;
   readonly config = CATALOGS[this.kind];
   readonly returnQuery = catalogQuery(catalogFilters(this.route.snapshot.queryParamMap, this.kind));
+  readonly fromProducts = this.route.snapshot.queryParamMap.get('from') === 'products';
+  readonly productCreatePath = '/administracion/inventario/existencias/productos/nuevo';
+  readonly productReturnQuery = { returnTo: this.route.snapshot.queryParamMap.get('returnTo') };
   readonly allowed = computed(() => this.auth.isAdmin());
   readonly saving = signal(false);
   readonly uncertain = signal(false);

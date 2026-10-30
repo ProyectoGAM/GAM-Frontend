@@ -66,6 +66,15 @@ explica que la ficha está disponible para todas las UP sin stock físico. Nuevo
 producto permite sólo Insumo, Materia prima y Otros y enlaza a los catálogos
 globales de vacunas y medicamentos para administradores.
 
+En Nuevo producto, `raw_material` se presenta como **Insumos para recetas**;
+el contrato y las reglas de gramos y control obligatorio de existencias se
+conservan. La ayuda junto a Tipo de producto explica que son materias primas
+para el stock dedicado a alimentación en plantas de ración. Insumos y Otros
+permiten controlar productos o materia sobrante en el stock genérico de las UP,
+en cámaras de insumos. Las ayudas de Recetas y Vacunas y medicamentos explican
+sus recorridos específicos; se abren con toque, teclado o puntero y usan los
+colores semánticos compartidos para claro y oscuro.
+
 El contador clínico global de Planes de manejo no es existencia física por UP
 y no se migran sus cantidades desde el frontend. La aplicación clínica se
 registra por separado y `stock_consumption` está deshabilitado en el API vigente.

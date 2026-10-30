@@ -26,17 +26,25 @@ describe('Health catalogue creation', () => {
     dismissResult.mockResolvedValue({ role: 'cancel' }); alert.present.mockResolvedValue(undefined);
   });
   afterEach(() => fixture?.destroy());
-  async function setup(kind: HealthCatalogKind = 'vaccines') {
+  async function setup(kind: HealthCatalogKind = 'vaccines', query: Record<string, string> = {}) {
     await TestBed.configureTestingModule({ imports: [CatalogCreatePage], providers: [
       provideRouter([]), { provide: AuthStore, useValue: { user, isAdmin: () => admin() } },
       { provide: HealthCatalogsApi, useValue: api }, { provide: AlertController, useValue: alerts },
-      { provide: ActivatedRoute, useValue: { snapshot: { data: { catalogKind: kind }, queryParamMap: convertToParamMap({ buscar: 'previo' }) } } },
+      { provide: ActivatedRoute, useValue: { snapshot: { data: { catalogKind: kind }, queryParamMap: convertToParamMap({ buscar: 'previo', ...query }) } } },
     ] }).compileComponents();
     fixture = TestBed.createComponent(CatalogCreatePage); fixture.detectChanges(); await settle();
     return fixture.componentInstance;
   }
   async function settle() { await fixture.whenStable(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges(); }
   function fill() { fixture.componentInstance.form.setValue({ name: '  Vacuna A  ', description: '  Descripción  ', supplier: '4', sku: ' VAC-01 ', details: '' }); }
+
+  it.each<HealthCatalogKind>(['vaccines', 'medicines'])('keeps the filtered catalog as the return destination for direct %s creation', async (kind) => {
+    const page = await setup(kind, { from: 'https://example.com', returnTo: '//example.com', proveedor: '4', page: '2' });
+    expect(fixture.nativeElement.querySelector('a.back').getAttribute('href')).toBe(page.config.path + '?buscar=previo&proveedor=4&page=2');
+    fill(); await page.submit(); await settle();
+    expect(fixture.nativeElement.querySelector('.success .button').getAttribute('href')).toBe(page.config.path + '?buscar=previo&proveedor=4&page=2');
+    expect(fixture.nativeElement.textContent).not.toContain('Volver a Nuevo producto');
+  });
 
   it.each<HealthCatalogKind>(['vaccines', 'medicines'])('keeps global catalog help collapsed beside the data heading for %s', async (kind) => {
     await setup(kind);

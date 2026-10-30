@@ -1,9 +1,11 @@
 <section class="health-page create-page">
-  <a class="back" [routerLink]="saving() ? null : config.path" [queryParams]="returnQuery" [attr.aria-disabled]="saving() ? 'true' : null"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a {{ config.plural === 'vacunas' ? 'vacunación' : 'medicamentos' }}</a>
+  <a class="back" [routerLink]="saving() ? null : fromProducts ? productCreatePath : config.path" [queryParams]="fromProducts ? productReturnQuery : returnQuery" [attr.aria-disabled]="saving() ? 'true' : null"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a {{ fromProducts ? 'Nuevo producto' : config.plural === 'vacunas' ? 'vacunación' : 'medicamentos' }}</a>
   <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>{{ config.create }}</h1><p class="lead">Agregá {{ kind === 'vaccines' ? 'una vacuna' : 'un medicamento' }} al catálogo global.</p><p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" />Disponible para todas las UP</p></div></header>
   @if (!allowed()) { <div class="feedback error" role="alert">Este catálogo está disponible únicamente para administradores.</div> }
   @else if (created(); as item) {
-    <div class="feedback success" role="status"><h2 #successHeading tabindex="-1">{{ kind === 'vaccines' ? 'Vacuna creada' : 'Medicamento creado' }}</h2><p><strong>{{ item.name }}</strong> se agregó al catálogo global.</p><a class="button" [routerLink]="config.path" [queryParams]="returnQuery">Volver al listado</a>
+    <div class="feedback success" role="status"><h2 #successHeading tabindex="-1">{{ kind === 'vaccines' ? 'Vacuna creada' : 'Medicamento creado' }}</h2><p><strong>{{ item.name }}</strong> se agregó al catálogo global.</p>
+      @if (fromProducts) { <a class="button primary" [routerLink]="productCreatePath" [queryParams]="productReturnQuery">Volver a Nuevo producto</a> }
+      <a class="button" [routerLink]="config.path" [queryParams]="returnQuery">Volver al listado</a>
       @if (kind === 'vaccines') { <a class="button" [routerLink]="[config.path, item.id]" [queryParams]="returnQuery">Ver ficha</a> }
       <p>La ficha está disponible para todas las UP. No requiere ubicación ni registra existencias físicas.</p>
     </div>

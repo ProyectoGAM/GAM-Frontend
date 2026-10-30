@@ -3,7 +3,7 @@ import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, i
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner } from '@ionic/angular';
+import { IonButton, IonIcon, IonInput, IonRange, IonSelect, IonSelectOption, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, businessOutline, checkmarkCircleOutline, informationCircleOutline, leafOutline } from 'ionicons/icons';
 
@@ -18,7 +18,7 @@ import { ProductionUnitsService } from '../../services/production-units.service'
   selector: 'app-feed-manufacture-page',
   templateUrl: './feed-manufacture.page.html',
   styleUrl: './feed-manufacture.page.scss',
-  imports: [RouterLink, ReactiveFormsModule, IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner],
+  imports: [RouterLink, ReactiveFormsModule, IonButton, IonIcon, IonInput, IonRange, IonSelect, IonSelectOption, IonSpinner],
 })
 export class FeedManufacturePage implements OnInit {
   private readonly units = inject(ProductionUnitsService);
@@ -42,6 +42,11 @@ export class FeedManufacturePage implements OnInit {
   readonly result = signal<FeedManufacture | null>(null);
   readonly selectedRecipe = signal<ManufactureRecipe | null>(null);
   readonly multiplier = signal('1');
+  readonly sliderMultiplier = computed(() => {
+    const factor = Number(this.multiplier());
+    return Number.isInteger(factor) && factor > 0 ? Math.min(10, factor) : 1;
+  });
+  readonly sliderPin = (value: number): string => `×${value}`;
   readonly search = signal('');
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
@@ -117,6 +122,12 @@ export class FeedManufacturePage implements OnInit {
   }
 
   ngOnInit(): void { this.load(); }
+
+  setSliderMultiplier(value: unknown): void {
+    if (this.busy() || this.pending() || !this.canOperate() || !this.selectedRecipe()
+      || typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 10) return;
+    this.form.controls.multiplier.setValue(String(value));
+  }
 
   load(): void {
     if (this.owner() !== this.initialOwner) return;

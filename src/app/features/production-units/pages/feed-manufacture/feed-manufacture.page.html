@@ -49,9 +49,14 @@
           @if (selectedRecipe(); as recipe) {
             <p class="hint">Receta #{{ recipe.id }} · Rendimiento base: <strong>{{ yieldLabel() }}</strong></p>
           }
-          <ion-input label="Multiplicador de la base" labelPlacement="stacked" fill="outline" type="text" inputmode="numeric" formControlName="multiplier" placeholder="Ej.: 2" [attr.aria-describedby]="submitted() && multiplierError() ? 'multiplier-help multiplier-error' : 'multiplier-help'" [attr.aria-invalid]="submitted() && multiplierError() ? 'true' : null" />
-          <p id="multiplier-help" class="hint">1 elabora una base; 2 elabora el doble. Usá números enteros.</p>
-          @if (submitted() && multiplierError()) { <p id="multiplier-error" class="field-error" role="alert">{{ multiplierError() }}</p> }
+          <div class="multiplier-selector">
+            <ion-range label="Multiplicador de la base" labelPlacement="stacked" [min]="1" [max]="10" [step]="1" [snaps]="true" [ticks]="true" [pin]="true" [pinFormatter]="sliderPin" [value]="sliderMultiplier()" [disabled]="busy() || !selectedRecipe()" aria-describedby="multiplier-help" (ionChange)="setSliderMultiplier($event.detail.value)">
+              <span slot="start" aria-hidden="true">×1</span><span slot="end" aria-hidden="true">×10</span>
+            </ion-range>
+            <ion-input label="Multiplicador manual" labelPlacement="stacked" fill="outline" type="text" inputmode="numeric" formControlName="multiplier" placeholder="Ej.: 2" [attr.aria-describedby]="submitted() && multiplierError() ? 'multiplier-help multiplier-error' : 'multiplier-help'" [attr.aria-invalid]="submitted() && multiplierError() ? 'true' : null" />
+            <p id="multiplier-help" class="hint">{{ !selectedRecipe() ? 'Seleccioná una ración para habilitar el deslizador. ' : '' }}Deslizá de ×1 a ×10. Para más, ingresá el multiplicador a mano. Usá números enteros mayores que cero.</p>
+            @if (submitted() && multiplierError()) { <p id="multiplier-error" class="field-error" role="alert">{{ multiplierError() }}</p> }
+          </div>
           @if (multiplierLabel()) {
             <output class="quantity-preview" aria-live="polite" aria-atomic="true"><span>Cantidad a elaborar</span><strong>{{ yieldLabel() }} × {{ multiplierLabel() }} = {{ quantityLabel() }}</strong></output>
           }

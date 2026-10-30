@@ -15,6 +15,9 @@ h1 { font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 700; }
 .recipe-shortcut { display: grid; gap: 6px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--gam-color-border); border-radius: 10px; background: var(--gam-color-surface); }
 .recipe-shortcut p { margin: 0; color: var(--gam-color-text-muted); font-size: .875rem; line-height: 1.5; }
 .recipe-shortcut strong { display: block; margin-bottom: 4px; color: var(--gam-color-heading); }
+.help-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.help-heading > app-info-help { flex-shrink: 0; }
+.help-heading strong { font-size: .875rem; }
 .recipe-link { display: inline-flex; align-items: center; justify-self: start; gap: 8px; min-height: 44px; color: var(--gam-color-primary); font-size: .875rem; font-weight: 600; text-underline-offset: 3px; }
 .recipe-link[aria-disabled='true'] { opacity: .6; }
 .product-form, fieldset { display: grid; gap: 16px; min-width: 0; }
