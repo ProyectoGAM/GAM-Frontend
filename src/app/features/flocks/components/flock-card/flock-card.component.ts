@@ -2,7 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, scaleOutline } from 'ionicons/icons';
+import { calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, medicalOutline, scaleOutline } from 'ionicons/icons';
 
 import { DetailMetric, FlockHouseOrigin } from '../../interfaces/flock-detail.interface';
 import { Flock } from '../../interfaces/flock.interface';
@@ -25,6 +25,7 @@ export class FlockCardComponent {
     { path: 'pesajes', label: 'Registrar postura', description: 'Individual o grupal', icon: 'scale-outline' },
     { path: 'mortalidad', kind: 'mortality' as const, label: 'Registrar mortandad', description: 'Fecha, cantidad y motivo', icon: 'clipboard-outline' },
     { path: 'alimentacion', kind: 'feeding' as const, label: 'Cambiar ración', description: 'Ración y cantidad diaria', icon: 'leaf-outline' },
+    { path: 'sanidad', kind: 'health' as const, label: 'Sanidad', description: 'Aplicar vacuna o medicamento', icon: 'medical-outline' },
   ];
   readonly taskQueryParams = computed(() => ({ ...this.originQueryParams(), task: 'entry' }));
   readonly originQueryParams = computed(() => {
@@ -43,7 +44,7 @@ export class FlockCardComponent {
       : metric.state === 'unavailable' || metric.value === null ? 'No disponible' : this.count(metric.value);
   });
 
-  constructor() { addIcons({ calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, scaleOutline }); }
+  constructor() { addIcons({ calendarOutline, chevronForwardOutline, clipboardOutline, leafOutline, medicalOutline, scaleOutline }); }
 
   requestTask(kind: FlockHouseTaskAction['kind'], event: Event): void {
     if (!this.showTasks() || !this.returnHouse() || this.flock().status === 'finished') return;

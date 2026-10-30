@@ -38,6 +38,11 @@ para ocupación, versiones, idempotencia y el cambio de capacidad pendiente en b
 La mortalidad vigente se consulta de forma independiente y paginada; ver
 [`flock-cards.md`](flock-cards.md) para carga progresiva y permisos.
 
+El alta de lotes no compara la cantidad inicial de aves con `bird_capacity`:
+superar la capacidad del galpón no bloquea la creación, igual que en el backend.
+Se mantiene el entero positivo hasta 2147483647 y la selección de un galpón
+operativo y vacío de la UP elegida.
+
 El detalle del plan de manejo resalta todas las actividades previstas que
 coinciden con el día o semana actuales. Ver
 [`management-plan-progress.md`](management-plan-progress.md) para calendario,

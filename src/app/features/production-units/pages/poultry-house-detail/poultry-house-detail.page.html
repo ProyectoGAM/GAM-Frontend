@@ -139,5 +139,9 @@
   }
 </main>
 @if (flockTask(); as task) {
+  @if (task.kind === 'health') {
+  <app-flock-house-health-dialog [request]="task" (closed)="closeFlockTask($event)" />
+  } @else {
   <app-flock-house-task-dialog [request]="task" (closed)="closeFlockTask($event)" />
+  }
 }

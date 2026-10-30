@@ -43,7 +43,14 @@ El historial exige `management-plans.view` y registrar exige
 `management-plans.execute`, o administrador activo. Las políticas actuales de
 catálogos también exigen administrador o `management-plans.manage`; el frontend
 informa el 403 y no evita esa restricción. Se conserva la autorización del shell.
-Los accesos desde galpón y acceso rápido quedan para la siguiente etapa.
+En el detalle de galpón, **Lote alojado → Tareas del lote → Sanidad** abre
+directamente la misma modal, sin navegar ni cargar el historial. Antes de
+habilitar el registro se consulta nuevamente el lote y se verifica que siga
+en ese galpón y UP y que no esté finalizado. Al guardar se cierra la modal,
+se informa **Aplicación registrada.** y se actualiza el detalle del galpón;
+al cancelar se devuelve el foco al botón. El acceso rápido queda pendiente.
+Ambas entradas comparten `FlockHealthApplicationService`, con una sesión aislada
+por página/modal, además del mismo formulario y confirmación fuera del plan.
 
 ## Reintentos y contexto
 
@@ -59,11 +66,14 @@ desplazar el cuerpo con el teclado abierto. No hay plugins ni cambios nativos.
 
 ## Validación (30/10/2026)
 
-Lint, build de producción y la suite completa de 1.103 pruebas en 141 archivos
+Lint, build de producción y la suite completa de 1.120 pruebas en 142 archivos
 aprobados dentro de Docker; auditoría de dependencias de producción sin
 vulnerabilidades. Las pruebas cubren calendario/producto/revisión, motivo
 condicional, confirmación, ausencia de cantidad, paginación y snapshots,
 reintentos idempotentes, permisos, lote finalizado y cambios de identidad.
+También cubren el botón desde el galpón, apertura sin historial ni navegación,
+confirmación fuera del plan, cambio de alojamiento, cierre y actualización del
+detalle con devolución del foco después de guardar.
 La verificación visual de la aplicación quedó pendiente porque el navegador
 local no tenía una sesión iniciada. No se registraron aplicaciones reales
 durante la verificación ni se probaron dispositivos físicos.
