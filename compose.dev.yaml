@@ -3,6 +3,7 @@ name: gam-frontend-dev
 services:
   frontend:
     image: gam-frontend:dev
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile

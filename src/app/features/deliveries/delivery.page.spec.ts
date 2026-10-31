@@ -5,12 +5,14 @@ import { Router } from '@angular/router';
 import { of, tap, throwError } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
+import { ServerHealthService } from '../../core/api/server-health.service';
 import { LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.service';
 import { DeliveryPage } from './delivery.page';
 import { DeliveriesApi } from './deliveries.api';
+import { VehiclesApi } from '../vehicles/services/vehicles.api';
 import { Delivery, DeliveryClient } from './delivery.models';
 
 const demoClient: DeliveryClient = {
@@ -107,9 +109,11 @@ describe('DeliveryPage', () => {
         { provide: AuthStore, useValue: { user: signal({ id: 2, name: 'Repartidor', roles: ['delivery'] }) } },
         { provide: Router, useValue: { navigateByUrl: vi.fn().mockResolvedValue(true) } },
         { provide: NetworkService, useValue: { online } },
+        { provide: ServerHealthService, useValue: { state: signal<'checking' | 'online' | 'offline'>('checking'), start: vi.fn(), stop: vi.fn() } },
         { provide: ThemeService, useValue: theme },
         { provide: LocationService, useValue: { clearWatch: vi.fn(), requestPermission: vi.fn(), watch: vi.fn() } },
         { provide: DeliveriesApi, useValue: api },
+        { provide: VehiclesApi, useValue: { available: vi.fn(() => of({ data: [{ id: 'vehicle-1', plate: 'ABC123', make: 'Fiat', model: 'Fiorino', availability: 'available', warnings: [] }] })) } },
         { provide: DeliveryOutboxService, useValue: outbox },
       ],
     });
@@ -121,6 +125,7 @@ describe('DeliveryPage', () => {
     page.productionUnits.set([{ id: 7, name: 'UP Norte' }, { id: 8, name: 'UP Sur' }]);
     page.startPin.setValue('0007');
     page.closePin.setValue('0007');
+    page.selectedVehicleId.set('vehicle-1');
     page.delivery.set(activeDelivery);
   });
 
@@ -155,6 +160,7 @@ describe('DeliveryPage', () => {
     expect(form.querySelectorAll('.load-line')).toHaveLength(1);
     root.querySelector<HTMLButtonElement>('.theme-toggle')?.click();
     expect(theme.toggle).toHaveBeenCalledOnce();
+    expect(root.querySelector('.server-status ion-icon')?.getAttribute('name')).toBe('wifi-outline');
     fixture.componentInstance.delivery.set(activeDelivery);
     fixture.componentInstance.openLoad();
     fixture.detectChanges();
@@ -168,11 +174,17 @@ describe('DeliveryPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
+    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('#start-pin')).toBeNull();
     fixture.componentInstance.startForm.controls.production_unit_id.setValue(7);
+    fixture.componentInstance.startForm.controls.items.at(0).controls.unit.setValue('huevo');
+    fixture.componentInstance.startForm.controls.items.at(0).controls.amount.setValue('1');
+    fixture.componentInstance.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }]);
+    fixture.componentInstance.selectedVehicleId.set('vehicle-1');
+    fixture.detectChanges();
     root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
     fixture.detectChanges();
     expect(root.querySelector('#start-pin')?.closest('[role="dialog"]')).not.toBeNull();
@@ -197,10 +209,16 @@ describe('DeliveryPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
+    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.startForm.controls.production_unit_id.setValue(7);
+    fixture.componentInstance.startForm.controls.items.at(0).controls.unit.setValue('huevo');
+    fixture.componentInstance.startForm.controls.items.at(0).controls.amount.setValue('1');
+    fixture.componentInstance.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }]);
+    fixture.componentInstance.selectedVehicleId.set('vehicle-1');
+    fixture.detectChanges();
     root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
     fixture.detectChanges();
     fixture.componentInstance.startPin.setValue('0007');
@@ -270,7 +288,7 @@ describe('DeliveryPage', () => {
     expect(root.querySelectorAll('.unit-table tbody tr')[1]?.querySelector('td')?.textContent?.trim()).toBe('1');
 
     expect(root.querySelector('ion-content .map-background[slot="fixed"] .delivery-map')).not.toBeNull();
-    expect(root.querySelector('.map-panel .map-search')).not.toBeNull();
+    expect(root.querySelector('.map-panel .map-search')).toBeNull();
     expect(root.querySelector('.map-panel .section-heading')).toBeNull();
     expect(root.querySelector('.map-panel .count-pill')).toBeNull();
     expect(root.querySelector('.route-status')?.textContent).toContain('Recorrido 29/09/26');
@@ -406,9 +424,9 @@ describe('DeliveryPage', () => {
     page.loadForm.controls.production_unit_id.setValue(7);
     page.loadForm.controls.items.at(0).patchValue({ unit: 'maple', amount: '1' });
     await page.addLoad();
-    expect(api.load).toHaveBeenCalledWith('delivery-1', { production_unit_id: 7, items: [
+    expect(api.load).toHaveBeenCalledWith('delivery-1', expect.objectContaining({ production_unit_id: 7, items: [
       { unit: 'maple', amount: '1', eggs_per_unit: 30 },
-    ] }, expect.any(String));
+    ], occurred_at: expect.any(String) }), expect.any(String));
     expect(page.delivery()?.loaded_quantity).toBe(150);
     expect(page.delivery()?.remaining_quantity).toBe(150);
     expect(page.loadOpen()).toBe(false);
@@ -422,7 +440,7 @@ describe('DeliveryPage', () => {
     await page.addLoad();
     expect(api.load).not.toHaveBeenCalled();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'load', payload: { production_unit_id: 7, items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }] },
+      kind: 'load', payload: expect.objectContaining({ production_unit_id: 7, items: [{ unit: 'maple', amount: '1', eggs_per_unit: 30 }], occurred_at: expect.any(String) }),
     }), undefined);
     expect(page.delivery()?.loaded_quantity).toBe(150);
     expect(page.delivery()?.remaining_quantity).toBe(150);
@@ -473,7 +491,7 @@ describe('DeliveryPage', () => {
     page.startForm.controls.items.at(1).patchValue({ unit: 'huevo', amount: '5' });
     expect(page.formEggs(page.startForm)).toBe(20);
     await page.startDelivery();
-    expect(api.start).toHaveBeenCalledWith({ pin: '0007', production_unit_id: 7, items: [
+    expect(api.start).toHaveBeenCalledWith({ pin: '0007', vehicle_id: 'vehicle-1', production_unit_id: 7, items: [
       { unit: 'maple', amount: '0.5', eggs_per_unit: 30 },
       { unit: 'huevo', amount: '5', eggs_per_unit: 1 },
     ] }, expect.any(String));
@@ -561,6 +579,22 @@ describe('DeliveryPage', () => {
     expect(outbox.enqueue).not.toHaveBeenCalled();
   });
 
+  it('sends zero returned quantity when there are no leftover units', async () => {
+    page.delivery.set({
+      ...activeDelivery,
+      delivered_quantity: 120,
+      remaining_quantity: 0,
+      unit_balances: { ...activeDelivery.unit_balances!, rows: [{
+        ...activeDelivery.unit_balances!.rows[0], delivered_amount: '120', remaining_amount: '0',
+        delivered_eggs: 120,
+      }] },
+    });
+
+    await page.closeDelivery();
+
+    expect(api.close).toHaveBeenCalledWith('delivery-1', expect.objectContaining({ returned_quantity: 0, pin: '0007' }), expect.any(String));
+  });
+
   it('replays queued loads and visits but asks for a PIN to close a legacy queued delivery', async () => {
     const sent: string[] = [];
     api.load.mockImplementation(() => { sent.push('load'); return of({ data: { ...activeDelivery, loaded_quantity: 150 } }); });
@@ -591,9 +625,9 @@ describe('DeliveryPage', () => {
     expect(page.error()).toContain('unidad productiva');
     page.loadForm.controls.production_unit_id.setValue(8);
     await page.addLoad();
-    expect(api.load).toHaveBeenCalledWith('delivery-1', {
-      production_unit_id: 8, items: [{ unit: 'maple', amount: '0.5', eggs_per_unit: 30 }],
-    }, expect.any(String));
+    expect(api.load).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
+      production_unit_id: 8, items: [{ unit: 'maple', amount: '0.5', eggs_per_unit: 30 }], occurred_at: expect.any(String),
+    }), expect.any(String));
   });
 
   it('accepts fractional units and integer price overrides without computing a server total', async () => {

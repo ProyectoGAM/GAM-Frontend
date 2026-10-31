@@ -3,7 +3,7 @@ import { AuthUser } from './auth.types';
 export const ADMIN_GROUP_IDS = [
   'acceso-rapido', 'resumen', 'ubicaciones', 'lotes', 'inventario', 'historial',
   'usuarios', 'clientes', 'proveedores', 'unidades-productivas',
-  'manejo-lotes', 'repartos', 'alertas-notificaciones', 'reportes',
+  'manejo-lotes', 'repartos', 'vehiculos', 'alertas-notificaciones', 'reportes',
 ] as const;
 
 export type AdminGroup = typeof ADMIN_GROUP_IDS[number];
@@ -22,6 +22,7 @@ export const GROUP_ROLE_GRANTS: Readonly<Record<AdminGroup, readonly string[]>> 
   clientes: [],
   'unidades-productivas': [],
   'repartos': [],
+  vehiculos: [],
   'alertas-notificaciones': [],
   reportes: [],
 };
@@ -62,6 +63,7 @@ export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<Aut
   if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
   if (group === 'manejo-lotes' && (hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage'))) return true;
   if (group === 'clientes' && user?.permissions?.some((permission) => ['customers.view', 'customers.manage'].includes(permission))) return true;
+  if (group === 'vehiculos' && user?.permissions?.some((permission) => ['vehicles.view', 'vehicles.manage', 'vehicles.use', 'vehicles.readings.manage', 'vehicles.fuel.view', 'vehicles.fuel.manage', 'vehicles.maintenance.view', 'vehicles.maintenance.manage', 'vehicles.documents.view', 'vehicles.documents.manage'].includes(permission))) return true;
   if (group === 'reportes' && user?.permissions?.includes('reports.view')) return true;
   if (group === 'inventario' && user?.permissions?.some((permission) => ['inventory.view', 'egg-stock.view', 'egg-stock.move', 'products.view', 'products.manage', 'management-plans.manage'].includes(permission))) return true;
   const roles = normalizedRoles(user);

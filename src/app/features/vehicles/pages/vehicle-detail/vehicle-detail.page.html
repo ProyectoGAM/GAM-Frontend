@@ -1,0 +1,135 @@
+<section class="detail-page" aria-labelledby="vehicle-title">
+  <a class="back-link" routerLink="/administracion/vehiculos">← Volver a la flota</a>
+  @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+  @if (success()) { <p class="feedback success" role="status">{{ success() }}</p> }
+  @if (loading()) { <p class="card state" role="status">Cargando ficha…</p> }
+  @if (detail(); as record) {
+    <header class="vehicle-heading card">
+      <div><p class="eyebrow">FICHA DEL VEHÍCULO</p><h1 id="vehicle-title">{{ record.data.plate }}</h1><p>{{ record.data.make }} {{ record.data.model }}{{ record.data.year ? ' · ' + record.data.year : '' }}</p></div>
+      <span class="status" [class.warning]="record.data.status !== 'active'">{{ statusLabel(record.data.status) }}</span>
+      <div class="summary-facts"><span><small>Disponibilidad</small><strong>{{ record.availability.availability === 'available' ? 'Disponible' : record.availability.availability === 'in_use' ? 'En uso' : 'No disponible' }}</strong></span><span><small>Último kilometraje</small><strong>{{ record.data.latest_odometer ? record.data.latest_odometer + ' km' : 'Sin lectura registrada' }}</strong></span></div>
+    </header>
+    @if (record.availability.warnings.length) { <aside class="warning-panel" role="status"><strong>Revisar</strong><ul>@for (warning of record.availability.warnings; track warning) { <li>{{ warning }}</li> }</ul></aside> }
+    <nav class="tabs" aria-label="Secciones de la ficha del vehículo">
+      <button type="button" [class.active]="tab() === 'general'" (click)="tab.set('general')">General</button>
+      <button type="button" [class.active]="tab() === 'usage'" (click)="tab.set('usage')">Uso y lecturas</button>
+      @if (canReadFuel()) { <button type="button" [class.active]="tab() === 'fuel'" (click)="tab.set('fuel')">Combustible</button> }
+      @if (canReadMaintenance()) { <button type="button" [class.active]="tab() === 'maintenance'" (click)="tab.set('maintenance')">Mantenimiento</button> }
+      @if (canReadDocuments()) { <button type="button" [class.active]="tab() === 'documents'" (click)="tab.set('documents')">Documentos</button> }
+      <button type="button" [class.active]="tab() === 'timeline'" (click)="tab.set('timeline')">Cronología</button>
+    </nav>
+
+    @if (tab() === 'general') {
+      <div class="section-grid">
+        @if (canManage()) {
+        <form class="card form-card" [formGroup]="generalForm" (ngSubmit)="saveGeneral()">
+          <h2>Datos del vehículo</h2>
+          <div class="form-grid"><label>Matrícula<input formControlName="plate" required></label><label>Marca<input formControlName="make" required></label><label>Modelo<input formControlName="model" required></label><label>Año<input type="number" formControlName="year"></label><label>Fecha de alta<input type="date" formControlName="admitted_at"></label><label>Capacidad (kg)<input type="number" min="0" step="0.01" formControlName="capacity_kg"></label><label>Conductor habitual (opcional)<select formControlName="habitual_driver_id"><option value="">Sin conductor habitual</option>@for (driver of drivers(); track driver.id) { <option [value]="driver.id">{{ driver.name }}</option> }</select></label></div>
+          <label>Observaciones<textarea rows="3" formControlName="notes"></textarea></label>
+          <button class="button primary" type="submit" [disabled]="saving()">Guardar ficha</button>
+        </form>
+        <form class="card form-card" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
+          <h2>Estado operativo</h2><p>Los services vencidos muestran una advertencia. Para bloquear salidas, marcá el vehículo fuera de servicio.</p>
+          <label>Estado<select formControlName="status"><option value="active">Activo</option><option value="out_of_service">Fuera de servicio</option><option value="retired">Retirado</option></select></label>
+          <label>Motivo del cambio<textarea rows="3" maxlength="500" formControlName="reason" required></textarea></label>
+          <button class="button" type="submit" [disabled]="saving()">Guardar estado</button>
+        </form>
+        } @else { <article class="card list-card"><h2>Datos generales</h2><p>{{ record.data.make }} {{ record.data.model }}{{ record.data.year ? ' · ' + record.data.year : '' }}</p><p>Conductor habitual: {{ record.data.habitual_driver?.name ?? 'Sin asignar' }}</p><p>{{ record.data.notes || 'Sin observaciones.' }}</p></article> }
+      </div>
+    }
+
+    @if (tab() === 'usage') {
+      <div class="section-grid">
+        @if (canUseVehicle() && record.availability.availability === 'available') { <form class="card form-card" [formGroup]="useForm" (ngSubmit)="startExternalUsage()"><h2>Registrar uso fuera de un reparto</h2><p>Reserva el vehículo hasta que se registre su cierre. El kilometraje es opcional.</p><label>Motivo<input formControlName="purpose" maxlength="120" required></label>@if (canManage()) { <label>Repartidor responsable<select formControlName="driver_id"><option value="">{{ auth.user()?.name }} (yo)</option>@for (driver of drivers(); track driver.id) { <option [value]="driver.id">{{ driver.name }}</option> }</select></label> }<div class="form-grid"><label>Kilometraje de salida<input formControlName="odometer_km" inputmode="decimal"></label></div><label>Observaciones<textarea formControlName="notes" rows="2"></textarea></label><button class="button primary" type="submit" [disabled]="saving()">Iniciar uso</button></form> } @else if (canUseVehicle() && record.availability.availability !== 'available') { <p class="warning-panel">No se puede iniciar otro uso: {{ record.availability.reason ?? 'el vehículo no está disponible' }}</p> }
+        @if (canManageReadings()) { <form class="card form-card" [formGroup]="readingForm" (ngSubmit)="recordReading()">
+          <h2>{{ correctionTarget() ? 'Rectificar lectura' : 'Registrar lectura de tablero' }}</h2><p>Podés guardar una lectura cuando administración lo necesite. No hay periodicidad obligatoria.</p>
+          @if (correctionTarget(); as correction) { <p>La lectura original de {{ correction.value }} {{ readingLabel(correction) }} se conserva en el historial. La fecha original se mantiene.</p><label>Motivo de rectificación<input formControlName="event_reason" maxlength="500" required></label><button class="button" type="button" (click)="cancelCorrection()">Cancelar rectificación</button> }
+          
+          @if (!correctionTarget()) { <label>Evento<select formControlName="event_type"><option value="reading">Lectura del tablero</option><option value="reset">Reinicio o cambio de tablero</option></select></label>@if (readingForm.controls.event_type.value === 'reset') { <label>Motivo del reinicio<input formControlName="event_reason" maxlength="500" required></label> } }
+          <label>Valor<input formControlName="value" inputmode="decimal" placeholder="0" required></label>
+          <label>Fecha y hora de lectura<input formControlName="recorded_at" type="datetime-local" [readOnly]="!!correctionTarget()" required></label>
+          <label>Observación<textarea formControlName="notes" rows="2"></textarea></label>
+          <button class="button primary" type="submit" [disabled]="saving()">Registrar lectura</button>
+        </form> }
+        <article class="card list-card"><h2>Historial de uso</h2>
+          @for (usage of record.usages; track usage.id) { <div class="record-row"><strong>{{ usage.purpose === 'delivery' ? 'Reparto' : usage.purpose }}</strong><span>{{ usage.driver_snapshot ?? 'Sin responsable' }}</span><time>{{ usage.started_at | date:'dd/MM/yyyy HH:mm':'-0300' }}{{ usage.ended_at ? ' – ' + (usage.ended_at | date:'HH:mm':'-0300') : ' · En curso' }}</time><small>{{ usage.start_odometer_km ?? '—' }} km salida · {{ usage.end_odometer_km ?? '—' }} km cierre</small>@if (usage.id === activeExternalUsage()?.id && canUseVehicle()) { <form class="usage-close-form" [formGroup]="closeUseForm" (ngSubmit)="closeExternalUsage(usage)"><label>Kilometraje de cierre opcional<input formControlName="odometer_km" inputmode="decimal"></label><label>Observaciones<textarea formControlName="notes" rows="2"></textarea></label><button class="button" type="submit" [disabled]="saving()">Cerrar uso</button></form> }</div> } @empty { <p class="muted">Todavía no hay usos registrados.</p> }
+        </article>
+      </div>
+      <article class="card list-card"><h2>Lecturas</h2>
+        @for (reading of odometerReadings(); track reading.id) { <div class="record-row compact"><strong>{{ reading.value }} {{ readingLabel(reading) }}{{ reading.event_type === 'reset' ? ' · Reinicio' : reading.event_type === 'correction' ? ' · Rectificación' : '' }}</strong><time>Lectura: {{ reading.recorded_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · Recibida: {{ reading.received_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</time>@if (reading.notes) { <small>{{ reading.notes }}</small> }@if (reading.event_reason) { <small>Motivo: {{ reading.event_reason }}</small> }@if (canManageReadings() && canCorrectReading(reading)) { <button class="button" type="button" (click)="startCorrection(reading)">Rectificar esta lectura</button> }</div> } @empty { <p class="muted">Sin lectura registrada.</p> }
+      </article>
+    }
+
+    @if (tab() === 'fuel') {
+      <div class="section-grid">
+        @if (canManageFuel()) { <form class="card form-card" [formGroup]="fuelForm" (ngSubmit)="recordFuel($event)">
+          <h2>Registrar combustible</h2><p>El importe se guarda en pesos uruguayos y no modifica las cobranzas ni las cuentas de clientes.</p>
+          <div class="form-grid"><label>Fecha y hora<input formControlName="occurred_at" type="datetime-local" required></label><label>Combustible<input formControlName="fuel_type" required></label><label>Litros<input formControlName="liters" inputmode="decimal" required></label><label>Importe (UYU)<input formControlName="amount" inputmode="decimal" required></label><label>Estación / proveedor<input formControlName="supplier"></label><label>Odómetro (opcional)<input formControlName="odometer_km" inputmode="decimal"></label></div>
+          <label>Comprobante<input type="file" accept="application/pdf,image/jpeg,image/png"></label><label>Observaciones<textarea formControlName="notes" rows="2"></textarea></label>
+          <button class="button primary" type="submit" [disabled]="saving()">Guardar combustible</button>
+        </form> }
+        <article class="card list-card"><h2>Gastos de combustible</h2>
+          @for (fuel of record.fuel_entries; track fuel.id) { <div class="record-row"><strong>{{ money(fuel.amount) }} · {{ fuelLiters(fuel.liters) }} l</strong><time>{{ fuel.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</time><span>{{ fuel.fuel_type }}{{ fuel.supplier ? ' · ' + fuel.supplier : '' }}</span>@if (fuel.odometer_km) { <small>Tablero: {{ fuel.odometer_km }} km</small> }@if (fuel.receipt_url) { <button class="button" type="button" (click)="downloadFuelReceipt(fuel.id, fuel.receipt_name)">Descargar comprobante</button> }</div> } @empty { <p class="muted">Todavía no hay cargas registradas.</p> }
+        </article>
+      </div>
+    }
+
+    @if (tab() === 'maintenance') {
+      <div class="section-grid">
+        @if (canManageMaintenance()) { <form class="card form-card" [formGroup]="planForm" (ngSubmit)="createPlan()">
+          <h2>{{ editingPlanId() ? 'Editar plan preventivo' : 'Plan preventivo' }}</h2><p>Se puede definir por fecha o kilometraje, o combinar ambos límites.</p>
+          <label>Tarea<input formControlName="task" placeholder="Cambio de aceite" required></label>
+          <div class="form-grid"><label>Intervalo (días)<input formControlName="interval_days" type="number" min="1"></label><label>Intervalo (km)<input formControlName="interval_km" inputmode="decimal"></label><label>Próxima fecha<input formControlName="next_due_at" type="date"></label><label>Próximo km<input formControlName="next_due_odometer_km" inputmode="decimal"></label></div>
+          <div class="row-actions"><button class="button primary" type="submit" [disabled]="saving()">{{ editingPlanId() ? 'Actualizar plan' : 'Guardar plan' }}</button>@if (editingPlanId()) { <button class="button" type="button" (click)="cancelPlanEdit()">Cancelar edición</button> }</div>
+        </form>
+        <form class="card form-card" [formGroup]="maintenanceForm" (ngSubmit)="createMaintenance()">
+          <h2>Nueva intervención</h2><label>Tipo<select formControlName="type"><option value="preventive">Preventiva</option><option value="corrective">Correctiva</option></select></label>
+          <label>Descripción<input formControlName="description" required></label><div class="form-grid"><label>Taller<input formControlName="workshop"></label><label>Fecha prevista<input formControlName="planned_at" type="datetime-local"></label><label>Costo estimado (UYU)<input formControlName="cost_amount" inputmode="decimal"></label><label>Odómetro (opcional)<input formControlName="odometer_km" inputmode="decimal"></label></div><label>Observaciones<textarea formControlName="notes" rows="2"></textarea></label>
+          @if (record.maintenance_plans.length) { <fieldset class="plan-checklist"><legend>Tareas preventivas relacionadas</legend>@for (plan of record.maintenance_plans; track plan.id) { <label class="check-line"><input type="checkbox" [checked]="selectedPlanIds().includes(plan.id)" (change)="togglePlan(plan.id, $any($event.target).checked)">{{ plan.task }}</label> }</fieldset> }
+          <label class="check-line"><input type="checkbox" formControlName="immobilizes_vehicle"> Esta intervención inmoviliza el vehículo</label>
+          <button class="button primary" type="submit" [disabled]="saving()">Crear intervención</button>
+        </form> }
+      </div>
+      <article class="card list-card"><h2>Planes y vencimientos</h2>
+        @for (plan of record.maintenance_plans; track plan.id) { <div class="record-row"><strong>{{ plan.task }} <span class="status" [class.warning]="plan.status !== 'current'">{{ planStatus(plan.status) }}</span></strong><span>Próxima fecha: {{ plan.next_due_at ?? '—' }} · Km: {{ plan.next_due_odometer_km ?? '—' }}</span><small>Intervalos: {{ plan.interval_days ?? '—' }} días · {{ plan.interval_km ?? '—' }} km</small>@if (canManageMaintenance()) { <div class="row-actions"><button class="button" type="button" (click)="editPlan(plan)">Editar</button><button class="button danger" type="button" (click)="deactivatePlan(plan)">Desactivar</button></div> }</div> } @empty { <p class="muted">No hay planes preventivos.</p> }
+      </article>
+      @if (canManageMaintenance() && record.maintenances.length) {
+        <form class="card form-card" [formGroup]="maintenanceDocumentForm" (ngSubmit)="uploadMaintenanceDocument($event)">
+          <h2>Adjuntar comprobante a una intervención</h2>
+          <label>Intervención<select formControlName="maintenance_id" required><option value="">Seleccionar intervención</option>@for (maintenance of record.maintenances; track maintenance.id) { <option [value]="maintenance.id">{{ maintenance.description }}</option> }</select></label>
+          <label>Archivo PDF o imagen<input type="file" accept="application/pdf,image/jpeg,image/png" required></label>
+          <button class="button primary" type="submit" [disabled]="saving()">Guardar comprobante</button>
+        </form>
+      }
+      <article class="card list-card"><h2>Comprobantes de mantenimiento</h2>
+        @for (maintenance of record.maintenances; track maintenance.id) { @for (document of maintenance.documents; track document.id) { <div class="record-row"><strong>{{ document.title }}</strong><span>{{ maintenance.description }}</span><button class="button" type="button" (click)="downloadMaintenanceDocument(maintenance.id, document.id, document.original_name)">Descargar comprobante privado</button></div> } }
+      </article>
+      <article class="card list-card"><h2>Intervenciones</h2>
+        @for (maintenance of record.maintenances; track maintenance.id) { <div class="record-row"><strong>{{ maintenance.description }} <span class="status">{{ maintenanceStatus(maintenance.status) }}</span></strong><span>{{ maintenance.type === 'preventive' ? 'Preventiva' : 'Correctiva' }} · {{ maintenance.workshop ?? 'Sin taller' }} · {{ money(maintenance.cost_amount) }}</span><small>{{ maintenance.planned_at ? (maintenance.planned_at | date:'dd/MM/yyyy HH:mm':'-0300') : 'Sin fecha prevista' }}@if (maintenance.immobilizes_vehicle) { · Inmoviliza el vehículo }</small>
+          @if (canManageMaintenance() && maintenance.status === 'planned') { <div class="row-actions"><button class="button" type="button" (click)="transition(maintenance, 'inicio')">Iniciar</button><button class="button danger" type="button" (click)="transition(maintenance, 'anulacion')">Anular</button></div> }
+          @if (canManageMaintenance() && maintenance.status === 'in_progress') { @if (maintenance.items.length) { <fieldset class="plan-checklist"><legend>Tareas realizadas</legend>@for (item of maintenance.items; track item.public_id) { <label class="check-line"><input type="checkbox" [checked]="item.completed || itemChecked(maintenance.id, item.public_id)" [disabled]="item.completed" (change)="toggleCompletedItem(maintenance.id, item.public_id, $any($event.target).checked)">{{ item.task }}</label> }</fieldset> }<div class="form-grid"><label>Costo final (UYU)<input inputmode="decimal" [value]="completionValue(maintenance, 'cost_amount')" (input)="setCompletionValue(maintenance.id, 'cost_amount', $any($event.target).value)"></label><label>Odómetro al finalizar<input inputmode="decimal" [value]="completionValue(maintenance, 'odometer_km')" (input)="setCompletionValue(maintenance.id, 'odometer_km', $any($event.target).value)"></label></div><button class="button primary" type="button" (click)="transition(maintenance, 'finalizacion')">Completar intervención</button> }
+        </div> } @empty { <p class="muted">No hay intervenciones registradas.</p> }
+      </article>
+    }
+
+    @if (tab() === 'documents') {
+      <div class="section-grid">
+        @if (canManageDocuments()) { <form class="card form-card" [formGroup]="documentForm" (ngSubmit)="uploadDocument($event)">
+          <h2>Agregar documento privado</h2><p>Los archivos quedan privados y solo se descargan con autorización.</p>
+          <div class="form-grid"><label>Título<input formControlName="title" required></label><label>Tipo<input formControlName="document_type" required></label><label>Vencimiento opcional<input formControlName="expires_at" type="date"></label></div>
+          <label>Archivo PDF o imagen<input type="file" accept="application/pdf,image/jpeg,image/png" required></label>
+          <button class="button primary" type="submit" [disabled]="saving()">Cargar documento</button>
+        </form> }
+        <article class="card list-card"><h2>Documentación</h2>
+          @for (document of record.documents; track document.id) { <div class="record-row"><strong>{{ document.title }}</strong><span>{{ document.type }} · {{ document.original_name }}</span><small>Vence: {{ document.expires_at ?? 'Sin vencimiento' }}</small><button class="button" type="button" (click)="downloadDocument(document)">Descargar documento privado</button></div> } @empty { <p class="muted">No hay documentos cargados.</p> }
+        </article>
+      </div>
+    }
+
+    @if (tab() === 'timeline') {
+      <article class="card list-card timeline"><h2>Cronología del vehículo</h2>
+        @for (event of events(); track event.type + event.at + event.title) { <div class="timeline-event"><span class="dot" aria-hidden="true"></span><div><strong>{{ event.title }}</strong><p>{{ event.detail }}</p><time>{{ event.at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }}</time></div></div> } @empty { <p class="muted">Todavía no hay actividad registrada.</p> }
+      </article>
+    }
+  }
+</section>

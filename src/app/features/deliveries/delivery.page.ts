@@ -8,28 +8,35 @@ import { PaymentMethod } from '../customers/types/customer.types';
 import { DeliveryClientRowComponent } from './components/delivery-client-row.component';
 import { DeliveryPendingOperationsComponent } from './components/delivery-pending-operations.component';
 import { DeliveryFinancialSummaryComponent } from './components/delivery-financial-summary.component';
+import { DeliveryStartOptionsComponent } from './components/delivery-start-options.component';
+import { DeliveryVehicleFuelFormComponent } from './components/delivery-vehicle-fuel-form.component';
 import { Capacitor } from '@capacitor/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import * as L from 'leaflet/dist/leaflet-src.esm.js';
 import {
   IonContent,
   IonHeader,
   IonIcon,
+  Platform,
   IonSpinner,
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, checkmarkCircleOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline } from 'ionicons/icons';
+import { addOutline, checkmarkCircleOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline } from 'ionicons/icons';
 
 import { postLoginPath } from '../../core/auth/access-policy';
 import { AuthStore } from '../../core/auth/auth.store';
 import { LocationSample, LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
+import { ServerHealthService } from '../../core/api/server-health.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.service';
 import { DeliveriesApi } from './deliveries.api';
+import { VehiclesApi } from '../vehicles/services/vehicles.api';
+import { VehicleFuelInput, VehicleOption } from '../vehicles/interfaces/vehicle';
+import { formatFuelLiters } from '../vehicles/vehicle-format';
 import { DeliveryUnitRowComponent } from './components/delivery-unit-row.component';
 import { formatDeliveryMoney } from './delivery-money';
 import { AddDeliveryLoadInput, Delivery, DeliveryClient, DeliveryLoadItemInput, DeliveryStop, DeliveryUnit, DeliveryUnitBalanceRow, DeliveryProductionUnit, DeliveryStopItemInput, CloseDeliveryInput, DeliveryPaymentInput, LocationInput, StartDeliveryInput, StopInput } from './delivery.models';
@@ -43,10 +50,12 @@ type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
   templateUrl: './delivery.page.html',
   styleUrl: './delivery.page.scss',
   imports: [
-    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, ReactiveFormsModule, RouterLink,
+    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, ReactiveFormsModule, RouterLink,
   ],
 })
 export class DeliveryPage implements AfterViewInit, OnDestroy {
+  @ViewChild(IonContent) private content?: IonContent;
+
   @ViewChild('clientSheet') set clientSheet(element: ElementRef<HTMLElement> | undefined) {
     if (element) setTimeout(() => element.nativeElement.focus());
   }
@@ -76,13 +85,17 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly canLeaveDelivery = computed(() => this.otherViewPath() === '/administracion');
   readonly driverInitials = computed(() => (this.auth.user()?.name ?? 'R').split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join(''));
   private readonly api = inject(DeliveriesApi);
+  private readonly platform = inject(Platform);
+  private readonly vehiclesApi = inject(VehiclesApi);
   private readonly outbox = inject(DeliveryOutboxService);
   private readonly location = inject(LocationService);
   private readonly network = inject(NetworkService);
+  private readonly serverHealth = inject(ServerHealthService);
   readonly clients = signal<readonly DeliveryClient[]>([]);
   readonly units = signal<readonly DeliveryUnit[]>([]);
   readonly productionUnits = signal<readonly DeliveryProductionUnit[]>([]);
   readonly money = formatDeliveryMoney;
+  readonly fuelLiters = formatFuelLiters;
   readonly defaultUnitId = computed(() => this.units().find((unit) => unit.id === 'huevo')?.id ?? this.units()[0]?.id ?? '');
   readonly delivery = signal<Delivery | null>(null);
   readonly pendingCount = signal(0);
@@ -91,11 +104,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly online = this.network.online;
+  readonly serverStatus = this.serverHealth.state.asReadonly();
+  readonly serverStatusLabel = computed(() => this.serverStatus() === 'online' ? 'Conectado al servidor'
+    : this.serverStatus() === 'offline' ? 'Sin conexión con el servidor' : 'Comprobando conexión con el servidor');
   readonly native = Capacitor.isNativePlatform();
   readonly canOperate = this.native || isDevMode();
+  readonly canManageFuel = computed(() => this.auth.user()?.roles.includes('admin') === true || this.auth.user()?.permissions?.some((permission) => ['vehicles.fuel.manage', 'delivery.fuel.record'].includes(permission)) === true);
   readonly profileOpen = signal(false);
   readonly panel = signal<'clients' | 'map' | 'summary'>('clients');
-  readonly dialogOpen = computed(() => !!this.selectedClient() || this.loadOpen() || this.startConfirmation() || this.closeConfirmation() || !!this.selectedMetric());
+  readonly dialogOpen = computed(() => !!this.selectedClient() || this.loadOpen() || this.noLoadConfirmation() || this.startConfirmation() || this.closeConfirmation() || !!this.selectedMetric());
   readonly selectedMetric = signal<DeliveryMetric | null>(null);
   readonly metricTitle = computed(() => ({ loaded: 'Huevos totales', delivered: 'Entregados', remaining: 'En vehículo' })[this.selectedMetric() ?? 'loaded']);
   readonly metricEggs = computed(() => {
@@ -137,13 +154,31 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     total + Math.round((this.stopSelections()[this.balanceKey(row)] ?? 0) * 1000) * row.eggs_per_unit / 1000, 0));
   readonly closeConfirmation = signal(false);
   readonly startConfirmation = signal(false);
+  readonly availableVehicles = signal<VehicleOption[]>([]);
+  readonly selectedVehicleId = signal('');
+  readonly selectedVehicleWarnings = computed(() => this.availableVehicles().find((vehicle) => vehicle.id === this.selectedVehicleId())?.warnings ?? []);
+  readonly startOdometer = new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^\d+(?:[.,]\d)?$/)] });
+  readonly closeOdometer = new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^\d+(?:[.,]\d)?$/)] });
+  readonly fuelSaving = signal(false);
+  readonly fuelReceipt = signal<File | null>(null);
+  readonly fuelForm = new FormGroup({
+    liters: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d+(?:[.,]\d{1,3})?$/)] }),
+    fuel_type: new FormControl('Nafta', { nonNullable: true, validators: [Validators.required, Validators.maxLength(40)] }),
+    amount: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d+(?:[.,]\d{1,3})?$/)] }),
+    supplier: new FormControl('', { nonNullable: true }),
+    odometer_km: new FormControl('', { nonNullable: true, validators: [Validators.pattern(/^\d+(?:[.,]\d)?$/)] }),
+    notes: new FormControl('', { nonNullable: true }),
+  });
+  readonly noLoadConfirmation = signal(false);
+  readonly startWithoutLoad = signal(false);
+  readonly vehiclesLoading = signal(false);
   readonly closePending = signal(false);
   readonly startPin = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[0-9]{4}$/)] });
   readonly closePin = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[0-9]{4}$/)] });
   readonly lastPosition = signal<LocationInput | null>(null);
   readonly startForm = new FormGroup({
     production_unit_id: new FormControl<number | null>(null, Validators.required),
-    items: new FormArray<LoadLineForm>([this.loadLine('120')]),
+    items: new FormArray<LoadLineForm>([this.loadLine('')]),
   });
   readonly loadForm = new FormGroup({
     production_unit_id: new FormControl<number | null>(null, Validators.required),
@@ -202,13 +237,14 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private reconnectTimer: ReturnType<typeof setInterval> | null = null;
   private clientSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private clientSearchRequest = 0;
+  private backButtonSubscription?: Subscription;
   private mapRequest = 0;
   private mapTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private readonly unitAmountFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 3 });
 
   constructor() {
-    addIcons({ addOutline, checkmarkCircleOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline });
+    addIcons({ addOutline, checkmarkCircleOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline });
     let owner = this.auth.user()?.id;
     effect(() => {
       const next = this.auth.user()?.id;
@@ -219,6 +255,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         this.loadOpen.set(false); this.closeConfirmation.set(false); this.startConfirmation.set(false);
         this.busy.set(false); this.syncing.set(false); this.clearFeedback();
         this.startPin.reset(); this.closePin.reset(); this.map?.remove(); this.map = null;
+        this.availableVehicles.set([]); this.selectedVehicleId.set(''); this.startOdometer.reset(); this.closeOdometer.reset();
       }
     });
     this.reconnectTimer = setInterval(() => {
@@ -242,13 +279,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         this.error.set('No se pudo leer el catálogo local. Conectate para actualizarlo.');
       }
     }
-    await Promise.all([this.refreshUnits(), this.refreshProductionUnits(), this.refreshClients()]);
+    await Promise.all([this.refreshUnits(), this.refreshProductionUnits(), this.refreshClients(), this.refreshVehicles()]);
     await this.refreshActiveDelivery();
     await this.refreshQueue();
   }
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.serverHealth.stop();
+    this.backButtonSubscription?.unsubscribe();
     if (this.mapTimer) clearTimeout(this.mapTimer);
     if (this.locationWatch !== null) void this.location.clearWatch(this.locationWatch);
     if (this.reconnectTimer) clearInterval(this.reconnectTimer);
@@ -257,8 +296,36 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.map = null;
   }
 
+  ionViewDidEnter(): void {
+    this.serverHealth.start();
+    this.backButtonSubscription?.unsubscribe();
+    this.backButtonSubscription = this.platform.backButton.subscribeWithPriority(1000, (processNextHandler) => {
+      if (this.profileOpen()) { this.profileOpen.set(false); return; }
+      if (this.selectedMetric()) { this.selectedMetric.set(null); return; }
+      if (this.selectedClient()) { this.selectedClient.set(null); return; }
+      if (this.loadOpen()) { this.loadOpen.set(false); return; }
+      if (this.noLoadConfirmation()) { this.cancelNoLoadStart(); return; }
+      if (this.startConfirmation()) { this.cancelStartConfirmation(); return; }
+      if (this.closeConfirmation()) { this.closeConfirmation.set(false); this.closePin.reset(); return; }
+      if (this.delivery()?.status === 'active') {
+        if (this.panel() !== 'clients') this.selectPanel('clients');
+        return;
+      }
+      processNextHandler();
+    });
+  }
+
+  ionViewWillLeave(): void {
+    this.serverHealth.stop();
+    this.backButtonSubscription?.unsubscribe();
+    this.backButtonSubscription = undefined;
+  }
+
   openStartConfirmation(): void {
     if (!this.canOperate || this.busy() || !this.units().length) return;
+    if (!this.selectedVehicleId()) { this.error.set('Seleccioná un vehículo disponible para iniciar.'); return; }
+    if (this.startOdometer.invalid) { this.startOdometer.markAsTouched(); this.error.set('Revisá el kilometraje de salida.'); return; }
+    this.startWithoutLoad.set(false);
     if (!this.loadPayload(this.startForm)) return;
     if (!this.online()) {
       this.error.set('Necesitás conexión para iniciar un reparto.');
@@ -269,6 +336,37 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.startConfirmation.set(true);
   }
 
+  openNoLoadConfirmation(): void {
+    if (!this.canOperate || this.busy()) return;
+    if (!this.selectedVehicleId()) { this.error.set('Seleccioná un vehículo disponible para iniciar.'); return; }
+    if (this.startOdometer.invalid) { this.startOdometer.markAsTouched(); this.error.set('Revisá el kilometraje de salida.'); return; }
+    if (!this.online()) {
+      this.error.set('Necesitás conexión para iniciar un reparto.');
+      return;
+    }
+    this.clearFeedback();
+    this.startWithoutLoad.set(true);
+    this.noLoadConfirmation.set(true);
+  }
+
+  confirmNoLoadStart(): void {
+    if (!this.startWithoutLoad() || !this.online() || this.busy()) return;
+    this.noLoadConfirmation.set(false);
+    this.startPin.reset();
+    this.startConfirmation.set(true);
+  }
+
+  cancelNoLoadStart(): void {
+    this.noLoadConfirmation.set(false);
+    this.startWithoutLoad.set(false);
+  }
+
+  cancelStartConfirmation(): void {
+    this.startConfirmation.set(false);
+    this.startPin.reset();
+    this.startWithoutLoad.set(false);
+  }
+
   async startDelivery(): Promise<void> {
     if (!this.canOperate) return;
     if (this.busy()) return;
@@ -277,8 +375,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       this.error.set('Ingresá tu PIN de 4 dígitos para iniciar el reparto.');
       return;
     }
-    const payload = this.loadPayload(this.startForm);
-    if (!payload) return;
+    const loadPayload = this.startWithoutLoad() ? { start_without_load: true } : this.loadPayload(this.startForm);
+    if (!loadPayload) return;
     if (!this.online()) {
       this.error.set('Necesitas conexión para iniciar un reparto. Luego podrás continuar sin señal.');
       return;
@@ -287,13 +385,17 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.busy.set(true);
     this.clearFeedback();
     try {
-      // TODO(M16): permitir seleccionar el vehículo cuando exista el catálogo de flota.
-      const response = await firstValueFrom(this.api.start({ ...payload, pin: this.startPin.value }, this.newId()));
+      const odometer = this.startOdometer.value.trim().replace(',', '.');
+      const response = await firstValueFrom(this.api.start({ ...loadPayload, vehicle_id: this.selectedVehicleId(), ...(odometer ? { odometer_km: odometer } : {}), pin: this.startPin.value }, this.newId()));
       this.delivery.set(response.data);
       if (response.catalog) this.units.set(response.catalog);
       await this.saveReferences();
       this.startConfirmation.set(false);
+      this.startWithoutLoad.set(false);
+      this.startOdometer.reset();
+      this.selectedVehicleId.set('');
       this.panel.set('clients');
+      await this.content?.scrollToTop(0);
       this.message.set('Reparto iniciado. Puedes comenzar a visitar los clientes.');
       await this.refreshQueue();
       if (this.native) await this.startTracking();
@@ -309,7 +411,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (!this.canOperate || this.busy() || this.closePending()) return;
     this.clearFeedback();
     this.selectedClient.set(client);
-    this.stopMode.set(this.statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false ? 'payment' : 'delivered');
+    this.stopMode.set((this.delivery()?.loaded_quantity ?? 0) === 0 || this.statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false ? 'payment' : 'delivered');
     this.paymentChoice.set('');
     this.reviewing.set(null);
     this.stopSelections.set({});
@@ -383,7 +485,6 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.search.set((event.target as HTMLInputElement).value);
     this.clientSearchRequest++;
     this.clientPage.set(1);
-    this.scheduleMap();
     if (this.clientSearchTimer) clearTimeout(this.clientSearchTimer);
     this.clientSearchTimer = setTimeout(() => void this.refreshClients(this.search()), 400);
   }
@@ -391,6 +492,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   selectPanel(panel: 'clients' | 'map' | 'summary'): void {
     this.selectedMetric.set(null);
     this.panel.set(panel);
+    setTimeout(() => void this.content?.scrollToTop(0));
   }
 
   openLoad(): void {
@@ -408,7 +510,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (!this.canOperate || !delivery || this.busy() || this.closePending()) return;
     const payload = this.loadPayload(this.loadForm);
     if (!payload) return;
-    await this.persistBusiness('load', payload, this.newId());
+    await this.persistBusiness('load', { ...payload, occurred_at: this.actionOccurredAt('load') }, this.newId());
   }
 
 
@@ -426,12 +528,16 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const delivery = this.delivery();
     const client = this.selectedClient();
     if (!this.canOperate || !delivery || !client || this.busy() || this.closePending()) return;
+    if (delivery.loaded_quantity === 0 && this.stopMode() === 'delivered') {
+      this.error.set('Agregá una carga de huevos antes de registrar entregas.');
+      return;
+    }
 
     if (this.stopMode() === 'payment') {
       const payment = this.paymentPayload();
       if (!payment) return;
       const key = this.newId();
-      await this.persistBusiness('payment', { ...payment, client_reference: client.id, client_event_id: key }, key);
+      await this.persistBusiness('payment', { ...payment, client_reference: client.id, client_event_id: key, occurred_at: this.actionOccurredAt('payment') }, key);
       return;
     }
     if (this.statusFor(client) !== 'pending' && !this.reviewing()) { this.error.set('La visita ya está registrada. Podés registrar otro cobro.'); return; }
@@ -462,6 +568,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const payload: StopInput = {
       client_reference: client.id,
       status: delivered ? 'delivered' : 'not_delivered',
+      occurred_at: this.actionOccurredAt('stop'),
       ...(delivered ? { accounting_version: 2, client_event_id: idempotencyKey, payment } : {}),
       ...(delivered ? { items } : {}),
       visit_reason: delivered ? 'Entrega realizada' : reason,
@@ -488,7 +595,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       await this.outbox.enqueue({ kind, deliveryId: delivery.id, payload, idempotencyKey: key }, this.reviewing() ?? undefined);
       if (!this.isCurrentActor(actorId)) return;
       this.reviewing.set(null);
-      if (kind === 'load') this.updateLocalLoad(this.loadEggs(payload as AddDeliveryLoadInput), key, (payload as AddDeliveryLoadInput).items, (payload as AddDeliveryLoadInput).production_unit_id);
+      if (kind === 'load') this.updateLocalLoad(this.loadEggs(payload as AddDeliveryLoadInput), key, (payload as AddDeliveryLoadInput).items, (payload as AddDeliveryLoadInput).production_unit_id, (payload as AddDeliveryLoadInput).occurred_at);
       if (kind === 'stop' && client) this.updateLocalStop(client, payload as StopInput, this.stopEggs(payload as StopInput));
       this.selectedClient.set(null); this.loadOpen.set(false);
       await this.refreshQueue(); await this.saveReferences();
@@ -588,6 +695,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       this.error.set('Ingresá tu PIN de 4 dígitos para cerrar el reparto.');
       return;
     }
+    if (this.closeOdometer.invalid) { this.closeOdometer.markAsTouched(); this.error.set('Revisá el kilometraje de cierre.'); return; }
     if (!this.online()) {
       this.error.set('Necesitás conexión para verificar el PIN y cerrar el reparto. Tus cambios pendientes siguen guardados.');
       this.closePin.reset();
@@ -609,7 +717,9 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         this.error.set('Cada presentación devuelta debe equivaler a huevos enteros.');
         return;
       }
-      payload = { returned_items: items, pin: this.closePin.value };
+      payload = items.length
+        ? { returned_items: items, pin: this.closePin.value }
+        : { returned_quantity: 0, pin: this.closePin.value };
     }
     const quantity = payload.returned_items?.reduce((total, item) => total + this.itemEggs(item), 0) ?? payload.returned_quantity ?? 0;
     if (quantity > delivery.remaining_quantity) { this.error.set('La descarga supera los huevos disponibles.'); return; }
@@ -617,6 +727,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (quantity > 0 && !this.returnUnit.value) { this.error.set('Seleccioná la UP donde descargar todos los sobrantes.'); return; }
     if (quantity > 0 && this.returnUnit.value) payload.return_production_unit_id = this.returnUnit.value;
     payload.notes = this.returnNotes.value.trim() || 'Cierre desde modo repartidor';
+    const closingOdometer = this.closeOdometer.value.trim().replace(',', '.');
+    if (closingOdometer) payload.odometer_km = closingOdometer;
     const idempotencyKey = this.newId();
     this.busy.set(true);
     this.clearFeedback();
@@ -634,6 +746,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       for (const entry of await this.outbox.list(delivery.id)) if (entry.kind === 'close') await this.outbox.remove(entry.id);
       this.delivery.set(response.data);
       this.closeConfirmation.set(false);
+      this.closeOdometer.reset();
       this.closePrepared = false;
       await this.saveReferences();
       this.message.set('Reparto cerrado correctamente.');
@@ -653,6 +766,48 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (!this.canOperate || !this.online() || !this.delivery()) return;
     await this.flushOutbox();
     await this.refreshActiveDelivery();
+  }
+
+  async recordVehicleFuel(): Promise<void> {
+    const delivery = this.delivery();
+    if (!this.canManageFuel() || delivery?.status !== 'active' || !delivery.vehicle || !delivery.vehicle_usage?.id || this.fuelSaving()) return;
+    if (this.fuelForm.invalid) { this.fuelForm.markAllAsTouched(); return; }
+    const value = this.fuelForm.getRawValue();
+    const payload: VehicleFuelInput = {
+      vehicle_id: delivery.vehicle.id,
+      usage_id: delivery.vehicle_usage.id,
+      liters: value.liters.replace(',', '.'),
+      fuel_type: value.fuel_type.trim(),
+      amount: value.amount.replace(',', '.'),
+      occurred_at: new Date().toISOString(),
+      ...(value.supplier.trim() ? { supplier: value.supplier.trim() } : {}),
+      ...(value.odometer_km.trim() ? { odometer_km: value.odometer_km.trim().replace(',', '.') } : {}),
+      ...(value.notes.trim() ? { notes: value.notes.trim() } : {}),
+      ...(this.fuelReceipt() ? { receipt: this.fuelReceipt()! } : {}),
+    };
+    const idempotencyKey = this.newId();
+    this.fuelSaving.set(true);
+    this.clearFeedback();
+    try {
+      await this.outbox.enqueue({ kind: 'fuel', deliveryId: delivery.id, payload, idempotencyKey });
+      this.fuelReceipt.set(null);
+      this.fuelForm.reset({ liters: '', fuel_type: 'Nafta', amount: '', supplier: '', odometer_km: '', notes: '' });
+      await this.refreshQueue();
+      if (this.online()) {
+        await this.flushOutbox();
+        if (this.pendingEntries().some((entry) => entry.idempotencyKey === idempotencyKey)) this.message.set('La carga quedó guardada en este reparto y se sincronizará al resolver el pendiente.');
+        else this.message.set('Carga de combustible registrada.');
+      } else {
+        this.message.set('Carga de combustible guardada para sincronizar con este reparto.');
+      }
+    } catch (error) {
+      this.error.set(this.errorMessage(error, 'No se pudo registrar ni guardar la carga de combustible.'));
+    } finally { this.fuelSaving.set(false); }
+  }
+
+  setFuelReceipt(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.fuelReceipt.set(input.files?.[0] ?? null);
   }
 
   readonly paidCustomerIds = computed(() => new Set((this.delivery()?.account_movements ?? []).filter((movement) => movement.type === 'payment' && !movement.reversal_id).flatMap((movement) => movement.customer_id ? [movement.customer_id] : [])));
@@ -781,6 +936,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       await firstValueFrom(this.api.payment(entry.deliveryId, entry.payload as DeliveryPaymentInput, entry.idempotencyKey));
       return;
     }
+    if (entry.kind === 'fuel') {
+      const fuel = entry.payload as VehicleFuelInput;
+      const active = this.delivery();
+      if (!active || active.id !== entry.deliveryId || active.vehicle?.id !== fuel.vehicle_id || active.vehicle_usage?.id !== fuel.usage_id) {
+        throw new Error('La carga de combustible pertenece a otro uso y no se reasignará.');
+      }
+      await firstValueFrom(this.vehiclesApi.recordFuel(fuel.vehicle_id, fuel, entry.idempotencyKey));
+      return;
+    }
     if (entry.kind === 'stop') {
       await firstValueFrom(this.api.stop(entry.deliveryId, entry.payload as StopInput, entry.idempotencyKey));
       return;
@@ -807,7 +971,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
           if (entry.kind === 'load' && entry.idempotencyKey
             && !detail.loads?.some((load) => load.idempotency_key === entry.idempotencyKey)) {
             const payload = entry.payload as AddDeliveryLoadInput;
-            this.updateLocalLoad(this.loadEggs(payload), entry.idempotencyKey, payload.items, payload.production_unit_id ?? detail.production_unit?.id);
+            this.updateLocalLoad(this.loadEggs(payload), entry.idempotencyKey, payload.items, payload.production_unit_id ?? detail.production_unit?.id, payload.occurred_at);
           }
           if (entry.kind === 'stop') {
             const payload = entry.payload as StopInput;
@@ -866,7 +1030,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const bounds = this.map.getBounds(); const request = ++this.mapRequest; const actorId = this.auth.user()?.id;
     try {
       const response = await firstValueFrom(this.api.markers({ west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(), limit: 200,
-        ...(this.search().trim() ? { search: this.search().trim() } : {}), ...(this.clientStatus() ? { status: this.clientStatus() } : {}),
+        ...(this.clientStatus() ? { status: this.clientStatus() } : {}),
         ...(this.delivery() ? { delivery_id: this.delivery()!.id } : {}), ...(this.mapVisitStatus() ? { visit_status: this.mapVisitStatus() } : {}) }));
       if (request !== this.mapRequest || !actorId || !this.isCurrentActor(actorId)) return;
       this.mapClients.set(response.data); this.mapHasMore.set(response.meta.has_more); this.updateMapMarkers();
@@ -900,6 +1064,20 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       this.productionUnits.set((await firstValueFrom(this.api.productionUnits())).data);
     } catch (error) {
       this.error.set(this.errorMessage(error, 'No se pudieron consultar las unidades productivas para cargar.'));
+    }
+  }
+
+  async refreshVehicles(): Promise<void> {
+    if (!this.online() || this.vehiclesLoading()) return;
+    this.vehiclesLoading.set(true);
+    try {
+      const vehicles = (await firstValueFrom(this.vehiclesApi.available())).data;
+      this.availableVehicles.set(vehicles);
+      if (!vehicles.some((vehicle) => vehicle.id === this.selectedVehicleId())) this.selectedVehicleId.set('');
+    } catch (error) {
+      this.error.set(this.errorMessage(error, 'No se pudieron consultar los vehículos disponibles.'));
+    } finally {
+      this.vehiclesLoading.set(false);
     }
   }
 
@@ -1002,7 +1180,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const points = this.clients().filter((client) => client.latitude !== null && client.longitude !== null).map((client) => [Number(client.latitude), Number(client.longitude)] as L.LatLngTuple);
     if (!points.length) return;
     const element = this.map.getContainer();
-    const controlsBottom = element.closest('ion-content')?.querySelector('.map-search')?.getBoundingClientRect().bottom ?? 0;
+    const controlsBottom = element.closest('ion-content')?.querySelector('.map-controls')?.getBoundingClientRect().bottom ?? 0;
     const topPadding = Math.min(Math.max(32, controlsBottom - element.getBoundingClientRect().top + 16), Math.max(32, element.clientHeight - 80));
     this.map.fitBounds(points, { paddingTopLeft: [24, topPadding], paddingBottomRight: [24, 24], maxZoom: 15 });
   }
@@ -1046,7 +1224,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         latitude: client.latitude ?? 0, longitude: client.longitude ?? 0, sequence: 0, status: payload.status,
         items: payload.items?.map((item) => ({ ...item, label: delivery.unit_balances?.rows.find((row) =>
           row.unit === item.unit && row.eggs_per_unit === item.eggs_per_unit)?.label ?? this.unitLabel(item.unit), eggs: this.itemEggs(item) })) ?? [],
-        delivered_quantity: quantity, visit_reason: null, notes: null, visited_at: new Date().toISOString(),
+        delivered_quantity: quantity, visit_reason: payload.visit_reason ?? null, notes: payload.notes ?? null,
+        visited_at: payload.occurred_at ?? new Date().toISOString(),
       }],
       delivered_quantity: delivery.delivered_quantity + quantity,
       delivered_amount: null,
@@ -1069,7 +1248,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.updateMapMarkers();
   }
 
-  private updateLocalLoad(quantity: number, idempotencyKey: string, items?: DeliveryLoadItemInput[], productionUnitId?: number): void {
+  private updateLocalLoad(quantity: number, idempotencyKey: string, items?: DeliveryLoadItemInput[], productionUnitId?: number, occurredAt = new Date().toISOString()): void {
     const loadedItems = items ?? [{ unit: 'huevo', amount: String(quantity), eggs_per_unit: 1 }];
     this.delivery.update((delivery) => {
       if (!delivery) return delivery;
@@ -1101,7 +1280,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         production_unit: this.productionUnits().find((unit) => unit.id === productionUnitId) ?? (productionUnitId === delivery.production_unit?.id ? delivery.production_unit : null),
         items: loadedItems.map((item) => ({ ...item, label: this.unitLabel(item.unit),
           category: this.units().find((unit) => unit.id === item.unit)?.category ?? '', eggs: this.itemEggs(item) })),
-        created_at: new Date().toISOString(),
+        created_at: occurredAt, occurred_at: occurredAt,
       }],
       unit_balances: delivery.unit_balances ? { ...delivery.unit_balances, rows } : undefined,
     };
@@ -1115,6 +1294,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private clearFeedback(): void {
     this.message.set(null);
     this.error.set(null);
+  }
+
+  private actionOccurredAt(kind: 'load' | 'stop' | 'payment'): string {
+    const entry = this.reviewing();
+    if (entry?.kind === kind) {
+      const original = (entry.payload as AddDeliveryLoadInput | StopInput | DeliveryPaymentInput).occurred_at;
+      if (original) return original;
+    }
+    return new Date().toISOString();
   }
 
   private errorMessage(error: unknown, fallback: string): string {

@@ -1,0 +1,47 @@
+<section class="vehicles-page" aria-labelledby="vehicles-title">
+  <header class="page-heading">
+    <div><p class="eyebrow">Administración / Vehículos</p><h1 id="vehicles-title">Flota</h1><p class="lead">Vehículos, disponibilidad y mantenimiento de la empresa.</p></div>
+    @if (canManage()) { <button class="button primary" type="button" (click)="createOpen.set(!createOpen())">{{ createOpen() ? 'Cerrar formulario' : 'Nuevo vehículo' }}</button> }
+  </header>
+
+  @if (error()) { <div class="feedback error" role="alert">{{ error() }}</div> }
+  @if (createOpen()) {
+    <form class="vehicle-form card" [formGroup]="form" (ngSubmit)="create()">
+      <div><h2>Registrar vehículo</h2><p>La matrícula identifica la ficha y no se puede repetir.</p></div>
+      <div class="form-grid">
+        <label>Matrícula<input formControlName="plate" autocomplete="off" maxlength="24" required></label>
+        <label>Marca<input formControlName="make" maxlength="80" required></label>
+        <label>Modelo<input formControlName="model" maxlength="100" required></label>
+        <label>Año<input formControlName="year" inputmode="numeric" type="number" min="1900" max="2100"></label>
+        <label>Fecha de alta<input formControlName="admitted_at" type="date"></label>
+        <label>Capacidad (kg)<input formControlName="capacity_kg" inputmode="decimal" type="number" min="0" step="0.01"></label>
+        <label>Conductor habitual (opcional)<select formControlName="habitual_driver_id"><option value="">Sin conductor habitual</option>@for (driver of drivers(); track driver.id) { <option [value]="driver.id">{{ driver.name }}</option> }</select></label>
+      </div>
+      <label>Observaciones<textarea formControlName="notes" rows="2" maxlength="5000"></textarea></label>
+      <div class="form-actions"><button class="button primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar vehículo' }}</button></div>
+    </form>
+  }
+
+  <form class="filters" (submit)="$event.preventDefault(); load()">
+    <label class="search-field">Buscar<input type="search" [value]="search()" (input)="setSearch($any($event.target).value)" placeholder="Matrícula, marca o modelo"></label>
+    <label>Estado<select [value]="statusFilter()" (change)="setStatus($any($event.target).value)"><option value="">Todos</option><option value="active">Activos</option><option value="out_of_service">Fuera de servicio</option><option value="retired">Retirados</option></select></label>
+    <label>Disponibilidad<select [value]="availabilityFilter()" (change)="setAvailability($any($event.target).value)"><option value="">Todas</option><option value="available">Disponibles</option><option value="in_use">En uso</option><option value="not_available">No disponibles</option></select></label>
+    <button class="button" type="submit" [disabled]="loading()">Buscar</button>
+  </form>
+
+  <p class="result-count" role="status">{{ total() }} {{ total() === 1 ? 'vehículo' : 'vehículos' }}</p>
+  @if (loading()) { <p class="empty card" role="status">Cargando vehículos…</p> }
+  @else {
+    <ul class="vehicle-list" aria-label="Vehículos registrados">
+      @for (vehicle of vehicles(); track vehicle.id) {
+        <li class="vehicle-card card">
+          <div class="vehicle-title"><div><a [routerLink]="[vehicle.id]">{{ vehicle.plate }}</a><p>{{ vehicle.make }} {{ vehicle.model }}{{ vehicle.year ? ' · ' + vehicle.year : '' }}</p></div><span class="badge" [class.warn]="vehicle.status !== 'active'">{{ statusLabel(vehicle.status) }}</span></div>
+          <div class="vehicle-facts"><span><small>Disponibilidad</small><strong>{{ availabilityLabel(vehicle.availability) }}</strong></span><span><small>Kilometraje</small><strong>{{ vehicle.latest_odometer ? (vehicle.latest_odometer + ' km') : 'Sin lectura registrada' }}</strong></span></div>
+          @if (vehicle.maintenance_warnings.length) { <ul class="warnings" aria-label="Advertencias de mantenimiento">@for (warning of vehicle.maintenance_warnings; track warning) { <li>{{ warning }}</li> }</ul> }
+          @if (vehicle.availability_reason) { <p class="muted">{{ vehicle.availability_reason }}</p> }
+          <a class="button detail-link" [routerLink]="[vehicle.id]">Ver ficha y cronología <span aria-hidden="true">→</span></a>
+        </li>
+      } @empty { <li class="empty card"><strong>No hay vehículos para estos filtros.</strong><p>Probá cambiar la búsqueda o registrá el primer vehículo.</p></li> }
+    </ul>
+  }
+</section>

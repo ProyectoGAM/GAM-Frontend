@@ -17,6 +17,14 @@
 @import "@ionic/angular/css/core.css";
 @import "mapbox-gl/dist/mapbox-gl.css";
 
+.delivery-map-marker { display: grid; width: 32px; height: 32px; box-sizing: border-box; place-items: center; border: 2px solid var(--gam-color-surface); border-radius: 50%; box-shadow: 0 1px 5px color-mix(in srgb, var(--gam-color-heading) 40%, transparent); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.delivery-map-marker.start, .delivery-map-marker.load, .delivery-map-marker.visit { background: var(--gam-color-primary); }
+.delivery-map-marker.payment { background: var(--gam-color-success); }
+.delivery-map-marker.charge, .delivery-map-marker.fuel { background: var(--gam-color-warning); }
+.delivery-map-marker.close { background: var(--gam-color-danger); }
+.delivery-map-marker.location { width: 26px; height: 26px; background: var(--gam-color-text-muted); }
+.delivery-map-marker:focus-visible { outline: 3px solid var(--gam-color-heading); outline-offset: 2px; }
+
 /* Basic CSS for apps built with Ionic */
 @import "@ionic/angular/css/normalize.css";
 @import "@ionic/angular/css/structure.css";
@@ -39,3 +47,26 @@
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 @import '@ionic/angular/css/palettes/dark.class.css';
+
+ion-app {
+  box-sizing: border-box;
+  background: var(--gam-color-nav);
+}
+
+ion-app > ion-router-outlet > .ion-page {
+  top: max(env(safe-area-inset-top, 0px), var(--gam-status-bar-inset, 0px));
+}
+
+.fuel-entry-list { display: grid; gap: 0; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gam-color-border); }
+.fuel-entry-list h4 { margin: 0 0 6px; color: var(--gam-color-heading); }
+.fuel-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; padding: 12px 0; border-top: 1px solid var(--gam-color-border); }
+.fuel-entry strong { min-width: 0; overflow-wrap: anywhere; }
+.fuel-entry time, .fuel-entry small { text-align: right; color: var(--gam-color-text-muted); font-size: 12px; }
+.fuel-entry span { min-width: 0; overflow-wrap: anywhere; color: var(--gam-color-text-muted); }
+
+.mapboxgl-popup.delivery-action-popup-shell .mapboxgl-popup-content { padding: 12px; border: 1px solid var(--gam-color-border); border-radius: 9px; background: var(--gam-color-surface); color: var(--gam-color-text); box-shadow: 0 4px 16px color-mix(in srgb, var(--gam-color-heading) 20%, transparent); }
+.mapboxgl-popup.delivery-action-popup-shell .mapboxgl-popup-close-button { padding: 4px 8px; color: var(--gam-color-text-muted); font-size: 18px; }
+.delivery-action-popup { display: grid; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 14px; }
+.delivery-action-popup strong { color: var(--gam-color-heading); font-size: 13px; }
+.delivery-action-popup time { color: var(--gam-color-primary); font-size: 11px; }
+.delivery-action-popup p { margin: 0; color: var(--gam-color-text-muted); font-size: 12px; overflow-wrap: anywhere; }

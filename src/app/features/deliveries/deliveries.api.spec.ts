@@ -25,12 +25,12 @@ describe('DeliveriesApi', () => {
   afterEach(() => http.verify());
 
   it('sends the start command with idempotency protection', () => {
-    api.start({ quantity: 120, pin: '0007' }, 'start-key').subscribe();
+    api.start({ vehicle_id: 'vehicle-1', quantity: 120, pin: '0007' }, 'start-key').subscribe();
 
     const request = http.expectOne('/api/v1/repartos');
     expect(request.request.method).toBe('POST');
     expect(request.request.headers.get('Idempotency-Key')).toBe('start-key');
-    expect(request.request.body).toEqual({ quantity: 120, pin: '0007' });
+    expect(request.request.body).toEqual({ vehicle_id: 'vehicle-1', quantity: 120, pin: '0007' });
     request.flush({ data: { id: 'delivery-1' } });
   });
 

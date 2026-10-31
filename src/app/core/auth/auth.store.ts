@@ -404,11 +404,26 @@ export class AuthStore {
         return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.';
       }
       if (error.status === 0) {
-        return 'No hay conexión con el servidor.';
+        return 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.';
       }
-      return problem.message ?? problem.detail ?? fallback;
+      if (error.status === 401 && problem.code === 'INVALID_CREDENTIALS') {
+        return 'Los datos ingresados no son correctos. Revísalos e inténtalo de nuevo.';
+      }
+      if (error.status === 401) {
+        return fallback;
+      }
+      if (error.status === 403) {
+        return 'No tienes permiso para realizar esta acción.';
+      }
+      if (error.status >= 500) {
+        return 'El servidor tuvo un problema. Inténtalo de nuevo más tarde.';
+      }
+      if (error.status >= 200 && error.status < 300) {
+        return 'No pudimos completar la solicitud. Inténtalo de nuevo.';
+      }
+      return fallback;
     }
 
-    return error instanceof Error ? error.message : fallback;
+    return fallback;
   }
 }

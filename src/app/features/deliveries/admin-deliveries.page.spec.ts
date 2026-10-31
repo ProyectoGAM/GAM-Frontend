@@ -34,15 +34,20 @@ vi.mock('mapbox-gl/esm', () => {
   class MockMarker {
     constructor(_options: unknown) {}
     setLngLat(coordinates: [number, number]): this { mapState.markerCoordinates.push(coordinates); return this; }
+    setPopup(): this { return this; }
     addTo(): this { return this; }
     remove(): void { mapState.markerRemoved(); }
+  }
+  class MockPopup {
+    constructor(_options: unknown) {}
+    setDOMContent(): this { return this; }
   }
   class MockBounds {
     coordinates: Array<[number, number]> = [];
     extend(coordinates: [number, number]): this { this.coordinates.push(coordinates); return this; }
   }
   class MockNavigationControl {}
-  return { default: { Map: MockMap, Marker: MockMarker, LngLatBounds: MockBounds, NavigationControl: MockNavigationControl, accessToken: '' } };
+  return { default: { Map: MockMap, Marker: MockMarker, Popup: MockPopup, LngLatBounds: MockBounds, NavigationControl: MockNavigationControl, accessToken: '' } };
 });
 
 describe('AdminDeliveriesPage', () => {

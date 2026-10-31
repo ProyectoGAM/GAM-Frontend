@@ -1,0 +1,41 @@
+<div class="vehicle-selection">
+  <label for="start-vehicle">Vehículo</label>
+  <div class="vehicle-picker">
+    <select id="start-vehicle" [value]="selectedVehicleId()" (change)="selectVehicle($event)" required>
+      <option value="">Seleccioná un vehículo disponible</option>
+      @for (vehicle of availableVehicles(); track vehicle.id) {
+        <option [value]="vehicle.id">{{ vehicle.plate }} · {{ vehicle.make }} {{ vehicle.model }}</option>
+      }
+    </select>
+    <button type="button" class="secondary-action" (click)="refreshRequested.emit()" [disabled]="!online() || refreshingVehicles()" [attr.aria-busy]="refreshingVehicles()">
+      @if (refreshingVehicles()) { <ion-spinner name="crescent" aria-hidden="true" /> Actualizando… } @else { Actualizar }
+    </button>
+  </div>
+  @if (!availableVehicles().length) {
+    <p class="vehicle-empty" role="status">No hay vehículos disponibles. Revisá el estado de la flota o volvé a consultar.</p>
+  }
+  @if (warnings().length) {
+    <ul class="vehicle-warnings" role="status">@for (warning of warnings(); track warning) { <li>{{ warning }}</li> }</ul>
+  }
+  <label for="start-odometer">Kilometraje de salida (opcional)</label>
+  <input id="start-odometer" [formControl]="startOdometer()" inputmode="decimal" placeholder="Lectura del tablero">
+</div>
+
+<div class="no-load-start">
+  <p>¿Salís únicamente a cobrar deudas?</p>
+  <button type="button" class="secondary-action" (click)="noLoadStartRequested.emit()" [disabled]="busy() || !online() || !canOperate() || !selectedVehicleId()">Iniciar reparto sin carga</button>
+</div>
+
+@if (noLoadConfirmation()) {
+  <div class="sheet-backdrop" (click)="noLoadStartCancelled.emit()" aria-hidden="true"></div>
+  <section #noLoadSheet class="client-sheet pin-sheet no-load-confirmation" appDialogFocus role="alertdialog" aria-modal="true" aria-labelledby="no-load-title" tabindex="-1" (keydown.escape)="noLoadStartCancelled.emit()">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="no-load-title">¿Iniciar un reparto sin carga?</h2>
+    <p class="warning-callout">El reparto comenzará con 0 huevos y no descontará stock. Podrás registrar cobranzas y agregar una carga más adelante; después de cargar, también podrás registrar entregas.</p>
+    @if (error()) { <small class="field-error" role="alert">{{ error() }}</small> }
+    <div class="pin-actions">
+      <button type="button" class="secondary-action" (click)="noLoadStartCancelled.emit()">Volver</button>
+      <button type="button" class="primary-action" (click)="noLoadStartConfirmed.emit()" [disabled]="busy() || !online()">Sí, iniciar sin carga</button>
+    </div>
+  </section>
+}

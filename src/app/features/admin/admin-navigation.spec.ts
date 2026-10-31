@@ -27,8 +27,8 @@ import { adminRoutes } from './admin.routes';
 import { AdminSidebarComponent } from './components/admin-sidebar.component';
 
 describe('admin navigation visibility', () => {
-  it('shows all groups to ADMIN and only quick access without other grants', () => {
-    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(14);
+  it('shows all fifteen groups to ADMIN and only quick access without other grants', () => {
+    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(15);
     expect(visibleAdminNavigation({ roles: ['employee'] }).map((group) => group.id)).toEqual(['acceso-rapido']);
     expect(visibleAdminNavigation(null)).toHaveLength(0);
   });
@@ -49,6 +49,7 @@ describe('admin navigation visibility', () => {
       'Unidades productivas',
       'Manejo de Lotes',
       'Repartos',
+      'Vehículos',
       'Alertas y notificaciones',
       'Reportes',
     ]);
@@ -60,6 +61,7 @@ describe('admin navigation visibility', () => {
       'unit',
       'unit',
       'unit',
+      'global',
       'global',
       'global',
       'global',
@@ -98,7 +100,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(26);
+    ).toBe(27);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 

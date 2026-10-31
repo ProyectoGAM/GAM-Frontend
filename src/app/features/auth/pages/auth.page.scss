@@ -12,3 +12,18 @@ form ion-button[type="submit"] { --background: #17365d; --color: #fff; --border-
 ion-text small,.error-message { display: block; margin: .25rem 0 .75rem; }.status-card { display: grid; justify-items: center; gap: .75rem; padding-top: 2rem; text-align: center; }.empty-state { color: var(--ion-color-medium); text-align: center; }
 @media (max-width: 850px) { .auth-layout { grid-template-columns: 1fr; }.auth-scene { min-height: 175px; padding: 22px 26px; justify-content: flex-start; }.auth-brand>span { width: 39px; height: 39px; }.auth-scene-copy { margin-top: 20px; }.auth-scene-copy p,.auth-scene-copy span { display: none; }.auth-scene-copy h1 { max-width: 600px; font-size: 27px; }.auth-panel-wrap { padding: 26px 22px calc(32px + var(--ion-safe-area-bottom)); place-items: start center; }.auth-panel { width: min(560px,100%); }.mobile-label { display: block; margin: 0 0 9px; color: #285f91; font-size: 11px; font-weight: 800; letter-spacing: .1em; }.auth-panel h2 { font-size: 25px; }.auth-subtitle { margin-bottom: 18px; } }
 @media (max-width: 560px) { .auth-scene { min-height: 145px; padding: 18px 20px; }.auth-scene-copy { margin-top: 15px; }.auth-scene-copy h1 { font-size: 23px; }.auth-panel-wrap { padding: 21px 16px calc(26px + var(--ion-safe-area-bottom)); }.auth-panel h2 { font-size: 22px; } }
+
+@media (max-width: 850px) and (max-height: 600px) {
+  .auth-layout { height: calc(100dvh - var(--gam-status-bar-inset, 0px)); min-height: 0; box-sizing: border-box; }
+  .auth-scene { display: none; }
+  .auth-panel-wrap { height: 100%; min-height: 0; padding: 8px 16px calc(8px + var(--ion-safe-area-bottom)); place-items: center; }
+  .mobile-label { margin-bottom: 4px; }
+  .auth-panel h2 { font-size: 20px; }
+  .auth-subtitle { margin: 4px 0 8px; font-size: 13px; }
+  ion-card { margin-bottom: 8px; }
+  ion-card-header { padding: 12px 20px; }
+  ion-card-subtitle { display: none; }
+  ion-card-content { padding: 12px 20px; }
+  ion-item { margin-bottom: 4px; }
+  form ion-button[type="submit"] { min-height: 42px; margin-top: 3px; }
+}

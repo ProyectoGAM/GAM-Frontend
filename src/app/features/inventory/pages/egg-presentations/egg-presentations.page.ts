@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { EggPresentation } from '../../interfaces/egg-presentations';
 import { EggPresentationsApi } from '../../services/egg-presentations.api';
 import { InventoryConfirmationDialogComponent } from '../../components/confirmation-dialog/confirmation-dialog.component';
+import { formatUyuMoney } from '../../../../shared/utils/uyu-money';
 
 @Component({
   selector: 'app-egg-presentations',
@@ -33,6 +34,7 @@ export class EggPresentationsPage {
   readonly message = signal<string | null>(null);
   readonly form = this.makeForm();
   readonly creationForm = this.makeForm();
+  readonly money = formatUyuMoney;
 
   constructor() {
     void this.load();

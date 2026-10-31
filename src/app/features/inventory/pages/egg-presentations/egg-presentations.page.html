@@ -8,7 +8,7 @@
       <h2>Tipos y precios predeterminados</h2>
       @if (loading()) { <p role="status">Cargando presentaciones…</p> }
       @for (item of items(); track item.id) {
-        <article class="presentation-row"><div><strong>{{ item.label }}</strong><small>{{ item.eggs_per_unit }} huevos por unidad</small><span>Precio: @if (item.default_unit_price !== null) { $ {{ item.default_unit_price }} UYU } @else { Sin configurar }</span></div><div class="row-actions"><button type="button" (click)="edit(item)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Editar ' + item.label">Editar</button><button class="danger" type="button" (click)="requestDelete(item, $event)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Eliminar ' + item.label">Eliminar</button></div></article>
+        <article class="presentation-row"><div><strong>{{ item.label }}</strong><small>{{ item.eggs_per_unit }} huevos por unidad</small><span>Precio: @if (item.default_unit_price !== null) { {{ money(item.default_unit_price) }} } @else { Sin configurar }</span></div><div class="row-actions"><button type="button" (click)="edit(item)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Editar ' + item.label">Editar</button><button class="danger" type="button" (click)="requestDelete(item, $event)" [disabled]="locked() || loading() || busy()" [attr.aria-label]="'Eliminar ' + item.label">Eliminar</button></div></article>
       } @empty { @if (!loading()) { <p>Todavía no hay presentaciones.</p> } }
     </section>
     <section class="card" aria-labelledby="presentation-form-title">

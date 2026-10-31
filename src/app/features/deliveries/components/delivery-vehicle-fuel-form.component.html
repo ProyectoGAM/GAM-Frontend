@@ -1,0 +1,17 @@
+<form class="vehicle-fuel-form" [formGroup]="form()" (ngSubmit)="saveRequested.emit()">
+  <h4>Registrar combustible</h4>
+  <div class="fuel-fields">
+    <label>Litros<input formControlName="liters" inputmode="decimal" required></label>
+    <label>Tipo<input formControlName="fuel_type" required></label>
+    <label>Importe (UYU)<input formControlName="amount" inputmode="decimal" required></label>
+    <label>Proveedor<input formControlName="supplier"></label>
+    <label>Odómetro opcional<input formControlName="odometer_km" inputmode="decimal"></label>
+  </div>
+  <label>Comprobante opcional<input type="file" accept="application/pdf,image/jpeg,image/png" (change)="receiptChanged.emit($event)"></label>
+  @if (receipt(); as value) { <small>Se guardará junto con el gasto: {{ value.name }}</small> }
+  <label>Observaciones<textarea formControlName="notes" rows="2"></textarea></label>
+  <button type="submit" class="fuel-submit" [disabled]="saving()" [attr.aria-busy]="saving()">
+    @if (saving()) { <ion-spinner name="crescent" aria-hidden="true" /> Guardando… }
+    @else { {{ online() ? 'Guardar combustible' : 'Guardar para sincronizar' }} }
+  </button>
+</form>
