@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, forwardRef, HostListener, input, signal, ViewChild } from '@angular/core';
+import { Component, computed, ElementRef, forwardRef, HostListener, input, output, signal, ViewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -28,11 +28,14 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   readonly showIcons = input(false);
   readonly inputId = input(`searchable-select-${++nextSearchableSelectId}`);
   readonly placeholder = input('Selecciona una opción');
+  readonly selectedLabel = input<string | null>(null);
   readonly emptyOptionLabel = input<string | null>(null);
   readonly emptyMessage = input('No hay opciones disponibles.');
   readonly noResultsMessage = input('No se encontraron opciones.');
   readonly loadingMessage = input('Cargando opciones…');
   readonly loading = input(false);
+  readonly remoteSearch = input(false);
+  readonly searchChanged = output<string>();
   readonly blocked = input(false);
   readonly required = input(false);
   readonly invalid = input(false);
@@ -58,7 +61,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
 
   readonly filteredOptions = computed(() => {
     const query = this.query().trim().toLocaleLowerCase();
-    return query
+    return query && !this.remoteSearch()
       ? this.allOptions().filter((option) => `${option.label} ${option.description ?? ''}`.toLocaleLowerCase().includes(query))
       : this.allOptions();
   });
@@ -68,7 +71,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   );
 
   readonly displayValue = computed(() =>
-    this.isOpen() ? this.query() : this.selectedOption()?.label ?? '',
+    this.isOpen() ? this.query() : this.selectedOption()?.label ?? this.selectedLabel() ?? '',
   );
 
   readonly listboxId = computed(() => `${this.inputId()}-listbox`);
@@ -77,11 +80,11 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   ].filter(Boolean).join(' ') || null);
   readonly activeOptionId = computed(() => {
     const index = this.activeIndex();
-    return this.isOpen() && index >= 0 && index < this.filteredOptions().length
+    return this.isOpen() && !this.loading() && index >= 0 && index < this.filteredOptions().length
       ? this.optionId(index)
       : null;
   });
-  readonly isDisabled = computed(() => this.blocked() || this.formDisabled() || this.loading());
+  readonly isDisabled = computed(() => this.blocked() || this.formDisabled() || (this.loading() && !this.remoteSearch()));
 
   @ViewChild('searchInput') private searchInput?: ElementRef<HTMLInputElement>;
 
@@ -111,6 +114,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
     if (this.isDisabled() || this.isOpen()) return;
     this.query.set('');
     this.isOpen.set(true);
+    if (this.remoteSearch()) this.searchChanged.emit('');
     this.activeIndex.set(this.filteredOptions().findIndex(
       (option) => String(option.value) === this.value(),
     ));
@@ -128,11 +132,13 @@ export class SearchableSelectComponent implements ControlValueAccessor {
     if (this.isDisabled()) return;
     if (!this.isOpen()) this.open();
     this.query.set(value);
+    this.searchChanged.emit(value);
     this.activeIndex.set(this.filteredOptions().length ? 0 : -1);
   }
 
   onKeydown(event: KeyboardEvent): void {
     if (this.isDisabled()) return;
+    if (this.loading() && event.key !== 'Escape') return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!this.isOpen()) this.open();
@@ -162,7 +168,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   }
 
   select(option: SearchableSelectOption): void {
-    if (this.isDisabled()) return;
+    if (this.isDisabled() || this.loading()) return;
     const value = String(option.value);
     this.value.set(value);
     this.onChange(value);

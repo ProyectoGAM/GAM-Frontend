@@ -91,6 +91,26 @@ describe('Users management', () => {
     expect(execute).toHaveBeenCalledTimes(1); expect(page.confirmation()).toBeNull(); expect(page.error()).toContain('resultado');
   });
 
+  it('opens an exact user from history and returns to the regular directory', async () => {
+    const restore = stubNativeDialog();
+    const allUsers = vi.fn().mockResolvedValue([operator, employee]);
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'administracion/usuarios', children: usersRoutes }]),
+      { provide: AuthStore, useValue: { user, session: () => ({ id: 's' }), status: () => 'personal_authenticated', isAdmin: () => true, isAuthenticated: () => true, isShared: () => false } },
+      { provide: UsersService, useValue: { users, allUsers, execute, devices: () => of([]) } },
+    ] });
+    try {
+      const harness = await RouterTestingHarness.create();
+      const linked = await harness.navigateByUrl('/administracion/usuarios/4', UsersPage);
+      await harness.fixture.whenStable(); harness.detectChanges();
+      expect(linked.selected()?.name).toBe('Ana');
+      expect(harness.routeNativeElement?.textContent).toContain('Acceso de la cuenta');
+      linked.back(); await harness.fixture.whenStable();
+      expect(allUsers).toHaveBeenCalledTimes(1);
+      expect(users).toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+    } finally { TestBed.resetTestingModule(); restore(); }
+  });
+
   it('renders all four real tabs, loads them directly and redirects the legacy entry', async () => {
     const restore = stubNativeDialog();
     TestBed.configureTestingModule({ providers: [

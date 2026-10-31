@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { firstValueFrom, map, Observable } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
 import { AuthUser } from '../../../core/auth/auth.types';
@@ -21,6 +21,17 @@ export class UsersService {
         lastPage: typeof last === 'number' && Number.isSafeInteger(last) && last >= page ? last : null,
       };
     }));
+  }
+
+  async allUsers(): Promise<AuthUser[]> {
+    const users = new Map<number, AuthUser>();
+    for (let page = 1; ; page++) {
+      const result = await firstValueFrom(this.users(page));
+      if (!result.users.length) return [...users.values()];
+      if (result.users.every((user) => users.has(user.id))) throw new Error('El directorio no permite avanzar de página.');
+      for (const user of result.users) users.set(user.id, user);
+      if (result.lastPage !== null && page >= result.lastPage) return [...users.values()];
+    }
   }
 
   devices(): Observable<ManagedDevice[]> {

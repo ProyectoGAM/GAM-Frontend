@@ -62,6 +62,18 @@ export class AuthStore {
     await this.bootstrap();
   }
 
+  async refreshIdentity(): Promise<void> {
+    const user = this.userState(); const session = this.sessionState();
+    if (!user) return;
+    try {
+      const response = await firstValueFrom(this.api.me());
+      if (this.userState() !== user || this.sessionState() !== session) return;
+      this.userState.set(response.data); this.sessionState.set(response.session);
+    } catch (error) {
+      if (this.userState() === user && this.sessionState() === session && error instanceof HttpErrorResponse) this.handleHttpError(error, 'me');
+    }
+  }
+
   async login(email: string, password: string): Promise<boolean> {
     this.errorState.set(null);
     this.stopActivity();

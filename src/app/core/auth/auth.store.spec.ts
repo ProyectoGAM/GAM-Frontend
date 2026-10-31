@@ -1,12 +1,30 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { AuthApi } from './auth.api';
 import { AuthStore } from './auth.store';
 import { CredentialStorage } from '../native/credential-storage.service';
 
 describe('AuthStore', () => {
+  it('refreshes permissions without overwriting an identity that changed during the request', async () => {
+    const user = { id: 1, name: 'Auditor', email: 'auditor@example.test', roles: [], permissions: ['audit.view'], deleted_at: null };
+    const pending = new Subject<{ data: typeof user; session: null }>();
+    const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }), me: vi.fn().mockReturnValue(pending) };
+    const storage = { isNative: () => false, setMode: async () => undefined, removePersonalToken: async () => undefined };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    await store.login(user.email, 'example-only');
+    const refreshing = store.refreshIdentity();
+    pending.next({ data: { ...user, permissions: [] }, session: null }); pending.complete(); await refreshing;
+    expect(store.user()?.permissions).toEqual([]);
+    const late = new Subject<{ data: typeof user; session: null }>(); api.me.mockReturnValue(late);
+    const stale = store.refreshIdentity();
+    store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), 'me');
+    late.next({ data: user, session: null }); late.complete(); await stale;
+    expect(store.user()).toBeNull();
+  });
+
   it('keeps the current identity on a wrong confirmation password, but clears a real unauthorized session', async () => {
     const user = { id: 1, name: 'Admin', email: 'admin@example.test', roles: ['admin'], permissions: [], deleted_at: null };
     const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }) };

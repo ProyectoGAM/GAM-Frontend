@@ -62,7 +62,7 @@
       </dialog>
     </ion-content>
     <ion-footer><ion-toolbar>
-      <ion-button expand="block" [disabled]="saving() || unchangedAutomatic()" (click)="submit(confirmationDialog)">{{ saving() ? 'Guardando…' : correction() ? 'Guardar edición' : 'Aplicar cambio' }}</ion-button>
+      <ion-button expand="block" [disabled]="saving() || submitBlocked() || unchangedAutomatic()" (click)="submit(confirmationDialog)">{{ saving() ? 'Guardando…' : correction() ? 'Guardar edición' : 'Aplicar cambio' }}</ion-button>
     </ion-toolbar></ion-footer>
   </ng-template>
 </ion-modal>

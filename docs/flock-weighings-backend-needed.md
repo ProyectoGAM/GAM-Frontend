@@ -21,4 +21,24 @@ El endpoint `GET /pesajes-diarios/{jornada}/distribucion` del contrato también 
 
 ## Verificación local
 
+El detalle /administracion/lotes/lotes/:id/pesajes/:weighingId permite borrar cada
+ingreso individual o grupal con weighings.manage. No se borra la jornada completa
+y no se ofrece edición de ingresos, ya que el contrato actual no la implementa.
+La confirmación muestra fecha, modalidad, peso y aves representadas, y exige un
+motivo de 3 a 1000 caracteres. Admite jornadas cerradas conforme al endpoint.
+
+El comando envía la versión vigente de la jornada y un UUID Idempotency-Key.
+Bloquea el cierre y los envíos duplicados mientras guarda. Éxito vuelve a
+consultar el detalle y sus agregados recalculados por backend. Un conflicto
+conserva el mensaje y requiere cerrar/actualizar antes de otra confirmación;
+los errores de red permiten reintentar con el mismo payload y UUID. Los cambios
+de lote o sesión invalidan la confirmación y las respuestas antiguas. La baja
+lógica del ingreso conserva la auditoría.
+
+Revisión del 31/10/2026: suite general de 1216 pruebas aprobada; las ocho pruebas
+del detalle verifican también el envío real del formulario de confirmación.
+Lint y build aprobados. Navegador: apertura/cancelación de un ingreso de 67 g,
+motivo obligatorio y tarjetas en teléfono oscuro; escritorio conserva la tabla.
+Capturas en .tmp/qa/lot-weighing-*.png. No se ejecutaron borrados reales.
+
 La migración `2026_10_07_142233_create_daily_weighing_tables.php` estaba pendiente en la base de desarrollo y se aplicó de forma aislada. Se verificaron en el navegador integrado el registro individual, el registro grupal por peso total, la cancelación y confirmación de un dato grupal anómalo, la eliminación de ese ingreso con motivo y el recálculo de aves y último ingreso. El historial y «Ver registro» cargan el recurso diario nuevo.

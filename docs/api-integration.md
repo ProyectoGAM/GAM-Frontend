@@ -4,9 +4,21 @@ La gestión de cuentas y dispositivos usa `features/users/services/users.service
 
 ## 1. Contract-first
 
+El [Historial del sistema](audit-history.md) consume resúmenes de `audit/entries`,
+detalle bajo demanda de `auditoria/entradas/{id}`, responsables paginados de
+`auditoria/responsables` y etiquetas de `reference/options`. El
+[contrato integrado de auditoría](audit-api-contract.md) define nombres históricos,
+hechos/cambios legibles y disponibilidad actual de correcciones. La UI reutiliza
+las confirmaciones de inventario, alimentación y mortandad sin interpretar JSON técnico.
+
 El inicio [Acceso rápido por galpón y planta](quick-access.md) reutiliza los contratos de
 instalaciones, lotes, colecciones, mortandad, alimentación, sanidad y elaboración. Postura
 registra huevos; los pesos de aves conservan la denominación Pesaje y sus rutas.
+
+El [detalle de postura](flock-collections.md) permite corregir o cancelar una
+recolección desde sus endpoints existentes. El [detalle de pesaje diario](flock-weighings-backend-needed.md)
+permite borrar ingresos con motivo, versión e idempotencia. No ofrece edición
+de ingresos ni borrado de la jornada completa.
 
 La aplicación sanitaria desde el detalle del lote consume `management-plans.yaml`
 sin cantidad ni stock. Ver [Sanidad del lote](flock-health.md) para historial,

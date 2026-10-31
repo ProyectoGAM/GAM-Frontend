@@ -14,6 +14,26 @@ describe('UsersService API contract', () => {
   });
   afterEach(() => http.verify());
 
+  it('loads the complete named directory across pages, including disabled users', async () => {
+    const result = service.allUsers();
+    http.expectOne('/api/v1/users?page=1').flush({ data: [{ id: 1, name: 'Admin' }], meta: { last_page: 2 } });
+    await Promise.resolve();
+    http.expectOne('/api/v1/users?page=2').flush({ data: [{ id: 4, name: 'Ana', deleted_at: '2026-10-31' }], meta: { last_page: 2 } });
+    expect((await result).map((user) => user.name)).toEqual(['Admin', 'Ana']);
+  });
+
+  it('stops at an empty page without pagination metadata and rejects repeated pages', async () => {
+    const result = service.allUsers();
+    http.expectOne('/api/v1/users?page=1').flush({ data: [{ id: 1, name: 'Admin' }] });
+    await Promise.resolve(); http.expectOne('/api/v1/users?page=2').flush({ data: [] });
+    expect(await result).toHaveLength(1);
+    const repeated = service.allUsers();
+    const failure = expect(repeated).rejects.toThrow('no permite avanzar');
+    http.expectOne('/api/v1/users?page=1').flush({ data: [{ id: 1, name: 'Admin' }] });
+    await Promise.resolve(); http.expectOne('/api/v1/users?page=2').flush({ data: [{ id: 1, name: 'Admin' }] });
+    await failure;
+  });
+
   it('supports both collection envelopes without inventing missing pagination metadata', () => {
     service.users(2).subscribe((page) => expect(page).toEqual({ users: [], page: 2, lastPage: null }));
     http.expectOne('/api/v1/users?page=2').flush({ data: [] });

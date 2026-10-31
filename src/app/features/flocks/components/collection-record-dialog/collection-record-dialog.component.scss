@@ -1,0 +1,28 @@
+:host { display: contents; }
+.record-dialog { box-sizing: border-box; width: min(580px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 20px; border: 1px solid var(--gam-color-border); border-radius: 11px; color: var(--gam-color-text); background: var(--gam-color-surface); overflow-y: auto; }
+.record-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 65%, transparent); }
+header, footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+header { flex-wrap: nowrap; align-items: start; margin-bottom: 20px; }
+h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
+p, dd { line-height: 1.6; overflow-wrap: anywhere; }
+dl { display: grid; gap: 16px; }
+dt, small { color: var(--gam-color-text-muted); font-size: .8125rem; }
+dt { margin-bottom: 5px; }
+dd { margin: 0; }
+.notes { white-space: pre-wrap; }
+.note { padding: 12px; border-radius: 8px; background: var(--gam-color-primary-soft); }
+fieldset { display: grid; gap: 8px; min-width: 0; padding: 0; border: 0; }
+label { margin-top: 10px; font-size: .875rem; font-weight: 600; color: var(--gam-color-heading); }
+input, textarea { box-sizing: border-box; min-width: 0; width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; font: inherit; color: var(--gam-color-text); background: var(--gam-color-surface); }
+textarea { resize: vertical; }
+button { min-height: 44px; padding: 10px 14px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; color: var(--gam-color-primary); background: var(--gam-color-surface); font: inherit; font-weight: 600; cursor: pointer; }
+button.primary { color: var(--gam-color-on-primary); background: var(--gam-color-primary); border-color: var(--gam-color-primary); }
+button.danger { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); border-color: var(--gam-color-danger); }
+button:disabled, fieldset:disabled { opacity: .65; }
+.icon-button { min-width: 44px; padding: 8px; font-size: 1.25rem; }
+footer { justify-content: flex-end; margin-top: 24px; }
+.error, .field-error { color: var(--gam-color-danger); }
+.error { padding: 12px; border-radius: 7px; background: var(--gam-color-danger-soft); }
+.field-error:empty { display: none; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+@media (max-width: 480px) { footer { flex-direction: column; align-items: stretch; } }

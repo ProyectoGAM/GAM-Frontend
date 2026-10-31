@@ -59,6 +59,7 @@ export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<Aut
   // The landing page does not grant permission to any of its underlying operations.
   if (group === 'acceso-rapido') return user !== null;
   if (isAdminUser(user)) return true;
+  if (group === 'historial' && user?.permissions?.includes('audit.view')) return true;
   if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
   if (group === 'manejo-lotes' && (hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage'))) return true;
   if (group === 'clientes' && user?.permissions?.some((permission) => ['customers.view', 'customers.manage'].includes(permission))) return true;

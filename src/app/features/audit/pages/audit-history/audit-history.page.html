@@ -1,0 +1,137 @@
+<section class="audit-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Administración / Historial</p>
+      <h1>Historial del sistema</h1>
+      <p class="lead">Cada acción registrada, en un mismo lugar.</p>
+    </div>
+    <span class="read-only"><ion-icon name="shield-checkmark-outline" aria-hidden="true" />Registro de actividad</span>
+  </header>
+
+  <nav class="module-tabs" aria-label="Historial por módulo">
+    @for (module of modules; track module.id) {
+      <a routerLink="." [queryParams]="{ modulo: module.id || null }" queryParamsHandling="merge" [class.selected]="activeModule().id === module.id" [attr.aria-current]="activeModule().id === module.id ? 'page' : null">
+        <ion-icon [name]="module.icon" aria-hidden="true" />{{ module.label }}
+      </a>
+    }
+  </nav>
+
+  @if (success()) { <p class="success-message" role="status">{{ success() }}</p> }
+
+  <div class="history-toolbar">
+    <div><h2>{{ activeModule().id ? activeModule().label : 'Actividad de todos los módulos' }}</h2><p class="scope"><ion-icon name="layers-outline" aria-hidden="true" />{{ scopeLabel() }}</p></div>
+    <div class="toolbar-actions">
+      <button #filtersTrigger type="button" class="button" aria-haspopup="dialog" (click)="openFilters(filtersTrigger)"><ion-icon name="funnel-outline" aria-hidden="true" />Filtros @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }</button>
+      <button type="button" class="button" [disabled]="state() === 'loading'" (click)="load()"><ion-icon name="refresh-outline" aria-hidden="true" />Actualizar</button>
+    </div>
+  </div>
+  <div class="result-line" aria-live="polite">
+    <p>@if (meta(); as pagination) { <strong>{{ pagination.total | number }}</strong> {{ pagination.total === 1 ? 'acción registrada' : 'acciones registradas' }}<span> · Más recientes primero</span> } @else { Registros de auditoría }</p>
+    @if (filterCount()) { <button class="text-button" type="button" (click)="resetFilters()">Limpiar filtros</button> }
+  </div>
+
+  @if (state() === 'loading') {
+    <div class="state" role="status"><ion-icon name="time-outline" aria-hidden="true" /><h3>Cargando historial…</h3><p>Consultando las acciones registradas.</p></div>
+  }
+  @if (state() === 'forbidden') {
+    <div class="state" role="alert"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /><h3>No tienes acceso a la auditoría</h3><p>Necesitas permiso para consultar el historial del sistema.</p></div>
+  }
+  @if (state() === 'error') {
+    <div class="state error" role="alert"><h3>No pudimos obtener el historial</h3><p>{{ error() }}</p><button class="button" type="button" (click)="load()">Reintentar</button></div>
+  }
+  @if (state() === 'empty') {
+    <div class="state"><ion-icon name="time-outline" aria-hidden="true" /><h3>No hay acciones para mostrar</h3><p>{{ filterCount() ? 'Prueba con otro período o limpia los filtros de esta consulta.' : 'Aquí aparecerán las acciones que registre el sistema para esta vista.' }}</p>@if (filterCount()) { <button class="button" type="button" (click)="resetFilters()">Limpiar filtros</button> }</div>
+  }
+  @if (state() === 'success') {
+    <div class="history-list" [attr.aria-busy]="state() === 'loading'">
+      <table>
+        <caption class="sr-only">Acciones registradas en {{ activeModule().label }}</caption>
+        <thead><tr><th>Fecha y hora</th><th>Acción / módulo</th><th>Responsable</th><th>Origen</th><th><span class="sr-only">Detalle</span></th></tr></thead>
+        <tbody>
+          @for (row of rows(); track row.entry.id) {
+            <tr>
+              <td class="date-cell"><time [attr.datetime]="row.entry.created_at"><strong>{{ row.entry.created_at ? (row.entry.created_at | date:'dd/MM/yyyy') : 'Sin fecha' }}</strong><span>{{ row.entry.created_at | date:'HH:mm:ss' }}</span></time></td>
+              <td class="action-cell"><span class="module-badge">{{ row.module }}</span><strong>{{ row.description }}</strong><p class="entry-summary">{{ row.summary }}</p><small>@if (row.subject) { {{ row.subject }} · }{{ row.unit }}</small></td>
+              <td class="actor-cell"><span class="mobile-label">Responsable</span>@if (row.actorLink; as path) { <a class="person-link" [routerLink]="path" [attr.aria-label]="'Gestionar usuario: ' + row.actor">{{ row.actor }}</a> } @else { {{ row.actor }} }</td>
+              <td class="source-cell"><span class="mobile-label">Origen</span>{{ row.source }}</td>
+              <td class="detail-cell"><button #detailTrigger class="detail-button" type="button" [attr.aria-label]="'Ver detalle: ' + row.description" (click)="openDetail(row.entry, detailTrigger)">Ver detalle<ion-icon name="chevron-forward-outline" aria-hidden="true" /></button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <nav class="pagination" aria-label="Páginas del historial"><button class="button" type="button" [disabled]="meta()!.current_page <= 1" (click)="load(meta()!.current_page - 1)">Anterior</button><span>Página {{ meta()?.current_page }} de {{ meta()?.last_page }}</span><button class="button" type="button" [disabled]="meta()!.current_page >= meta()!.last_page" (click)="load(meta()!.current_page + 1)">Siguiente</button></nav>
+  }
+  <p class="history-note"><ion-icon name="shield-checkmark-outline" aria-hidden="true" />El historial muestra los eventos auditados por el sistema. Las fechas se muestran en la hora local de tu dispositivo.</p>
+</section>
+
+<app-filter-dialog titleId="audit-filters-title" (clearRequested)="clearDraft()" (applyRequested)="applyFilters()">
+  <form class="filter-fields" [formGroup]="filters" (ngSubmit)="applyFilters()">
+    <p class="filter-help">Los filtros se conservan al cambiar de módulo.</p>
+    <div class="date-fields"><label>Desde (UTC)<input type="date" formControlName="from" [attr.max]="filters.controls.to.value || null" /></label><label>Hasta (UTC)<input type="date" formControlName="to" [attr.min]="filters.controls.from.value || null" /></label></div>
+    <p class="filter-help">El período usa fechas en UTC. Las horas de la lista se muestran en la hora local de tu dispositivo.</p>
+    @if (dateError()) { <p class="field-error" role="alert">La fecha final debe ser igual o posterior a la inicial.</p> }
+    <label>Tipo de acción<select formControlName="event"><option value="">Todas las acciones</option>@for (option of eventOptions(); track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+    <label>Origen<select formControlName="source"><option value="">Todos los orígenes</option>@for (option of options()?.audit?.sources ?? []; track option.value) { <option [value]="option.value">{{ sourceLabel('' + option.value) }}</option> }</select></label>
+    <label>Unidad productiva<select formControlName="up_id"><option value="">Todo el sistema</option>@for (option of options()?.production_units ?? []; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+    <p class="filter-help">Todo el sistema incluye las acciones globales y de todas las UP, independientemente de la UP seleccionada en el menú.</p>
+    <div class="responsible-field"><label for="audit-responsible">Responsable</label><app-searchable-select inputId="audit-responsible" formControlName="actor" [options]="responsibles()" [selectedLabel]="responsibleLabel()" [remoteSearch]="true" (searchChanged)="searchResponsibles($event)" placeholder="Buscar por nombre" emptyOptionLabel="Todos los responsables" [loading]="directoryState() === 'loading'" [invalid]="filters.controls.actor.touched && filters.controls.actor.invalid" describedBy="actor-help" /><small id="actor-help">Busca entre los responsables con actividad registrada. Los nombres históricos se conservan cuando están disponibles.</small></div>
+    @if (filters.controls.actor.touched && filters.controls.actor.invalid) { <p class="field-error" role="alert">Elige un responsable de la lista.</p> }
+    @if (directoryState() === 'error') { <p class="field-error" role="alert">No se pudieron buscar responsables. <button type="button" class="text-button" (click)="loadResponsibles()">Reintentar responsables</button></p> }
+    @if (directoryState() === 'ready' && directoryPage() < directoryLastPage()) { <button type="button" class="text-button" (click)="loadResponsibles(directorySearch(), directoryPage() + 1)">Cargar más responsables</button> }
+    @if (optionsLoading()) { <p role="status">Cargando opciones…</p> }
+    @if (optionsError()) { <div class="field-error" role="alert">No se pudieron cargar las opciones. Puedes filtrar por fechas o responsable. <button type="button" class="text-button" (click)="loadOptions()">Reintentar opciones</button></div> }
+  </form>
+</app-filter-dialog>
+
+<dialog #detailDialog class="detail-dialog" aria-labelledby="audit-detail-title" (cancel)="closeDetail($event)">
+  <header class="detail-heading"><div><p class="eyebrow">Historial del sistema</p><h2 #detailHeading id="audit-detail-title" tabindex="-1">Detalle de la acción</h2></div><button type="button" class="close-button" aria-label="Cerrar detalle" (click)="closeDetail()"><ion-icon name="close-outline" aria-hidden="true" /></button></header>
+  @if (detailState() === 'loading') { <div class="detail-body" role="status">Cargando el detalle de la acción…</div> }
+  @if (detailState() === 'error') { <div class="detail-body" role="alert"><p>{{ detailError() }}</p><button type="button" class="button" (click)="loadDetail()">Reintentar detalle</button></div> }
+  @if (detail(); as entry) {
+    <div class="detail-body">
+      <span class="module-badge">{{ moduleLabel(selectedEntry()?.log_name ?? null) }}</span><h3>{{ auditTitle(entry.presentation) }}</h3><p class="entry-summary">{{ entry.presentation.summary }}</p>
+      <dl class="entry-metadata">
+        <div><dt>Fecha y hora local</dt><dd>{{ entry.created_at ? (entry.created_at | date:'dd/MM/yyyy HH:mm:ss') : 'Sin fecha registrada' }}</dd></div>
+        <div><dt>Responsable</dt><dd>@if (selectedActorLink(); as path) { <a class="person-link" [routerLink]="path" (click)="closeDetail()">{{ actorLabel(entry.actor) }}</a> } @else { {{ actorLabel(entry.actor) }} }</dd></div>
+        @if (flockNavigation(); as flock) {
+          <div><dt>Lote</dt><dd><a class="person-link flock-link" [routerLink]="flock.path" (click)="closeDetail()">{{ flock.label }}</a></dd></div>
+        } @else if (entry.presentation.subject.label) { <div><dt>Registro afectado</dt><dd>{{ entry.presentation.subject.label }}</dd></div> }
+        <div><dt>Unidad productiva</dt><dd>{{ entryUnit(entry.presentation) }}</dd></div>
+      </dl>
+      <h3>Cambios registrados</h3>
+      @if (entry.presentation.changes.length) {
+        <div class="changes"><table><caption class="sr-only">Valores anteriores y posteriores</caption><thead><tr><th>Dato</th><th>Antes</th><th>Después</th></tr></thead><tbody>@for (change of entry.presentation.changes; track $index) { <tr><th scope="row">{{ change.label }}</th><td data-label="Antes"><span class="change-value">{{ change.before ?? 'Valor histórico no disponible' }}</span></td><td data-label="Después"><span class="change-value">{{ change.after ?? 'Valor histórico no disponible' }}</span></td></tr> }</tbody></table></div>
+      }
+      @switch (entry.presentation.changes_state) {
+        @case ('unavailable') { <p class="filter-help">Los cambios de este registro no están disponibles en un formato explicable.</p> }
+        @case ('not_recorded') { <p class="filter-help">No se conservó una comparación de valores para este registro.</p> }
+        @case ('partial') { <p class="filter-help">Se muestran los cambios reconocidos. Otros datos del registro se omiten.</p> }
+      }
+      @if (entry.presentation.facts.length) { <section class="action-information" aria-label="Información de la acción"><h3>Información de la acción</h3><dl class="entry-metadata">@for (fact of entry.presentation.facts; track $index) { <div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div> }</dl></section> }
+      @if (entry.presentation.history.missing.length) { <aside class="history-information" aria-label="Información histórica disponible"><h3>Sobre este registro histórico</h3><ul>@for (missing of entry.presentation.history.missing; track $index) { <li>{{ missing }}</li> }</ul></aside> }
+      <section class="action-tools" aria-label="Opciones de la acción"><h3>¿Qué puedes hacer?</h3>
+        <p class="irreversible-note">{{ entry.presentation.reversibility.reason }}</p>
+        @if (actionLoading()) { <p role="status">Comprobando la operación vigente…</p> }
+        <div class="quick-actions">@for (action of entry.presentation.actions; track $index) {
+          <div><button #actionTrigger type="button" class="button" [disabled]="!action.available || !supportedAction(action) || actionLoading()" (click)="runAction(action, actionTrigger)">{{ action.label }}</button>
+            @if (action.reason) { <p class="filter-help">{{ action.reason }}</p> }
+            @if (!supportedAction(action)) { <p class="filter-help">Esta operación todavía no está integrada en la aplicación.</p> }
+          </div>
+        }
+          @if (flockNavigation(); as flock) {
+            @if (flock.section; as section) {
+              <div><a class="button section-link" [routerLink]="section.path" (click)="closeDetail()">{{ section.label }}<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a><p class="filter-help">{{ section.description }}</p></div>
+            } @else {
+              <div><a class="button section-link" [routerLink]="flock.path" (click)="closeDetail()">Ir al lote<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a><p class="filter-help">Consulta el estado actual y las operaciones disponibles del lote.</p></div>
+            }
+          }
+        </div>
+      </section>
+    </div>
+  }
+  @if (actionError()) { <p class="detail-body field-error" role="alert">{{ actionError() }}</p> }
+</dialog>
+<app-movement-reversal-dialog [productNames]="referenceNames().products" [locationNames]="referenceNames().locations" (reversed)="onCorrected()" (failed)="onCommandFailed($event)" />
+<app-feed-consumption-correction (corrected)="onCorrected()" (closed)="resumeDetail()" (failed)="onCommandFailed($event)" />
+<app-mortality-undo (undone)="onCorrected()" (closed)="resumeDetail()" (failed)="onCommandFailed($event)" />

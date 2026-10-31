@@ -5,6 +5,22 @@ import { ApiClient } from '../../../core/api/api-client';
 import { FlockCollectionsService } from './flock-collections.service';
 
 describe('FlockCollectionsService', () => {
+  it('reads the current record and sends corrections and cancellations with version and header idempotency', async () => {
+    const operation = { operation_id: 'op', collection: { id: 'collection' } };
+    const get = vi.fn(() => of({ data: operation.collection }));
+    const patch = vi.fn(() => of({ data: operation })); const post = vi.fn(() => of({ data: operation }));
+    TestBed.configureTestingModule({ providers: [{ provide: ApiClient, useValue: { get, patch, post } }] });
+    const service = TestBed.inject(FlockCollectionsService);
+    await firstValueFrom(service.collection('record/id'));
+    expect(get).toHaveBeenCalledWith('collections/record%2Fid');
+    const correction = { version: 3, quantity: 30, notes: null, correction_reason: 'Corregir cantidad' };
+    await firstValueFrom(service.correct('record/id', correction, 'same-key'));
+    expect(patch).toHaveBeenCalledWith('collections/record%2Fid', correction, { headers: { 'Idempotency-Key': 'same-key' } });
+    const cancellation = { version: 4, correction_reason: 'Registro duplicado' };
+    await firstValueFrom(service.cancel('record/id', cancellation, 'other-key'));
+    expect(post).toHaveBeenCalledWith('collections/record%2Fid/cancellation', cancellation, { headers: { 'Idempotency-Key': 'other-key' } });
+  });
+
   it('requests paginated history independently of chart filters, including cancelled records', async () => {
     const get = vi.fn(() => of({ data: [], meta: { current_page: 2, last_page: 3, total: 45 } }));
     TestBed.configureTestingModule({ providers: [{ provide: ApiClient, useValue: { get } }] });

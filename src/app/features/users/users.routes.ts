@@ -9,4 +9,5 @@ export const usersRoutes: Routes = [
   { path: 'roles', loadComponent: page, data: { tab: 'roles' } },
   { path: 'usuarios', pathMatch: 'full', redirectTo: '' },
   { path: 'nuevo-usuario', pathMatch: 'full', redirectTo: 'crear' },
+  { path: ':userId', loadComponent: page, data: { tab: 'users' } },
 ];

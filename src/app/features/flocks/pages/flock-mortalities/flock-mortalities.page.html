@@ -17,6 +17,7 @@
         </div>
       </header>
       @if (success()) { <p class="save-success" role="status">{{ success() }}</p> }
+      @if (undoLinkError()) { <p role="alert">{{ undoLinkError() }}</p> }
       @if (houseTask.isTask() && item.status === 'finished') { <p role="status">Este lote ya no admite nuevos registros de mortandad.</p> }
       <app-flock-mortality-section [flock]="item" [records]="records()" [state]="historyState()"
         [registrationOnly]="houseTask.isTask()" (formClosed)="houseTask.isTask() && houseTask.returnToHouse()"

@@ -108,6 +108,9 @@ describe('MovementReversalDialogComponent', () => {
     const emitted = vi.fn(); fixture.componentInstance.reversed.subscribe(emitted);
     const dialog = open(); review(); await fixture.componentInstance.confirm(); fixture.detectChanges();
     expect(dialog.open).toBe(true); expect(fixture.componentInstance.error()).toContain('ya fue revertido'); expect(emitted).not.toHaveBeenCalled();
+    await fixture.componentInstance.confirm();
+    expect(reverse).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.querySelector('.danger').disabled).toBe(true);
   });
 
   it('checks permissions and actor changes before mutation', async () => {

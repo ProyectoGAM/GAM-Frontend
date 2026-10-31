@@ -26,6 +26,7 @@ export class FeedingEditorComponent {
   readonly options = input.required<readonly FeedingRecipeOption[]>();
   readonly state = input.required<FeedingLoadState>();
   readonly saving = input(false);
+  readonly submitBlocked = input(false);
   readonly error = input<string | null>(null);
   readonly submitted = output<FeedingSubmission>();
   readonly closeRequested = output<void>();
@@ -60,12 +61,12 @@ export class FeedingEditorComponent {
   }
 
   changeMode(mode: FeedingMode): void {
-    if (!this.open() || this.saving() || this.pending()) return;
+    if (!this.open() || this.saving() || this.submitBlocked() || this.pending()) return;
     this.selectedMode.set(mode); this.validation.set('');
   }
 
   submit(dialog?: HTMLDialogElement): void {
-    if (!this.open() || this.saving() || this.pending()) return;
+    if (!this.open() || this.saving() || this.submitBlocked() || this.pending()) return;
     this.validation.set('');
     if (this.automatic()) {
       if (!this.unchangedAutomatic()) this.submitted.emit({ mode: 'automatico', recipeId: null, grams: null, reason: '' });

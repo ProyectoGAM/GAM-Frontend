@@ -25,6 +25,32 @@ La recolección ingresa atómicamente al stock de huevos. Los reintentos inciert
 
 ## Integración
 
+El detalle de cada postura usa CollectionRecordDialogComponent. Consulta primero
+GET /collections/{collection} y habilita Editar postura y Borrar postura para
+egg-collections.manage cuando el registro sigue vigente. La edición permite
+cantidad, fecha/hora de Uruguay y notas; exige un motivo de hasta 500 caracteres.
+Solo envía campos modificados y conserva los segundos del instante original
+cuando la fecha no cambia. Las correcciones no se bloquean por lote finalizado.
+
+PATCH /collections/{collection} recibe version, correction_reason y los campos
+modificados. POST /collections/{collection}/cancellation recibe version y
+correction_reason: Borrar postura es una cancelación lógica que compensa el stock
+y conserva el registro y su auditoría. El detalle explica esto antes de confirmar.
+Ambos usan Idempotency-Key UUID; un reintento de red idéntico conserva la clave.
+No se ejecutan comandos al abrir, editar el borrador o cancelar el diálogo.
+
+Éxito refresca la producción, la gráfica y el historial; la postura cancelada
+sigue identificada en la tabla y ya no ofrece acciones. Los conflictos recargan
+el registro vigente antes de permitir otra intención. Los errores de validación
+conservan el formulario. Cambiar de sesión o lote invalida el diálogo y sus
+respuestas pendientes. El backend autoriza y ajusta las existencias atómicamente.
+
+Revisión del 31/10/2026: lint, build y suite general de 1216 pruebas en 153
+archivos aprobados. Se verificaron apertura, edición del borrador y cancelación
+de los diálogos contra el backend local, en escritorio claro y teléfono de
+360 px oscuro. Capturas en .tmp/qa/lot-posture-*.png. Las mutaciones de edición
+y cancelación se verificaron con API simulada; no se alteró el stock real.
+
 Página → servicio de recolección → ApiClient. Componentes dentro de `flocks`, estado con señales, rutas lazy y colores de los tokens GAM en ambos temas. No hay nuevas dependencias ni cambios de Capacitor.
 
 Validación: lint, suite Vitest y build de producción en el contenedor de desarrollo; revisión visual en móvil claro/oscuro y escritorio. El formulario se verifica con pruebas de API simulada sin modificar el stock de la base de desarrollo.

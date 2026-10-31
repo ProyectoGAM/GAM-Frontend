@@ -4,6 +4,11 @@ import { AuthUser } from './auth.types';
 const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
 
 describe('admin access policy', () => {
+  it('grants audit navigation only to audit readers or administrators', () => {
+    expect(canAccessGroup({ roles: ['employee'], permissions: ['audit.view'] }, 'historial')).toBe(true);
+    expect(canAccessGroup({ roles: ['employee'], permissions: ['inventory.view'] }, 'historial')).toBe(false);
+    expect(canAccessGroup(null, 'historial')).toBe(false);
+  });
   it('normalizes the existing ADMIN role and grants all sidebar groups', () => {
     expect(isAdminUser(user([' ADMIN ']))).toBe(true);
     for (const group of ['resumen', 'ubicaciones', 'lotes', 'inventario', 'historial', 'usuarios', 'clientes', 'proveedores', 'unidades-productivas', 'manejo-lotes', 'repartos', 'alertas-notificaciones', 'reportes'] as const) {

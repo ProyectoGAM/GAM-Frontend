@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { afterNextRender, Component, DestroyRef, Injector, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -29,6 +29,10 @@ export class FlockMortalitiesPage {
   readonly houseTask = inject(FlockHouseTaskContext);
   readonly houseMismatch = computed(() => !this.houseTask.matches(this.flock()));
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  private readonly mortalitySection = viewChild(FlockMortalitySectionComponent);
+  private openedUndo: string | null = null;
   private readonly detail = inject(FlockDetailService);
   private readonly mortalitiesApi = inject(FlockMortalitiesService);
   private readonly productionUnits = inject(ProductionUnitsService);
@@ -57,6 +61,7 @@ export class FlockMortalitiesPage {
   readonly cancellationError = signal<string | null>(null);
   readonly cancellationReasonError = signal<string | null>(null);
   readonly cancelledSequence = signal(0);
+  readonly undoLinkError = signal<string | null>(null);
   readonly unitName = computed(() => this.unitContext.units()
     .find((unit) => unit.id === this.flock()?.production_unit_id)?.name ?? null);
   readonly backLink = computed(() => this.houseTask.backLink() ?? `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
@@ -69,6 +74,26 @@ export class FlockMortalitiesPage {
       this.flockId.set(params.get('id') ?? '');
       this.load();
     });
+    effect(() => {
+      const recordId = this.queryParams().get('deshacer');
+      const section = this.mortalitySection();
+      const key = JSON.stringify([this.flockId(), recordId]);
+      if (!recordId || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(recordId) || this.openedUndo === key
+        || !section || this.state() !== 'ready' || this.historyState() !== 'ready' || this.houseTask.isTask()) return;
+      const record = this.records().find((item) => item.id === recordId && item.status === 'recorded');
+      untracked(() => {
+        this.openedUndo = key;
+        this.undoLinkError.set(null);
+        if (!record) {
+          this.undoLinkError.set('El registro solicitado ya fue deshecho o no está disponible. Consulta la mortandad vigente del lote.');
+          return;
+        }
+        afterNextRender(() => {
+          if (section === this.mortalitySection() && this.queryParams().get('deshacer') === recordId
+            && this.historyState() === 'ready' && this.records().includes(record)) section.openCancellation(record);
+        }, { injector: this.injector });
+      });
+    });
   }
 
   load(): void {
@@ -76,6 +101,7 @@ export class FlockMortalitiesPage {
     this.historyVersion++;
     this.saveVersion++;
     this.cancellationVersion++;
+    this.undoLinkError.set(null);
     this.cancellationAttempt = null;
     this.cancelling.set(false);
     this.clearCancellationErrors();

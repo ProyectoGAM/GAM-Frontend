@@ -1,3 +1,4 @@
+@if (!cancellationOnly()) {
 <section class="mortality-card" aria-labelledby="mortality-section-title" [hidden]="registrationOnly()">
   <header class="heading">
     <div><h2 id="mortality-section-title">Mortandad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
@@ -99,6 +100,7 @@
   </form>
 </dialog>
 
+}
 <dialog #cancellationDialog class="registration-dialog confirmation-dialog cancellation-dialog" aria-labelledby="mortality-cancellation-title" (cancel)="onCancellationCancel($event)">
   <h2 id="mortality-cancellation-title">Deshacer registro de mortandad</h2>
   @if (cancellationDetails(); as record) {
@@ -127,12 +129,13 @@
       @if (cancellationReviewError() || cancellationError()) { <p class="save-error" role="alert">{{ cancellationReviewError() || cancellationError() }}</p> }
       <footer class="dialog-actions">
         <button type="button" autofocus [disabled]="cancelling()" (click)="closeCancellation()">Cancelar</button>
-        <button type="submit" class="primary" [disabled]="busy() || cancellationForm.invalid || (cancellationNeedsReactivation() && !cancellationForm.controls.reactivate.value)">{{ cancelling() ? 'Deshaciendo…' : 'Deshacer registro' }}</button>
+        <button type="submit" class="primary" [disabled]="busy() || cancellationBlocked() || cancellationForm.invalid || (cancellationNeedsReactivation() && !cancellationForm.controls.reactivate.value)">{{ cancelling() ? 'Deshaciendo…' : 'Deshacer registro' }}</button>
       </footer>
     </form>
   }
 </dialog>
 
+@if (!cancellationOnly()) {
 <dialog #excessDialog class="registration-dialog confirmation-dialog" aria-labelledby="mortality-excess-title" (cancel)="cancelExcess()">
   <h2 id="mortality-excess-title">Superar cantidad viva</h2>
   @if (pendingConfirmation(); as pending) {
@@ -145,3 +148,4 @@
     <button type="button" class="primary" (click)="confirmExcess()">Registrar de todos modos</button>
   </footer>
 </dialog>
+}

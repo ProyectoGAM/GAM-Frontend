@@ -4,6 +4,10 @@ El módulo lazy `features/users` reemplaza la pantalla independiente de gestión
 
 ## Contratos utilizados
 
+El historial enlaza a `/administracion/usuarios/:userId`, que abre esa cuenta en
+la gestión existente mediante el directorio paginado. Volver regresa al listado.
+No agrega permisos ni cambia las confirmaciones de las operaciones.
+
 - `GET users?page=N`: listado paginado; acepta el envoltorio `data: []` y `data: {data: [], meta?}`. Sin `last_page`, permite avanzar hasta una página vacía sin inventar totales. Buscar y filtrar estado se limita explícitamente a la página cargada.
 - `POST users`: nombre, correo, contraseña inicial y confirmación, y un rol de los tres identificadores admitidos (`admin`, `employee`, `delivery`).
 - `PATCH users/{id}/status`, `PUT users/{id}/roles`, `PUT users/{id}/password`, `DELETE users/{id}/sessions`.

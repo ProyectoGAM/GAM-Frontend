@@ -39,7 +39,9 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                 ),
             },
           ]
-        : group.id === 'resumen' || group.id === 'historial'
+        : group.id === 'historial'
+          ? [{ path: '', loadChildren: () => import('../audit/audit.routes').then((module) => module.auditRoutes) }]
+        : group.id === 'resumen'
           ? [
               {
                 path: '',

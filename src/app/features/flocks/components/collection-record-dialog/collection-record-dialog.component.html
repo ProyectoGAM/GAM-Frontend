@@ -1,0 +1,35 @@
+<dialog #dialog class="record-dialog" aria-labelledby="collection-record-title" (cancel)="close($event)">
+  <header><h2 #heading id="collection-record-title" tabindex="-1">{{ title() }}</h2><button class="icon-button" type="button" aria-label="Cerrar detalle de postura" [disabled]="saving()" (click)="close()">×</button></header>
+  @if (details(); as item) {
+    @if (mode() === 'detail') {
+      <dl><div><dt>Lote</dt><dd>{{ flock().code }}</dd></div><div><dt>Fecha y hora</dt><dd>{{ item.date }} · {{ item.time }} · Uruguay</dd></div><div><dt>Cantidad</dt><dd>{{ item.quantityText }} huevos</dd></div><div><dt>Estado</dt><dd>{{ item.status === 'recorded' ? 'Vigente' : 'Cancelada · no se incluye en producción' }}</dd></div><div><dt>Notas</dt><dd class="notes">{{ item.notes || 'Sin notas' }}</dd></div></dl>
+      @if (loading()) { <p role="status">Actualizando la postura…</p> }
+      @if (loadError()) { <p class="error" role="alert">No se pudo actualizar la postura. <button type="button" (click)="loadRecord()">Reintentar consulta</button></p> }
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <footer><button type="button" (click)="close()">Cerrar</button>@if (canManage() && item.status === 'recorded') {
+        <button type="button" [disabled]="!canChange()" (click)="start('edit')">Editar postura</button>
+        <button class="danger" type="button" [disabled]="!canChange()" (click)="start('delete')">Borrar postura</button>
+      }</footer>
+    } @else {
+      <p>Lote {{ flock().code }} · {{ item.date }} · {{ item.time }} · {{ item.quantityText }} huevos</p>
+      <p class="note">{{ mode() === 'delete' ? 'La postura quedará cancelada, dejará de contar en la producción y se ajustarán las existencias de huevos. Su historial se conservará.' : 'Los cambios actualizarán la producción y las existencias de huevos. La postura original se conservará en la auditoría.' }}</p>
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <fieldset [disabled]="saving() || blocked()">
+          @if (mode() === 'edit') {
+            <label for="collection-edit-quantity">Cantidad de huevos</label>
+            <input id="collection-edit-quantity" type="number" inputmode="numeric" min="1" max="2147483647" step="1" formControlName="quantity" required [attr.aria-invalid]="form.controls.quantity.touched && form.controls.quantity.invalid || !!fieldErrors()['quantity']" aria-describedby="collection-edit-quantity-error" />
+            <small id="collection-edit-quantity-error" class="field-error">{{ fieldErrors()['quantity'] || (form.controls.quantity.touched && form.controls.quantity.invalid ? 'Ingresá una cantidad entera entre 1 y 2.147.483.647.' : '') }}</small>
+            <label for="collection-edit-time">Fecha y hora (Uruguay)</label><input id="collection-edit-time" type="datetime-local" formControlName="occurredAt" required [min]="minimumTime()" [max]="maximumTime()" aria-describedby="collection-edit-time-error" />
+            <small id="collection-edit-time-error" class="field-error">{{ fieldErrors()['occurred_at'] || (form.controls.occurredAt.touched && form.controls.occurredAt.invalid ? 'Indicá la fecha y hora.' : '') }}</small>
+            <label for="collection-edit-notes">Notas</label><textarea id="collection-edit-notes" formControlName="notes" maxlength="5000" rows="3" aria-describedby="collection-edit-notes-error"></textarea>
+            <small id="collection-edit-notes-error" class="field-error">{{ fieldErrors()['notes'] || (form.controls.notes.touched && form.controls.notes.invalid ? 'Las notas admiten hasta 5000 caracteres.' : '') }}</small>
+          }
+          <label for="collection-correction-reason">{{ mode() === 'delete' ? 'Motivo del borrado' : 'Motivo de la edición' }}</label><textarea id="collection-correction-reason" formControlName="reason" maxlength="500" rows="3" required aria-describedby="collection-correction-reason-error" [attr.aria-invalid]="form.controls.reason.touched && form.controls.reason.invalid || !!fieldErrors()['correction_reason']"></textarea>
+          <small id="collection-correction-reason-error" class="field-error">{{ fieldErrors()['correction_reason'] || (form.controls.reason.touched && form.controls.reason.invalid ? 'Escribí un motivo de hasta 500 caracteres.' : '') }}</small>
+        </fieldset>
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <footer><button type="button" [disabled]="saving()" (click)="back()">Volver al detalle</button><button type="submit" [class.danger]="mode() === 'delete'" [class.primary]="mode() === 'edit'" [disabled]="saving() || blocked()">{{ saving() ? 'Guardando…' : mode() === 'delete' ? 'Confirmar borrado' : 'Guardar cambios' }}</button></footer>
+      </form>
+    }
+  }
+</dialog>
