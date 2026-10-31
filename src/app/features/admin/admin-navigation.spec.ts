@@ -27,9 +27,9 @@ import { adminRoutes } from './admin.routes';
 import { AdminSidebarComponent } from './components/admin-sidebar.component';
 
 describe('admin navigation visibility', () => {
-  it('shows all thirteen groups to ADMIN and none to a role without grants', () => {
-    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(13);
-    expect(visibleAdminNavigation({ roles: ['employee'] })).toHaveLength(0);
+  it('shows all groups to ADMIN and only quick access without other grants', () => {
+    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(14);
+    expect(visibleAdminNavigation({ roles: ['employee'] }).map((group) => group.id)).toEqual(['acceso-rapido']);
     expect(visibleAdminNavigation(null)).toHaveLength(0);
   });
 
@@ -37,6 +37,7 @@ describe('admin navigation visibility', () => {
     const navigation = visibleAdminNavigation({ roles: ['admin'] });
 
     expect(navigation.map((group) => group.label)).toEqual([
+      'Acceso rápido',
       'Resumen',
       'Instalaciones',
       'Lotes',
@@ -53,6 +54,7 @@ describe('admin navigation visibility', () => {
     ]);
 
     expect(navigation.map((group) => group.section)).toEqual([
+      'unit',
       'unit',
       'unit',
       'unit',
@@ -96,7 +98,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(25);
+    ).toBe(26);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
@@ -122,17 +124,17 @@ describe('admin navigation visibility', () => {
 
   it('shows Planes by permission without exposing unrelated Manejo de Lotes entries', () => {
     const navigation = visibleAdminNavigation({ roles: ['employee'], permissions: ['management-plans.view'] });
-    expect(navigation.map((group) => group.id)).toEqual(['manejo-lotes']);
-    expect(navigation[0]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
+    expect(navigation.map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
+    expect(navigation[1]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
     expect(firstVisibleAdminPath({ roles: ['employee'], permissions: ['management-plans.view'] }))
-      .toBe('/administracion/manejo-lotes/planes');
+      .toBe('/administracion/acceso-rapido');
   });
 
   it('shows only Recetas to a user with the recipe catalogue grant', () => {
     const reader = { roles: ['employee'], permissions: ['feed-recipes.view'] };
-    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['manejo-lotes']);
-    expect(visibleAdminNavigation(reader)[0]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
-    expect(firstVisibleAdminPath(reader)).toBe('/administracion/manejo-lotes/Recetas');
+    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
+    expect(visibleAdminNavigation(reader)[1]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
+    expect(firstVisibleAdminPath(reader)).toBe('/administracion/acceso-rapido');
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {
@@ -358,11 +360,11 @@ describe('admin navigation visibility', () => {
   it('routes the panel entry to the first group and item the user can see', () => {
     expect(
       firstVisibleAdminPath({ roles: ['admin'] }),
-    ).toBe('/administracion/resumen');
+    ).toBe('/administracion/acceso-rapido');
 
     expect(
       firstVisibleAdminPath({ roles: ['employee'] }),
-    ).toBeNull();
+    ).toBe('/administracion/acceso-rapido');
   });
 
   it('finds the group for a direct route after reload, including query parameters', () => {
@@ -431,7 +433,7 @@ describe('admin navigation visibility', () => {
       TestBed.inject(Router).serializeUrl(
         result as ReturnType<Router['parseUrl']>,
       ),
-    ).toBe('/administracion/resumen');
+    ).toBe('/administracion/acceso-rapido');
   });
 });
 

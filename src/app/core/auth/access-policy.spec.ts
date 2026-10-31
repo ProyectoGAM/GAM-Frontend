@@ -40,10 +40,12 @@ describe('admin access policy', () => {
     expect(postLoginPath(user(['delivery', 'admin']))).toBe('/administracion');
   });
 
-  it('routes functional grants to the panel and ungranted users to access denied without Home', () => {
+  it('routes employees to the quick access shell without granting other modules', () => {
     expect(postLoginPath({ roles: ['employee'], permissions: ['reports.view'] })).toBe('/administracion');
     expect(postLoginPath({ roles: ['delivery'], permissions: ['egg-stock.view'] })).toBe('/administracion');
-    expect(postLoginPath(user(['employee']))).toBe('/acceso-denegado');
+    expect(postLoginPath(user(['employee']))).toBe('/administracion');
+    expect(canAccessGroup(user(['employee']), 'acceso-rapido')).toBe(true);
+    expect(canAccessGroup(null, 'acceso-rapido')).toBe(false);
     expect(postLoginPath(null)).toBe('/acceso-denegado');
   });
 

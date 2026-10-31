@@ -12,6 +12,8 @@ import { Flock } from '../../interfaces/flock.interface';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { FlockMortalitiesService } from '../../services/flock-mortalities.service';
+import { FlockCollectionsService } from '../../services/flock-collections.service';
+import { CollectionFormComponent } from '../collection-form/collection-form.component';
 import { FeedingEditorComponent } from '../feeding-editor/feeding-editor.component';
 import { FlockMortalitySectionComponent } from '../flock-mortality-section/flock-mortality-section.component';
 import { FlockHouseTaskDialogComponent } from './flock-house-task-dialog.component';
@@ -22,16 +24,17 @@ const request: FlockHouseTaskRequest = { kind: 'mortality', flockId: flock.id, o
   trigger: null, houseName: 'Galpón 22', unitName: 'UP 7' };
 
 describe('FlockHouseTaskDialogComponent', () => {
-  const getFlock = vi.fn(); const record = vi.fn(); const change = vi.fn();
-  const actor = signal<{ id: number } | null>({ id: 1 });
+  const getFlock = vi.fn(); const record = vi.fn(); const change = vi.fn(); const collect = vi.fn();
+  const actor = signal<{ id: number; roles: string[] } | null>({ id: 1, roles: ['admin'] });
   let restore: () => void;
   beforeEach(() => {
-    restore = stubNativeDialog(); vi.resetAllMocks(); actor.set({ id: 1 });
+    restore = stubNativeDialog(); vi.resetAllMocks(); actor.set({ id: 1, roles: ['admin'] }); collect.mockReturnValue(of({}));
     getFlock.mockReturnValue(of(flock)); record.mockReturnValue(of({})); change.mockReturnValue(of({}));
     TestBed.configureTestingModule({ imports: [FlockHouseTaskDialogComponent], providers: [provideRouter([]),
       { provide: AuthStore, useValue: { user: actor } },
       { provide: FlockDetailService, useValue: { flock: getFlock } },
       { provide: FlockMortalitiesService, useValue: { record } },
+      { provide: FlockCollectionsService, useValue: { record: collect } },
       { provide: FlockFeedingService, useValue: { current: () => of({ modo: 'manual', receta_id: 1,
         cantidad_diaria_g: '1000', finalizado: false, etapa: { recipe_id: 1, recipe_snapshot: { name: 'Ración actual' } } }),
       balances: () => of([]), change } },
@@ -41,7 +44,7 @@ describe('FlockHouseTaskDialogComponent', () => {
   });
   afterEach(() => restore());
 
-  async function render(kind: 'mortality' | 'feeding' = 'mortality') {
+  async function render(kind: 'collection' | 'mortality' | 'feeding' = 'mortality') {
     const fixture = TestBed.createComponent(FlockHouseTaskDialogComponent);
     fixture.componentRef.setInput('request', { ...request, kind });
     const closed = vi.fn(); fixture.componentInstance.closed.subscribe(closed);
@@ -58,6 +61,23 @@ describe('FlockHouseTaskDialogComponent', () => {
     section.closeForm(); expect(closed).toHaveBeenCalledWith(null);
     expect(record).not.toHaveBeenCalled(); expect(TestBed.inject(Router).url).toBe('/');
     fixture.destroy();
+  });
+
+  it('opens Postura directly with the galpón and lot context and returns after saving eggs', async () => {
+    const { fixture, closed } = await render('collection');
+    expect(fixture.nativeElement.querySelector('#collection-form-title').textContent).toBe('Registrar postura');
+    expect(fixture.nativeElement.querySelector('dialog[open]')?.textContent).toContain('Galpón 22');
+    const form = fixture.debugElement.query(By.directive(CollectionFormComponent)).componentInstance as CollectionFormComponent;
+    form.form.controls.quantity.setValue(240); form.submit(); fixture.detectChanges(); await fixture.whenStable();
+    expect(collect).toHaveBeenCalledWith(flock.id, { quantity: 240, notes: null }, expect.any(String));
+    expect(closed).toHaveBeenCalledOnce(); expect(closed.mock.calls[0][0]).toContain('Postura registrada');
+    fixture.destroy();
+  });
+
+  it('cancels Postura using Escape without a write', async () => {
+    const { fixture, closed } = await render('collection');
+    fixture.nativeElement.querySelector('.registration-dialog, dialog[open]').dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(closed).toHaveBeenCalledExactlyOnceWith(null); expect(collect).not.toHaveBeenCalled(); fixture.destroy();
   });
 
   it('keeps mortality open and prevents cancel while submitting, then closes once on success', async () => {
@@ -103,7 +123,7 @@ describe('FlockHouseTaskDialogComponent', () => {
 
   it('closes on identity changes and prevents further work under another actor', async () => {
     const { fixture, closed } = await render();
-    actor.set({ id: 2 }); fixture.detectChanges();
+    actor.set({ id: 2, roles: ['admin'] }); fixture.detectChanges();
     expect(closed).toHaveBeenCalledWith(null); fixture.destroy();
   });
 });

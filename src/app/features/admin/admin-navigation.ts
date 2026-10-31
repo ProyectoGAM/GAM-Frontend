@@ -10,6 +10,13 @@ export interface AdminNavigationGroup {
 }
 export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
   {
+    id: 'acceso-rapido',
+    label: 'Acceso rápido',
+    icon: 'flash-outline',
+    section: 'unit',
+    items: [{ label: 'Acceso rápido', slug: '' }],
+  },
+  {
     id: 'resumen',
     label: 'Resumen',
     icon: 'grid-outline',

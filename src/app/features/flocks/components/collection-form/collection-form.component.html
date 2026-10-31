@@ -1,7 +1,7 @@
 <dialog #registrationDialog aria-labelledby="collection-form-title" (cancel)="onCancel($event)">
   <header>
-    <div><h2 id="collection-form-title">Recolectar huevos</h2><p>Lote {{ flock().code }}</p></div>
-    <button type="button" class="icon-button" aria-label="Cerrar recolección" [disabled]="saving()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
+    <div><h2 id="collection-form-title">Registrar postura</h2><p>{{ context() ?? 'Lote ' + flock().code }}</p></div>
+    <button type="button" class="icon-button" aria-label="Cerrar postura" [disabled]="saving()" (click)="close()"><ion-icon name="close-outline" aria-hidden="true" /></button>
   </header>
   <form [formGroup]="form" (ngSubmit)="submit()">
     <fieldset [disabled]="saving()">
@@ -25,11 +25,11 @@
         <small id="collection-notes-error" class="field-error">{{ fieldErrors()['notes'] ?? (form.controls.notes.invalid ? 'Las notas admiten hasta 5.000 caracteres.' : '') }}</small>
       </div>
     </fieldset>
-    <p class="info">Esta recolección ingresará al inventario de huevos de la unidad productiva.</p>
+    <p class="info">Esta postura ingresará al inventario de huevos de la unidad productiva.</p>
     @if (error() || reviewError()) { <p class="error" role="alert">{{ error() ?? reviewError() }}</p> }
     <footer>
       <button type="button" [disabled]="saving()" (click)="close()">Volver</button>
-      <button type="submit" class="primary" [disabled]="saving()">@if (saving()) { <ion-spinner name="crescent" aria-hidden="true" /> Guardando… } @else { Guardar recolección }</button>
+      <button type="submit" class="primary" [disabled]="saving()">@if (saving()) { <ion-spinner name="crescent" aria-hidden="true" /> Guardando… } @else { Guardar postura }</button>
     </footer>
   </form>
 </dialog>

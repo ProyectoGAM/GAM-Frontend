@@ -17,7 +17,7 @@ class LoginStubComponent {}
 describe('Legacy Home redirect', () => {
   it.each([
     { roles: ['admin'], authenticated: true, destination: '/administracion' },
-    { roles: ['employee'], authenticated: true, destination: '/acceso-denegado' },
+    { roles: ['employee'], authenticated: true, destination: '/administracion' },
     { roles: [], authenticated: false, destination: '/auth' },
   ])('redirects /home through panel authorization ($destination)', async ({ roles, authenticated, destination }) => {
     const logout = vi.fn(async () => undefined);

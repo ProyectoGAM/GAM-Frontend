@@ -4,6 +4,10 @@ La gestión de cuentas y dispositivos usa `features/users/services/users.service
 
 ## 1. Contract-first
 
+El inicio [Acceso rápido por galpón y planta](quick-access.md) reutiliza los contratos de
+instalaciones, lotes, colecciones, mortandad, alimentación, sanidad y elaboración. Postura
+registra huevos; los pesos de aves conservan la denominación Pesaje y sus rutas.
+
 La aplicación sanitaria desde el detalle del lote consume `management-plans.yaml`
 sin cantidad ni stock. Ver [Sanidad del lote](flock-health.md) para historial,
 coincidencia con el calendario del plan, motivo condicional e idempotencia.

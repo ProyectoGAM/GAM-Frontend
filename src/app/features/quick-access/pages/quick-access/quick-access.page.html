@@ -1,0 +1,101 @@
+<section aria-labelledby="quick-access-title">
+  <header class="page-heading">
+    <p class="eyebrow">Inicio</p>
+    <h1 id="quick-access-title" tabindex="-1">Acceso rápido</h1>
+    <p class="subtitle">{{ facilityType() === 'poultry' ? 'Elegí el galpón y registrá la actividad.' : 'Elegí la planta y elaborá la ración.' }}</p>
+    <p class="unit-context"><ion-icon name="business-outline" aria-hidden="true" />{{ unitName() }}</p>
+  </header>
+  @if (message()) {
+    <p class="success" role="status"><ion-icon name="checkmark-circle-outline" aria-hidden="true" />{{ message() }}</p>
+  }
+  <div class="facility-switch" role="group" aria-label="Tipo de instalación">
+    <button type="button" [attr.aria-pressed]="facilityType() === 'poultry'" [disabled]="dialogOpen()" (click)="selectType('poultry')">Galpón</button>
+    <button type="button" [attr.aria-pressed]="facilityType() === 'feed'" [disabled]="dialogOpen()" (click)="selectType('feed')">Planta</button>
+  </div>
+  <label class="search"><ion-icon name="search-outline" aria-hidden="true" />
+    <span class="visually-hidden">{{ searchLabel() }}</span>
+    <input type="search" [placeholder]="facilityType() === 'poultry' ? 'Buscar galpón o lote' : 'Buscar planta'" [value]="query()" (input)="search($event)" />
+  </label>
+  @if (state() === 'loading') {
+    <p class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" />{{ facilityType() === 'poultry' ? 'Cargando galpones y lotes…' : 'Cargando plantas…' }}</p>
+  } @else if (state() !== 'ready') {
+    <div class="page-state error" role="alert">
+      <p>{{ state() === 'forbidden' ? (facilityType() === 'poultry' ? 'No tenés permiso para consultar los galpones o lotes de esta unidad.' : 'No tenés permiso para consultar las plantas de esta unidad.') : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : (facilityType() === 'poultry' ? 'No se pudieron cargar los galpones y lotes.' : 'No se pudieron cargar las plantas.') }}</p>
+      <button class="retry" type="button" (click)="retry()">Reintentar</button>
+    </div>
+  } @else {
+    <div class="list-heading"><h2>{{ listTitle() }}</h2><span>{{ visibleCount() }} {{ countLabel() }}</span></div>
+    @if (facilityType() === 'poultry') {
+    <div class="houses">
+      @for (item of visibleHouses(); track item.house.id) {
+        <article class="house" [attr.aria-label]="item.house.name + ' · ' + item.unit.name">
+          <header class="house-heading"><span class="house-icon"><ion-icon name="business-outline" aria-hidden="true" /></span>
+            <div><h3>{{ item.house.name }}</h3>
+              @if (units.selectedId() === null) { <p class="house-unit">{{ item.unit.name }}</p> }
+              @if (item.flock; as flock) { <p>Lote {{ flock.code }} · {{ flock.current_week }} {{ flock.current_week === 1 ? 'semana' : 'semanas' }}</p> }
+              @else { <p>{{ item.unavailableReason }}</p> }
+            </div>
+          </header>
+          @if (item.unavailableReason) {
+            <p class="unavailable"><ion-icon name="information-circle-outline" aria-hidden="true" />{{ item.flock ? item.unavailableReason : 'Sin actividades disponibles' }}</p>
+          } @else {
+            <div class="actions">
+              @for (action of tasks(); track action.kind) {
+                <button type="button" (click)="open(item, action.kind, $event)"
+                  [disabled]="!action.allowed || dialogOpen() || (action.kind === 'collection' && (item.flock?.current_quantity ?? 0) <= 0)"
+                  [attr.aria-label]="action.label + ' en ' + item.house.name + ' · ' + item.unit.name"
+                  [attr.aria-describedby]="!action.allowed ? 'quick-access-permissions' : action.kind === 'collection' && (item.flock?.current_quantity ?? 0) <= 0 ? 'quick-access-no-birds-' + item.house.id : null">
+                  <span class="action-icon" aria-hidden="true">
+                    <ion-icon [name]="action.icon" />
+                    @if (!action.allowed) {
+                      <span class="permission-lock"><ion-icon name="lock-closed-outline" /></span>
+                    }
+                  </span>
+                  <span>{{ action.label }}</span>
+                  <span class="permission-note">@if (!action.allowed) { Sin permiso }</span>
+                </button>
+              }
+            </div>
+            @if ((item.flock?.current_quantity ?? 0) <= 0) { <p class="availability-note" [id]="'quick-access-no-birds-' + item.house.id">Postura no disponible: el lote no tiene aves vivas.</p> }
+          }
+        </article>
+      } @empty {
+        <p class="page-state" role="status">{{ houses().length ? 'No se encontraron galpones para esa búsqueda.' : 'No hay galpones activos en esta selección.' }}</p>
+      }
+    </div>
+    @if (hasRestrictedTasks()) { <p class="availability-note" id="quick-access-permissions">Las actividades con candado requieren permisos de registro.</p> }
+    } @else {
+      <div class="plants">
+        @for (item of visiblePlants(); track item.plant.id) {
+          <article class="house plant" [attr.aria-label]="item.plant.name + ' · ' + item.unit.name">
+            <header class="house-heading"><span class="house-icon"><ion-icon name="business-outline" aria-hidden="true" /></span>
+              <div><h3>{{ item.plant.name }}</h3>
+                @if (units.selectedId() === null) { <p class="house-unit">{{ item.unit.name }}</p> }
+                <p>Planta de ración</p>
+              </div>
+            </header>
+            <div class="plant-actions">
+              <button type="button" class="elaborate" (click)="elaborate(item, $event)" [disabled]="dialogOpen() || (!!item.unavailableReason && !pendingPlantIds().has(item.plant.id))"
+                [attr.aria-label]="'Elaborar en ' + item.plant.name + ' · ' + item.unit.name"
+                [attr.aria-describedby]="pendingPlantIds().has(item.plant.id) ? 'plant-pending-' + item.plant.id : item.unavailableReason ? 'plant-unavailable-' + item.plant.id : null">
+                <ion-icon name="leaf-outline" aria-hidden="true" />Elaborar
+              </button>
+              @if (pendingPlantIds().has(item.plant.id)) { <p class="availability-note" [id]="'plant-pending-' + item.plant.id">Hay una elaboración pendiente. Abrí Elaborar para consultar su resultado sin duplicarla.</p> }
+              @else if (item.unavailableReason) { <p class="availability-note" [id]="'plant-unavailable-' + item.plant.id">{{ item.unavailableReason }}</p> }
+            </div>
+          </article>
+        } @empty {
+          <p class="page-state" role="status">{{ plants().length ? 'No se encontraron plantas para esa búsqueda.' : 'No hay plantas activas en esta selección.' }}</p>
+        }
+      </div>
+    }
+  }
+  @if (task(); as request) {
+    @if (request.kind === 'health') {
+      <app-flock-house-health-dialog [request]="request" (closed)="close($event)" />
+    } @else {
+      <app-flock-house-task-dialog [request]="request" (closed)="close($event)" />
+    }
+  }
+  @if (manufacture(); as request) { <app-quick-access-manufacture-dialog [request]="request" (closed)="closeManufacture($event)" /> }
+</section>

@@ -7,7 +7,7 @@
   } @else { <p class="loading" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando sanidad del lote…</p> }
 </dialog>
 @if (!application.contextError() && application.flock(); as flock) {
-  <app-health-application [flock]="flock" [plan]="application.plan()" [vaccines]="application.vaccines()" [medicines]="application.medicines()"
+  <app-health-application [flock]="flock" [context]="'Lote ' + flock.code + ' · ' + request().houseName + ' · ' + request().unitName" [plan]="application.plan()" [vaccines]="application.vaccines()" [medicines]="application.medicines()"
     [dataReady]="application.dataReady()" [dataError]="application.dataError()" [saving]="application.saving()" [uncertain]="application.uncertain()" [error]="application.actionError()"
     (submitted)="application.save($event)" (retried)="application.retry()" (reloadRequested)="application.loadEditorData()" (closed)="close()" />
 }

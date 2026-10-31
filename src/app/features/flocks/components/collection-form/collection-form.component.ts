@@ -18,7 +18,9 @@ export class CollectionFormComponent {
   readonly saving = input(false);
   readonly error = input<string | null>(null);
   readonly fieldErrors = input<Record<string, string>>({});
+  readonly context = input<string | null>(null);
   readonly submitted = output<RecordCollectionRequest>();
+  readonly closed = output<void>();
   readonly reviewError = signal<string | null>(null);
   readonly maximumTime = signal(collectionLocalDateTime(new Date().toISOString()));
   readonly minimumTime = computed(() => collectionLocalDateTime(this.flock().established_at));
@@ -39,8 +41,12 @@ export class CollectionFormComponent {
     this.dialog()?.nativeElement.showModal();
   }
 
-  close(): void { if (!this.saving()) this.dialog()?.nativeElement.close(); }
-  onCancel(event: Event): void { if (this.saving()) event.preventDefault(); }
+  close(): void {
+    if (this.saving()) return;
+    this.dialog()?.nativeElement.close();
+    this.closed.emit();
+  }
+  onCancel(event: Event): void { event.preventDefault(); this.close(); }
 
   saved(): void {
     this.dialog()?.nativeElement.close();

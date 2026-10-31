@@ -11,6 +11,7 @@ import { FlockDetailService, todayInLotsTimezone } from './flock-detail.service'
 import { FlockFeedingService } from './flock-feeding.service';
 import { FlockHouseTaskService } from './flock-house-task.service';
 import { FlockMortalitiesService } from './flock-mortalities.service';
+import { FlockCollectionsService } from './flock-collections.service';
 
 const flock = { id: 'lot-1', code: 'LOTE', status: 'active', production_unit_id: 7, poultry_house_id: 22,
   version: 1, current_quantity: 100, entry_date: '2026-01-01', established_at: '2026-01-01T12:00:00Z' } as Flock;
@@ -21,9 +22,10 @@ const draft: MortalitySubmission = { draft: { date: todayInLotsTimezone(), quant
 describe('FlockHouseTaskService', () => {
   const getFlock = vi.fn(); const record = vi.fn(); const current = vi.fn(); const balances = vi.fn();
   const change = vi.fn(); const automatic = vi.fn();
+  const collection = vi.fn();
   let task: FlockHouseTaskService;
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.resetAllMocks(); collection.mockReturnValue(of({}));
     getFlock.mockReturnValue(of(flock)); record.mockReturnValue(of({}));
     current.mockReturnValue(of({ modo: 'manual', receta_id: 1, cantidad_diaria_g: '1000', finalizado: false,
       etapa: { recipe_id: 1, recipe_snapshot: { name: 'Ración actual' } } }));
@@ -35,7 +37,8 @@ describe('FlockHouseTaskService', () => {
     ]));
     change.mockReturnValue(of({})); automatic.mockReturnValue(of({}));
     TestBed.configureTestingModule({ providers: [FlockHouseTaskService,
-      { provide: AuthStore, useValue: { user: signal({ id: 1 }) } },
+      { provide: AuthStore, useValue: { user: signal({ id: 1, roles: ['admin'] }) } },
+      { provide: FlockCollectionsService, useValue: { record: collection } },
       { provide: FlockDetailService, useValue: { flock: getFlock } },
       { provide: FlockMortalitiesService, useValue: { record } },
       { provide: FlockFeedingService, useValue: { current, balances, change, automatic } },
@@ -57,6 +60,34 @@ describe('FlockHouseTaskService', () => {
     expect(record.mock.calls[0][1]).toMatchObject({ version: 1, quantity: 1, notes: 'Lesión' });
     response.next({}); expect(task.saving()).toBe(false); expect(task.result()).toBe('Mortandad registrada.');
     task.saveMortality(draft); expect(record).toHaveBeenCalledOnce(); expect(current).not.toHaveBeenCalled();
+  });
+
+  it('records eggs with an idempotent collection command, not an avian weighing', () => {
+    const pending = new Subject<unknown>(); collection.mockReturnValue(pending);
+    task.start({ ...request, kind: 'collection' });
+    task.saveCollection({ quantity: 240, notes: 'Turno de mañana' });
+    task.saveCollection({ quantity: 240, notes: 'Turno de mañana' });
+    expect(collection).toHaveBeenCalledExactlyOnceWith(flock.id, { quantity: 240, notes: 'Turno de mañana' }, expect.any(String));
+    expect(record).not.toHaveBeenCalled(); expect(current).not.toHaveBeenCalled();
+    pending.next({}); expect(task.result()).toContain('Postura registrada');
+  });
+
+  it('reuses the exact collection body/key after a network failure and maps validation errors', () => {
+    task.start({ ...request, kind: 'collection' });
+    collection.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
+    task.saveCollection({ quantity: 240 }); task.saveCollection({ quantity: 240 });
+    expect(collection.mock.calls[1]).toEqual(collection.mock.calls[0]);
+    collection.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 422, error: { errors: { quantity: ['Revisá la cantidad'] } } })));
+    task.saveCollection({ quantity: 240 });
+    expect(task.collectionFieldErrors()).toEqual({ quantity: 'Revisá la cantidad' });
+  });
+
+  it('refuses egg registration for a closed, moved or empty flock', () => {
+    for (const other of [{ ...flock, current_quantity: 0 }, { ...flock, poultry_house_id: 23 }, { ...flock, status: 'finished' }]) {
+      getFlock.mockReturnValue(of(other)); task.start({ ...request, kind: 'collection' });
+      task.saveCollection({ quantity: 240 }); expect(task.state()).toBe('error');
+    }
+    expect(collection).not.toHaveBeenCalled();
   });
 
   it('retains the exact mortality request and idempotency key across network retries', () => {

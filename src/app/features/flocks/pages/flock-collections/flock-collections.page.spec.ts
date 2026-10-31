@@ -74,9 +74,9 @@ describe('Flock collection behavior', () => {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl(`${prefix}/${id}`, FlockDetailPage);
     const link = harness.routeNativeElement!.querySelector<HTMLAnchorElement>(`a[href$='/recoleccion']`)!;
-    expect(link.textContent).toContain('Ir a recolección');
+    expect(link.textContent).toContain('Ir a postura');
     expect(harness.routeNativeElement!.querySelector('app-collection-chart')).toBeNull();
-    expect(harness.routeNativeElement!.textContent).not.toContain('Registrar recolección');
+    expect(harness.routeNativeElement!.textContent).not.toContain('Registrar postura');
     await harness.navigateByUrl(link.getAttribute('href')!, FlockCollectionsPage);
     expect(harness.routeNativeElement!.querySelector<HTMLAnchorElement>('.back-link')!.getAttribute('href')).toBe(`${prefix}/${id}`);
   });

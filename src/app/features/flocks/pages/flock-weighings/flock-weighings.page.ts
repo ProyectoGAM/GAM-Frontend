@@ -403,9 +403,9 @@ export class FlockWeighingsPage {
         } else if (code === 'DAILY_WEIGHING_POPULATION_EXCEEDED') {
           this.entryError.set('La muestra superaría la cantidad de aves vivas del lote.');
         } else if (code === 'DAILY_WEIGHING_FLOCK_LIFECYCLE_CONFLICT') {
-          this.entryError.set('Este lote ya no admite nuevas posturas.');
+          this.entryError.set('Este lote ya no admite nuevos pesajes.');
         } else if (error instanceof HttpErrorResponse && error.status === 403) {
-          this.entryError.set('No tenés permiso para registrar posturas.');
+          this.entryError.set('No tenés permiso para registrar pesajes.');
         } else if (error instanceof HttpErrorResponse && error.status === 0) {
           this.entryError.set('Sin conexión. Podés reintentar el mismo ingreso.');
         } else {

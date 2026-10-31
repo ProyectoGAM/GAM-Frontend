@@ -50,7 +50,7 @@ describe('FlockCardComponent', () => {
     expect(card.querySelector('.flock-tasks')).toBeNull();
     fixture.componentRef.setInput('showTasks', true); fixture.detectChanges();
     const links = [...card.querySelectorAll<HTMLElement>('.task-link')];
-    expect(links[0].textContent).toContain('Registrar postura');
+    expect(links[0].textContent).toContain('Registrar pesaje');
     expect(links[1].textContent).toContain('Registrar mortandad');
     expect(links[0].getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1/pesajes?lotFrom=house&unitId=7&houseId=22&task=entry');
     expect(links.slice(1).every((link) => link.tagName === 'BUTTON' && link.getAttribute('aria-haspopup') === 'dialog')).toBe(true);

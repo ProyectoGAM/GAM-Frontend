@@ -22,7 +22,7 @@ export class FlockCardComponent {
   readonly showTasks = input(false);
   readonly taskRequested = output<FlockHouseTaskAction>();
   readonly tasks = [
-    { path: 'pesajes', label: 'Registrar postura', description: 'Individual o grupal', icon: 'scale-outline' },
+    { path: 'pesajes', label: 'Registrar pesaje', description: 'Individual o grupal', icon: 'scale-outline' },
     { path: 'mortalidad', kind: 'mortality' as const, label: 'Registrar mortandad', description: 'Fecha, cantidad y motivo', icon: 'clipboard-outline' },
     { path: 'alimentacion', kind: 'feeding' as const, label: 'Cambiar ración', description: 'Ración y cantidad diaria', icon: 'leaf-outline' },
     { path: 'sanidad', kind: 'health' as const, label: 'Sanidad', description: 'Aplicar vacuna o medicamento', icon: 'medical-outline' },

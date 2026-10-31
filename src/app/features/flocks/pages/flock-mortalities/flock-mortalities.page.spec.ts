@@ -165,8 +165,8 @@ describe('Mortality navigation', () => {
     await harness.navigateByUrl(`${prefix}/${id}`, FlockDetailPage);
     const detail = harness.routeNativeElement!;
     expect(detail.querySelector('#mortality-title')?.textContent).toBe('Mortandad acumulada');
-    expect(detail.querySelector('#weighing-title')?.textContent).toBe('Última postura');
-    const postureLink = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a posturas'))!;
+    expect(detail.querySelector('#weighing-title')?.textContent).toBe('Último pesaje');
+    const postureLink = [...detail.querySelectorAll('a')].find((anchor) => anchor.textContent?.includes('Ir a pesajes'))!;
     expect(postureLink.getAttribute('href')).toBe(`${prefix}/${id}/pesajes`);
     expect(detail.querySelectorAll('.metric-grid > .small-card')).toHaveLength(2);
     expect(detail.querySelector('.metric-grid')?.textContent).toContain('13 aves');

@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import {
   barChartOutline, businessOutline, carOutline, chevronDownOutline, clipboardOutline,
   cubeOutline, eggOutline, locationOutline, notificationsOutline, peopleOutline, personOutline,
-  closeOutline, menuOutline, gridOutline, timeOutline, logOutOutline,
+  closeOutline, menuOutline, gridOutline, timeOutline, logOutOutline, flashOutline,
 } from 'ionicons/icons';
 import { filter } from 'rxjs';
 
@@ -39,6 +39,7 @@ export class AdminSidebarComponent {
       'clipboard-outline': clipboardOutline,
       'cube-outline': cubeOutline,
       'egg-outline': eggOutline,
+      'flash-outline': flashOutline,
       'location-outline': locationOutline,
       'menu-outline': menuOutline,
       'notifications-outline': notificationsOutline,

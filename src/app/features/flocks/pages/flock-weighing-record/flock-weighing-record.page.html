@@ -1,9 +1,9 @@
 <section class="record-page" aria-labelledby="record-title">
-  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a posturas</a>
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a pesajes</a>
   @if (state() === 'loading') {
     <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando registro…</div>
   } @else if (state() !== 'ready') {
-    <div class="page-state" role="alert"><h1 id="record-title">Registro de postura</h1>
+    <div class="page-state" role="alert"><h1 id="record-title">Registro de pesaje</h1>
       @if (state() === 'not-found') { <p>Registro no encontrado para este lote.</p> }
       @else if (state() === 'forbidden') { <p>No tenés permiso para consultar este registro.</p> }
       @else if (state() === 'offline') { <p>Sin conexión. Revisá la conexión e intentá de nuevo.</p> }
@@ -11,8 +11,8 @@
       <button type="button" (click)="load()">Reintentar</button>
     </div>
   } @else if (record(); as item) {
-    <p class="breadcrumb">Lotes / Posturas / Registro</p>
-    <h1 id="record-title">Registro de postura</h1>
+    <p class="breadcrumb">Lotes / Pesajes / Registro</p>
+    <h1 id="record-title">Registro de pesaje</h1>
     <p class="subtitle">{{ date() }} · {{ item.status === 'in_progress' ? 'En curso' : 'Cerrado' }}</p>
     <div class="summary-grid">
       <div class="card"><span>Aves pesadas</span><strong>{{ item.represented_bird_count }}</strong></div>
