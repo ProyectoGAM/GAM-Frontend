@@ -194,6 +194,19 @@ describe('admin navigation visibility', () => {
     ).toBe(false);
   });
 
+  it.each([
+    { group: 'historial', paths: [''], routes: async () => (await import('../audit/audit.routes')).auditRoutes },
+    { group: 'vehiculos', paths: ['', ':id'], routes: async () => (await import('../vehicles/vehicles.routes')).vehiclesRoutes },
+  ])('loads the $group feature at its navigation entry', async ({ group, paths, routes }) => {
+    const featureGroup = (adminRoutes[0]?.children ?? []).find((route) => route.path === group);
+    const loader = featureGroup?.children?.[0]?.loadChildren as (() => Promise<Routes>) | undefined;
+    const featureRoutes = await loader?.();
+
+    expect(featureRoutes).toBe(await routes());
+    expect(featureRoutes?.map((route) => route.path)).toEqual(paths);
+    expect(featureRoutes?.find((route) => route.path === '')?.loadComponent).toBeTypeOf('function');
+  });
+
   it('loads the flock list from the existing Lotes navigation entry', async () => {
     const lotsGroup = (adminRoutes[0]?.children ?? []).find((route) => route.path === 'lotes');
     const lotsRoute = lotsGroup?.children?.find((route) => route.path === 'lotes');

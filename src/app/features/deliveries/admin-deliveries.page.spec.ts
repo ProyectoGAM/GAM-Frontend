@@ -199,6 +199,12 @@ describe('AdminDeliveriesPage', () => {
     TestBed.configureTestingModule({ providers: [{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ reparto: 'older-origin' }) } } }] });
     const page = await render();
     expect(detail).toHaveBeenCalledWith('older-origin'); expect(page.selected()?.id).toBe('older-origin');
+    page.select(activeDelivery);
+    page.load();
+    await fixture.whenStable();
+    expect(detail).toHaveBeenLastCalledWith(activeDelivery.id);
+    expect(page.selected()?.id).toBe(activeDelivery.id);
+    fixture.destroy();
   });
 
 });

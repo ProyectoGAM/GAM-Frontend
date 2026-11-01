@@ -152,8 +152,8 @@ export class AdminDeliveriesPage {
               const source = this.sourceId ? [...current.data, ...all.data].find((delivery) => delivery.id === this.sourceId) : undefined;
               if (currentSelectionId) this.selectedDeliveryRequests.next(currentSelectionId);
               else if (source) this.selectedDeliveryRequests.next(source.id);
-              else if (current.data[0]) this.select(current.data[0]);
               else if (this.sourceId) this.selectedDeliveryRequests.next(this.sourceId);
+              else if (current.data[0]) this.select(current.data[0]);
               else this.selectedDeliveryRequests.next(null);
               this.loading.set(false);
             }),

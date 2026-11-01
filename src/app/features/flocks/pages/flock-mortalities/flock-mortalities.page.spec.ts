@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
 import { FlockStatusService } from '../../services/flock-status.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -69,6 +70,35 @@ describe('Mortality navigation', () => {
       { provide: AdminUnitContextService, useValue: { units: signal([{ id: 1, name: 'Unidad San José' }]) } },
     ] });
     TestBed.overrideComponent(MortalityChartComponent, { set: { template: '' } });
+  });
+  it('opens the existing undo confirmation from audit only after current records load, without posting', async () => {
+    const restore = stubNativeDialog();
+    try {
+      const publicRecord = { ...record, id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G' };
+      const pending = new Subject<FlockMortality[]>(); list.mockReturnValueOnce(pending);
+      const harness = await RouterTestingHarness.create();
+      const page = await harness.navigateByUrl(`${prefix}/${id}/mortalidad?deshacer=${publicRecord.id}`, FlockMortalitiesPage);
+      expect(harness.routeNativeElement!.querySelector<HTMLDialogElement>('.cancellation-dialog')?.open).toBe(false);
+      pending.next([publicRecord]); pending.complete();
+      harness.detectChanges(); await harness.fixture.whenStable(); harness.detectChanges();
+      const component = harness.routeDebugElement!.query(By.directive(FlockMortalitySectionComponent)).componentInstance as FlockMortalitySectionComponent;
+      expect(component.pendingCancellation()?.record).toEqual(publicRecord);
+      expect(harness.routeNativeElement!.querySelector<HTMLDialogElement>('.cancellation-dialog')!.open).toBe(true);
+      expect(cancel).not.toHaveBeenCalled();
+      component.closeCancellation(); harness.detectChanges(); await harness.fixture.whenStable();
+      expect(component.pendingCancellation()).toBeNull(); expect(page.records()).toEqual([publicRecord]);
+    } finally { restore(); }
+  });
+  it('explains when the audit record is no longer current without opening a confirmation', async () => {
+    const restore = stubNativeDialog();
+    try {
+      const harness = await RouterTestingHarness.create();
+      const page = await harness.navigateByUrl(`${prefix}/${id}/mortalidad?deshacer=01K8Y2N7AA2XQY0YQEBMWVFJ9G`, FlockMortalitiesPage);
+      harness.detectChanges(); await harness.fixture.whenStable(); harness.detectChanges();
+      expect(page.undoLinkError()).toContain('ya fue deshecho o no está disponible');
+      expect(harness.routeNativeElement!.querySelector<HTMLDialogElement>('.cancellation-dialog')!.open).toBe(false);
+      expect(cancel).not.toHaveBeenCalled();
+    } finally { restore(); }
   });
 
   it('guards duplicate submits, closes only after API success and refreshes history and live balance', async () => {

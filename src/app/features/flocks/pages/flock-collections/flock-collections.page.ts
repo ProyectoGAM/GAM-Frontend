@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
@@ -10,6 +10,7 @@ import { AdminUnitContextService } from '../../../admin/services/admin-unit-cont
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { CollectionChartComponent } from '../../components/collection-chart/collection-chart.component';
 import { CollectionFormComponent } from '../../components/collection-form/collection-form.component';
+import { CollectionRecordDialogComponent } from '../../components/collection-record-dialog/collection-record-dialog.component';
 import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
 import { CollectionSummary, FlockCollection, RecordCollectionRequest } from '../../interfaces/flock-collection.interface';
 import { DetailMetric, EggMetricDay } from '../../interfaces/flock-detail.interface';
@@ -23,7 +24,7 @@ type LoadState = 'loading' | 'ready' | 'offline' | 'forbidden' | 'not-found' | '
 
 @Component({
   selector: 'app-flock-collections-page',
-  imports: [RouterLink, IonIcon, IonSpinner, CollectionChartComponent, CollectionSummaryComponent, CollectionFormComponent],
+  imports: [RouterLink, IonIcon, IonSpinner, CollectionChartComponent, CollectionSummaryComponent, CollectionFormComponent, CollectionRecordDialogComponent],
   templateUrl: './flock-collections.page.html',
   styleUrl: './flock-collections.page.scss',
 })
@@ -40,7 +41,7 @@ export class FlockCollectionsPage {
   private metricsVersion = 0;
   private attempt: { fingerprint: string; request: RecordCollectionRequest; key: string } | null = null;
   private readonly registration = viewChild(CollectionFormComponent);
-  private readonly detailDialog = viewChild<ElementRef<HTMLDialogElement>>('recordDialog');
+  private readonly detailDialog = viewChild(CollectionRecordDialogComponent);
   readonly flockId = signal('');
   readonly flock = signal<Flock | null>(null);
   readonly state = signal<LoadState>('loading');
@@ -61,7 +62,6 @@ export class FlockCollectionsPage {
   readonly saveError = signal<string | null>(null);
   readonly fieldErrors = signal<Record<string, string>>({});
   readonly success = signal<string | null>(null);
-  readonly selectedRecord = signal<FlockCollection | null>(null);
   readonly backLink = computed(() => `/administracion/lotes/lotes/${encodeURIComponent(this.flockId())}`);
   readonly unitName = computed(() => this.unitContext.units().find((unit) => unit.id === this.flock()?.production_unit_id)?.name);
   readonly canManage = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('egg-collections.manage') === true);
@@ -88,11 +88,6 @@ export class FlockCollectionsPage {
     dateText: collectionDate(todayInLotsTimezone(new Date(record.occurred_at))),
     timeText: collectionLocalDateTime(record.occurred_at).slice(11), quantityText: collectionNumber(record.quantity),
   })));
-  readonly recordDetails = computed(() => {
-    const record = this.selectedRecord();
-    return record ? { ...record, dateText: collectionDate(todayInLotsTimezone(new Date(record.occurred_at))),
-      timeText: collectionLocalDateTime(record.occurred_at).slice(11), quantityText: collectionNumber(record.quantity) } : null;
-  });
 
   constructor() {
     addIcons({ addOutline, arrowBackOutline, chevronForwardOutline, closeOutline, eggOutline, statsChartOutline, documentTextOutline });
@@ -162,8 +157,11 @@ export class FlockCollectionsPage {
 
   changePeriod(period: CollectionPeriod): void { this.period.set(period); this.selectedDate.set(null); }
   selectDate(event: Event): void { this.selectedDate.set((event.target as HTMLSelectElement).value); }
-  openRecord(record: FlockCollection): void { this.selectedRecord.set(record); this.detailDialog()?.nativeElement.showModal(); }
-  closeRecord(): void { this.detailDialog()?.nativeElement.close(); }
+  openRecord(record: FlockCollection, trigger: HTMLElement | null = null): void { this.detailDialog()?.open(record, trigger); }
+  onRecordChanged(action: 'edited' | 'deleted'): void {
+    this.success.set(action === 'edited' ? 'Postura actualizada. La producción y las existencias se actualizaron.' : 'Postura borrada. Se ajustaron la producción y las existencias; se conservó el historial.');
+    this.refreshData();
+  }
 
   save(request: RecordCollectionRequest): void {
     if (this.saving() || !this.canCollect()) return;

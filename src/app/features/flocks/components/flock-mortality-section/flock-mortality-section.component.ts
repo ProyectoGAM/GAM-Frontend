@@ -22,6 +22,9 @@ import { MortalityChartComponent } from '../mortality-chart/mortality-chart.comp
 export class FlockMortalitySectionComponent {
   readonly flock = input.required<Flock>();
   readonly registrationOnly = input(false);
+  readonly cancellationOnly = input(false);
+  readonly cancellationBlocked = input(false);
+  readonly cancellationClosed = output<void>();
   readonly formClosed = output<void>();
   readonly houseName = input<string | null>(null);
   readonly unitName = input<string | null>(null);
@@ -216,8 +219,15 @@ export class FlockMortalitySectionComponent {
 
   closeCancellation(): void {
     if (this.cancelling()) return;
-    this.cancellationDialog()?.nativeElement.close();
+    this.invalidateCancellation();
+    this.cancellationClosed.emit();
+  }
+
+  invalidateCancellation(): void {
+    const dialog = this.cancellationDialog()?.nativeElement;
+    if (dialog && (dialog.open || this.pendingCancellation())) dialog.close();
     this.pendingCancellation.set(null);
+    this.cancellationForm.reset({ reason: '', reactivate: false });
   }
 
   onCancellationCancel(event: Event): void {
@@ -227,7 +237,7 @@ export class FlockMortalitySectionComponent {
 
   submitCancellation(): void {
     const pending = this.pendingCancellation();
-    if (!pending || this.busy()) return;
+    if (!pending || this.busy() || this.cancellationBlocked()) return;
     this.cancellationForm.markAllAsTouched();
     if (this.cancellationForm.invalid) return;
     const current = this.records().find((record) => record.id === pending.record.id && record.status === 'recorded');

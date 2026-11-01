@@ -44,7 +44,7 @@
         @if (canManageReadings()) { <form class="card form-card" [formGroup]="readingForm" (ngSubmit)="recordReading()">
           <h2>{{ correctionTarget() ? 'Rectificar lectura' : 'Registrar lectura de tablero' }}</h2><p>Podés guardar una lectura cuando administración lo necesite. No hay periodicidad obligatoria.</p>
           @if (correctionTarget(); as correction) { <p>La lectura original de {{ correction.value }} {{ readingLabel(correction) }} se conserva en el historial. La fecha original se mantiene.</p><label>Motivo de rectificación<input formControlName="event_reason" maxlength="500" required></label><button class="button" type="button" (click)="cancelCorrection()">Cancelar rectificación</button> }
-          
+
           @if (!correctionTarget()) { <label>Evento<select formControlName="event_type"><option value="reading">Lectura del tablero</option><option value="reset">Reinicio o cambio de tablero</option></select></label>@if (readingForm.controls.event_type.value === 'reset') { <label>Motivo del reinicio<input formControlName="event_reason" maxlength="500" required></label> } }
           <label>Valor<input formControlName="value" inputmode="decimal" placeholder="0" required></label>
           <label>Fecha y hora de lectura<input formControlName="recorded_at" type="datetime-local" [readOnly]="!!correctionTarget()" required></label>

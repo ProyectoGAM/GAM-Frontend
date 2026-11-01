@@ -23,5 +23,37 @@ th { color: var(--gam-color-heading); background: var(--gam-color-surface-alt); 
 .page-state button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--gam-color-primary); border-radius: 7px; color: var(--gam-color-on-primary); background: var(--gam-color-primary); font: inherit; font-weight: 700; cursor: pointer; }
 .page-state ion-spinner { color: var(--gam-color-primary); }
 button:focus-visible, a:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.success { padding: 12px; border-radius: 7px; color: var(--gam-color-success); background: var(--gam-color-success-soft); }
+.delete-button { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); border-color: var(--gam-color-danger); }
+.delete-dialog { box-sizing: border-box; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 20px; overflow-y: auto; border: 1px solid var(--gam-color-border); border-radius: 11px; color: var(--gam-color-text); background: var(--gam-color-surface); }
+.delete-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 65%, transparent); }
+.delete-dialog header, .delete-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.delete-dialog h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.25rem; }
+.delete-dialog p, .delete-dialog dd { line-height: 1.6; overflow-wrap: anywhere; }
+.delete-dialog dl { display: grid; gap: 12px; }
+.delete-dialog dt { margin-bottom: 4px; color: var(--gam-color-text-muted); font-size: .8125rem; }
+.delete-dialog dd { margin: 0; }
+.delete-dialog form { display: grid; gap: 10px; }
+.delete-dialog label { font-weight: 600; color: var(--gam-color-heading); }
+.delete-dialog textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; font: inherit; color: var(--gam-color-text); background: var(--gam-color-surface); resize: vertical; }
+.delete-dialog footer { flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; font: inherit; color: var(--gam-color-primary); background: var(--gam-color-surface); cursor: pointer; }
+button:disabled { opacity: .65; cursor: not-allowed; }
+.field-error, .error { color: var(--gam-color-danger); font-size: .875rem; }
+.error { padding: 12px; border-radius: 7px; background: var(--gam-color-danger-soft); }
+textarea:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
 @media (max-width: 900px) { :host { margin: -16px -16px 0; padding: 16px 16px 48px; background: var(--gam-color-surface-alt); } }
 @media (max-width: 540px) { .summary-grid { grid-template-columns: 1fr; } .card { padding: 16px; } }
+@media (max-width: 680px) {
+  .table-scroll { overflow: visible; }
+  table, tbody { display: block; }
+  thead { display: none; }
+  tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--gam-color-border); }
+  tr:last-child { border-bottom: 0; }
+  td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  td::before { content: attr(data-label); display: block; margin-bottom: 5px; color: var(--gam-color-text-muted); font-size: .75rem; font-weight: 400; }
+  .entry-actions { grid-column: 1 / -1; }
+  .entry-actions::before { display: none; }
+  .entry-actions button { width: 100%; }
+  .delete-dialog footer { flex-direction: column; align-items: stretch; }
+}

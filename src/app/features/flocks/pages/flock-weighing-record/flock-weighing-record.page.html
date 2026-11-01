@@ -1,5 +1,6 @@
 <section class="record-page" aria-labelledby="record-title">
   <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a pesajes</a>
+  @if (success()) { <p class="success" role="status">{{ success() }}</p> }
   @if (state() === 'loading') {
     <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando registro…</div>
   } @else if (state() !== 'ready') {
@@ -26,16 +27,33 @@
       @if (entries().length === 0) { <p>Sin ingresos activos.</p> }
       @else {
         <div class="table-scroll"><table><thead><tr><th scope="col">Hora</th><th scope="col">Modalidad</th>
-          <th scope="col">Aves</th><th scope="col">Peso ingresado</th><th scope="col">Promedio por ave</th><th scope="col">Estado</th></tr></thead>
+          <th scope="col">Aves</th><th scope="col">Peso ingresado</th><th scope="col">Promedio por ave</th><th scope="col">Estado</th>@if (canManage()) { <th scope="col">Acciones</th> }</tr></thead>
           <tbody>@for (row of rows(); track row.id) {
-            <tr><td>{{ row.time }}</td><td>{{ row.mode }}</td><td>{{ row.birds }}</td><td>{{ row.weight }} g</td><td>{{ row.average }} g</td>
-              <td [class.anomaly]="row.anomalous">{{ row.anomalous ? 'Fuera del rango' : 'Dentro del rango' }}</td></tr>
+            <tr><td data-label="Hora">{{ row.time }}</td><td data-label="Modalidad">{{ row.mode }}</td><td data-label="Aves">{{ row.birds }}</td><td data-label="Peso ingresado">{{ row.weight }} g</td><td data-label="Promedio por ave">{{ row.average }} g</td>
+              <td data-label="Estado" [class.anomaly]="row.anomalous">{{ row.anomalous ? 'Fuera del rango' : 'Dentro del rango' }}</td>
+              @if (canManage()) { <td class="entry-actions"><button #deleteTrigger class="delete-button" type="button" [disabled]="deleting() || loadingMore()" [attr.aria-label]="'Borrar ingreso ' + row.mode.toLowerCase() + ' de las ' + row.time" (click)="openDelete(row.id, deleteTrigger)">Borrar ingreso</button></td> }</tr>
           }</tbody>
         </table></div>
       }
-      @if (nextCursor()) { <button type="button" class="load-more" [disabled]="loadingMore()" (click)="loadMore()">
+      @if (nextCursor()) { <button type="button" class="load-more" [disabled]="loadingMore() || deleting()" (click)="loadMore()">
         {{ loadingMore() ? 'Cargando…' : 'Cargar más ingresos' }}</button> }
       @if (loadMoreError()) { <p role="alert">No se pudieron cargar más ingresos. Intentá de nuevo.</p> }
     </section>
   }
 </section>
+
+<dialog #deleteDialog class="delete-dialog" aria-labelledby="weighing-delete-title" (cancel)="closeDelete($event)">
+  <header><h2 #deleteHeading id="weighing-delete-title" tabindex="-1">Borrar ingreso de pesaje</h2><button type="button" aria-label="Cerrar borrado de pesaje" [disabled]="deleting()" (click)="closeDelete()">×</button></header>
+  @if (deleteSummary(); as item) {
+    <p>{{ date() }} · {{ item.time }} · {{ item.mode }}</p>
+    <dl><div><dt>Aves representadas</dt><dd>{{ item.birds }}</dd></div><div><dt>Peso ingresado</dt><dd>{{ item.weight }} g</dd></div></dl>
+    <p>Este ingreso dejará de contar en la muestra. Se recalcularán el promedio, la cantidad de aves y los datos anómalos. La auditoría se conservará.</p>
+    <form (submit)="submitDelete($event)" novalidate>
+      <label for="weighing-delete-reason">Motivo del borrado</label>
+      <textarea id="weighing-delete-reason" [formControl]="deleteReason" maxlength="1000" rows="3" required [readonly]="deleting() || deleteBlocked()" aria-describedby="weighing-delete-reason-error" [attr.aria-invalid]="deleteReason.touched && deleteReason.invalid"></textarea>
+      <small id="weighing-delete-reason-error" class="field-error">@if (deleteReason.touched && deleteReason.invalid) { Escribí un motivo de entre 3 y 1000 caracteres. }</small>
+      @if (deleteError()) { <p class="error" role="alert">{{ deleteError() }}</p> }
+      <footer><button type="button" [disabled]="deleting()" (click)="closeDelete()">{{ deleteBlocked() ? 'Cerrar y actualizar' : 'Cancelar' }}</button><button class="delete-button" type="submit" [disabled]="deleting() || deleteBlocked()">{{ deleting() ? 'Borrando…' : 'Confirmar borrado' }}</button></footer>
+    </form>
+  }
+</dialog>

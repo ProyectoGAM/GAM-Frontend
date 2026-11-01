@@ -30,10 +30,11 @@ export class UsersPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  private readonly route = inject(ActivatedRoute);
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');
   private readonly accountTitle = viewChild<ElementRef<HTMLElement>>('accountTitle');
   private readonly editorTitle = viewChild<ElementRef<HTMLElement>>('editorTitle');
-  readonly tab = inject(ActivatedRoute).snapshot.data['tab'] as 'users' | 'create' | 'devices' | 'roles';
+  readonly tab = this.route.snapshot.data['tab'] as 'users' | 'create' | 'devices' | 'roles';
   readonly tabs = [
     { id: 'users', label: 'Usuarios', path: '/administracion/usuarios' },
     { id: 'create', label: 'Crear', path: '/administracion/usuarios/crear' },
@@ -86,11 +87,30 @@ export class UsersPage {
     const owner = this.owner();
     effect(() => { if (this.owner() !== owner || !this.canChange()) this.clearSensitive(); });
     this.destroyRef.onDestroy(() => { this.destroyed = true; this.clearSensitive(); });
-    if (this.tab === 'users' || this.tab === 'devices') void this.load();
+    const linkedUser = this.route.snapshot.paramMap?.get('userId');
+    if (this.tab === 'users' && linkedUser) void this.loadLinkedUser(linkedUser);
+    else if (this.tab === 'users' || this.tab === 'devices') void this.load();
+  }
+
+  private async loadLinkedUser(value: string): Promise<void> {
+    if (!/^[1-9]\d*$/.test(value)) { this.error.set('El usuario solicitado no es válido.'); return; }
+    const owner = this.owner();
+    this.loading.set(true);
+    try {
+      const users = await this.api.allUsers();
+      if (this.destroyed || this.owner() !== owner) return;
+      const user = users.find((item) => String(item.id) === value);
+      if (user) this.openUser(user);
+      else this.error.set('Este usuario ya no está disponible. Puedes volver al listado de usuarios.');
+    } catch {
+      if (!this.destroyed && this.owner() === owner) this.error.set('No se pudo abrir el usuario. Intenta cargar el listado de nuevo.');
+    } finally { if (!this.destroyed) this.loading.set(false); }
   }
 
   async load(page = this.page()): Promise<void> {
     if (this.loading()) return;
+    const linkedUser = this.route.snapshot.paramMap?.get('userId');
+    if (this.tab === 'users' && linkedUser) { await this.loadLinkedUser(linkedUser); return; }
     const owner = this.owner();
     this.loading.set(true);
     this.error.set('');
@@ -117,6 +137,7 @@ export class UsersPage {
     afterNextRender(() => this.accountTitle()?.nativeElement.focus(), { injector: this.injector });
   }
   back(): void {
+    if (this.route.snapshot.paramMap?.get('userId')) { void this.router.navigateByUrl('/administracion/usuarios'); return; }
     this.selected.set(null); this.editor.set(null); this.credentialForm.reset(); this.error.set('');
     afterNextRender(() => this.pageTitle()?.nativeElement.focus(), { injector: this.injector });
   }
