@@ -1,0 +1,42 @@
+:host { display: block; color: var(--gam-color-text); }
+.maintenance-page { max-width: 960px; margin-inline: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--gam-color-primary); text-decoration: none; }
+.page-heading { margin: 16px 0 22px; }
+h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2rem); }
+.page-heading p, .history-heading p { margin: 8px 0 0; color: var(--gam-color-text-muted); }
+.history { margin-top: 26px; }
+.history-heading { display: grid; gap: 16px; margin-bottom: 18px; }
+h2 { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
+ion-button { min-height: 44px; --border-radius: 8px; }
+.primary { margin: 0; --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); --background-activated: var(--gam-color-primary); }
+.outline { --background: var(--gam-color-surface); --color: var(--gam-color-primary); --border-color: var(--gam-color-control-border); }
+.filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.filters label { flex: 1 1 160px; }
+.filters label, .date-fields label { display: grid; gap: 6px; color: var(--gam-color-text-muted); font-size: .8125rem; min-width: 0; }
+.date-fields { display: grid; gap: 18px; }
+.dates-trigger { display: flex; align-items: center; justify-content: center; gap: 8px; }
+input, select, button { min-height: 44px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; font: inherit; color: var(--gam-color-primary); background: var(--gam-color-surface); }
+input, select { box-sizing: border-box; min-width: 0; width: 100%; padding: 10px; color: var(--gam-color-text); }
+button { padding: 10px 14px; font-weight: 600; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+.record-list { display: grid; gap: 14px; margin-top: 18px; }
+.record-card { padding: 18px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); }
+.record-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+time { color: var(--gam-color-text-muted); font-size: .8125rem; }
+.badge { padding: 6px 10px; border-radius: 7px; color: var(--gam-color-success); background: var(--gam-color-success-soft); font-size: .8125rem; font-weight: 700; }
+.badge.cancelled { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); border: 1px solid var(--gam-color-border); }
+h3 { margin: 12px 0 8px; color: var(--gam-color-heading); font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.record-card h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.responsible { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--gam-color-text-muted); overflow-wrap: anywhere; }
+.cost { display: block; color: var(--gam-color-heading); }
+.detail-link { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-inline: 0; border: 0; background: transparent; }
+.state-panel { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 18px; text-align: center; }
+.state-panel p { margin: 0; line-height: 1.5; }
+.state-panel > ion-icon { color: var(--gam-color-text-muted); font-size: 28px; }
+.pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.pagination span { color: var(--gam-color-text-muted); font-size: .8125rem; }
+.error, .success { padding: 12px; border-radius: 8px; line-height: 1.5; }
+.error { background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
+.success { background: var(--gam-color-success-soft); color: var(--gam-color-success); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+@media (min-width: 600px) { .record-list { grid-template-columns: 1fr 1fr; } .history-heading { grid-template-columns: 1fr auto; align-items: center; } }

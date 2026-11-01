@@ -79,6 +79,7 @@ describe('admin navigation visibility', () => {
     ).toEqual([
       'galpones',
       'plantas-de-racion',
+      'mantenimiento',
       'nuevo-galpon',
     ]);
 
@@ -100,7 +101,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(27);
+    ).toBe(28);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
@@ -220,6 +221,17 @@ describe('admin navigation visibility', () => {
     expect(flocksRoutes?.find((route) => route.path === ':id/sanidad')?.loadComponent).toBeTypeOf('function');
   });
 
+  it('opens the maintenance directory and its guarded installation history from Instalaciones', async () => {
+    const installations = (adminRoutes[0]?.children ?? []).find((route) => route.path === 'ubicaciones');
+    const loader = installations?.children?.find((route) => route.path === 'mantenimiento')?.loadChildren as (() => Promise<Routes>);
+    const routes = await loader();
+    expect(routes.map((route) => route.path)).toEqual([':id/galpon/:houseId', '']);
+    expect(routes.find((route) => route.path === '')?.loadComponent).toBeTypeOf('function');
+    expect(routes[0].data?.['maintenanceHub']).toBe(true);
+    expect(routes[0].canDeactivate).toHaveLength(1);
+    expect(activeAdminGroup('/administracion/ubicaciones/mantenimiento/7/galpon/22')).toBe('ubicaciones');
+  });
+
   it('renders existing menu URLs and keeps Registrar movimiento active with product context', async () => {
     const groups = visibleAdminNavigation({ roles: ['admin'] });
 
@@ -229,6 +241,9 @@ describe('admin navigation visibility', () => {
         provideRouter([
           { path: 'administracion/inventario/ajustes-y-perdidas', children: [] },
           { path: 'administracion/inventario/existencias', children: [] },
+          { path: 'administracion/ubicaciones/mantenimiento', children: [
+            { path: ':id/galpon/:houseId', children: [] }, { path: '', children: [] },
+          ] },
         ]),
         {
           provide: AdminUnitContextService,
@@ -292,6 +307,14 @@ describe('admin navigation visibility', () => {
     fixture.detectChanges();
     expect(movementLink.classList.contains('active')).toBe(false);
     expect(movementLink.hasAttribute('aria-current')).toBe(false);
+    const maintenanceLink = links.find((link) => link.textContent?.trim() === 'Mantenimiento')!;
+    expect(maintenanceLink.getAttribute('href')).toBe('/administracion/ubicaciones/mantenimiento');
+    for (const path of ['/administracion/ubicaciones/mantenimiento', '/administracion/ubicaciones/mantenimiento/7/galpon/22']) {
+      await router.navigateByUrl(path); await fixture.whenStable(); fixture.detectChanges();
+      expect(maintenanceLink.classList.contains('active')).toBe(true);
+      expect(maintenanceLink.getAttribute('aria-current')).toBe('page');
+      expect(fixture.componentInstance.expandedGroup()).toBe('ubicaciones');
+    }
     fixture.destroy();
   });
 

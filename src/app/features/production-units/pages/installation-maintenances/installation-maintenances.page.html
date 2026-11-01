@@ -1,0 +1,50 @@
+<main class="maintenance-page" aria-labelledby="maintenance-title">
+  <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" />{{ backLabel() }}</a>
+  <header class="page-heading"><h1 id="maintenance-title" tabindex="-1">Mantenimientos</h1><p>{{ house()?.name }}</p></header>
+  @if (statusError()) { <p class="error" role="alert">{{ statusError() }}</p> }
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando instalación…</div>
+  } @else if (state() === 'error') {
+    <div class="state-panel" role="alert"><p>{{ pageError() }}</p><ion-button class="outline" fill="outline" (click)="loadHouse()">Reintentar</ion-button></div>
+  } @else if (house(); as currentHouse) {
+    @if (fromMaintenanceHub) { <a class="back-link" [routerLink]="installationLink()">Ver detalle de la instalación ›</a> }
+    <app-installation-maintenance-status [house]="currentHouse" [disabled]="dialog()?.saving() ?? false" (changed)="house.set($event); statusError.set('')" (refreshRequested)="statusError.set($event); loadHouse()" />
+    <section class="history" aria-labelledby="history-title">
+      <header class="history-heading"><div><h2 id="history-title"><ion-icon name="build-outline" aria-hidden="true" />Historial de trabajos</h2><p>Trabajos realizados en esta instalación.</p></div>
+        @if (canManage()) { <ion-button class="primary" [disabled]="dialog()?.saving()" (click)="openCreate($event)"><ion-icon slot="start" name="add-outline" aria-hidden="true" />Registrar mantenimiento</ion-button> }
+      </header>
+      @if (feedback()) { <p class="success" role="status">{{ feedback() }}</p> }
+      <form class="filters" [formGroup]="filtersForm" (ngSubmit)="applyFilters()" aria-label="Filtros del historial">
+        <label>Registros<select formControlName="status" (change)="applyFilters()"><option value="">Todos los registros</option><option value="completed">Realizados</option><option value="cancelled">Anulados</option></select></label>
+        <button class="dates-trigger" type="button" [disabled]="loading()" (click)="openDates($event)"><ion-icon name="calendar-outline" aria-hidden="true" />Fechas</button>
+        @if (hasFilters()) { <button type="button" [disabled]="loading()" (click)="clearFilters()">Limpiar filtros</button> }
+      </form>
+      @if (filterError()) { <p class="error" role="alert">{{ filterError() }}</p> }
+      @if (loading()) {
+        <div class="state-panel" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando historial…</div>
+      } @else if (historyError()) {
+        <div class="state-panel" role="alert"><p>{{ historyError() }}</p><ion-button class="outline" fill="outline" (click)="refreshHistory()">Reintentar</ion-button></div>
+      } @else if (!rows().length) {
+        <div class="state-panel"><ion-icon name="build-outline" aria-hidden="true" /><h3>Sin mantenimientos para mostrar</h3><p>No hay trabajos registrados con estos filtros.</p></div>
+      } @else {
+        <div class="record-list">
+          @for (row of rows(); track row.record.id) {
+            <article class="record-card">
+              <div class="record-heading"><time [attr.datetime]="row.record.maintenance_date">{{ row.dateLabel }}</time><span class="badge" [class.cancelled]="row.record.status === 'cancelled'">{{ row.record.status === 'completed' ? 'Realizado' : 'Anulado' }}</span></div>
+              <h3>{{ row.record.description }}</h3><p class="responsible"><ion-icon name="person-outline" aria-hidden="true" />{{ row.record.responsible.name }}</p><strong class="cost">{{ row.costLabel }}</strong>
+              <button #detailTrigger class="detail-link" type="button" [attr.aria-label]="'Ver detalle del mantenimiento del ' + row.dateLabel" (click)="dialog()?.openRecord(row.record, detailTrigger)">Ver detalle <span aria-hidden="true">›</span></button>
+            </article>
+          }
+        </div>
+        <nav class="pagination" aria-label="Páginas del historial"><button type="button" [disabled]="page() <= 1" (click)="goToPage(-1)">Anterior</button><span aria-live="polite">Página {{ page() }} de {{ lastPage() }} · {{ total() }} registros</span><button type="button" [disabled]="page() >= lastPage()" (click)="goToPage(1)">Siguiente</button></nav>
+      }
+    </section>
+    <app-filter-dialog titleId="maintenance-dates-title" (clearRequested)="clearDates()" (applyRequested)="applyDates()">
+      <h3>Fechas de mantenimiento</h3>
+      <div class="date-fields" [formGroup]="dateForm"><label>Desde<input type="date" formControlName="from" /></label><label>Hasta<input type="date" formControlName="to" /></label>
+        @if (filterError()) { <p class="error" role="alert">{{ filterError() }}</p> }
+      </div>
+    </app-filter-dialog>
+    <app-maintenance-record-dialog [house]="currentHouse" (changed)="onChanged($event)" (refreshRequested)="refreshHistory()" />
+  }
+</main>

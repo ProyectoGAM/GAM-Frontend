@@ -1,0 +1,22 @@
+<main class="maintenance-directory" aria-labelledby="maintenance-directory-title">
+  <header><p class="breadcrumb">Administración / Instalaciones</p><h1 id="maintenance-directory-title">Mantenimiento</h1><p>Elegí una instalación para consultar sus trabajos, costos y responsables.</p><p class="scope">{{ scopeName() }}</p></header>
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando instalaciones…</div>
+  } @else if (state() === 'error') {
+    <div class="state-panel error" role="alert"><p>{{ error() }}</p><ion-button fill="outline" (click)="load()">Reintentar</ion-button></div>
+  } @else {
+    <div class="filters"><label>Buscar instalación<div class="search-control"><ion-icon name="search-outline" aria-hidden="true" /><input type="search" [value]="query()" (input)="search($event)" placeholder="Nombre o unidad productiva" /></div></label><label>Tipo de instalación<select [value]="type()" (change)="changeType($event)"><option value="all">Galpones y plantas</option><option value="poultry">Galpones avícolas</option><option value="feed">Plantas de ración</option></select></label></div>
+    <p class="count" aria-live="polite">{{ visibleInstallations().length }} instalaciones</p>
+    @if (!visibleInstallations().length) {
+      <div class="state-panel"><h2>Sin instalaciones para mostrar</h2><p>No hay instalaciones que coincidan con la unidad productiva y los filtros seleccionados.</p></div>
+    } @else {
+      <div class="installation-list">
+        @for (house of visibleInstallations(); track house.id) {
+          <a class="installation-card" [routerLink]="['/administracion/ubicaciones/mantenimiento', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver mantenimientos de ' + house.name">
+            <ion-icon class="symbol" name="build-outline" aria-hidden="true" /><div class="copy"><span class="type">{{ house.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</span><h2>{{ house.name }}</h2><p>{{ house.productionUnit.name }}</p><span class="card-action">Ver mantenimientos</span></div><ion-icon name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        }
+      </div>
+    }
+  }
+</main>

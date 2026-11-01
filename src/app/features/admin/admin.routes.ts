@@ -85,6 +85,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               ...group.items
                 .filter((item) => !item.slug.includes('/'))
                 .map((item) => {
+                  if (group.id === 'ubicaciones' && item.slug === 'mantenimiento') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../production-units/production-units.routes')
+                        .then((module) => module.installationMaintenanceRoutes),
+                    };
+                  }
                   if (group.id === 'reportes' && item.slug === 'reportes') {
                     return { path: item.slug, loadChildren: () => import('../reporting/reporting.routes').then((module) => module.reportingRoutes) };
                   }

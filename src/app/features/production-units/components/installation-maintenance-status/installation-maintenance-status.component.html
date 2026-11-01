@@ -1,0 +1,13 @@
+<div class="status-card" [attr.aria-busy]="saving()">
+  <div class="status-heading"><span>Estado de la instalación</span><strong class="badge" [attr.data-status]="house().status">{{ statusLabel() }}</strong></div>
+  @if (canManage() && canToggle()) {
+    <ion-button class="status-action" fill="outline" expand="block" [disabled]="saving() || disabled() || blockedByUnit()" (click)="toggle()">
+      <ion-icon slot="start" [name]="house().status === 'maintenance' ? 'checkmark-outline' : 'build-outline'" aria-hidden="true" />
+      {{ saving() ? 'Cambiando estado…' : actionLabel() }}
+    </ion-button>
+    @if (blockedByUnit()) { <p class="hint">La unidad productiva debe estar activa para volver a operar.</p> }
+  }
+  <p class="hint">Cambiar el estado no registra un trabajo de mantenimiento.</p>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="success" role="status">{{ feedback() }}</p> }
+</div>

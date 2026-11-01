@@ -115,6 +115,18 @@ describe('PoultryHouseDetailPage', () => {
     });
   });
 
+  it('adds the maintenance history link without replacing the existing poultry content', () => {
+    render();
+    expect(fixture.nativeElement.querySelector('.maintenance-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-poultry-house-detail-content')).not.toBeNull();
+  });
+
+  it('adds the same maintenance access for plants while preserving their stock section', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', bird_capacity: null } })); render();
+    expect(fixture.nativeElement.querySelector('.maintenance-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-feed-stock-detail')).not.toBeNull();
+  });
+
   it('shows excess, real percentage and zero free places while keeping the bar within its range', () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 6200 } }));
     render();

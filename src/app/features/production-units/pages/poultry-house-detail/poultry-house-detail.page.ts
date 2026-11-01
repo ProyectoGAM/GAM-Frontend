@@ -20,6 +20,7 @@ import {
 } from '@ionic/angular';
 
 import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
+import { InstallationMaintenanceStatusComponent } from '../../components/installation-maintenance-status/installation-maintenance-status.component';
 import { PoultryHouseDetailContentComponent } from '../../components/poultry-house-detail-content/poultry-house-detail-content.component';
 import {
   FeedStock,
@@ -53,6 +54,7 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
     IonSpinner,
     RouterLink,
     FeedStockDetailComponent,
+    InstallationMaintenanceStatusComponent,
     PoultryHouseDetailContentComponent,
     FlockHouseTaskDialogComponent,
     FlockHouseHealthDialogComponent,
@@ -84,6 +86,7 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
   readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
   private readonly healthDialog = viewChild(FlockHouseHealthDialogComponent);
+  private readonly maintenanceStatus = viewChild(InstallationMaintenanceStatusComponent);
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -193,7 +196,7 @@ export class PoultryHouseDetailPage implements OnInit {
     else this.loadFeedStock(house.id);
   }
 
-  canLeave(): boolean { return this.healthDialog()?.canLeave() ?? true; }
+  canLeave(): boolean { return !this.maintenanceStatus()?.saving() && (this.healthDialog()?.canLeave() ?? true); }
 
   openFlockTask(action: FlockHouseTaskAction): void {
     const house = this.house();

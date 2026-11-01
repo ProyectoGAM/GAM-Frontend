@@ -1,0 +1,11 @@
+:host { display: block; }
+.status-card { padding: 16px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-text); }
+.status-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: .875rem; }
+.badge { padding: 6px 10px; border-radius: 7px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); }
+.badge[data-status='operational'] { background: var(--gam-color-success-soft); color: var(--gam-color-success); }
+.badge[data-status='maintenance'], .badge[data-status='out_of_service'] { background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
+.status-action { margin: 14px 0 0; min-height: 44px; --background: var(--gam-color-surface); --color: var(--gam-color-primary); --border-color: var(--gam-color-control-border); --border-radius: 8px; --background-activated: var(--gam-color-primary-soft); }
+.hint { margin: 12px 0 0; color: var(--gam-color-text-muted); font-size: .8125rem; line-height: 1.5; }
+.error, .success { margin: 12px 0 0; padding: 10px; border-radius: 6px; line-height: 1.5; }
+.error { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+.success { color: var(--gam-color-success); background: var(--gam-color-success-soft); }

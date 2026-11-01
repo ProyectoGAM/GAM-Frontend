@@ -4,6 +4,11 @@ La gestión de cuentas y dispositivos usa `features/users/services/users.service
 
 ## 1. Contract-first
 
+El [mantenimiento de instalaciones](installation-maintenance.md) consume el
+historial, registro, corrección y anulación de `maintenance.yaml`, y el cambio
+independiente de estado de instalaciones. Documenta el costo cero y la limitación
+de permisos del directorio de responsables.
+
 El [Historial del sistema](audit-history.md) consume resúmenes de `audit/entries`,
 detalle bajo demanda de `auditoria/entradas/{id}`, responsables paginados de
 `auditoria/responsables` y etiquetas de `reference/options`. El
