@@ -84,7 +84,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
   {
     id: 'proveedores',
     label: 'Proveedores',
-    icon: 'business-outline',
+    icon: 'storefront-outline',
     section: 'global',
     items: [
       { label: 'Proveedores', slug: 'proveedores' },
@@ -115,12 +115,19 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
   {
     id: 'repartos',
     label: 'Repartos',
-    icon: 'car-outline',
+    icon: 'map-outline',
     section: 'global',
     items: [
       { label: 'Repartos', slug: 'repartos' },
 
     ],
+  },
+  {
+    id: 'vehiculos',
+    label: 'Vehículos',
+    icon: 'car-outline',
+    section: 'global',
+    items: [{ label: 'Flota', slug: '' }],
   },
   {
     id: 'alertas-notificaciones',

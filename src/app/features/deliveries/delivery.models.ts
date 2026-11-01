@@ -6,6 +6,8 @@ export type DeliveryStopStatus = 'pending' | 'delivered' | 'not_delivered';
 export interface DeliveryProductionUnit {
   id: number;
   name: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 
 export interface DeliveryClient {
@@ -39,6 +41,7 @@ export interface DeliveryStop {
   visit_reason: string | null;
   notes: string | null;
   visited_at: string | null;
+  created_at?: string;
   delivery_id?: string;
   accounting_status?: 'legacy_unreconciled' | 'posted' | 'not_applicable';
   account_movements?: CustomerMovement[];
@@ -63,6 +66,7 @@ export interface DeliveryLoad {
   production_unit?: DeliveryProductionUnit | null;
   type: string;
   created_at: string;
+  occurred_at?: string;
 }
 
 export interface DeliveryUnit {
@@ -117,9 +121,20 @@ export interface DeliveryUnitBalances {
 export interface Delivery {
   id: string;
   status: DeliveryStatus;
+  started_without_load?: boolean;
   driver: { id: number; name: string } | null;
-  production_unit: { id: number; name: string; latitude?: number | string | null; longitude?: number | string | null } | null;
+  production_unit: DeliveryProductionUnit | null;
   vehicle_reference: string | null;
+  vehicle?: { id: string; plate: string; make: string; model: string; year: number | null } | null;
+  vehicle_usage?: {
+    id: string;
+    started_at: string;
+    ended_at: string | null;
+    start_odometer_km: string | null;
+    end_odometer_km: string | null;
+    distance_km: string | null;
+    fuel_entries?: DeliveryFuelEntry[];
+  } | null;
   loaded_quantity: number;
   delivered_quantity: number;
   returned_quantity: number;
@@ -134,11 +149,24 @@ export interface Delivery {
   stops_summary: { total: number; pending: number; delivered: number; not_delivered: number };
   started_at: string;
   closed_at: string | null;
+  close_notes?: string | null;
   latest_location: DeliveryLocation | null;
   stops?: DeliveryStop[];
   loads?: DeliveryLoad[];
   unit_balances?: DeliveryUnitBalances;
   locations?: DeliveryLocation[];
+}
+
+export interface DeliveryFuelEntry {
+  id: string;
+  occurred_at: string;
+  liters: string;
+  fuel_type: string;
+  amount: string;
+  currency: 'UYU';
+  supplier: string | null;
+  odometer_km: string | null;
+  notes: string | null;
 }
 
 export interface DeliveryListResponse {
@@ -154,6 +182,9 @@ export interface DeliveryEnvelope {
 
 export interface StartDeliveryInput {
   pin: string;
+  vehicle_id: string;
+  odometer_km?: string;
+  start_without_load?: boolean;
   quantity?: number; // Compatibilidad con clientes anteriores.
   items?: DeliveryLoadItemInput[];
   production_unit_id?: number;
@@ -161,6 +192,7 @@ export interface StartDeliveryInput {
 }
 
 export interface AddDeliveryLoadInput {
+  occurred_at?: string;
   production_unit_id?: number; // Operaciones anteriores de la cola no incluyen origen.
   quantity?: number; // Compatibilidad con operaciones ya encoladas.
   items?: DeliveryLoadItemInput[];
@@ -180,6 +212,7 @@ export interface DeliveryFinancialSummary {
 export interface DeliveryPaymentInput extends CustomerPaymentInput {
   client_reference: string;
   client_event_id: string;
+  occurred_at?: string;
 }
 
 export interface DeliveryClientPage {
@@ -196,6 +229,7 @@ export interface StopInput {
   items?: DeliveryStopItemInput[];
   visit_reason?: string;
   notes?: string;
+  occurred_at?: string;
 }
 
 export interface LocationInput {
@@ -213,4 +247,5 @@ export interface CloseDeliveryInput {
   returned_items?: DeliveryLoadItemInput[];
   return_production_unit_id?: number;
   notes?: string;
+  odometer_km?: string;
 }

@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthStore } from '../../core/auth/auth.store';
+import { VehicleFuelInput } from '../vehicles/interfaces/vehicle';
 import { AddDeliveryLoadInput, CloseDeliveryInput, Delivery, DeliveryClient, DeliveryPaymentInput, DeliveryUnit, DeliveryProductionUnit, LocationInput, StopInput } from './delivery.models';
 
-export type DeliveryOutboxKind = 'load' | 'stop' | 'payment' | 'locations' | 'close';
+export type DeliveryOutboxKind = 'load' | 'stop' | 'payment' | 'fuel' | 'locations' | 'close';
 export interface DeliveryOutboxEntry {
   id: string;
   actorId?: number;
@@ -13,7 +14,7 @@ export interface DeliveryOutboxEntry {
   replaces?: string;
   kind: DeliveryOutboxKind;
   deliveryId: string;
-  payload: AddDeliveryLoadInput | StopInput | DeliveryPaymentInput | { locations: LocationInput[] } | Omit<CloseDeliveryInput, 'pin'>;
+  payload: AddDeliveryLoadInput | StopInput | DeliveryPaymentInput | VehicleFuelInput | { locations: LocationInput[] } | Omit<CloseDeliveryInput, 'pin'>;
   idempotencyKey: string | null;
   createdAt: string;
   attempts: number;
@@ -42,7 +43,7 @@ export class DeliveryOutboxService {
     const transaction = database.transaction(STORE_NAME, 'readwrite');
     const committed = this.committed(transaction);
     const store = transaction.objectStore(STORE_NAME);
-    const value: DeliveryOutboxEntry = { ...entry, id: crypto.randomUUID(), actorId, schemaVersion: 3, state: 'pending', createdAt: new Date().toISOString(), attempts: 0 };
+    const value: DeliveryOutboxEntry = { ...entry, id: crypto.randomUUID(), actorId, schemaVersion: 4, state: 'pending', createdAt: new Date().toISOString(), attempts: 0 };
     const request = store.getAll();
     request.onsuccess = () => {
       const rows = request.result as DeliveryOutboxEntry[];
@@ -137,7 +138,7 @@ export class DeliveryOutboxService {
   private database(): Promise<IDBDatabase> {
     if (typeof globalThis.indexedDB === 'undefined') return Promise.reject(new Error('No hay almacenamiento durable disponible. No se guardó la operación.'));
     return this.databasePromise ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open('gam-deliveries', 3);
+      const request = indexedDB.open('gam-deliveries', 4);
       request.onerror = () => { this.databasePromise = null; reject(request.error ?? new Error('No se pudo abrir la cola local.')); };
       request.onblocked = () => { this.databasePromise = null; reject(new Error('Cerrá otras pestañas de GAM para actualizar el almacenamiento local.')); };
       request.onsuccess = () => { request.result.onversionchange = () => { request.result.close(); this.databasePromise = null; }; resolve(request.result); };

@@ -41,6 +41,8 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
           ]
         : group.id === 'historial'
           ? [{ path: '', loadChildren: () => import('../audit/audit.routes').then((module) => module.auditRoutes) }]
+        : group.id === 'vehiculos'
+          ? [{ path: '', loadChildren: () => import('../vehicles/vehicles.routes').then((module) => module.vehiclesRoutes) }]
         : group.id === 'resumen'
           ? [
               {

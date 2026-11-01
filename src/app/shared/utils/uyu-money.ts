@@ -1,4 +1,4 @@
-const wholeFormatter = new Intl.NumberFormat('es-UY', { style: 'currency', currency: 'UYU', maximumFractionDigits: 0 });
+const wholeFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 0 });
 const maximum = 9999999999999999999999n;
 
 /** Convierte una entrada decimal a milésimos exactos, admitiendo coma en el formulario. */
@@ -24,7 +24,7 @@ export function formatUyuMoney(amount: string | number | null | undefined): stri
   const negative = text.startsWith('-');
   const [whole, fraction = ''] = text.replace(/^-/, '').split('.');
   const decimals = fraction.replace(/0+$/, '');
-  const formatted = wholeFormatter.format(BigInt(negative ? `-${whole}` : whole));
-  const sign = negative && BigInt(whole) === 0n ? '−' : '';
-  return `${sign}${formatted}${decimals ? ',' + decimals : ''} UYU`;
+  const formatted = wholeFormatter.format(BigInt(whole));
+  const sign = negative ? '−' : '';
+  return `${sign}$${formatted}${decimals ? ',' + decimals : ''}`;
 }

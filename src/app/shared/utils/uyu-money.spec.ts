@@ -12,7 +12,12 @@ describe('UYU exact amounts', () => {
 
   it('keeps credit smaller than one peso visible with its sign', () => {
     expect(uyuDecimal(parseUyuAmount('-0.001')!)).toBe('-0.001');
-    expect(formatUyuMoney('-0.001')).toMatch(/−.*0,001 UYU/);
+    expect(formatUyuMoney('-0.001')).toBe('−$0,001');
+  });
+
+  it('formats pesos with a single dollar sign and local thousands separators', () => {
+    expect(formatUyuMoney('1000')).toBe('$1.000');
+    expect(formatUyuMoney('550')).toBe('$550');
   });
 
   it('rejects rounding, exponential notation and out of range amounts', () => {

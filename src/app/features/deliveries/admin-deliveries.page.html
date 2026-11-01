@@ -17,7 +17,7 @@
         @if (loading() && active().length === 0) { <div class="loading-state" role="status"><ion-spinner name="crescent" /> Cargando repartos…</div> }
         @for (delivery of active(); track delivery.id) {
           <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
-            <span class="status-dot active"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos · {{ delivery.stops_summary.total }} visitas</small></span>
+            <span class="status-dot active"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos{{ delivery.started_without_load ? ' · inició sin carga' : '' }} · {{ delivery.stops_summary.total }} visitas</small></span>
           </button>
         } @empty { @if (!loading()) { <p class="muted">No hay repartos activos para esta selección.</p> } }
       </ion-card-content>
@@ -27,7 +27,7 @@
       <ion-card-content>
         @for (delivery of history(); track delivery.id) {
           <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
-            <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>
+            <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos{{ delivery.started_without_load ? ' · inició sin carga' : '' }} · {{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>
           </button>
         } @empty { @if (!loading()) { <p class="muted">Todavía no hay repartos cerrados.</p> } }
       </ion-card-content>
@@ -36,7 +36,8 @@
 
   <section class="map-and-detail" aria-label="Detalle del reparto seleccionado">
     <div class="map-shell">
-      <div #adminMap class="admin-map" role="application" aria-label="Mapa de ubicaciones persistidas del reparto"></div>
+      <div #adminMap class="admin-map" role="application" aria-label="Mapa de acciones registradas del reparto"></div>
+      @if (mapReady() && hasMapPoints()) { <p class="map-legend">Acciones numeradas · seleccioná un punto para ver sus detalles</p> }
       @if (mapError()) { <p class="map-message" role="alert">{{ mapError() }}</p> }
       @if (!mapReady() && !mapError()) { <p class="map-message" role="status"><ion-spinner name="crescent" /> Cargando mapa…</p> }
     </div>
@@ -48,28 +49,32 @@
           @if (detailLoading()) { <p class="muted" role="status">Actualizando detalle…</p> }
           @if (detailError()) { <p class="page-error" role="alert">{{ detailError() }}</p> }
           <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
-          <p><strong>UP inicial:</strong> {{ delivery.production_unit?.name ?? '—' }}</p>
+          <p><strong>Carga al inicio:</strong> {{ delivery.started_without_load ? 'No cargó huevos al inicio' : 'Con carga inicial' }}</p>
+          <p><strong>UP inicial:</strong> {{ delivery.started_without_load ? 'No aplica' : delivery.production_unit?.name ?? '—' }}</p>
+          <p><strong>Vehículo:</strong> {{ delivery.vehicle ? delivery.vehicle.plate + ' · ' + delivery.vehicle.make + ' ' + delivery.vehicle.model : delivery.vehicle_reference ?? '—' }}</p>
+          @if (delivery.vehicle_usage; as usage) { <p><strong>Tablero:</strong> Salida {{ usage.start_odometer_km ? usage.start_odometer_km + ' km' : 'sin lectura' }} · Cierre {{ usage.end_odometer_km ? usage.end_odometer_km + ' km' : 'sin lectura' }}@if (usage.distance_km) { · Distancia registrada {{ usage.distance_km }} km }</p> }
+          <p><strong>Inicio:</strong> {{ delivery.started_at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }} · <strong>Fin:</strong> {{ delivery.closed_at ? (delivery.closed_at | date:'dd/MM/yyyy HH:mm:ss':'-0300') : 'En curso' }}</p>
           <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }}</p>
           @if (!hasMapPoints()) { <p class="muted" role="status">Ubicación no disponible: el reparto no tiene puntos persistidos para mostrar.</p> }
-          @if (delivery.loads?.length) {
-            <div class="stops-detail"><strong>Cargas</strong>
-              @for (load of delivery.loads; track load.id) {
-                <div><span>{{ load.type === 'initial' ? 'Inicial' : 'Adicional' }} · {{ load.production_unit?.name ?? delivery.production_unit?.name }} · {{ load.created_at | date:'short' }}
-                  @for (item of load.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} = {{ item.eggs }} huevos</small> }
-                </span><small>{{ load.quantity }} huevos</small></div>
+          <section class="timeline-section" aria-label="Línea de tiempo del reparto">
+            <h3>De inicio a cierre</h3>
+            @if (timeline().length === 0) { <p class="muted">Todavía no hay eventos registrados.</p> }
+            <ol class="delivery-timeline">
+              @for (event of timeline(); track event.id) {
+                <li class="timeline-event" [attr.data-kind]="event.kind">
+                  <span class="timeline-marker" aria-hidden="true"></span>
+                  <div class="timeline-content">
+                    <div class="timeline-heading"><strong>{{ event.title }}</strong><time [attr.datetime]="event.occurredAt ?? event.recordedAt">{{ event.occurredAt ? (event.occurredAt | date:'dd/MM/yyyy HH:mm:ss':'-0300') : event.recordedAt ? (event.recordedAt | date:'dd/MM/yyyy HH:mm:ss':'-0300') : 'Hora no registrada' }}</time></div>
+                    @for (detail of event.details; track $index) { <p>{{ detail }}</p> }
+                    @if (hasRecordedDelay(event)) { <small>Recibido por el sistema: {{ event.recordedAt | date:'dd/MM/yyyy HH:mm:ss':'-0300' }}</small> }
+                  </div>
+                </li>
               }
-            </div>
-          }
+            </ol>
+          </section>
           <app-delivery-financial-summary [summary]="delivery.financial_summary" [customerLinks]="true" title="Dinero y cuentas vigentes del reparto" />
           @if (delivery.closed_financial_summary) { <app-delivery-financial-summary [summary]="delivery.closed_financial_summary" [customerLinks]="true" title="Resumen conservado al cierre" /> }
           <p><strong>Valor entregado:</strong> {{ money(delivery.delivered_amount) }}</p>
-          @if (delivery.status === 'completed') {
-            <div class="stops-detail"><strong>Descarga final</strong>
-              <p>UP: {{ delivery.return_production_unit?.name ?? 'Sin descarga' }}</p>
-              @for (item of delivery.returned_items ?? []; track $index) { <div><span>{{ item.amount }} {{ item.label }}</span><small>{{ item.eggs }} huevos</small></div> }
-              @if (delivery.returned_items === null && delivery.returned_quantity > 0) { <p>Registro anterior: {{ delivery.returned_quantity }} huevos, sin desglose de presentaciones.</p> }
-            </div>
-          }
           <p><strong>Última ubicación:</strong> {{ delivery.latest_location ? (delivery.latest_location.captured_at | date:'medium') : 'Sin datos aún' }}</p>
           @if (delivery.stops?.length) {
             <div class="stops-detail"><strong>Visitas</strong>
