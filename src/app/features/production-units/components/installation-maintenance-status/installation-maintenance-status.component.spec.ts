@@ -53,4 +53,10 @@ describe('InstallationMaintenanceStatusComponent', () => {
     expect(fixture.nativeElement.querySelector('ion-button')).toBeNull();
     update.mockClear(); fixture.componentInstance.toggle(); expect(update).not.toHaveBeenCalled();
   });
+
+  it.each(['inactive', 'out_of_service'] as const)('restores a %s installation with the same header action', (status) => {
+    fixture.componentRef.setInput('house', { ...maintenanceHouse, status }); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Marcar como operativo');
+    fixture.componentInstance.toggle(); expect(update).toHaveBeenCalledExactlyOnceWith(22, 'operational');
+  });
 });

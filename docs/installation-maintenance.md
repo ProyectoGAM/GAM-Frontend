@@ -1,11 +1,29 @@
 # Mantenimiento de instalaciones
 
 El detalle de galpones avícolas y plantas de ración incorpora el acceso
-**Mantenimientos ›** y un cambio rápido entre operativo y en mantenimiento.
+**Mantenimientos ›**. El cambio rápido entre operativo y en mantenimiento
+se realiza únicamente dentro de esa sección; el detalle no muestra la tarjeta
+de cambio rápido. Su botón superior **Cambiar estado / Reactivar** también
+navega a Mantenimientos, sin cambiar el estado desde el detalle.
 Las secciones existentes de stock, elaboración y lotes conservan su estructura
 y sus acciones. El estado se refleja en el detalle sin registrar un trabajo.
-Para volver a operar, la unidad productiva debe estar activa. Los estados
-inactivo y fuera de servicio conservan la gestión general de estado existente.
+Para volver a operar, la unidad productiva debe estar activa. El encabezado
+muestra el estado junto a **Mantenimientos**. Se elimina el control **Otros
+estados** y la tarjeta independiente de estado. El botón cambia entre operativo
+y en mantenimiento; para instalaciones inactivas o fuera de servicio, ese mismo
+botón permite **Marcar como operativo**, conservando su recuperación sin otro
+selector de estados. El historial sigue disponible en todos esos estados.
+Eliminar conserva su baja lógica existente en el detalle.
+
+Acceso rápido incluye **Hacer mantenimiento** al pie de cada tarjeta, debajo
+de una línea separadora, después de las tareas del lote o de Elaborar en plantas.
+No se duplica el listado de instalaciones ni se crea una grilla adicional.
+El acceso abre la sección de Mantenimientos; no envía cambios de estado. Reutiliza la UP, tipo
+Galpón/Planta y búsqueda actuales, sin consultas adicionales. La ausencia de
+lote o el estado no operativo no bloquean la consulta de mantenimiento.
+Se conservan las reglas actuales de acceso a Instalaciones; sin permiso se
+muestra la tarjeta deshabilitada. Un formulario abierto también deshabilita la
+navegación, conservando sus bloqueos y recuperación.
 
 El sidebar ofrece **Instalaciones → Mantenimiento**, bajo
 `ubicaciones/mantenimiento`. Permite buscar galpones o plantas y limita las
@@ -27,6 +45,25 @@ La pantalla de mantenimientos es una ruta lazy bajo
 y su UP antes de consultar el historial, permite filtrar por estado y fechas,
 y pagina de a 20 registros. Muestra fecha, descripción, costo en la moneda
 histórica y nombre del responsable conservado por la API.
+
+**Poner en mantenimiento / Marcar como operativo** y **Registrar mantenimiento**
+se ubican juntos en el encabezado superior, a la derecha en escritorio y apilados
+debajo del título en teléfono. El historial conserva su título, descripción y
+filtros agrupados debajo del encabezado. Se conservan permisos y formulario;
+registrar queda bloqueado mientras se cambia el estado y viceversa.
+
+Sobre el historial aparece **Costo total de mantenimiento** de la instalación.
+Incluye todos los trabajos realizados y excluye los anulados, independientemente
+de los filtros y de la página visible. Se actualiza al registrar, corregir o
+anular un trabajo; está disponible para galpones y plantas, incluso en consulta.
+Sin trabajos realizados muestra cero. Conserva las monedas históricas en totales
+separados y suma importes decimales exactos, sin convertirlos a punto flotante.
+
+La API actual no entrega un total acumulado ni un endpoint de resumen. El servicio
+del frontend consulta todas las páginas con `status=completed` y `per_page=100`;
+solo publica el total cuando termina. La carga tiene error y reintento propios,
+sin bloquear el historial ni mostrar una suma parcial. Cambiar filtros o página
+no repite este cálculo. Un cambio de instalación cancela las consultas anteriores.
 
 ## Contrato y operaciones
 
@@ -100,3 +137,18 @@ aprobaron. El navegador verificó el filtrado del selector por UP, la entrada
 activa en el menú durante la consulta, y los detalles individuales de los dos
 trabajos realizados y el registro anulado de prueba del Galpón Norte. Las
 capturas del selector y el registro están en `.tmp/qa/maintenance-sidebar-*.jpg`.
+
+El encabezado compacto se verificó el 2 de noviembre: lint y build aprobaron
+en Docker, junto con la suite completa de 1314 pruebas y una ejecución de las
+13 pruebas de pantalla y cambio de estado que incluye la recuperación de
+instalaciones inactivas y fuera de servicio. Se revisaron escritorio y teléfono
+de 320 px en claro/oscuro, sin desborde horizontal ni errores de consola. El
+botón superior abre el formulario y recupera el foco al cerrarlo. Capturas:
+`.tmp/qa/maintenance-compact-header-*.jpg`.
+
+El costo acumulado aprobó lint, las 1323 pruebas de la suite completa y build
+de producción en Docker. Contra la API local, Galpón Norte muestra 5100,50 UYU
+por sus dos trabajos realizados y conserva ese total al filtrar por anulados.
+Se verificó el resumen en escritorio claro y teléfono oscuro de 320 px, sin
+desborde horizontal ni errores de consola. Capturas:
+`.tmp/qa/maintenance-cost-total-*.jpg`.

@@ -119,6 +119,8 @@ describe('PoultryHouseDetailPage', () => {
     render();
     expect(fixture.nativeElement.querySelector('.maintenance-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
     expect(fixture.nativeElement.querySelector('app-poultry-house-detail-content')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-installation-maintenance-status')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Poner en mantenimiento');
   });
 
   it('adds the same maintenance access for plants while preserving their stock section', () => {
@@ -495,16 +497,12 @@ describe('PoultryHouseDetailPage', () => {
     expect(updatePoultryHouseStatus).not.toHaveBeenCalled();
   });
 
-  it('changes the operational state through the dedicated status action', async () => {
-    alertCreate.mockResolvedValue({
-      present: vi.fn(),
-      onDidDismiss: vi.fn().mockResolvedValue({ role: 'confirm', data: { values: 'operational' } }),
-    });
+  it('opens the maintenance section for status changes without mutating from the detail page', () => {
     render();
-
-    await fixture.componentInstance.changeStatus();
-
-    expect(updatePoultryHouseStatus).toHaveBeenCalledWith(22, 'operational');
-    expect(getPoultryHouseById).toHaveBeenCalledTimes(2);
+    const link = fixture.nativeElement.querySelector('.actions ion-button:nth-child(2)');
+    expect(link.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-installation-maintenance-status')).toBeNull();
+    expect(updatePoultryHouseStatus).not.toHaveBeenCalled();
+    expect(alertCreate).not.toHaveBeenCalled();
   });
 });

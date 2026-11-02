@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { IonIcon, IonSpinner } from '@ionic/angular';
+import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { addIcons } from 'ionicons';
-import { businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline } from 'ionicons/icons';
+import { buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { canAccessGroup } from '../../../../core/auth/access-policy';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
@@ -19,7 +21,7 @@ import { QuickAccessService, quickAccessSearch } from '../../services/quick-acce
 
 @Component({
   selector: 'app-quick-access-page',
-  imports: [IonIcon, IonSpinner, FlockHouseTaskDialogComponent, FlockHouseHealthDialogComponent, QuickAccessManufactureDialogComponent],
+  imports: [RouterLink, IonIcon, IonSpinner, FlockHouseTaskDialogComponent, FlockHouseHealthDialogComponent, QuickAccessManufactureDialogComponent],
   templateUrl: './quick-access.page.html',
   styleUrl: './quick-access.page.scss',
 })
@@ -75,9 +77,10 @@ export class QuickAccessPage {
     ];
   });
   readonly hasRestrictedTasks = computed(() => this.tasks().some((task) => !task.allowed));
+  readonly canViewMaintenance = computed(() => canAccessGroup(this.auth.user(), 'ubicaciones'));
 
   constructor() {
-    addIcons({ businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline });
+    addIcons({ buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline });
     effect((cleanup) => {
       const actor = this.auth.user();
       const session = this.auth.session();

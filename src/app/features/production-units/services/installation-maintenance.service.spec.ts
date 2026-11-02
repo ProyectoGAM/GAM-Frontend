@@ -31,6 +31,47 @@ describe('InstallationMaintenanceService', () => {
     expect(request.request.body).toEqual(input); request.flush({ data: maintenanceRecord });
   });
 
+  it('totals every completed-history page exactly, excluding cancellations and separating currencies', () => {
+    const totals: unknown[] = [];
+    api.totalCost(22).subscribe((result) => totals.push(result));
+    const first = http.expectOne((request) => request.url === '/api/v1/poultry-houses/22/maintenances');
+    expect(first.request.params.get('status')).toBe('completed');
+    expect(first.request.params.get('per_page')).toBe('100');
+    expect(first.request.params.has('date_from')).toBe(false);
+    first.flush({ data: [
+      { ...maintenanceRecord, cost: { amount: '999999999999999.10', currency: 'UYU' } },
+      { ...maintenanceRecord, id: 10, status: 'cancelled', cost: { amount: '500.00', currency: 'UYU' } },
+    ], meta: { current_page: 1, last_page: 2, total: 3 } });
+    expect(totals).toEqual([]);
+    const second = http.expectOne((request) => request.params.get('page') === '2');
+    second.flush({ data: [
+      { ...maintenanceRecord, id: 11, cost: { amount: '0.20', currency: 'UYU' } },
+      { ...maintenanceRecord, id: 12, cost: { amount: '10.25', currency: 'USD' } },
+    ], meta: { current_page: 2, last_page: 2, total: 3 } });
+    expect(totals).toEqual([[{ currency: 'UYU', amount: '999999999999999.300' }, { currency: 'USD', amount: '10.250' }]]);
+  });
+
+  it('returns zero for an installation with no completed maintenance', () => {
+    api.totalCost(22).subscribe((totals) => expect(totals).toEqual([{ currency: 'UYU', amount: '0.000' }]));
+    http.expectOne('/api/v1/poultry-houses/22/maintenances?status=completed&page=1&per_page=100')
+      .flush({ data: [], meta: { current_page: 1, last_page: 1, total: 0 } });
+  });
+
+  it('fails instead of publishing a partial total when a later page fails', () => {
+    let result: unknown; let failure: unknown;
+    api.totalCost(22).subscribe({ next: (value) => result = value, error: (error: unknown) => failure = error });
+    http.expectOne((request) => request.params.get('page') === '1')
+      .flush({ data: [maintenanceRecord], meta: { current_page: 1, last_page: 2, total: 101 } });
+    http.expectOne((request) => request.params.get('page') === '2').flush({}, { status: 500, statusText: 'Error' });
+    expect(result).toBeUndefined(); expect(failure).toBeDefined();
+  });
+
+  it('cancels the pending total request when leaving the installation', () => {
+    const subscription = api.totalCost(22).subscribe();
+    const request = http.expectOne((request) => request.params.get('page') === '1');
+    subscription.unsubscribe(); expect(request.cancelled).toBe(true);
+  });
+
   it('reads, corrects and annuls a record using its version and reason', () => {
     api.detail(9).subscribe(); http.expectOne('/api/v1/maintenances/9').flush({ data: maintenanceRecord });
     api.correct(9, { description: 'Reparación', reason: 'Detalle incompleto', version: 3 }).subscribe();

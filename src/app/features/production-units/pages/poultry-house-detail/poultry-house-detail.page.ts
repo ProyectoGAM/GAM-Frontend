@@ -8,6 +8,7 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline,
   businessOutline,
+  buildOutline,
   informationCircleOutline,
   pencilOutline,
   trashOutline,
@@ -20,7 +21,6 @@ import {
 } from '@ionic/angular';
 
 import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
-import { InstallationMaintenanceStatusComponent } from '../../components/installation-maintenance-status/installation-maintenance-status.component';
 import { PoultryHouseDetailContentComponent } from '../../components/poultry-house-detail-content/poultry-house-detail-content.component';
 import {
   FeedStock,
@@ -54,7 +54,6 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
     IonSpinner,
     RouterLink,
     FeedStockDetailComponent,
-    InstallationMaintenanceStatusComponent,
     PoultryHouseDetailContentComponent,
     FlockHouseTaskDialogComponent,
     FlockHouseHealthDialogComponent,
@@ -80,13 +79,11 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly isInfoOpen = signal(false);
   readonly isDeleting = signal(false);
   readonly deleteError = signal<string | null>(null);
-  readonly isChangingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
   private readonly navigationFeedback: unknown = this.router.currentNavigation()?.extras.state?.['flockTaskMessage'];
   readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
   readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
   private readonly healthDialog = viewChild(FlockHouseHealthDialogComponent);
-  private readonly maintenanceStatus = viewChild(InstallationMaintenanceStatusComponent);
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -170,7 +167,7 @@ export class PoultryHouseDetailPage implements OnInit {
   });
 
   constructor() {
-    addIcons({ arrowBackOutline, businessOutline, informationCircleOutline, pencilOutline, trashOutline });
+    addIcons({ arrowBackOutline, buildOutline, businessOutline, informationCircleOutline, pencilOutline, trashOutline });
     this.ingredientForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.ingredientIdempotencyKey.set(null));
   }
@@ -196,7 +193,7 @@ export class PoultryHouseDetailPage implements OnInit {
     else this.loadFeedStock(house.id);
   }
 
-  canLeave(): boolean { return !this.maintenanceStatus()?.saving() && (this.healthDialog()?.canLeave() ?? true); }
+  canLeave(): boolean { return this.healthDialog()?.canLeave() ?? true; }
 
   openFlockTask(action: FlockHouseTaskAction): void {
     const house = this.house();
@@ -246,46 +243,6 @@ export class PoultryHouseDetailPage implements OnInit {
     if (!house || !this.canAddLot() || this.flocksState() !== 'success' || this.currentFlocks().length) return;
     void this.router.navigate(['/administracion/lotes/lotes/nuevo'], {
       queryParams: { unitId: house.production_unit_id, houseId: house.id },
-    });
-  }
-
-  async changeStatus(): Promise<void> {
-    const house = this.house();
-    if (!house || this.isChangingStatus()) return;
-    const options: PoultryHouse['status'][] = house.status === 'inactive'
-      ? ['operational']
-      : (['operational', 'maintenance', 'out_of_service'] as PoultryHouse['status'][])
-        .filter((status) => status !== house.status);
-    const alert = await this.alertController.create({
-      header: house.status === 'inactive' ? 'Reactivar instalación' : 'Cambiar estado',
-      message: house.status === 'inactive'
-        ? 'La instalación volverá a estar operativa si su unidad productiva está activa.'
-        : 'Seleccioná el nuevo estado de la instalación.',
-      inputs: options.map((status) => ({ type: 'radio' as const, label: this.houseStatus(status), value: status })),
-      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Confirmar', role: 'confirm' }],
-    });
-    await alert.present();
-    const result = await alert.onDidDismiss();
-    const selected: unknown = result.data?.values;
-    if (result.role !== 'confirm' || !options.some((status) => status === selected)) return;
-    const status = selected as PoultryHouse['status'];
-    this.isChangingStatus.set(true);
-    this.statusError.set(null);
-    this.service.updatePoultryHouseStatus(house.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.isChangingStatus.set(false); this.load(); },
-      error: (error: unknown) => {
-        this.isChangingStatus.set(false);
-        if (error instanceof HttpErrorResponse && error.status === 409) {
-          this.statusError.set(this.problemMessage(error.error) ?? 'El estado o la unidad productiva cambió. Revisá los datos actuales.');
-          this.load();
-        } else if (error instanceof HttpErrorResponse && error.status === 404) {
-          this.load();
-        } else if (error instanceof HttpErrorResponse && error.status === 403) {
-          this.statusError.set('No tenés permiso para cambiar el estado de esta instalación.');
-        } else {
-          this.statusError.set('No se pudo cambiar el estado. Intentá nuevamente.');
-        }
-      },
     });
   }
 

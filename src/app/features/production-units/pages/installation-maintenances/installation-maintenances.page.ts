@@ -12,7 +12,7 @@ import { formatUyuMoney } from '../../../../shared/utils/uyu-money';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 import { InstallationMaintenanceStatusComponent } from '../../components/installation-maintenance-status/installation-maintenance-status.component';
 import { MaintenanceRecordDialogComponent } from '../../components/maintenance-record-dialog/maintenance-record-dialog.component';
-import { InstallationMaintenance, MaintenanceFilters } from '../../interfaces/installation-maintenance.interface';
+import { InstallationMaintenance, MaintenanceCostTotal, MaintenanceFilters } from '../../interfaces/installation-maintenance.interface';
 import { PoultryHouseDetail } from '../../interfaces/production-unit.interface';
 import { InstallationMaintenanceStatus } from '../../types/installation-maintenance.type';
 import { InstallationMaintenanceService } from '../../services/installation-maintenance.service';
@@ -32,6 +32,7 @@ export class InstallationMaintenancesPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly requests = new Subject<void>();
+  private readonly totalRequests = new Subject<void>();
   private houseGeneration = 0;
   private unitId = 0;
   private houseId = 0;
@@ -52,6 +53,14 @@ export class InstallationMaintenancesPage implements OnInit {
   readonly statusError = signal('');
   readonly filterError = signal('');
   readonly hasFilters = signal(false);
+  readonly costLoading = signal(false);
+  readonly costError = signal('');
+  readonly costTotals = signal<MaintenanceCostTotal[]>([]);
+  readonly costLabels = computed(() => this.costTotals().map((total) => `${formatUyuMoney(total.amount)} ${total.currency}`));
+  readonly statusLabel = computed(() => {
+    const status = this.house()?.status;
+    return status ? ({ operational: 'Operativo', maintenance: 'En mantenimiento', out_of_service: 'Fuera de servicio', inactive: 'Inactivo' })[status] : '';
+  });
   readonly canManage = computed(() => canManageMaintenance(this.auth.user()));
   readonly fromMaintenanceHub = this.route.snapshot?.data?.['maintenanceHub'] === true;
   readonly installationLink = computed(() => ['/administracion/unidades-productivas', this.house()?.production_unit_id ?? this.unitId, 'galpon', this.house()?.id ?? this.houseId]);
@@ -70,6 +79,18 @@ export class InstallationMaintenancesPage implements OnInit {
 
   constructor() {
     addIcons({ addOutline, arrowBackOutline, buildOutline, calendarOutline, personOutline });
+    this.totalRequests.pipe(switchMap(() => {
+      this.costTotals.set([]); this.costError.set('');
+      const house = this.house();
+      this.costLoading.set(!!house);
+      if (!house) return EMPTY;
+      return this.api.totalCost(house.id).pipe(catchError(() => {
+        this.costLoading.set(false); this.costError.set('No se pudo calcular el costo total de mantenimiento.');
+        return EMPTY;
+      }));
+    }), takeUntilDestroyed(this.destroyRef)).subscribe((totals) => {
+      this.costTotals.set(totals); this.costLoading.set(false);
+    });
     this.requests.pipe(switchMap(() => {
       const house = this.house(); if (!house) return EMPTY;
       this.loading.set(true); this.historyError.set(''); this.records.set([]);
@@ -92,7 +113,7 @@ export class InstallationMaintenancesPage implements OnInit {
 
   loadHouse(): void {
     const generation = ++this.houseGeneration;
-    this.house.set(null); this.requests.next(); this.state.set('loading'); this.pageError.set('');
+    this.house.set(null); this.requests.next(); this.totalRequests.next(); this.state.set('loading'); this.pageError.set('');
     if (!Number.isSafeInteger(this.unitId) || this.unitId < 1 || !Number.isSafeInteger(this.houseId) || this.houseId < 1) {
       this.state.set('error'); this.pageError.set('La instalación solicitada no es válida.'); return;
     }
@@ -102,7 +123,7 @@ export class InstallationMaintenancesPage implements OnInit {
         if (data.production_unit_id !== this.unitId) {
           this.pageError.set('La instalación no pertenece a esta unidad productiva.'); this.state.set('error'); return;
         }
-        this.house.set(data); this.state.set('success'); this.refreshHistory();
+        this.house.set(data); this.state.set('success'); this.refreshHistory(); this.refreshCost();
       },
       error: (error: unknown) => {
         if (generation !== this.houseGeneration) return;
@@ -113,6 +134,8 @@ export class InstallationMaintenancesPage implements OnInit {
   }
 
   refreshHistory(): void { this.requests.next(); }
+
+  refreshCost(): void { this.totalRequests.next(); }
 
   applyFilters(): void {
     const { status, from, to } = this.filtersForm.getRawValue();
@@ -143,7 +166,7 @@ export class InstallationMaintenancesPage implements OnInit {
     this.page.set(page); this.refreshHistory();
   }
 
-  onChanged(message: string): void { this.feedback.set(message); this.page.set(1); this.refreshHistory(); }
+  onChanged(message: string): void { this.feedback.set(message); this.page.set(1); this.refreshHistory(); this.refreshCost(); }
 
   openCreate(event: Event): void {
     this.dialog()?.openCreate(event.currentTarget instanceof HTMLElement ? event.currentTarget : null);

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, forwardRef, input, output, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
@@ -51,6 +52,7 @@ describe('QuickAccessPage', () => {
     houses.mockReturnValue(of([row, { ...row, house: { ...row.house, id: 23, name: 'Galpón 2' }, flock: null, unavailableReason: 'Sin lote activo', searchText: 'galpon 2' }]));
     plants.mockReturnValue(of([plant, { ...plant, plant: { ...plant.plant, id: 31, name: 'Planta Norte', status: 'maintenance' }, unavailableReason: 'La planta debe estar operativa para elaborar ración.', searchText: 'planta norte' }]));
     TestBed.configureTestingModule({ imports: [QuickAccessPage], providers: [
+      provideRouter([]),
       { provide: AuthStore, useValue: { user: actor, session: () => null, isAdmin: () => actor().roles.includes('admin') } },
       { provide: AdminUnitContextService, useValue: { state: signal('ready'), selectedId, selectedUnit: () => selectedId() === 7 ? unit : null, units: signal([unit]) } },
       { provide: QuickAccessService, useValue: { houses, plants } },
@@ -74,6 +76,45 @@ describe('QuickAccessPage', () => {
     expect(cards.length).toBe(2); expect([...cards[0].querySelectorAll('button')].map((button) => (button as HTMLButtonElement).textContent?.trim()))
       .toEqual(['Postura', 'Mortandad', 'Cambio de ración', 'Sanidad']);
     expect(cards[1].querySelectorAll('button').length).toBe(0); expect(cards[1].textContent).toContain('Sin lote activo');
+  });
+
+  it('offers maintenance below the activities in each card, including an empty house', async () => {
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    const links = [...element.querySelectorAll('.houses .maintenance-access a')];
+    expect(element.querySelector('.maintenance-grid')).toBeNull();
+    expect(element.querySelector('.house .actions')?.nextElementSibling?.className).toBe('maintenance-access');
+    expect(element.querySelectorAll('.house > .maintenance-access')).toHaveLength(2);
+    expect(element.querySelectorAll('.houses .actions button')).toHaveLength(4);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/administracion/ubicaciones/mantenimiento/7/galpon/22', '/administracion/ubicaciones/mantenimiento/7/galpon/23',
+    ]);
+    expect(links.every((link) => link.textContent?.includes('Hacer mantenimiento'))).toBe(true);
+    expect(element.textContent).not.toContain('Poner en mantenimiento');
+    expect(element.textContent).not.toContain('Marcar como operativo');
+  });
+
+  it('keeps maintenance available for a plant that cannot elaborate and follows the existing search', async () => {
+    const fixture = await render(); const page = fixture.componentInstance;
+    page.selectType('feed'); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('.plant > .maintenance-access a')).toHaveLength(2);
+    expect(element.querySelector('.plant > .maintenance-access a[href$="/31"]')).not.toBeNull();
+    expect(element.querySelector('.plant .plant-actions')?.nextElementSibling?.className).toBe('maintenance-access');
+    page.query.set('norte'); fixture.detectChanges();
+    expect(element.querySelectorAll('.maintenance-access a')).toHaveLength(1);
+    expect(element.querySelector('.maintenance-access a')?.getAttribute('aria-label')).toContain('Planta Norte');
+  });
+
+  it('does not offer maintenance navigation without access to Instalaciones or while a task is open', async () => {
+    const fixture = await render();
+    fixture.componentInstance.open(row, 'collection', new Event('click')); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(0);
+    expect([...fixture.nativeElement.querySelectorAll('.maintenance-access button')].every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    fixture.componentInstance.close(null);
+    actor.set({ id: 1, roles: ['employee'], permissions: [] }); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelector('.maintenance-access')?.textContent).toContain('Sin permiso');
   });
 
   it.each([0, 1, 2, 3, 4])('keeps all four actions and overlays locks only on denied actions with %i grants', async (allowedCount) => {

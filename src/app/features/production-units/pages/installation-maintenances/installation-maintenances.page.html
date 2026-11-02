@@ -1,18 +1,36 @@
 <main class="maintenance-page" aria-labelledby="maintenance-title">
   <a class="back-link" [routerLink]="backLink()"><ion-icon name="arrow-back-outline" aria-hidden="true" />{{ backLabel() }}</a>
-  <header class="page-heading"><h1 id="maintenance-title" tabindex="-1">Mantenimientos</h1><p>{{ house()?.name }}</p></header>
+  <header class="page-heading">
+    <div class="heading-info">
+      <div class="title-row"><h1 id="maintenance-title" tabindex="-1">Mantenimientos</h1>@if (house(); as currentHouse) { <span class="badge installation-status" [attr.data-status]="currentHouse.status" aria-label="Estado de la instalación">{{ statusLabel() }}</span> }</div>
+      <p>{{ house()?.name }}</p>
+      @if (state() === 'success' && house() && fromMaintenanceHub) { <a class="back-link installation-link" [routerLink]="installationLink()">Ver detalle de la instalación ›</a> }
+    </div>
+    @if (state() === 'success' && house(); as currentHouse) {
+      @if (canManage()) {
+        <div class="heading-actions">
+          <app-installation-maintenance-status [house]="currentHouse" [disabled]="dialog()?.saving() ?? false" (changed)="house.set($event); statusError.set('')" (refreshRequested)="statusError.set($event); loadHouse()" />
+          <ion-button class="primary" [disabled]="!canLeave()" (click)="openCreate($event)"><ion-icon slot="start" name="add-outline" aria-hidden="true" />Registrar mantenimiento</ion-button>
+        </div>
+      }
+    }
+  </header>
   @if (statusError()) { <p class="error" role="alert">{{ statusError() }}</p> }
   @if (state() === 'loading') {
     <div class="state-panel" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando instalación…</div>
   } @else if (state() === 'error') {
     <div class="state-panel" role="alert"><p>{{ pageError() }}</p><ion-button class="outline" fill="outline" (click)="loadHouse()">Reintentar</ion-button></div>
   } @else if (house(); as currentHouse) {
-    @if (fromMaintenanceHub) { <a class="back-link" [routerLink]="installationLink()">Ver detalle de la instalación ›</a> }
-    <app-installation-maintenance-status [house]="currentHouse" [disabled]="dialog()?.saving() ?? false" (changed)="house.set($event); statusError.set('')" (refreshRequested)="statusError.set($event); loadHouse()" />
+    <section class="cost-summary" aria-labelledby="maintenance-cost-title" [attr.aria-busy]="costLoading()">
+      <div><h2 id="maintenance-cost-title">Costo total de mantenimiento</h2><p>Todos los trabajos realizados. No incluye anulados ni depende de los filtros.</p></div>
+      <div class="cost-summary-value" aria-live="polite">
+        @if (costLoading()) { <span role="status">Calculando total…</span> }
+        @else if (costError()) { <p class="error" role="alert">{{ costError() }}</p><button type="button" (click)="refreshCost()">Reintentar</button> }
+        @else { @for (label of costLabels(); track $index) { <strong>{{ label }}</strong> } }
+      </div>
+    </section>
     <section class="history" aria-labelledby="history-title">
-      <header class="history-heading"><div><h2 id="history-title"><ion-icon name="build-outline" aria-hidden="true" />Historial de trabajos</h2><p>Trabajos realizados en esta instalación.</p></div>
-        @if (canManage()) { <ion-button class="primary" [disabled]="dialog()?.saving()" (click)="openCreate($event)"><ion-icon slot="start" name="add-outline" aria-hidden="true" />Registrar mantenimiento</ion-button> }
-      </header>
+      <header class="history-heading"><h2 id="history-title"><ion-icon name="build-outline" aria-hidden="true" />Historial de trabajos</h2><p>Trabajos realizados en esta instalación.</p></header>
       @if (feedback()) { <p class="success" role="status">{{ feedback() }}</p> }
       <form class="filters" [formGroup]="filtersForm" (ngSubmit)="applyFilters()" aria-label="Filtros del historial">
         <label>Registros<select formControlName="status" (change)="applyFilters()"><option value="">Todos los registros</option><option value="completed">Realizados</option><option value="cancelled">Anulados</option></select></label>
@@ -45,6 +63,6 @@
         @if (filterError()) { <p class="error" role="alert">{{ filterError() }}</p> }
       </div>
     </app-filter-dialog>
-    <app-maintenance-record-dialog [house]="currentHouse" (changed)="onChanged($event)" (refreshRequested)="refreshHistory()" />
+    <app-maintenance-record-dialog [house]="currentHouse" (changed)="onChanged($event)" (refreshRequested)="refreshHistory(); refreshCost()" />
   }
 </main>

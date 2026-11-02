@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
-import { map } from 'rxjs';
+import { defer, EMPTY, expand, map, reduce } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
-import { InstallationMaintenance, MaintenanceCorrection, MaintenanceFilters, MaintenanceInput, MaintenancePage } from '../interfaces/installation-maintenance.interface';
+import { InstallationMaintenance, MaintenanceCorrection, MaintenanceCostTotal, MaintenanceFilters, MaintenanceInput, MaintenancePage } from '../interfaces/installation-maintenance.interface';
+import { parseUyuAmount, uyuDecimal } from '../../../shared/utils/uyu-money';
 
 @Injectable({ providedIn: 'root' })
 export class InstallationMaintenanceService {
@@ -10,6 +11,32 @@ export class InstallationMaintenanceService {
   list(houseId: number, filters: MaintenanceFilters = {}, page = 1) {
     return this.api.get<MaintenancePage>(`poultry-houses/${houseId}/maintenances`, {
       params: { ...filters, page, per_page: 20 },
+    });
+  }
+
+  totalCost(houseId: number) {
+    return defer(() => {
+      const totals = new Map<string, bigint>();
+      const seen = new Set<number>();
+      const loadPage = (page: number) => this.api.get<MaintenancePage>(`poultry-houses/${houseId}/maintenances`, {
+        params: { status: 'completed', page, per_page: 100 },
+      });
+      return loadPage(1).pipe(
+        expand((response) => response.meta.current_page < response.meta.last_page ? loadPage(response.meta.current_page + 1) : EMPTY, 1),
+        reduce((sums, response) => {
+          for (const record of response.data) {
+            if (record.status !== 'completed' || seen.has(record.id)) continue;
+            seen.add(record.id);
+            const amount = parseUyuAmount(record.cost.amount);
+            if (amount === null || amount < 0n || !record.cost.currency) throw new Error('Invalid maintenance cost');
+            sums.set(record.cost.currency, (sums.get(record.cost.currency) ?? 0n) + amount);
+          }
+          return sums;
+        }, totals),
+        map((sums): MaintenanceCostTotal[] => sums.size
+          ? Array.from(sums, ([currency, amount]) => ({ currency, amount: uyuDecimal(amount) }))
+          : [{ currency: 'UYU', amount: '0.000' }]),
+      );
     });
   }
 

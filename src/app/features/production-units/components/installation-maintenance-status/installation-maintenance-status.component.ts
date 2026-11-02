@@ -28,20 +28,18 @@ export class InstallationMaintenanceStatusComponent {
   readonly error = signal('');
   readonly feedback = signal('');
   readonly canManage = computed(() => canManageMaintenance(this.auth.user()));
-  readonly canToggle = computed(() => ['operational', 'maintenance'].includes(this.house().status));
-  readonly blockedByUnit = computed(() => this.house().status === 'maintenance' && this.house().production_unit.status !== 'active');
-  readonly statusLabel = computed(() => ({ operational: 'Operativo', maintenance: 'En mantenimiento', out_of_service: 'Fuera de servicio', inactive: 'Inactivo' })[this.house().status]);
-  readonly actionLabel = computed(() => this.house().status === 'maintenance'
+  readonly blockedByUnit = computed(() => this.house().status !== 'operational' && this.house().production_unit.status !== 'active');
+  readonly actionLabel = computed(() => this.house().status !== 'operational'
     ? `Marcar como ${this.house().type === 'feed' ? 'operativa' : 'operativo'}` : 'Poner en mantenimiento');
 
   constructor() { addIcons({ buildOutline, checkmarkOutline }); }
 
   toggle(): void {
-    if (!this.canManage() || !this.canToggle() || this.blockedByUnit() || this.saving() || this.disabled()) return;
+    if (!this.canManage() || this.blockedByUnit() || this.saving() || this.disabled()) return;
     const house = this.house();
     const actor = this.auth.user();
     const session = this.auth.session?.();
-    const status = house.status === 'maintenance' ? 'operational' : 'maintenance';
+    const status = house.status === 'operational' ? 'maintenance' : 'operational';
     this.error.set(''); this.feedback.set(''); this.saving.set(true); this.busyChanged.emit(true);
     this.api.updatePoultryHouseStatus(house.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ data }) => {

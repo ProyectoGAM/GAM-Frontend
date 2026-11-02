@@ -36,7 +36,6 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.5rem, 5vw, 2
 .maintenance-link small { display: block; margin-top: 5px; color: var(--gam-color-text-muted); line-height: 1.5; }
 .maintenance-link > span:last-child { font-size: 28px; }
 .maintenance-link:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
-@media (min-width: 760px) { .maintenance-access { grid-template-columns: 1fr 1fr; } }
 .state-panel { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; padding: 36px 20px; text-align: center; }
 .state-panel p { margin: 0; color: var(--gam-color-text-muted); line-height: 1.5; }
 .state-panel ion-button { min-height: 44px; --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); --border-radius: 8px; --color: var(--gam-color-primary); }
