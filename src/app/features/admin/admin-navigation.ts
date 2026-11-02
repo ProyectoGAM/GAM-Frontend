@@ -31,6 +31,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     items: [
       { label: 'Galpones', slug: 'galpones' },
       { label: 'Plantas de ración', slug: 'plantas-de-racion' },
+      { label: 'Mantenimiento', slug: 'mantenimiento' },
       { label: 'Crear instalación', slug: 'nuevo-galpon' },
     ],
   },

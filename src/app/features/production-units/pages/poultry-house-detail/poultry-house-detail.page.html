@@ -42,7 +42,7 @@
         <ion-button class="house-action" fill="outline" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'editar']">
           <ion-icon slot="start" name="pencil-outline" aria-hidden="true" />Editar
         </ion-button>
-        <ion-button class="house-action" fill="outline" [disabled]="isChangingStatus()" (click)="changeStatus()">
+        <ion-button class="house-action" fill="outline" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'mantenimientos']">
           {{ currentHouse.status === 'inactive' ? 'Reactivar' : 'Cambiar estado' }}
         </ion-button>
         @if (!canDelete()) {
@@ -76,6 +76,17 @@
       <a class="unit-link" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit.id]">
         Ver unidad productiva <span aria-hidden="true">→</span>
       </a>
+    </section>
+
+    <section class="maintenance-section" aria-labelledby="maintenance-heading">
+      <h2 id="maintenance-heading">Mantenimiento</h2>
+      <div class="maintenance-access">
+        <a class="maintenance-link" [routerLink]="['/administracion/unidades-productivas', currentHouse.production_unit_id, 'galpon', currentHouse.id, 'mantenimientos']">
+          <ion-icon name="build-outline" aria-hidden="true" />
+          <span><strong>Mantenimientos</strong><small>Historial, costos y responsables</small></span>
+          <span aria-hidden="true">›</span>
+        </a>
+      </div>
     </section>
 
     @if (currentHouse.type === 'poultry') {

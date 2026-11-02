@@ -49,5 +49,10 @@ ion-icon { flex-shrink: 0; font-size: 19px; }
 .success { display: flex; gap: 9px; align-items: center; margin: 0 0 20px; padding: 14px; border-radius: 8px; background: var(--gam-color-success-soft); color: var(--gam-color-success); font-size: .875rem; }
 .retry { min-height: 44px; padding: 10px 16px; border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; cursor: pointer; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.maintenance-access { padding: 8px; border-top: 1px solid var(--gam-color-border); }
+.maintenance-access a, .maintenance-access button { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 48px; width: 100%; padding: 12px; border: 0; border-radius: 6px; background: var(--gam-color-surface-alt); color: var(--gam-color-primary); font: inherit; font-size: .875rem; text-decoration: none; }
+.maintenance-access a:hover { background: var(--gam-color-primary-soft); }
+.maintenance-access a:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.maintenance-access button:disabled { color: var(--gam-color-text-muted); cursor: not-allowed; }
 @media (min-width: 700px) { .houses, .plants { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .houses, .plants { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

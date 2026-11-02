@@ -1,8 +1,30 @@
 import { Routes } from '@angular/router';
 import type { PoultryHouseDetailPage } from './pages/poultry-house-detail/poultry-house-detail.page';
 import type { FeedManufacturePage } from './pages/feed-manufacture/feed-manufacture.page';
+import type { InstallationMaintenancesPage } from './pages/installation-maintenances/installation-maintenances.page';
+
+export const installationMaintenanceRoutes: Routes = [
+  {
+    path: ':id/galpon/:houseId',
+    data: { maintenanceHub: true },
+    canDeactivate: [(page: InstallationMaintenancesPage) => page.canLeave()],
+    loadComponent: () => import('./pages/installation-maintenances/installation-maintenances.page')
+      .then((module) => module.InstallationMaintenancesPage),
+  },
+  {
+    path: '',
+    loadComponent: () => import('./pages/maintenance-installations/maintenance-installations.page')
+      .then((module) => module.MaintenanceInstallationsPage),
+  },
+];
 
 export const productionUnitsRoutes: Routes = [
+  {
+    path: ':id/galpon/:houseId/mantenimientos',
+    canDeactivate: [(page: InstallationMaintenancesPage) => page.canLeave()],
+    loadComponent: () => import('./pages/installation-maintenances/installation-maintenances.page')
+      .then((module) => module.InstallationMaintenancesPage),
+  },
   {
     path: ':id/galpon/:houseId/elaborar',
     canDeactivate: [(page: FeedManufacturePage) => page.canLeave()],

@@ -1,0 +1,11 @@
+<div class="status-control" [attr.aria-busy]="saving()">
+  @if (canManage()) {
+    <ion-button class="status-action" fill="outline" [disabled]="saving() || disabled() || blockedByUnit()" (click)="toggle()">
+      <ion-icon slot="start" [name]="house().status !== 'operational' ? 'checkmark-outline' : 'build-outline'" aria-hidden="true" />
+      {{ saving() ? 'Cambiando estado…' : actionLabel() }}
+    </ion-button>
+    @if (blockedByUnit()) { <p class="hint">La unidad productiva debe estar activa para volver a operar.</p> }
+  }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="success" role="status">{{ feedback() }}</p> }
+</div>

@@ -5,6 +5,32 @@ del panel tras autenticarse, también desde `/home`. Repartidores sin otros
 permisos de módulos mantienen su entrada al modo repartidor. Acceso rápido
 no concede acceso a otros módulos ni autoriza operaciones en el servidor.
 
+## Mantenimiento al pie de cada tarjeta
+
+Cada tarjeta incluye **Hacer mantenimiento** al pie, debajo de una línea
+separadora. En galpones queda después de las cuatro actividades; en plantas,
+después de Elaborar. El acceso abre Mantenimientos de esa instalación. No hay
+un listado adicional ni otra grilla de instalaciones. Se conserva la disposición
+2×2 de Postura/Mortandad/Cambio de ración/Sanidad.
+
+El cambio entre operativo y en mantenimiento se realiza únicamente dentro
+de Mantenimientos. Los accesos no modifican estados ni consumen
+endpoints adicionales: reutilizan las instalaciones ya consultadas, la búsqueda,
+el tipo Galpón/Planta y la UP seleccionada. Una instalación sin lote o no
+operativa sigue ofreciendo el acceso al historial. Se mantienen los permisos
+de navegación existentes de Instalaciones y los bloqueos durante formularios
+abiertos. No se amplían permisos de usuarios ni se modifican datos del backend.
+
+La verificación del acceso al pie de tarjeta, el 2 de noviembre de 2026, aprobó
+lint, las 1316 pruebas de la suite completa y el build de producción en Docker.
+El navegador comprobó las cuatro actividades en 2×2, la línea separadora y
+**Hacer mantenimiento** dentro de cada tarjeta, sin listado adicional. También
+verificó el enlace al historial del Galpón Ponedoras, búsqueda y teléfono de
+320 px oscuro sin desbordamiento horizontal. Las pruebas cubren ambos tipos de
+instalación, los permisos y los bloqueos al abrir formularios. Capturas en
+`.tmp/qa/maintenance-card-footer-*.jpg`. No se cambiaron estados ni datos de stock
+durante esta revisión.
+
 Sobre la búsqueda se elige **Galpón** o **Planta**, con Galpón seleccionado
 al entrar. El selector reproduce el de estados de Planes: superficie neutra,
 opción seleccionada con fondo de tarjeta y borde, y estado `aria-pressed`.
