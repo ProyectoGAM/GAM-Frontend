@@ -70,11 +70,49 @@ describe('Users management', () => {
   it('validates matching initial credentials and blocks changing own roles or status', async () => {
     setup('create'); await Promise.resolve(); page.create(); expect(page.confirmation()).toBeNull();
     page.roles.set(rolePage.data);
-    page.createForm.setValue({ name: 'Ana', email: 'ana@example.test', password: 'example-only', password_confirmation: 'different-example', rol_id: 7 });
+    page.createForm.patchValue({ name: 'Ana', rol_id: 7, personal: { email: 'ana@example.test', password: 'example-only', password_confirmation: 'different-example' } });
     page.create(); expect(page.confirmation()).toBeNull();
-    page.createForm.controls.password_confirmation.setValue('example-only'); page.create(); expect(page.confirmation()?.title).toBe('Crear usuario');
+    page.createForm.controls.personal.controls.password_confirmation.setValue('example-only'); page.create(); expect(page.confirmation()?.title).toBe('Crear usuario');
+    await page.confirm('example-only');
+    expect(execute).toHaveBeenCalledWith({ kind: 'create', request: {
+      name: 'Ana', rol_id: 7, email: 'ana@example.test', password: 'example-only', password_confirmation: 'example-only',
+    } });
     page.cancelConfirmation(); page.openUser(operator); page.userAction('status'); expect(page.confirmation()).toBeNull();
     page.openEditor('roles'); page.saveEditor(); expect(page.confirmation()).toBeNull();
+  });
+
+  it('creates a PIN account with an active UP, one role and the exact four digits', async () => {
+    deviceUnits.mockReturnValue(of([unit, { id: 8, name: 'UP inactiva', status: 'inactive' }]));
+    setup('create');
+    await fixture.whenStable();
+    page.roles.set([
+      { ...rolePage.data[0], id: 1, clave: 'admin', nombre: 'Administrador' },
+      { ...rolePage.data[0], id: 9, clave: 'unassigned', nombre: 'Sin rol' },
+    ]);
+    page.createForm.patchValue({ name: '  Ana  ', rol_id: 1, personal: { email: 'ana@example.test', password: 'example-only' } });
+    page.changeCreationMode('device_pin');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(page.createForm.controls.rol_id.value).toBeNull();
+    expect(page.createForm.controls.personal.controls.password.value).toBe('');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('#new-email')).toBeNull();
+    expect(root.querySelector('#new-role')?.textContent).not.toContain('Administrador');
+    expect(root.querySelector('#new-unit')?.textContent).not.toContain('UP inactiva');
+    page.createForm.patchValue({ rol_id: 9, shared: { up_id: 8, pin: '0007', pin_confirmation: '0007' } });
+    page.create();
+    expect(page.confirmation()).toBeNull();
+    page.createForm.controls.shared.controls.up_id.setValue(7);
+    page.create();
+    expect(page.confirmation()?.description).toContain('UP San José');
+    expect(page.confirmation()?.description).toContain('no podrá iniciar sesión');
+    expect(execute).not.toHaveBeenCalled();
+    await page.confirm('example-only');
+    expect(execute).toHaveBeenCalledExactlyOnceWith({
+      kind: 'create', request: { name: 'Ana', email: null, rol_id: 9, up_id: 7, pin: '0007', pin_confirmation: '0007' },
+    });
+    expect(page.creationMode()).toBe('email_password');
+    expect(page.createForm.controls.shared.controls.pin.value).toBe('');
   });
 
   it('preserves leading zeros in a valid PIN and does not invent PIN status', async () => {
@@ -205,16 +243,22 @@ describe('Users management', () => {
     TestBed.configureTestingModule({ providers: [
       provideRouter([{ path: 'administracion/usuarios', children: usersRoutes }, { path: 'gestion-accesos', redirectTo: 'administracion/usuarios', pathMatch: 'full' }]),
       { provide: AuthStore, useValue: { user, session: () => ({ id: 's' }), status: () => 'personal_authenticated', isAdmin: () => true, isAuthenticated: () => true, isShared: () => false } },
-      { provide: UsersService, useValue: { users, devices: () => of([]), deviceUnits, execute } },
+      { provide: UsersService, useValue: { users, devices: () => of([]), deviceUnits, execute, roleOptions: () => of(rolePage.data) } },
       { provide: ApiClient, useValue: { get: (path: string) => of(path === 'permisos' ? { data: roleModules } : rolePage) } },
     ] });
     try {
       const harness = await RouterTestingHarness.create();
-      for (const path of ['gestion-accesos', 'administracion/usuarios/crear', 'administracion/usuarios/dispositivos', 'administracion/usuarios/roles']) {
+      const screens = [
+        ['gestion-accesos', 'Cuentas de acceso'],
+        ['administracion/usuarios/crear', 'Modalidad de acceso'],
+        ['administracion/usuarios/dispositivos', 'Vincular un dispositivo'],
+        ['administracion/usuarios/roles', 'Roles y permisos'],
+      ];
+      for (const [path, heading] of screens) {
         await harness.navigateByUrl('/' + path, UsersPage);
         expect(harness.routeNativeElement?.querySelectorAll('.tabs a')).toHaveLength(4);
         expect(harness.routeNativeElement?.querySelectorAll('.tabs a[aria-current="page"]')).toHaveLength(1);
-        expect(harness.routeNativeElement?.textContent).toContain(path.endsWith('dispositivos') ? 'Vincular un dispositivo' : path.endsWith('roles') ? 'Roles y permisos' : 'Por implementar');
+        expect(harness.routeNativeElement?.textContent).toContain(heading);
       }
       expect(execute).not.toHaveBeenCalled();
     } finally { TestBed.resetTestingModule(); restore(); }

@@ -88,8 +88,8 @@ por acción que ya utilizaban las pantallas de cuentas.
 
 El editor de definiciones de rol exige sesión personal de Admin y usa revisión
 de cambios, sin solicitar una contraseña o PIN adicional que el contrato no exige.
-Los permisos son globales y no cambian modalidad ni UP. La creación de cuentas
-PIN y el editor de su UP, así como la migración de controles funcionales antiguos
+Los permisos son globales y no cambian modalidad ni UP. El editor de la UP de
+cuentas PIN existentes y la migración de controles funcionales antiguos
 de otros módulos a `can_*`, siguen siendo trabajos independientes.
 
 ## Verificación

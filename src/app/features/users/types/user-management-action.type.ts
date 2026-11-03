@@ -1,4 +1,7 @@
-import { CreateManagedUser } from '../interfaces/user-management.interface';
+import { CreatePersonalUser, CreatePinUser } from '../interfaces/user-management.interface';
+
+export type CreateManagedUser = CreatePersonalUser | CreatePinUser;
+export type UserCreationMode = 'email_password' | 'device_pin';
 
 export type UserManagementAction =
   | { kind: 'create'; request: CreateManagedUser }

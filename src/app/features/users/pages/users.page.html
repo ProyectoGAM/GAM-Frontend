@@ -1,20 +1,18 @@
 <section class="users-page" aria-labelledby="users-title">
   <header class="page-heading">
     <div><p class="eyebrow">Administración</p><h1 #pageTitle id="users-title" tabindex="-1">Usuarios</h1><p>Gestioná las cuentas, sus accesos y los dispositivos compartidos.</p></div>
-    @if (tab !== 'devices' && tab !== 'roles') { <span class="context">Unidad productiva <span class="badge pending">Por implementar</span></span> }
   </header>
   <nav class="tabs" aria-label="Secciones de usuarios">
     @for (item of tabs; track item.id) {
       <a [routerLink]="item.path" [class.active]="tab === item.id" [attr.aria-current]="tab === item.id ? 'page' : null">{{ item.label }}</a>
     }
   </nav>
-  @if (tab !== 'devices' && tab !== 'roles') {
-    <div class="scope-note">La integración de las nuevas modalidades y la pertenencia de cuentas a una UP está pendiente en este apartado.</div>
+  @if (tab === 'users') {
     <details class="security-note"><summary><ion-icon name="lock-closed-outline" aria-hidden="true" /> Confirmación de cambios</summary><p>Te pediremos tu contraseña al realizar cada cambio. Las acciones de dispositivos también requieren contraseña reciente en el servidor.</p></details>
   }
   @if (!canChange()) { <p class="notice">Ingresá con una cuenta administrativa en modo personal para gestionar los accesos.</p> }
-  @if (message()) { <p class="success" role="status">{{ message() }}</p> }
-  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (tab !== 'create' && message()) { <p class="success" role="status">{{ message() }}</p> }
+  @if (tab !== 'create' && error()) { <p class="error" role="alert">{{ error() }}</p> }
 
   @switch (tab) {
     @case ('users') {
@@ -82,19 +80,145 @@
       }
     }
     @case ('create') {
-      <div class="section-heading"><div><h2>Crear usuario</h2><p>Una nueva cuenta para acceder a GAM.</p></div></div>
-      <form class="panel form-panel" [formGroup]="createForm" (ngSubmit)="create()">
-        <h3>Datos de la cuenta</h3>
-        <div class="fields"><label for="new-name">Nombre completo</label><input id="new-name" formControlName="name" autocomplete="name" maxlength="255" required />
-          <label for="new-email">Correo electrónico</label><input id="new-email" type="email" formControlName="email" autocomplete="email" maxlength="255" required />
-          <label for="new-password">Contraseña inicial</label><input id="new-password" type="password" formControlName="password" autocomplete="new-password" minlength="8" required /><small>Mínimo 8 caracteres.</small>
-          <label for="new-password-confirmation">Repetir contraseña inicial</label><input id="new-password-confirmation" type="password" formControlName="password_confirmation" autocomplete="new-password" required />
-          <label for="new-role">Rol</label><select id="new-role" formControlName="rol_id"><option [ngValue]="null" disabled>Seleccioná un rol</option>@for (role of roles(); track role.id) { <option [ngValue]="role.id">{{ role.nombre }}</option> }</select><small>La cuenta recibe los permisos del único rol seleccionado.</small>
-          @if (rolesLoading()) { <p role="status">Cargando roles…</p> } @if (rolesError()) { <p class="error" role="alert">{{ rolesError() }}</p><button type="button" (click)="loadRoles()">Reintentar carga de roles</button> }
-          <label for="new-unit">Unidad productiva</label><input id="new-unit" value="Por implementar" disabled /><small>La asignación de una cuenta a una UP todavía no está disponible.</small>
-        </div>
-        <p class="muted"><ion-icon name="lock-closed-outline" aria-hidden="true" /> Al crear la cuenta te pediremos tu contraseña para confirmar.</p>
-        <button class="primary" type="submit" [disabled]="!canChange() || busy()">Crear usuario</button>
+      <div class="section-heading">
+        <div><h2 id="create-user-title">Crear usuario</h2><p>Definí cómo va a ingresar la persona y qué permisos tendrá.</p></div>
+      </div>
+      <form #createFormElement [formGroup]="createForm" (ngSubmit)="create()" aria-labelledby="create-user-title" [attr.aria-busy]="busy()">
+        <fieldset class="create-layout" [disabled]="!canChange() || busy()" aria-label="Datos del nuevo usuario">
+          <div class="create-panels">
+            <section class="panel create-panel" aria-labelledby="create-access-title">
+              <h3 id="create-access-title"><ion-icon name="key-outline" aria-hidden="true" /> Modalidad de acceso</h3>
+              <div class="access-options" role="group" aria-labelledby="create-access-title">
+                <label>
+                  <input type="radio" name="creation-mode" value="email_password" [checked]="!creatingPinUser()" (change)="changeCreationMode('email_password')" />
+                  <span>Correo y contraseña<small>Acceso personal a GAM.</small></span>
+                </label>
+                <label>
+                  <input type="radio" name="creation-mode" value="device_pin" [checked]="creatingPinUser()" (change)="changeCreationMode('device_pin')" />
+                  <span>PIN en equipo compartido<small>Acceso desde dispositivos de su UP.</small></span>
+                </label>
+              </div>
+              <small>La modalidad queda definida al crear la cuenta.</small>
+            </section>
+
+            <section class="panel create-panel" aria-labelledby="create-data-title">
+              <h3 id="create-data-title"><ion-icon name="person-outline" aria-hidden="true" /> Datos de la cuenta</h3>
+              @let nameInvalid = createForm.controls.name.touched && createForm.controls.name.invalid;
+              <div class="create-field">
+                <label for="new-name">Nombre completo</label>
+                <input id="new-name" formControlName="name" autocomplete="name" maxlength="255" required
+                  [attr.aria-invalid]="nameInvalid || null" [attr.aria-describedby]="nameInvalid ? 'new-name-error' : null" />
+                @if (nameInvalid) { <small id="new-name-error" class="field-error">Ingresá el nombre completo.</small> }
+              </div>
+              @if (creatingPinUser()) {
+                <div class="create-fields" formGroupName="shared">
+                  @let unitInvalid = createForm.controls.shared.controls.up_id.touched && !createUnit();
+                  <div class="create-field">
+                    <label for="new-unit">Unidad productiva</label>
+                    <select id="new-unit" formControlName="up_id" required
+                      [attr.aria-invalid]="unitInvalid || null" [attr.aria-describedby]="unitInvalid ? 'new-unit-error' : 'new-unit-hint'">
+                      <option [ngValue]="null" disabled>Seleccioná una UP activa</option>
+                      @for (unit of activeUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }
+                    </select>
+                    <small id="new-unit-hint">Solo se muestran unidades activas.</small>
+                    @if (unitInvalid) { <small id="new-unit-error" class="field-error">Seleccioná una unidad productiva activa.</small> }
+                    @if (unitsLoading()) { <small role="status">Cargando unidades productivas…</small> }
+                    @else if (unitsError()) {
+                      <p class="error" role="alert">{{ unitsError() }}</p>
+                      <button type="button" (click)="loadDeviceUnits()">Reintentar carga de unidades</button>
+                    } @else if (!activeUnits().length) { <p class="notice">Necesitás una unidad productiva activa para crear una cuenta con PIN.</p> }
+                  </div>
+                  <div class="create-pair">
+                    @let pinGroup = createForm.controls.shared;
+                    @let pinInvalid = pinGroup.controls.pin.touched && pinGroup.controls.pin.invalid;
+                    @let pinRepeatInvalid = pinGroup.controls.pin_confirmation.touched && (pinGroup.controls.pin_confirmation.invalid || pinGroup.hasError('mismatch'));
+                    <div class="create-field">
+                      <label for="new-pin">PIN de acceso</label>
+                      <input id="new-pin" formControlName="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" required
+                        [attr.aria-invalid]="pinInvalid || null" aria-describedby="new-pin-hint" />
+                      <small id="new-pin-hint" [class.field-error]="pinInvalid">Ingresá cuatro dígitos.</small>
+                    </div>
+                    <div class="create-field">
+                      <label for="new-pin-confirmation">Repetir PIN</label>
+                      <input id="new-pin-confirmation" formControlName="pin_confirmation" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" required
+                        [attr.aria-invalid]="pinRepeatInvalid || null" [attr.aria-describedby]="pinRepeatInvalid ? 'new-pin-repeat-error' : null" />
+                      @if (pinRepeatInvalid) { <small id="new-pin-repeat-error" class="field-error">Repetí el mismo PIN de cuatro dígitos.</small> }
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="create-fields" formGroupName="personal">
+                  @let personal = createForm.controls.personal;
+                  @let emailInvalid = personal.controls.email.touched && personal.controls.email.invalid;
+                  @let passwordInvalid = personal.controls.password.touched && personal.controls.password.invalid;
+                  @let repeatInvalid = personal.controls.password_confirmation.touched && (personal.controls.password_confirmation.invalid || personal.hasError('mismatch'));
+                  <div class="create-field">
+                    <label for="new-email">Correo electrónico</label>
+                    <input id="new-email" formControlName="email" type="email" autocomplete="email" maxlength="255" required
+                      [attr.aria-invalid]="emailInvalid || null" [attr.aria-describedby]="emailInvalid ? 'new-email-error' : null" />
+                    @if (emailInvalid) { <small id="new-email-error" class="field-error">Ingresá un correo electrónico válido.</small> }
+                  </div>
+                  <div class="create-pair">
+                    <div class="create-field">
+                      <label for="new-password">Contraseña inicial</label>
+                      <input id="new-password" formControlName="password" type="password" autocomplete="new-password" minlength="8" required
+                        [attr.aria-invalid]="passwordInvalid || null" aria-describedby="new-password-hint" />
+                      <small id="new-password-hint" [class.field-error]="passwordInvalid">Mínimo 8 caracteres.</small>
+                    </div>
+                    <div class="create-field">
+                      <label for="new-password-confirmation">Repetir contraseña</label>
+                      <input id="new-password-confirmation" formControlName="password_confirmation" type="password" autocomplete="new-password" required
+                        [attr.aria-invalid]="repeatInvalid || null" [attr.aria-describedby]="repeatInvalid ? 'new-password-repeat-error' : null" />
+                      @if (repeatInvalid) { <small id="new-password-repeat-error" class="field-error">Repetí la misma contraseña.</small> }
+                    </div>
+                  </div>
+                </div>
+              }
+            </section>
+
+            <section class="panel create-panel" aria-labelledby="create-role-title">
+              <h3 id="create-role-title"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /> Rol y permisos</h3>
+              @let roleInvalid = createForm.controls.rol_id.touched && !createRole();
+              <div class="create-field">
+                <label for="new-role">Rol</label>
+                <select id="new-role" formControlName="rol_id" required
+                  [attr.aria-invalid]="roleInvalid || null" [attr.aria-describedby]="roleInvalid ? 'new-role-error' : 'new-role-hint'">
+                  <option [ngValue]="null" disabled>Seleccioná un rol</option>
+                  @for (role of createRoles(); track role.id) { <option [ngValue]="role.id">{{ role.nombre }}</option> }
+                </select>
+                <small id="new-role-hint">La cuenta recibe los permisos del rol seleccionado.</small>
+                @if (roleInvalid) { <small id="new-role-error" class="field-error">Seleccioná un rol del catálogo.</small> }
+              </div>
+              @if (rolesLoading()) { <small role="status">Cargando roles…</small> }
+              @else if (rolesError()) {
+                <p class="error" role="alert">{{ rolesError() }}</p>
+                <button type="button" (click)="loadRoles()">Reintentar carga de roles</button>
+              } @else if (!createRoles().length) { <p class="notice">No hay roles disponibles para esta modalidad.</p> }
+              @if (createRole()?.clave === 'unassigned') {
+                <p class="notice" role="status">Podés registrar la cuenta con «Sin rol». Para que pueda ingresar, deberá recibir un rol con acceso a su modalidad.</p>
+              }
+            </section>
+          </div>
+
+          <aside class="panel create-panel create-summary" aria-labelledby="create-summary-title">
+            <h3 id="create-summary-title"><ion-icon name="clipboard-outline" aria-hidden="true" /> Resumen de acceso</h3>
+            <dl aria-live="polite">
+              <div><dt>Modalidad</dt><dd>{{ creatingPinUser() ? 'PIN en equipo compartido' : 'Correo y contraseña' }}</dd></div>
+              @if (creatingPinUser()) { <div><dt>Unidad productiva</dt><dd>{{ createUnit()?.name ?? 'Por seleccionar' }}</dd></div> }
+              <div><dt>Rol</dt><dd>{{ createRole()?.nombre ?? 'Por seleccionar' }}</dd></div>
+            </dl>
+            <small>{{ creatingPinUser() ? 'La persona ingresará con su PIN desde un equipo vinculado a esta UP. El rol debe habilitar el acceso compartido.' : 'La persona ingresará con su correo y contraseña según los accesos habilitados por su rol.' }}</small>
+          </aside>
+        </fieldset>
+        @if (message()) { <p class="success" role="status">{{ message() }}</p> }
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <footer class="create-actions">
+          <p class="credential-note muted"><ion-icon name="lock-closed-outline" aria-hidden="true" /> Te pediremos tu contraseña de administrador para confirmar.</p>
+          <div class="form-actions">
+            <button type="button" (click)="cancelCreate()" [disabled]="busy()">Cancelar</button>
+            <button class="primary" type="submit" [disabled]="!canChange() || busy() || createCatalogUnavailable()">Crear usuario</button>
+          </div>
+        </footer>
       </form>
     }
     @case ('devices') {

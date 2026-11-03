@@ -1,11 +1,21 @@
 import { AuthUser, AuthUserResponse, SharedDevice } from '../../../core/auth/auth.types';
 
-export interface CreateManagedUser {
+interface CreateManagedUserBase {
   name: string;
+  rol_id: number;
+}
+
+export interface CreatePersonalUser extends CreateManagedUserBase {
   email: string;
   password: string;
   password_confirmation: string;
-  rol_id: number;
+}
+
+export interface CreatePinUser extends CreateManagedUserBase {
+  email: null;
+  pin: string;
+  pin_confirmation: string;
+  up_id: number;
 }
 
 export interface ManagedDevice extends SharedDevice {

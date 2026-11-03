@@ -1,11 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, arrowForwardOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, addOutline, peopleOutline, lockClosedOutline, phonePortraitOutline, refreshOutline, timeOutline } from 'ionicons/icons';
+import { arrowBackOutline, arrowForwardOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, addOutline, clipboardOutline, keyOutline, peopleOutline, lockClosedOutline, personOutline, phonePortraitOutline, refreshOutline, shieldCheckmarkOutline, timeOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../core/auth/auth.store';
@@ -16,7 +16,12 @@ import { DeviceProductionUnit, ManagedDevice, PairingCode, UserActionConfirmatio
 import { managedRoleLabel, userManagementError } from '../services/users-presentation';
 import { UsersService } from '../services/users.service';
 import { ManagedRoleDefinition } from '../interfaces/role-management.interface';
-import { UserManagementAction } from '../types/user-management-action.type';
+import { CreateManagedUser, UserCreationMode, UserManagementAction } from '../types/user-management-action.type';
+
+function matchingCredentials(field: 'pin' | 'password'): ValidatorFn {
+  return (group) => group.get(field)?.value === group.get(field + '_confirmation')?.value
+    ? null : { mismatch: true };
+}
 
 @Component({
   selector: 'app-users',
@@ -34,6 +39,7 @@ export class UsersPage {
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');
   private readonly accountTitle = viewChild<ElementRef<HTMLElement>>('accountTitle');
   private readonly editorTitle = viewChild<ElementRef<HTMLElement>>('editorTitle');
+  private readonly createFormElement = viewChild<ElementRef<HTMLFormElement>>('createFormElement');
   private readonly rolesPanel = viewChild(RolesPanelComponent);
   readonly tab = this.route.snapshot.data['tab'] as 'users' | 'create' | 'devices' | 'roles';
   canLeave(): Promise<boolean> | boolean { return this.rolesPanel()?.canLeave() ?? true; }
@@ -53,6 +59,7 @@ export class UsersPage {
   readonly deviceUnits = signal<DeviceProductionUnit[]>([]);
   readonly unitsLoading = signal(false);
   readonly unitsError = signal('');
+  private readonly unitsLoaded = signal(false);
   readonly devicesLoaded = signal(false);
   readonly activeUnits = computed(() => this.deviceUnits().filter((unit) => unit.status === 'active'));
   readonly unitNames = computed(() => new Map(this.deviceUnits().map((unit) => [unit.id, unit.name])));
@@ -80,13 +87,29 @@ export class UsersPage {
   });
   readonly canNext = computed(() => this.lastPage() !== null ? this.page() < this.lastPage()! : this.users().length > 0);
   readonly remaining = computed(() => Math.max(0, Math.ceil((Date.parse(this.pairing()?.expires_at ?? '') - this.now()) / 60000)));
+  readonly creationMode = signal<UserCreationMode>('email_password');
+  readonly creatingPinUser = computed(() => this.creationMode() === 'device_pin');
   readonly createForm = new FormGroup({
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(255)] }),
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email, Validators.maxLength(255)] }),
-    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] }),
-    password_confirmation: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(255)] }),
     rol_id: new FormControl<number | null>(null, { validators: [Validators.required] }),
+    personal: new FormGroup({
+      email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email, Validators.maxLength(255)] }),
+      password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] }),
+      password_confirmation: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    }, { validators: matchingCredentials('password') }),
+    shared: new FormGroup({
+      up_id: new FormControl<number | null>(null, { validators: [Validators.required] }),
+      pin: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[0-9]{4}$/)] }),
+      pin_confirmation: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[0-9]{4}$/)] }),
+    }, { validators: matchingCredentials('pin') }),
   });
+  private readonly createRoleId = toSignal(this.createForm.controls.rol_id.valueChanges, { initialValue: null });
+  private readonly createUnitId = toSignal(this.createForm.controls.shared.controls.up_id.valueChanges, { initialValue: null });
+  readonly createRoles = computed(() => this.roles().filter((role) => !this.creatingPinUser() || role.clave !== 'admin'));
+  readonly createRole = computed(() => this.createRoles().find((role) => role.id === this.createRoleId()));
+  readonly createUnit = computed(() => this.activeUnits().find((unit) => unit.id === this.createUnitId()));
+  readonly createCatalogUnavailable = computed(() => this.rolesLoading() || !!this.rolesError() || !this.createRoles().length
+    || (this.creatingPinUser() && (this.unitsLoading() || !!this.unitsError() || !this.activeUnits().length)));
   readonly credentialForm = new FormGroup({ value: new FormControl('', { nonNullable: true }), confirmation: new FormControl('', { nonNullable: true }) });
   readonly deviceName = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] });
   readonly deviceUnit = new FormControl<number | null>(null, { validators: [Validators.required] });
@@ -98,7 +121,8 @@ export class UsersPage {
   private destroyed = false;
 
   constructor() {
-    addIcons({ arrowBackOutline, arrowForwardOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, addOutline, peopleOutline, lockClosedOutline, phonePortraitOutline, refreshOutline, timeOutline });
+    addIcons({ arrowBackOutline, arrowForwardOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, addOutline, clipboardOutline, keyOutline, peopleOutline, lockClosedOutline, personOutline, phonePortraitOutline, refreshOutline, shieldCheckmarkOutline, timeOutline });
+    this.createForm.controls.shared.disable();
     const owner = this.owner();
     effect(() => { if (this.owner() !== owner || !this.canChange()) this.clearSensitive(); });
     this.destroyRef.onDestroy(() => { this.destroyed = true; this.clearSensitive(); });
@@ -133,7 +157,9 @@ export class UsersPage {
       const units = await firstValueFrom(this.api.deviceUnits().pipe(takeUntilDestroyed(this.destroyRef)));
       if (this.destroyed || this.owner() !== owner) return;
       this.deviceUnits.set(units);
+      this.unitsLoaded.set(true);
       if (!units.some((unit) => unit.id === this.deviceUnit.value && unit.status === 'active')) this.deviceUnit.reset();
+      if (!this.createUnit()) this.createForm.controls.shared.controls.up_id.reset();
     } catch (error) {
       if (!this.destroyed && this.owner() === owner) this.unitsError.set(userManagementError(error, 'No se pudieron cargar las unidades productivas.'));
     } finally { if (!this.destroyed) this.unitsLoading.set(false); }
@@ -202,15 +228,64 @@ export class UsersPage {
     afterNextRender(() => this.editorTitle()?.nativeElement.focus(), { injector: this.injector });
   }
 
-  create(): void {
-    this.createForm.markAllAsTouched();
-    const request = this.createForm.getRawValue();
-    const role = this.roles().find((item) => item.id === request.rol_id);
-    if (this.rolesLoading() || this.rolesError() || this.createForm.invalid || !request.name.trim() || request.password !== request.password_confirmation || !role) {
-      this.error.set('Revisá los campos. La contraseña debe tener al menos 8 caracteres y coincidir con su confirmación.'); return;
+  changeCreationMode(mode: UserCreationMode): void {
+    if (this.busy() || this.pending || this.creationMode() === mode) return;
+    this.creationMode.set(mode);
+    this.error.set('');
+    this.message.set('');
+    const { personal, shared, rol_id } = this.createForm.controls;
+    personal.reset();
+    shared.reset();
+    if (mode === 'device_pin') {
+      personal.disable();
+      shared.enable();
+      if (!this.createRole()) rol_id.reset();
+      if (!this.unitsLoaded() || this.unitsError()) void this.loadDeviceUnits();
+    } else {
+      shared.disable();
+      personal.enable();
     }
-    this.prepare({ kind: 'create', request: { ...request, rol_id: role.id, name: request.name.trim(), email: request.email.trim() } },
-      { title: 'Crear usuario', target: request.name, description: `Se creará una cuenta con el rol ${role.nombre}.`, button: 'Confirmar y crear' });
+  }
+
+  cancelCreate(): void {
+    if (this.busy() || this.pending) return;
+    void this.router.navigateByUrl('/administracion/usuarios');
+  }
+
+  create(): void {
+    if (!this.canChange() || this.busy() || this.pending || this.createCatalogUnavailable()) return;
+    this.createForm.markAllAsTouched();
+    this.error.set('');
+    this.message.set('');
+    const role = this.createRole();
+    const unit = this.createUnit();
+    const shared = this.creatingPinUser();
+    if (this.createForm.invalid || !role || (shared && !unit)) {
+      afterNextRender(() => this.createFormElement()?.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        { injector: this.injector });
+      return;
+    }
+
+    const { name, personal, shared: credentials } = this.createForm.getRawValue();
+    const account = { name: name.trim(), rol_id: role.id };
+    const request: CreateManagedUser = shared && unit
+      ? { ...account, email: null, pin: credentials.pin, pin_confirmation: credentials.pin_confirmation, up_id: unit.id }
+      : { ...account, ...personal, email: personal.email.trim() };
+    const access = shared ? `PIN en equipo compartido de ${unit?.name}` : 'Correo y contraseña';
+    const warning = role.clave === 'unassigned' ? ' La cuenta no podrá iniciar sesión hasta recibir un rol con acceso.' : '';
+    this.prepare({ kind: 'create', request }, {
+      title: 'Crear usuario',
+      target: account.name,
+      description: `${access}. Rol: ${role.nombre}.${warning}`,
+      button: 'Confirmar y crear',
+    });
+  }
+
+  private resetCreate(): void {
+    this.createForm.reset();
+    this.creationMode.set('email_password');
+    this.createForm.controls.personal.enable();
+    this.createForm.controls.shared.disable();
   }
 
   saveEditor(): void {
@@ -274,7 +349,10 @@ export class UsersPage {
       this.pending = null; this.confirmation.set(null); this.editor.set(null);
       this.credentialForm.reset();
       this.message.set('Cambio realizado correctamente.');
-      if (action.kind === 'create') this.createForm.reset();
+      if (action.kind === 'create') {
+        this.resetCreate();
+        this.message.set(`Se creó la cuenta de ${action.request.name}.`);
+      }
       if (action.kind === 'code') {
         this.message.set('');
         this.pairingContext.set({ name: action.name, upName: this.unitNames().get(action.upId) ?? `UP ${action.upId}` });
@@ -329,8 +407,8 @@ export class UsersPage {
   }
   private clearSensitive(): void {
     this.pending = null; this.confirmation.set(null); this.clearCode();
-    this.createForm.reset(); this.credentialForm.reset(); this.deviceName.reset(); this.deviceUnit.reset();
-    this.deviceUnits.set([]); this.devicesLoaded.set(false);
+    this.resetCreate(); this.credentialForm.reset(); this.deviceName.reset(); this.deviceUnit.reset();
+    this.deviceUnits.set([]); this.unitsLoaded.set(false); this.devicesLoaded.set(false);
     this.roles.set([]); this.assignedRole.reset();
     this.users.set([]); this.devices.set([]); this.selected.set(null);
   }
