@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 import { ManagedRole } from '../types/managed-role.type';
 
-// Allowed identifiers come from CreateManagedUserRequest / UpdateUserRolesRequest.
+// Legacy display labels only. Account role choices come from the server catalog.
 export const MANAGED_ROLES: readonly { id: ManagedRole; label: string; description: string }[] = [
   { id: 'admin', label: 'Administrador', description: 'Rol administrativo del sistema.' },
   { id: 'employee', label: 'Empleado', description: 'Cuenta para tareas operativas autorizadas.' },
@@ -25,6 +25,11 @@ export function userManagementError(error: unknown, fallback: string): string {
   if (error.status === 419) return 'La sesión de seguridad venció. Volvé a ingresar e intentá nuevamente.';
   if (error.status === 429) return 'Hay demasiados intentos. Esperá un momento antes de volver a intentar.';
   if (error.status === 404) return 'La cuenta o el dispositivo ya no está disponible. Actualizá la lista.';
+  if (error.status === 409) {
+    const body: unknown = error.error;
+    if (body && typeof body === 'object' && 'code' in body && body.code === 'LAST_ADMIN') return 'Debe quedar al menos un administrador activo. No se pudo cambiar la cuenta.';
+    return 'La información cambió. Actualizá los datos y revisá la operación antes de volver a intentar.';
+  }
   if (error.status === 422) {
     const body: unknown = error.error;
     if (body && typeof body === 'object' && 'errors' in body && body.errors && typeof body.errors === 'object') {

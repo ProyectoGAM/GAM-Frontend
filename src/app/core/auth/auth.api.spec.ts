@@ -58,7 +58,7 @@ describe('AuthApi backend contract', () => {
     api.sharedStatus(true).subscribe();
     http.expectOne('/api/v1/shared-device/web').flush({});
     api.sharedUsers(true).subscribe();
-    http.expectOne('/api/v1/shared-device/web/users').flush({});
+    http.expectOne('/api/v1/shared-device/web/users?page=1&per_page=100').flush({});
 
     api.pinLogin(12, '0007', true).subscribe();
     const pinLogin = http.expectOne('/api/v1/shared-device/web/login-pin');

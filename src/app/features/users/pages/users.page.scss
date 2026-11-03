@@ -57,7 +57,43 @@ fieldset { padding: 0; border: 0; margin: 0; }
 .error { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
 .loading { display: flex; gap: 12px; align-items: center; min-height: 80px; }
 .empty { text-align: center; padding: 30px 16px; color: var(--gam-color-text-muted); } .empty h3 { margin-block: 12px; }
-.pairing { display: grid; gap: 10px; text-align: center; padding: 20px 12px; background: var(--gam-color-primary-soft); border-radius: 12px; }
+.pairing { display: grid; gap: 10px; text-align: center; padding: 24px 12px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); border-radius: 12px; }
 .pairing strong { color: var(--gam-color-primary); font-size: 1.65rem; letter-spacing: .1em; overflow-wrap: anywhere; }
+.pairing small { color: var(--gam-color-primary); }
+.pairing-layout { display: grid; gap: 16px; }
+.pairing-panel { display: grid; align-content: start; gap: 18px; min-width: 0; }
+.pair-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap; }
+.pair-heading h3 { font-size: 1.15rem; color: var(--gam-color-heading); }
+.step-label { color: var(--gam-color-primary); background: var(--gam-color-primary-soft); border-radius: 8px; padding: 5px 9px; font-size: .75rem; font-weight: 700; }
+.pairing-fields { display: grid; gap: 20px; }
+.pairing-fields small { font-size: .78rem; font-weight: 400; line-height: 1.45; }
+.pairing-fields .fields { gap: 7px; }
+.field-error { color: var(--gam-color-danger); }
+.unit-scope { display: flex; align-items: start; gap: 12px; padding: 16px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); border-radius: 12px; }
+.unit-scope > ion-icon { font-size: 28px; }
+.unit-scope p { font-size: .83rem; margin-top: 5px; }
+.credential-note { display: flex; align-items: start; gap: 10px; font-size: .82rem; line-height: 1.5; }
+.credential-note > ion-icon { font-size: 20px; margin-top: 1px; }
+.generate-code { width: 100%; min-height: 48px; }
+.generate-code ion-icon { font-size: 20px; }
+.unit-feedback { display: flex; align-items: center; gap: 10px; }
+.pairing-guide { background: var(--gam-color-surface-alt); }
+.pairing-guide h3 { color: var(--gam-color-heading); font-size: 1.08rem; }
+.pairing-guide ol { list-style: none; counter-reset: pair-step; padding: 0; margin: 24px 0; display: grid; gap: 24px; }
+.pairing-guide li { counter-increment: pair-step; display: flex; align-items: start; gap: 12px; font-size: .86rem; }
+.pairing-guide li::before { content: counter(pair-step); border-radius: 50%; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); width: 30px; height: 30px; display: grid; place-items: center; flex-shrink: 0; font-weight: 700; }
+.pairing-guide li p { font-size: .79rem; margin-top: 6px; }
+.pairing-guide > .credential-note { padding-top: 18px; border-top: 1px solid var(--gam-color-border); }
+.device-context { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--gam-color-border); border-radius: 12px; overflow-wrap: anywhere; }
+.device-context > ion-icon { font-size: 30px; }
+.device-context p { margin-top: 6px; font-size: .88rem; }
+.device-cards { display: grid; gap: 12px; }
+.device-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.device-icon { font-size: 32px; color: var(--gam-color-heading); }
+.device-copy { flex: 1; min-width: 120px; overflow-wrap: anywhere; }
+.device-copy p { margin-top: 8px; font-size: .85rem; color: var(--gam-color-text-muted); }
+.device-summary > button { margin-left: auto; min-height: 48px; }
+.device .device-footnote { padding-top: 12px; border-top: 1px solid var(--gam-color-border); font-size: .78rem; color: var(--gam-color-text-muted); }
+@media (min-width: 820px) { .pairing-layout { grid-template-columns: minmax(0, 1.65fr) minmax(240px, 1fr); align-items: stretch; } .pairing-panel, .pairing-guide { padding: 22px; } }
 ion-icon { flex-shrink: 0; vertical-align: middle; }
 @media (min-width: 640px) { .users-page { padding: 28px; } .page-heading { grid-template-columns: 1fr auto; align-items: center; } .filters { grid-template-columns: 1fr 180px; } .cards, .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tabs a { flex: 0 0 auto; padding-inline: 24px; } }

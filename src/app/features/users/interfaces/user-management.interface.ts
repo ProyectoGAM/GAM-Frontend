@@ -1,16 +1,21 @@
-import { AuthUser, SharedDevice } from '../../../core/auth/auth.types';
-import { ManagedRole } from '../types/managed-role.type';
+import { AuthUser, AuthUserResponse, SharedDevice } from '../../../core/auth/auth.types';
 
 export interface CreateManagedUser {
   name: string;
   email: string;
   password: string;
   password_confirmation: string;
-  role: ManagedRole;
+  rol_id: number;
 }
 
 export interface ManagedDevice extends SharedDevice {
   last_seen_at?: string | null;
+}
+
+export interface DeviceProductionUnit {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
 }
 
 export interface UserPageMetadata {
@@ -19,7 +24,7 @@ export interface UserPageMetadata {
 }
 
 export interface ManagedUsersResponse {
-  data: AuthUser[] | { data: AuthUser[]; meta?: UserPageMetadata };
+  data: AuthUserResponse[] | { data: AuthUserResponse[]; meta?: UserPageMetadata };
   meta?: UserPageMetadata;
 }
 

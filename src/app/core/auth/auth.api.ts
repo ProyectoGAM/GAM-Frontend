@@ -85,13 +85,14 @@ export class AuthApi {
     });
   }
 
-  sharedUsers(web: boolean) {
+  sharedUsers(web: boolean, page = 1) {
     const path = web
       ? 'shared-device/web/users'
       : 'shared-device/users';
 
     return this.api.get<SharedUsersResponse>(path, {
       withCredentials: web,
+      params: { page, per_page: 100 },
     });
   }
 
