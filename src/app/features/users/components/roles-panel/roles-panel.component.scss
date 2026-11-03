@@ -61,7 +61,7 @@ small, .muted { color: var(--gam-color-text-muted); font-size: .8rem; line-heigh
 .permission-row small { font-size: .79rem; }
 .permission-row.locked { cursor: default; }
 .dependency { color: var(--gam-color-primary); }
-.review-bar { position: sticky; bottom: 0; z-index: 2; display: grid; gap: 14px; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); border: 1px solid var(--gam-color-border); border-radius: 14px; background: var(--gam-color-surface); box-shadow: 0 -4px 16px color-mix(in srgb, var(--gam-color-heading) 8%, transparent); }
+.review-bar { display: grid; gap: 14px; padding: 16px 14px; border: 1px solid var(--gam-color-border); border-radius: 14px; background: var(--gam-color-surface); }
 .review-bar strong { font-size: .86rem; color: var(--gam-color-heading); }
 .review-bar p { font-size: .79rem; margin-top: 5px; }
 .review-bar small { font-size: .75rem; }

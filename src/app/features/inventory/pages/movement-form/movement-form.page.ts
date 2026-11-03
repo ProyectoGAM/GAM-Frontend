@@ -81,7 +81,6 @@ function decimalDifference(left: string, right: string): string | null {
   templateUrl: './movement-form.page.html',
   styleUrl: './movement-form.page.scss',
   imports: [ReactiveFormsModule, RouterLink, SearchableSelectComponent, IonIcon],
-  host: { '[style.--movement-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class MovementFormPage {
   private readonly route = inject(ActivatedRoute);
@@ -101,7 +100,6 @@ export class MovementFormPage {
   readonly reasonRequired = computed(() => this.operation() === 'loss' || this.operation() === 'adjustment');
   readonly sourceLabel = computed(() => this.operation() === 'receipt' ? 'Ubicación de destino' : this.operation() === 'adjustment' ? 'Ubicación' : 'Ubicación de origen');
   readonly quantityLabel = computed(() => ({ receipt: 'Cantidad', issue: 'Cantidad a retirar', transfer: 'Cantidad a transferir', loss: 'Cantidad perdida', adjustment: 'Cantidad contada' })[this.operation()]);
-  readonly viewportBottom = signal(0);
   readonly locationDescriptions = signal(new Map<string, string>());
   private readonly locationsById = signal(new Map<string, StockLocation>());
   readonly options = signal<MovementReferenceOptions | null>(null);
@@ -133,16 +131,6 @@ export class MovementFormPage {
 
   constructor() {
     addIcons({ addOutline, arrowBackOutline, arrowForwardOutline, checkmarkCircle, clipboardOutline, cubeOutline, informationCircleOutline, swapHorizontalOutline, trashOutline, warningOutline });
-    const viewport = window.visualViewport;
-    const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
-      ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0);
-    viewport?.addEventListener('resize', updateViewport);
-    viewport?.addEventListener('scroll', updateViewport);
-    updateViewport();
-    this.destroyRef.onDestroy(() => {
-      viewport?.removeEventListener('resize', updateViewport);
-      viewport?.removeEventListener('scroll', updateViewport);
-    });
     this.updateValidators();
     this.watchLine(this.lines.at(0));
     void this.loadReferences();

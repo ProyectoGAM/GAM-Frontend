@@ -24,7 +24,6 @@ const RECIPES_PATH = '/administracion/manejo-lotes/Recetas';
   imports: [ReactiveFormsModule, RouterLink, IonIcon, SearchableSelectComponent],
   templateUrl: './recipe-create.page.html',
   styleUrl: './recipe-create.page.scss',
-  host: { '[style.--recipe-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class RecipeCreatePage {
   private readonly api = inject(FeedRecipesApi);
@@ -45,7 +44,6 @@ export class RecipeCreatePage {
   readonly uncertain = signal(false);
   readonly created = signal<FeedRecipe | null>(null);
   readonly error = signal<string | null>(null);
-  readonly viewportBottom = signal(0);
   readonly locked = computed(() => this.saving() || this.uncertain() || !!this.created() || !this.canCreate());
   readonly ingredients = new FormArray([this.newIngredient()], { validators: [distinctRecipeMaterials] });
   readonly form = new FormGroup({
@@ -89,16 +87,6 @@ export class RecipeCreatePage {
         this.form.reset();
         if (actor !== null && allowed) void this.loadMaterials();
       });
-    });
-    const viewport = window.visualViewport;
-    const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
-      ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0);
-    viewport?.addEventListener('resize', updateViewport);
-    viewport?.addEventListener('scroll', updateViewport);
-    updateViewport();
-    this.destroyRef.onDestroy(() => {
-      viewport?.removeEventListener('resize', updateViewport);
-      viewport?.removeEventListener('scroll', updateViewport);
     });
   }
 

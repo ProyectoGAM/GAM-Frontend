@@ -5,6 +5,10 @@ Ver [contratos y comportamiento entregado](../roles-and-permissions.md).
 Rama: `rolesyPermisos`. Conserva la estética de la vinculación de dispositivos y los
 tokens de `docs/design-colors.md`.
 
+Actualización de interacción: las acciones de revisión se muestran al final del
+contenido, sin fijarse durante el scroll. Las láminas y prompts conservan el
+boceto original; su barra sticky fue reemplazada por esta sección en flujo normal.
+
 ## Láminas
 
 ![Listado de roles en escritorio y móvil](roles-y-permisos-listado.png)

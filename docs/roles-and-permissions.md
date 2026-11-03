@@ -94,6 +94,9 @@ de otros módulos a `can_*`, siguen siendo trabajos independientes.
 
 ## Verificación
 
+La sección de revisión permanece al final del editor, dentro del flujo normal.
+Se desplaza junto al contenido y no tapa permisos ni campos en el teléfono.
+
 Las pruebas cubren contratos HTTP, búsqueda/paginación, creación con permisos
 vacíos, guardado con versión, conservación del borrador al editar datos, conflictos
 concurrentes, eliminación, autorización, cambios de identidad, dependencias,
@@ -108,7 +111,7 @@ controles de al menos 48 px y ausencia de desbordamiento horizontal.
 El guardado y eliminación se prueban con HTTP controlado; la revisión visual no
 crea roles ni altera permisos o asignaciones de la base local.
 
-Validación en Docker: `npm run lint`, `npm run test:ci` (165 archivos y 1366
+Validación en Docker: `npm run lint`, `npm run test:ci` (165 archivos y 1365
 pruebas) y `npm run build` completados correctamente. La auditoría inicial
 `npm audit --omit=dev` reportó cero vulnerabilidades y no se modificaron
 dependencias. No se agregan plugins; `npx cap sync` copia el build para

@@ -313,20 +313,4 @@ describe('Product create page', () => {
     fixture.destroy();
   });
 
-  it('tracks keyboard viewport changes and removes its listeners on destroy', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport');
-    const viewport = Object.assign(new EventTarget(), { scale: 1, height: window.innerHeight - 300, offsetTop: 0 });
-    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
-    try {
-      const { fixture } = createFixture(vi.fn()); const page = fixture.componentInstance;
-      expect(page.viewportBottom()).toBe(300);
-      viewport.height = window.innerHeight; viewport.dispatchEvent(new Event('resize'));
-      expect(page.viewportBottom()).toBe(0);
-      fixture.destroy(); viewport.height = 10; viewport.dispatchEvent(new Event('resize'));
-      expect(page.viewportBottom()).toBe(0);
-    } finally {
-      if (descriptor) Object.defineProperty(window, 'visualViewport', descriptor);
-      else Reflect.deleteProperty(window, 'visualViewport');
-    }
-  });
 });

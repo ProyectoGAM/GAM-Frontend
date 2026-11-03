@@ -45,7 +45,7 @@
           }
         </section>
       </fieldset>
-      <footer class="action-bar" [class.keyboard-open]="viewportBottom() > 0"><div><button class="button primary" type="submit" [disabled]="saving() || (!uncertain() && (suppliersLoading() || !!suppliersError() || !suppliers().length))">{{ saving() ? 'Creando…' : uncertain() ? 'Reintentar creación' : config.button }}</button></div></footer>
+      <footer class="action-bar"><div><button class="button primary" type="submit" [disabled]="saving() || (!uncertain() && (suppliersLoading() || !!suppliersError() || !suppliers().length))">{{ saving() ? 'Creando…' : uncertain() ? 'Reintentar creación' : config.button }}</button></div></footer>
     </form>
   }
 </section>
