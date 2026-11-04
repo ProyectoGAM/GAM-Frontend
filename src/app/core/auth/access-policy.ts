@@ -1,4 +1,5 @@
 import { AuthUser } from './auth.types';
+import { hasAnyPermission } from './permission-keys';
 
 export const ADMIN_GROUP_IDS = [
   'acceso-rapido', 'resumen', 'ubicaciones', 'lotes', 'inventario', 'historial',
@@ -8,23 +9,55 @@ export const ADMIN_GROUP_IDS = [
 
 export type AdminGroup = typeof ADMIN_GROUP_IDS[number];
 
-/** Backend permission strings are not yet contracted; keep grants empty until they are. */
-export const GROUP_ROLE_GRANTS: Readonly<Record<AdminGroup, readonly string[]>> = {
-  'acceso-rapido': [],
-  resumen: [],
-  usuarios: [],
-  ubicaciones: [],
-  lotes: [],
-  inventario: [],
-  historial: [],
-  'manejo-lotes': [],
-  proveedores: [],
-  clientes: [],
-  'unidades-productivas': [],
-  'repartos': [],
-  vehiculos: [],
-  'alertas-notificaciones': [],
-  reportes: [],
+type AdminUser = Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>;
+
+const productRead = ['can_view_products', 'can_manage_products', 'can_manage_management_plans'];
+const inventoryRead = ['can_view_inventory'];
+const houseRead = ['can_view_poultry_houses'];
+
+const adminItems: Readonly<Record<AdminGroup, Readonly<Record<string, readonly string[]>>>> = {
+  'acceso-rapido': { '': [] },
+  resumen: { '': ['can_view_admin_dashboard'] },
+  ubicaciones: {
+    galpones: houseRead,
+    'plantas-de-racion': houseRead,
+    mantenimiento: houseRead,
+    'nuevo-galpon': ['can_manage_poultry_houses'],
+    'unidades-productivas': ['can_view_production_units'],
+    'nueva-unidad-productiva': ['can_manage_production_units'],
+  },
+  lotes: { lotes: ['can_view_flocks'] },
+  inventario: {
+    existencias: [...inventoryRead, 'can_view_egg_stock', 'can_view_feed_stock', ...productRead],
+    'existencias/ubicaciones': inventoryRead,
+    'existencias/productos': productRead,
+    'existencias/productos/nuevo': ['can_manage_products'],
+    'existencias/huevos': ['can_view_egg_stock'],
+    'existencias/raciones': ['can_view_feed_stock'],
+    'presentaciones-huevos': [],
+    donaciones: ['can_view_egg_stock', 'can_move_egg_stock'],
+    movimientos: inventoryRead,
+    'ajustes-y-perdidas': ['can_move_inventory', 'can_adjust_inventory'],
+  },
+  historial: { '': ['can_view_audit'] },
+  usuarios: { '': ['can_manage_users'], crear: [], dispositivos: [], roles: [] },
+  clientes: { clientes: ['can_view_customers', 'can_manage_customers'], 'nuevo-cliente': ['can_manage_customers'] },
+  proveedores: { proveedores: ['can_view_suppliers'] },
+  'unidades-productivas': { '': ['can_view_production_units'], nueva: ['can_manage_production_units'] },
+  'manejo-lotes': {
+    planes: ['can_view_management_plans', 'can_manage_management_plans'],
+    vacunacion: ['can_manage_management_plans'],
+    medicacion: ['can_manage_management_plans'],
+    Recetas: ['can_view_feed_recipes', 'can_manage_feed_recipes'],
+  },
+  repartos: { repartos: ['can_view_delivery_history', 'can_monitor_deliveries'] },
+  vehiculos: { '': [
+    'can_view_vehicles', 'can_manage_vehicles', 'can_use_vehicles', 'can_manage_vehicle_readings',
+    'can_view_vehicle_fuel', 'can_manage_vehicle_fuel', 'can_view_vehicle_maintenance',
+    'can_manage_vehicle_maintenance', 'can_view_vehicle_documents', 'can_manage_vehicle_documents',
+  ] },
+  'alertas-notificaciones': { 'bandeja-de-alertas': [], 'configuracion-de-alertas': [] },
+  reportes: { reportes: ['can_view_reports'] },
 };
 
 export function normalizedRoles(user: Pick<AuthUser, 'roles'> | null): ReadonlySet<string> {
@@ -39,21 +72,21 @@ export function hasDeliveryRole(user: Pick<AuthUser, 'roles'> | null): boolean {
   return normalizedRoles(user).has('delivery');
 }
 
-export function postLoginPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string {
+export function postLoginPath(user: AdminUser | null): string {
   if (hasDeliveryRole(user) && !ADMIN_GROUP_IDS.some((group) => group !== 'acceso-rapido' && canAccessGroup(user, group))) return '/repartidor';
   if (ADMIN_GROUP_IDS.some((group) => canAccessGroup(user, group))) return '/administracion';
   if (hasDeliveryRole(user)) return '/repartidor';
   return '/acceso-denegado';
 }
 
-export function hasManagementPlansPermission(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, permission: 'view' | 'manage'): boolean {
-  const permissions = new Set((user?.permissions ?? []).map((value) => value.trim().toLowerCase()));
-  return permissions.has(`management-plans.${permission}`)
-    || (permission === 'view' && permissions.has('management-plans.manage'));
+export function hasManagementPlansPermission(user: AdminUser | null, permission: 'view' | 'manage'): boolean {
+  const permissions = user?.permissions?.map((key) => key.trim().toLowerCase());
+  return isAdminUser(user) || hasAnyPermission(permissions, 'can_manage_management_plans')
+    || (permission === 'view' && hasAnyPermission(permissions, 'can_view_management_plans'));
 }
 
 export function hasFeedRecipesPermission(user: Partial<Pick<AuthUser, 'permissions'>> | null, permission: 'view' | 'manage'): boolean {
-  return user?.permissions?.includes(`feed-recipes.${permission}`) === true;
+  return hasAnyPermission(user?.permissions, `can_${permission}_feed_recipes`);
 }
 
 export function canCreateFlockFromQuickAccess(user: Pick<AuthUser, 'roles' | 'permissions'> | null): boolean {
@@ -66,17 +99,22 @@ export function canCreateFlockFromQuickAccess(user: Pick<AuthUser, 'roles' | 'pe
     && (permissions.has('can_view_management_plans') || permissions.has('can_manage_management_plans'));
 }
 
-export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, group: AdminGroup): boolean {
-  // The landing page does not grant permission to any of its underlying operations.
-  if (group === 'acceso-rapido') return user !== null;
-  if (isAdminUser(user)) return true;
-  if (group === 'historial' && user?.permissions?.includes('audit.view')) return true;
-  if (group === 'manejo-lotes' && hasManagementPlansPermission(user, 'view')) return true;
-  if (group === 'manejo-lotes' && (hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage'))) return true;
-  if (group === 'clientes' && user?.permissions?.some((permission) => ['customers.view', 'customers.manage'].includes(permission))) return true;
-  if (group === 'vehiculos' && user?.permissions?.some((permission) => ['vehicles.view', 'vehicles.manage', 'vehicles.use', 'vehicles.readings.manage', 'vehicles.fuel.view', 'vehicles.fuel.manage', 'vehicles.maintenance.view', 'vehicles.maintenance.manage', 'vehicles.documents.view', 'vehicles.documents.manage'].includes(permission))) return true;
-  if (group === 'reportes' && user?.permissions?.includes('reports.view')) return true;
-  if (group === 'inventario' && user?.permissions?.some((permission) => ['inventory.view', 'egg-stock.view', 'egg-stock.move', 'products.view', 'products.manage', 'management-plans.manage'].includes(permission))) return true;
-  const roles = normalizedRoles(user);
-  return GROUP_ROLE_GRANTS[group].some((role) => roles.has(role.trim().toLocaleLowerCase()));
+export function canAccessAdminItem(user: AdminUser | null, group: AdminGroup, slug: string): boolean {
+  if (!user) return false;
+  // Quick Access is a landing page. Its operations check their own permissions.
+  if (group === 'acceso-rapido' || isAdminUser(user)) return true;
+  if (group === 'ubicaciones' && !hasAnyPermission(user.permissions, 'can_view_production_units')) return false;
+  const items = adminItems[group];
+  return Object.hasOwn(items, slug) && hasAnyPermission(user.permissions, ...items[slug]);
+}
+
+export function canAccessGroup(user: AdminUser | null, group: AdminGroup): boolean {
+  return Object.keys(adminItems[group]).some((slug) => canAccessAdminItem(user, group, slug));
+}
+
+export function canAccessAdminPath(user: AdminUser | null, group: AdminGroup, path: string): boolean {
+  const slug = Object.keys(adminItems[group])
+    .filter((item) => item && (path === item || path.startsWith(item + '/')))
+    .sort((left, right) => right.length - left.length)[0] ?? '';
+  return canAccessAdminItem(user, group, slug);
 }

@@ -9,9 +9,10 @@ consulta de vacunas. Las rutas existentes del sidebar se conservan:
 - `/administracion/manejo-lotes/medicacion`: listado de medicamentos.
 - `/administracion/manejo-lotes/medicacion/nuevo`: alta de medicamento.
 
-Las páginas se cargan lazy y se protegen con el rol de administrador. El API
-mantiene la validación autoritativa del usuario activo y sus permisos. Cambiar de
-identidad o perder el rol descarta datos, borradores y respuestas pendientes.
+Las páginas se cargan bajo demanda. Admin y las cuentas con
+`can_manage_management_plans` pueden consultar los catálogos. El alta requiere
+el rol Admin. La API valida al usuario activo y sus permisos. Cambiar de identidad
+o perder el permiso descarta datos, borradores y respuestas pendientes.
 La UP del filtro global no afecta a estos catálogos.
 
 ## Contratos

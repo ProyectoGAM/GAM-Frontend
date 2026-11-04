@@ -101,7 +101,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(28);
+    ).toBe(29);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
@@ -138,6 +138,20 @@ describe('admin navigation visibility', () => {
     expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
     expect(visibleAdminNavigation(reader)[1]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
     expect(firstVisibleAdminPath(reader)).toBe('/administracion/acceso-rapido');
+  });
+
+  it('shows the farmer’s contracted modules and limits their items to permitted entries', () => {
+    const navigation = visibleAdminNavigation({ roles: ['employee'], permissions: [
+      'can_view_flocks', 'can_manage_flocks', 'can_view_production_units',
+      'can_view_poultry_houses', 'can_view_management_plans', 'can_execute_management_plans',
+    ] });
+    expect(navigation.map((group) => [group.id, group.items.map((item) => item.slug)])).toEqual([
+      ['acceso-rapido', ['']],
+      ['ubicaciones', ['galpones', 'plantas-de-racion', 'mantenimiento']],
+      ['lotes', ['lotes']],
+      ['unidades-productivas', ['']],
+      ['manejo-lotes', ['planes']],
+    ]);
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {

@@ -1,4 +1,4 @@
-import { canAccessGroup, hasFeedRecipesPermission, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
+import { canAccessAdminItem, AdminGroup } from '../../core/auth/access-policy';
 import { AuthUser } from '../../core/auth/auth.types';
 
 export interface AdminNavigationGroup {
@@ -154,13 +154,10 @@ export function adminItemPath(group: AdminNavigationGroup, slug: string): string
 }
 
 export function visibleAdminNavigation(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): readonly AdminNavigationGroup[] {
-  return ADMIN_NAVIGATION.filter((group) => canAccessGroup(user, group.id)).map((group) => {
-    if (group.id !== 'manejo-lotes') return group;
-    const isAdmin = user?.roles.some((role) => role.trim().toLowerCase() === 'admin');
-    const hasPlans = hasManagementPlansPermission(user, 'view');
-    const hasRecipes = hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage');
-    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : item.slug === 'Recetas' ? isAdmin || hasRecipes : isAdmin) };
-  });
+  return ADMIN_NAVIGATION.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => canAccessAdminItem(user, group.id, item.slug)),
+  })).filter((group) => group.items.length > 0);
 }
 
 export function firstVisibleAdminPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string | null {

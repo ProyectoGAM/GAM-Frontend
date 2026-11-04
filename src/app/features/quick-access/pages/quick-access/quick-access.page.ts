@@ -6,7 +6,7 @@ import { map } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { canAccessGroup, canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
+import { canAccessAdminItem, canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
@@ -79,7 +79,7 @@ export class QuickAccessPage {
     ];
   });
   readonly hasRestrictedTasks = computed(() => this.tasks().some((task) => !task.allowed));
-  readonly canViewMaintenance = computed(() => canAccessGroup(this.auth.user(), 'ubicaciones'));
+  readonly canViewMaintenance = computed(() => canAccessAdminItem(this.auth.user(), 'ubicaciones', 'mantenimiento'));
   readonly canAddFlock = computed(() => canCreateFlockFromQuickAccess(this.auth.user()));
   readonly houseStatusLabels: Record<PoultryHouseStatus, string> = {
     operational: 'Operativo',

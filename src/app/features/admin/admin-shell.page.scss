@@ -2,6 +2,22 @@
 .mobile-header { display: none; }
 .mobile-header ion-toolbar { --background: var(--gam-color-nav); --color: var(--gam-color-nav-text); }
 .mobile-header ion-button { --color: var(--gam-color-nav-text); }
+.mobile-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 4px;
+}
+.mobile-title {
+  overflow: hidden;
+  font-size: clamp(1rem, 4.4vw, 1.125rem);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-actions { display: flex; align-items: center; }
+.menu-toggle,
 .theme-toggle { min-width: 44px; min-height: 44px; margin: 0; }
 .theme-toggle:focus-visible { outline: 3px solid var(--gam-color-nav-focus); outline-offset: 2px; }
 .admin-layout { min-height: 100%; background: var(--gam-color-canvas); }
@@ -12,9 +28,8 @@
 .topbar-actions .theme-toggle { --color: var(--gam-color-text); }
 .topbar small { margin-bottom: 3px; color: var(--gam-color-text-muted); font-size: 11px; }
 .topbar strong { color: var(--gam-color-heading); font-size: 17px; }
-.user-badge { display: flex; align-items: center; gap: 9px; color: var(--gam-color-text); font-size: 12px; }
-.user-badge span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--gam-color-heading); background: var(--gam-color-primary-soft); font-weight: 800; }
+.profile-link { min-height: 44px; }
+.topbar .profile-link { --color: var(--gam-color-primary); --border-color: var(--gam-color-primary); }
 .page-content { --gam-page-bottom-space: calc(48px + env(safe-area-inset-bottom)); padding: clamp(18px, 3vw, 36px); padding-bottom: var(--gam-page-bottom-space); }
 @media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px 16px var(--gam-page-bottom-space); } }
 @media (max-width: 480px) { .mobile-header .mobile-logout { display: none; } }
-@media (max-width: 900px) { .mobile-header ion-title { padding-inline: 8px; font-size: clamp(1rem, 4.4vw, 1.125rem); } }

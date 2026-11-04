@@ -11,7 +11,7 @@
     </div>
   </ion-toolbar>
   @if (profileOpen()) {
-    <div class="profile-menu"><strong>{{ auth.user()?.name }}</strong>@if (canLeaveDelivery()) { <a [routerLink]="otherViewPath()">Otras vistas</a> }<button type="button" (click)="logout()">Cerrar sesión</button></div>
+    <div class="profile-menu"><strong>{{ auth.user()?.name }}</strong><a routerLink="/mi-perfil" (click)="profileOpen.set(false)">Mi perfil</a>@if (canLeaveDelivery()) { <a [routerLink]="otherViewPath()">Otras vistas</a> }<button type="button" (click)="logout()">Cerrar sesión</button></div>
   }
 </ion-header>
 

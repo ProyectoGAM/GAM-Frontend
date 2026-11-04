@@ -1,8 +1,8 @@
 <section class="health-page catalog-list">
   <header class="page-heading"><div><p class="eyebrow">MANEJO DE LOTES</p><h1>{{ config.title }}</h1><p class="lead">Catálogo global de {{ config.plural }} para los planes de manejo.</p><p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" />Disponible para todas las UP</p></div>
-    @if (allowed()) { <a class="button primary" [routerLink]="[config.path, 'nuevo']" [queryParams]="returnQuery()"><ion-icon name="add-outline" aria-hidden="true" />{{ config.create }}</a> }
+    @if (canCreate()) { <a class="button primary" [routerLink]="[config.path, 'nuevo']" [queryParams]="returnQuery()"><ion-icon name="add-outline" aria-hidden="true" />{{ config.create }}</a> }
   </header>
-  @if (!allowed()) { <div class="feedback error" role="alert">Este catálogo está disponible únicamente para administradores.</div> }
+  @if (!allowed()) { <div class="feedback error" role="alert">Tu cuenta no tiene permiso para consultar este catálogo.</div> }
   @else {
     <form class="filter-toolbar" [formGroup]="searchForm" (ngSubmit)="searchRecords()" aria-label="Búsqueda del catálogo">
       <label class="filter-search"><span class="sr-only">{{ kind === 'vaccines' ? 'Buscar por nombre o código' : 'Buscar medicamento' }}</span><ion-icon name="search-outline" aria-hidden="true" /><input type="search" formControlName="search" maxlength="160" [placeholder]="kind === 'vaccines' ? 'Buscar por nombre o código' : 'Buscar medicamento'"></label>

@@ -65,6 +65,15 @@ export class AuthApi {
     );
   }
 
+  changeCredential(kind: 'password' | 'pin', current: string, next: string, confirmation: string) {
+    const body = kind === 'pin'
+      ? { current_pin: current, pin: next, pin_confirmation: confirmation }
+      : { current_password: current, password: next, password_confirmation: confirmation };
+    return this.api.patch<{ requiere_reingreso: true }>(
+      kind === 'pin' ? 'auth/pin' : 'auth/contrasena', body, { withCredentials: true },
+    );
+  }
+
   pair(code: string, deviceName: string, web: boolean) {
     const path = web ? 'auth/web/pairing' : 'shared-devices/pairing';
 
@@ -128,7 +137,8 @@ export class AuthApi {
     return this.api.post<{ message: string }>(
       path,
       { session_id: sessionId },
-      { withCredentials: web },
+      // La identidad local se limpia antes de terminar la sesión en el servidor.
+      web ? { withCredentials: true, headers: { 'X-GAM-Session': sessionId } } : {},
     );
   }
 

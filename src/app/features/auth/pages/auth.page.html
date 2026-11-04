@@ -62,7 +62,7 @@
               <p class="selector-note">Al vincularlo, el personal ingresa con su PIN.</p>
             </form>
           </section>
-        } @else {
+        } @else if (!auth.isShared()) {
           <section aria-label="Acceso personal">
             <ion-card><ion-card-header><ion-card-title>Acceso personal</ion-card-title><ion-card-subtitle>Usá el correo autorizado por la administración.</ion-card-subtitle></ion-card-header>
               <ion-card-content><form [formGroup]="loginForm" (ngSubmit)="submitLogin()">

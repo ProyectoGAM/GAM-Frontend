@@ -151,6 +151,37 @@ export class AuthStore {
     }
   }
 
+  async changeCredential(kind: 'password' | 'pin', current: string, next: string, confirmation: string): Promise<string | null> {
+    const userId = this.userState()?.id;
+    const sessionId = this.sessionState()?.id;
+    const isCurrent = () => userId !== undefined && this.isAuthenticated()
+      && this.userState()?.id === userId && this.sessionState()?.id === sessionId;
+    const fallback = 'No se pudo cambiar la credencial. Inténtalo de nuevo.';
+    try {
+      if (!this.storage.isNative()) await this.api.csrf();
+      if (!isCurrent()) return fallback;
+      await firstValueFrom(this.api.changeCredential(kind, current, next, confirmation));
+      if (!isCurrent()) return fallback;
+      if (this.isShared()) {
+        this.clearSharedIdentity();
+        await this.verifySharedDevice();
+      } else {
+        // El servidor ya revocó la sesión, incluso si falla el borrado en el dispositivo.
+        await this.clearPersonal().catch(() => undefined);
+        this.statusState.set('personal_guest');
+      }
+      return null;
+    } catch (error) {
+      if (error instanceof HttpErrorResponse) {
+        const { code } = this.problem(error);
+        if (code === 'INVALID_PIN') return 'El PIN actual no es correcto.';
+        if (code === 'INVALID_CREDENTIALS') return 'La contraseña actual no es correcta.';
+        if (error.status === 419) return 'No se pudo verificar la solicitud. Inténtalo de nuevo.';
+      }
+      return this.messageFor(error, fallback);
+    }
+  }
+
   async pair(code: string, deviceName: string): Promise<boolean> {
     this.errorState.set(null);
 
@@ -238,14 +269,8 @@ export class AuthStore {
   }
 
   async finishSharedSession(): Promise<void> {
-    this.sharedIdentityVersion++;
     const session = this.sessionState();
-    this.stopActivity();
-    this.userState.set(null);
-    this.sessionState.set(null);
-    this.personalToken = null;
-    this.sharedUsersState.set([]);
-    this.statusState.set('shared_verifying');
+    this.clearSharedIdentity();
 
     try {
       if (session) {
@@ -280,8 +305,10 @@ export class AuthStore {
 
     const problem = this.problem(error);
     const path = requestUrl.split(/[?#]/)[0];
-    if (problem.code === 'INVALID_CREDENTIALS'
-      && /(?:^|\/)auth\/(?:web\/)?confirm-password\/?$/.test(path)) {
+    if ((problem.code === 'INVALID_CREDENTIALS'
+      && /(?:^|\/)auth\/(?:(?:web\/)?confirm-password|contrasena)\/?$/.test(path))
+      || (problem.code === 'INVALID_PIN'
+        && /(?:^|\/)(?:auth\/pin|shared-device\/(?:web\/)?login-pin)\/?$/.test(path))) {
       return;
     }
     if (problem.code === 'SHARED_DEVICE_UNAUTHORIZED') {
@@ -405,6 +432,17 @@ export class AuthStore {
     this.userState.set(null);
     this.sessionState.set(null);
     await this.storage.removePersonalToken();
+  }
+
+  private clearSharedIdentity(): void {
+    this.sharedIdentityVersion++;
+    this.stopActivity();
+    this.userState.set(null);
+    this.sessionState.set(null);
+    this.personalToken = null;
+    this.sharedUsersState.set([]);
+    this.errorState.set(null);
+    this.statusState.set('shared_verifying');
   }
 
   private async clearShared(resetMode: boolean): Promise<void> {

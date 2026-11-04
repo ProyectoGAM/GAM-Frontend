@@ -4,7 +4,9 @@
   </header>
   <nav class="tabs" aria-label="Secciones de usuarios">
     @for (item of tabs; track item.id) {
-      <a [routerLink]="item.path" [class.active]="tab === item.id" [attr.aria-current]="tab === item.id ? 'page' : null">{{ item.label }}</a>
+      @if (item.id === 'users' || canChange()) {
+        <a [routerLink]="item.path" [class.active]="tab === item.id" [attr.aria-current]="tab === item.id ? 'page' : null">{{ item.label }}</a>
+      }
     }
   </nav>
   @if (tab === 'users') {
@@ -59,7 +61,7 @@
           </form>
         }
       } @else {
-        <div class="section-heading"><div><h2>Cuentas de acceso</h2><p>Personas que pueden iniciar sesión en GAM.</p></div><a class="primary button" routerLink="/administracion/usuarios/crear"><ion-icon name="add-outline" aria-hidden="true" /> Crear usuario</a></div>
+        <div class="section-heading"><div><h2>Cuentas de acceso</h2><p>Personas que pueden iniciar sesión en GAM.</p></div>@if (canChange()) { <a class="primary button" routerLink="/administracion/usuarios/crear"><ion-icon name="add-outline" aria-hidden="true" /> Crear usuario</a> }</div>
         <div class="filters">
           <label>Buscar en esta página<input #search type="search" placeholder="Nombre o correo" [value]="query()" (input)="query.set(search.value)" /></label>
           <label>Estado<select #state [value]="statusFilter()" (change)="statusFilter.set(state.value)"><option value="all">Todos</option><option value="enabled">Habilitados</option><option value="disabled">Deshabilitados</option></select></label>

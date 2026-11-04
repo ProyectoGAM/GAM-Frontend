@@ -53,6 +53,11 @@ ion-app {
   background: var(--gam-color-nav);
 }
 
+ion-toast.profile-credential-toast {
+  --background: var(--gam-color-success-soft);
+  --color: var(--gam-color-success);
+}
+
 ion-app > ion-router-outlet > .ion-page {
   top: max(env(safe-area-inset-top, 0px), var(--gam-status-bar-inset, 0px));
 }

@@ -12,6 +12,8 @@ import type { LngLatBounds, Map as MapboxMap, Marker as MapboxMarker } from 'map
 import { EMPTY, Subject, catchError, distinctUntilChanged, finalize, forkJoin, interval, map, merge, of, switchMap, tap } from 'rxjs';
 
 import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
+import { AuthStore } from '../../core/auth/auth.store';
+import { hasAnyPermission } from '../../core/auth/permission-keys';
 import { AdminUnitContextService } from '../admin/services/admin-unit-context.service';
 import type { CustomerMovement } from '../customers/interfaces/customer';
 import { formatFuelLiters } from '../vehicles/vehicle-format';
@@ -46,6 +48,7 @@ const LOCATION_MATCH_WINDOW_MS = 10 * 60 * 1000;
 })
 export class AdminDeliveriesPage {
   readonly money = formatDeliveryMoney;
+  private readonly auth = inject(AuthStore);
   private readonly api = inject(DeliveriesApi);
   private readonly sourceId = inject(ActivatedRoute, { optional: true })?.snapshot.queryParamMap.get('reparto');
   private readonly destroyRef = inject(DestroyRef);
@@ -63,6 +66,8 @@ export class AdminDeliveriesPage {
   private mapFitDeliveryId: string | null = null;
 
   readonly unitContext = inject(AdminUnitContextService);
+  readonly canMonitor = computed(() => this.auth.isAdmin()
+    || hasAnyPermission(this.auth.user()?.permissions, 'can_monitor_deliveries'));
   readonly active = signal<Delivery[]>([]);
   readonly history = signal<Delivery[]>([]);
   readonly selected = signal<Delivery | null>(null);
@@ -130,6 +135,7 @@ export class AdminDeliveriesPage {
         switchMap((mode) => {
           const filters = unitId === null ? {} : { production_unit_id: unitId };
           if (mode === 'active') {
+            if (!this.canMonitor()) return EMPTY;
             return this.api.current(filters).pipe(
               tap(({ data }) => {
                 this.active.set(data);
@@ -142,7 +148,7 @@ export class AdminDeliveriesPage {
           }
 
           return forkJoin({
-            current: this.api.current(filters),
+            current: this.canMonitor() ? this.api.current(filters) : of({ data: [] }),
             all: this.api.list({ per_page: 50, ...filters }),
           }).pipe(
             tap(({ current, all }) => {

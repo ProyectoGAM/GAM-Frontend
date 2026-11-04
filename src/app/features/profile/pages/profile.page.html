@@ -1,0 +1,74 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      @if (editing()) {
+        <ion-button aria-label="Volver a Mi perfil" [disabled]="saving()" (click)="setEditing(false)">
+          <ion-icon slot="icon-only" name="arrow-back-outline" aria-hidden="true" />
+        </ion-button>
+      } @else {
+        <ion-back-button [defaultHref]="returnPath()" text="" aria-label="Volver" />
+      }
+    </ion-buttons>
+    <h1 #heading tabindex="-1">{{ editing() ? (isPin() ? 'Cambiar PIN' : 'Cambiar contraseña') : 'Mi perfil' }}</h1>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (user(); as person) {
+    <main class="profile-content">
+      @if (editing()) {
+        <form class="credential-form" [formGroup]="form" (ngSubmit)="save()">
+          <p>{{ isPin() ? 'El PIN debe tener 4 dígitos.' : 'La nueva contraseña debe tener al menos 8 caracteres.' }}</p>
+          <fieldset [disabled]="saving()">
+            <label>
+              {{ isPin() ? 'PIN actual' : 'Contraseña actual' }}
+              <input type="password" formControlName="current" [attr.inputmode]="isPin() ? 'numeric' : null"
+                [attr.maxlength]="isPin() ? 4 : null" [attr.autocomplete]="isPin() ? 'off' : 'current-password'" required />
+            </label>
+            <label>
+              {{ isPin() ? 'Nuevo PIN' : 'Nueva contraseña' }}
+              <input type="password" formControlName="next" [attr.inputmode]="isPin() ? 'numeric' : null"
+                [attr.maxlength]="isPin() ? 4 : null" [attr.autocomplete]="isPin() ? 'off' : 'new-password'" required />
+            </label>
+            <label>
+              {{ isPin() ? 'Confirmar nuevo PIN' : 'Confirmar nueva contraseña' }}
+              <input type="password" formControlName="confirmation" [attr.inputmode]="isPin() ? 'numeric' : null"
+                [attr.maxlength]="isPin() ? 4 : null" [attr.autocomplete]="isPin() ? 'off' : 'new-password'" required />
+            </label>
+          </fieldset>
+          <p>Al guardar, se cerrarán todas tus sesiones. Deberás volver a ingresar.</p>
+          @if (error(); as message) {
+            <p class="error-message" role="alert">{{ message }}</p>
+          }
+          <ion-button type="submit" expand="block" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : (isPin() ? 'Guardar PIN' : 'Guardar contraseña') }}
+          </ion-button>
+        </form>
+      } @else {
+        <h2 class="person-name">{{ person.name }}</h2>
+        <section class="profile-card" aria-labelledby="profile-details">
+          <h3 id="profile-details">Información personal</h3>
+          <dl>
+            @if (person.email; as email) {
+              <div><dt>Correo electrónico</dt><dd>{{ email }}</dd></div>
+            }
+            <div><dt>Rol</dt><dd>{{ role() }}</dd></div>
+            <div><dt>Unidad productiva</dt><dd aria-live="polite">{{ unit() }}</dd></div>
+          </dl>
+        </section>
+        <section class="security" aria-labelledby="profile-security">
+          <h3 id="profile-security">Seguridad</h3>
+          <ion-button expand="block" [disabled]="signingOut()" (click)="setEditing(true)">
+            {{ isPin() ? 'Cambiar PIN' : 'Cambiar contraseña' }}
+          </ion-button>
+          <ion-button class="sign-out" fill="outline" expand="block" [disabled]="signingOut()" (click)="signOut()">
+            {{ signingOut() ? 'Cerrando sesión…' : 'Cerrar sesión' }}
+          </ion-button>
+          @if (error(); as message) {
+            <p class="error-message" role="alert">{{ message }}</p>
+          }
+        </section>
+      }
+    </main>
+  }
+</ion-content>
