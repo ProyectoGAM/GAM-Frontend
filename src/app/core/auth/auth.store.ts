@@ -1,15 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 
 import { CredentialStorage } from '../native/credential-storage.service';
+import { AppResumeService } from '../native/app-resume.service';
 import { AuthApi } from './auth.api';
 import { isAdminUser } from './access-policy';
+import { authUser } from './auth-user';
 import {
   ApiProblem,
   AuthSession,
   AuthStatus,
   AuthUser,
+  AuthUserResponse,
   DeviceMode,
   SharedDevice,
   SharedUser,
@@ -30,9 +34,12 @@ export class AuthStore {
   private readonly sessionState = signal<AuthSession | null>(null);
   private readonly deviceState = signal<SharedDevice | null>(null);
   private readonly sharedUsersState = signal<SharedUser[]>([]);
+  private readonly sharedUsersLoadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private personalToken: string | null = null;
   private deviceToken: string | null = null;
+  private sharedIdentityVersion = 0;
+  private sharedUsersRequest = 0;
 
   readonly status = this.statusState.asReadonly();
   readonly mode = this.modeState.asReadonly();
@@ -40,6 +47,7 @@ export class AuthStore {
   readonly session = this.sessionState.asReadonly();
   readonly device = this.deviceState.asReadonly();
   readonly sharedUsers = this.sharedUsersState.asReadonly();
+  readonly sharedUsersLoading = this.sharedUsersLoadingState.asReadonly();
   readonly errorMessage = this.errorState.asReadonly();
   readonly isAuthenticated = computed(() =>
     this.statusState() === 'personal_authenticated'
@@ -47,6 +55,12 @@ export class AuthStore {
   );
   readonly isShared = computed(() => this.modeState() === 'shared');
   readonly isAdmin = computed(() => isAdminUser(this.userState()));
+
+  constructor() {
+    inject(AppResumeService).resumed.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (this.isShared() && this.statusState() !== 'shared_verifying') void this.finishSharedSession();
+    });
+  }
 
   isAdminUser(user: AuthUser | null): boolean {
     return isAdminUser(user);
@@ -62,13 +76,17 @@ export class AuthStore {
     await this.bootstrap();
   }
 
+  async retrySharedDevice(): Promise<void> {
+    if (this.isShared() && this.statusState() === 'connection_error') await this.verifySharedDevice();
+  }
+
   async refreshIdentity(): Promise<void> {
     const user = this.userState(); const session = this.sessionState();
     if (!user) return;
     try {
       const response = await firstValueFrom(this.api.me());
       if (this.userState() !== user || this.sessionState() !== session) return;
-      this.userState.set(response.data); this.sessionState.set(response.session);
+      this.userState.set(authUser(response.data)); this.sessionState.set(response.session);
     } catch (error) {
       if (this.userState() === user && this.sessionState() === session && error instanceof HttpErrorResponse) this.handleHttpError(error, 'me');
     }
@@ -165,45 +183,69 @@ export class AuthStore {
   }
 
   async loadSharedUsers(): Promise<SharedUser[]> {
+    if (this.sharedUsersLoadingState() && this.statusState() !== 'shared_verifying') return this.sharedUsersState();
+    const request = ++this.sharedUsersRequest;
+    const version = this.sharedIdentityVersion;
+    const device = this.deviceState();
+    this.sharedUsersLoadingState.set(true);
+    this.errorState.set(null);
     try {
-      const response = await firstValueFrom(
-        this.api.sharedUsers(!this.storage.isNative()),
-      );
-      this.sharedUsersState.set(response.data);
+      const users: SharedUser[] = [];
+      for (let page = 1; ; page++) {
+        const response = await firstValueFrom(this.api.sharedUsers(!this.storage.isNative(), page));
+        if (request !== this.sharedUsersRequest || version !== this.sharedIdentityVersion || this.deviceState() !== device || !this.isShared() || this.isAuthenticated()) return [];
+        users.push(...response.data);
+        if (page >= (response.meta?.last_page ?? 1)) break;
+      }
+      this.sharedUsersState.set(users);
       this.statusState.set('shared_selector');
-      return response.data;
+      return users;
     } catch (error) {
-      this.errorState.set(this.messageFor(error, 'No se pudo cargar la lista de empleados.'));
+      if (request === this.sharedUsersRequest && version === this.sharedIdentityVersion && this.deviceState() === device && this.isShared() && !this.isAuthenticated()) {
+        this.sharedUsersState.set([]);
+        this.errorState.set(this.messageFor(error, 'No se pudo cargar la lista de personas.'));
+        this.statusState.set('shared_selector');
+      }
       return [];
-    }
+    } finally { if (request === this.sharedUsersRequest) this.sharedUsersLoadingState.set(false); }
   }
 
   async loginWithPin(userId: number, pin: string): Promise<boolean> {
+    if (this.statusState() !== 'shared_selector') return false;
+    const version = this.sharedIdentityVersion;
     this.errorState.set(null);
 
     try {
       const response = await firstValueFrom(
         this.api.pinLogin(userId, pin, !this.storage.isNative()),
       );
+      if (version !== this.sharedIdentityVersion || this.statusState() !== 'shared_selector') return false;
 
       if (this.storage.isNative() && response.access_token) {
         this.personalToken = response.access_token;
       }
 
-      this.userState.set(response.user);
+      this.userState.set(authUser(response.user));
       this.sessionState.set(response.session);
       this.statusState.set('shared_authenticated');
       this.lastActivityAt = Date.now();
       this.startActivity();
       return true;
     } catch (error) {
-      this.errorState.set(this.messageFor(error, 'El PIN no es válido.'));
+      if (version === this.sharedIdentityVersion) this.errorState.set(this.messageFor(error, 'El PIN no es válido.'));
       return false;
     }
   }
 
   async finishSharedSession(): Promise<void> {
+    this.sharedIdentityVersion++;
     const session = this.sessionState();
+    this.stopActivity();
+    this.userState.set(null);
+    this.sessionState.set(null);
+    this.personalToken = null;
+    this.sharedUsersState.set([]);
+    this.statusState.set('shared_verifying');
 
     try {
       if (session) {
@@ -313,6 +355,7 @@ export class AuthStore {
   }
 
   private async verifySharedDevice(): Promise<void> {
+    this.sharedIdentityVersion++;
     this.statusState.set('shared_verifying');
 
     try {
@@ -347,9 +390,9 @@ export class AuthStore {
     }
   }
 
-  private setPersonal(user: AuthUser, session: AuthSession | null): void {
+  private setPersonal(user: AuthUserResponse, session: AuthSession | null): void {
     this.modeState.set('personal');
-    this.userState.set(user);
+    this.userState.set(authUser(user));
     this.sessionState.set(session);
     this.deviceState.set(null);
     this.statusState.set('personal_authenticated');
@@ -365,6 +408,7 @@ export class AuthStore {
   }
 
   private async clearShared(resetMode: boolean): Promise<void> {
+    this.sharedIdentityVersion++;
     this.stopActivity();
     this.deviceToken = null;
     this.deviceState.set(null);
@@ -433,7 +477,8 @@ export class AuthStore {
       if (error.status >= 200 && error.status < 300) {
         return 'No pudimos completar la solicitud. Inténtalo de nuevo.';
       }
-      return fallback;
+      const validationMessages = Object.values(problem.errors ?? {}).flat();
+      return validationMessages[0] ?? problem.message ?? fallback;
     }
 
     return fallback;

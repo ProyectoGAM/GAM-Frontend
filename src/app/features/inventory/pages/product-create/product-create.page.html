@@ -63,7 +63,7 @@
           <div class="stock-note"><ion-icon name="information-circle-outline" aria-hidden="true" /><p><strong>El stock se carga después</strong>Crear el producto no agrega existencias. Podés registrar un ingreso después.</p></div>
         </section>
       </fieldset>
-      <div class="create-bar" [class.keyboard-open]="viewportBottom() > 0"><div class="create-bar-content"><button class="button primary create-button" type="submit" [disabled]="saving()"><ion-icon name="checkmark-outline" aria-hidden="true" />{{ saving() ? 'Creando…' : 'Crear producto' }}</button></div></div>
+      <div class="create-bar"><div class="create-bar-content"><button class="button primary create-button" type="submit" [disabled]="saving()"><ion-icon name="checkmark-outline" aria-hidden="true" />{{ saving() ? 'Creando…' : 'Crear producto' }}</button></div></div>
     </form>
   }
   <app-inventory-confirmation-dialog title="¿Descartar cambios?" message="Los datos del producto todavía no se guardaron." cancelLabel="Seguir editando" confirmLabel="Descartar cambios" (dismissed)="finishLeave(false)" (confirmed)="finishLeave(true)" />

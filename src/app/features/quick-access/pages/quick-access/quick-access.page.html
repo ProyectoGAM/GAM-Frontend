@@ -33,10 +33,40 @@
             <div><h3>{{ item.house.name }}</h3>
               @if (units.selectedId() === null) { <p class="house-unit">{{ item.unit.name }}</p> }
               @if (item.flock; as flock) { <p>Lote {{ flock.code }} · {{ flock.current_week }} {{ flock.current_week === 1 ? 'semana' : 'semanas' }}</p> }
-              @else { <p>{{ item.unavailableReason }}</p> }
+              @else { <p>{{ item.empty ? 'Sin lote activo' : item.unavailableReason }}</p> }
             </div>
           </header>
-          @if (item.unavailableReason) {
+          @if (item.empty) {
+            <dl class="empty-house-summary">
+              <div>
+                <dt>Capacidad</dt>
+                <dd>{{ formatBirdCount(item.house.bird_capacity) }}</dd>
+              </div>
+              <div>
+                <dt>Ocupación actual</dt>
+                <dd>{{ formatBirdCount(item.house.current_occupancy) }}</dd>
+              </div>
+              <div>
+                <dt>Estado</dt>
+                <dd><span class="empty-house-status" [attr.data-status]="item.house.status">{{ houseStatusLabels[item.house.status] }}</span></dd>
+              </div>
+            </dl>
+            <div class="add-flock-access">
+              @if (canAddFlock() && item.house.status === 'operational' && !dialogOpen()) {
+                <a routerLink="/administracion/acceso-rapido/nuevo-lote"
+                  [queryParams]="{ unitId: item.unit.id, houseId: item.house.id }"
+                  [attr.aria-label]="'Agregar lote en ' + item.house.name + ' · ' + item.unit.name">
+                  <ion-icon name="egg-outline" aria-hidden="true" />Agregar lote
+                </a>
+              } @else {
+                <button type="button" disabled>
+                  <ion-icon name="egg-outline" aria-hidden="true" />Agregar lote
+                  @if (item.house.status !== 'operational') { <span>· Fuera de operación</span> }
+                  @else if (!canAddFlock()) { <span>· Sin permiso</span> }
+                </button>
+              }
+            </div>
+          } @else if (item.unavailableReason) {
             <p class="unavailable"><ion-icon name="information-circle-outline" aria-hidden="true" />{{ item.flock ? item.unavailableReason : 'Sin actividades disponibles' }}</p>
           } @else {
             <div class="actions">

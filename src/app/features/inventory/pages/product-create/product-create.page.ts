@@ -28,7 +28,6 @@ export function safeReturnTo(value: string | null): string | null {
   templateUrl: './product-create.page.html',
   styleUrl: './product-create.page.scss',
   imports: [ReactiveFormsModule, RouterLink, IonIcon, InventoryConfirmationDialogComponent, InfoHelpComponent],
-  host: { '[style.--product-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class ProductCreatePage {
   private readonly auth = inject(AuthStore);
@@ -38,7 +37,6 @@ export class ProductCreatePage {
   private readonly discardDialog = viewChild.required(InventoryConfirmationDialogComponent);
   private pendingLeave: Promise<boolean> | null = null;
   private resolveLeave: ((leave: boolean) => void) | null = null;
-  readonly viewportBottom = signal(0);
   readonly createdProduct = signal<Product | null>(null);
   private readonly createdHeading = viewChild<ElementRef<HTMLElement>>('createdHeading');
   readonly canRegisterReceipt = computed(() => this.auth.isAdmin() || this.auth.user()?.permissions.includes('inventory.move') === true);
@@ -66,15 +64,7 @@ export class ProductCreatePage {
   constructor() {
     addIcons({ arrowBackOutline, arrowForwardOutline, checkmarkOutline, cubeOutline, globeOutline, informationCircleOutline, layersOutline, lockClosedOutline });
     effect(() => this.createdHeading()?.nativeElement.focus());
-    const viewport = window.visualViewport;
-    const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
-      ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0);
-    viewport?.addEventListener('resize', updateViewport);
-    viewport?.addEventListener('scroll', updateViewport);
-    updateViewport();
     this.destroyRef.onDestroy(() => {
-      viewport?.removeEventListener('resize', updateViewport);
-      viewport?.removeEventListener('scroll', updateViewport);
       this.resolveLeave?.(false);
     });
   }

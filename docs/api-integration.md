@@ -1,8 +1,15 @@
 # API Integration
 
-La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de UP, roles/permisos y exigencia de contraseña reciente en servidor.
+La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. La vinculación envía `name` y `up_id`, muestra la UP del equipo y conserva el canje web/nativo y selector con PIN. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de integración de las pantallas de cuentas/roles.
 
 ## 1. Contract-first
+
+El [editor de roles y permisos](roles-and-permissions.md) consume `roles` y
+`permisos`, guarda la selección completa con `version`, revisa dependencias y
+permite agregar todos los permisos asignables de un módulo al borrador. La
+asignación de cuentas usa un único `rol_id` del catálogo. Nombre/descripción y
+permisos se guardan por separado; los conflictos conservan el borrador y exigen
+comparación explícita antes de volver a guardar.
 
 El [mantenimiento de instalaciones](installation-maintenance.md) consume el
 historial, registro, corrección y anulación de `maintenance.yaml`, y el cambio

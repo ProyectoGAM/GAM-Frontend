@@ -90,7 +90,7 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-heigh
 .review-card dd { color: var(--gam-color-heading); text-align: right; font-weight: 600; }
 .edit-link { min-height: 44px; margin-top: 12px; padding: 8px 0; border: 0; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
 
-.form-actions { position: sticky; z-index: 2; bottom: 0; display: flex; gap: 10px; margin: 24px -20px 0; padding: 14px 20px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--gam-color-border); background: var(--gam-color-surface); }
+.form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--gam-color-border); }
 .action { box-sizing: border-box; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 50px; padding: 8px; border: 1px solid var(--gam-color-primary); border-radius: 8px; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
 .action.secondary { background: var(--gam-color-surface); color: var(--gam-color-heading); }
 .action.primary { background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
@@ -106,6 +106,5 @@ h1 { margin: 0; color: var(--gam-color-heading); font-size: 1.875rem; line-heigh
 
 @media (max-width: 350px) {
   .flock-create-page { padding-inline: 16px; }
-  .form-actions { margin-inline: -16px; padding-inline: 16px; }
   .progress-heading { font-size: .875rem; }
 }

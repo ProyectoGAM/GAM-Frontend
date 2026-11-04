@@ -43,11 +43,12 @@ export class QuickAccessService {
           const current = flocks.filter((flock) => flock.production_unit_id === unit.id
             && flock.poultry_house_id === house.id && flock.status !== 'finished');
           const flock = current.length === 1 ? current[0] : null;
+          const empty = current.length === 0 && house.current_occupancy === 0;
           const unavailableReason = house.status !== 'operational' ? 'Galpón fuera de operación'
             : current.length > 1 ? 'Hay más de un lote alojado. Revisá la instalación.'
             : !flock ? (house.current_occupancy ? 'No se pudo identificar el lote alojado.' : 'Sin lote activo')
             : null;
-          return { house, unit, flock, unavailableReason,
+          return { house, unit, flock, empty, unavailableReason,
             searchText: quickAccessSearch([house.name, unit.name, ...current.map((item) => item.code)].join(' ')) };
         }))), 4),
       toArray(),

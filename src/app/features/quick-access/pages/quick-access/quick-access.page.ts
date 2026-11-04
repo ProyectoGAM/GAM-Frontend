@@ -6,7 +6,7 @@ import { map } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { canAccessGroup } from '../../../../core/auth/access-policy';
+import { canAccessGroup, canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
@@ -15,9 +15,11 @@ import { QuickAccessHouse } from '../../interfaces/quick-access-house';
 import { QuickAccessPlant } from '../../interfaces/quick-access-plant';
 import { QuickAccessManufactureRequest } from '../../interfaces/quick-access-manufacture-request';
 import { QuickAccessManufactureDialogComponent } from '../../components/quick-access-manufacture-dialog/quick-access-manufacture-dialog.component';
-import { PoultryHouseType } from '../../../production-units/interfaces/production-unit.interface';
+import { PoultryHouseStatus, PoultryHouseType } from '../../../production-units/interfaces/production-unit.interface';
 import { FeedManufactureService } from '../../../production-units/services/feed-manufacture.service';
 import { QuickAccessService, quickAccessSearch } from '../../services/quick-access.service';
+
+const birdCountFormatter = new Intl.NumberFormat('es-UY');
 
 @Component({
   selector: 'app-quick-access-page',
@@ -78,6 +80,13 @@ export class QuickAccessPage {
   });
   readonly hasRestrictedTasks = computed(() => this.tasks().some((task) => !task.allowed));
   readonly canViewMaintenance = computed(() => canAccessGroup(this.auth.user(), 'ubicaciones'));
+  readonly canAddFlock = computed(() => canCreateFlockFromQuickAccess(this.auth.user()));
+  readonly houseStatusLabels: Record<PoultryHouseStatus, string> = {
+    operational: 'Operativo',
+    maintenance: 'Mantenimiento',
+    out_of_service: 'Fuera de servicio',
+    inactive: 'Inactivo',
+  };
 
   constructor() {
     addIcons({ buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline });
@@ -110,6 +119,10 @@ export class QuickAccessPage {
       });
       cleanup(() => subscription.unsubscribe());
     });
+  }
+
+  formatBirdCount(value: number | null | undefined): string {
+    return value === null || value === undefined ? 'Sin datos' : `${birdCountFormatter.format(value)} aves`;
   }
 
   search(event: Event): void { this.query.set((event.target as HTMLInputElement).value); }

@@ -28,18 +28,19 @@ describe('QuickAccessService', () => {
   });
 
   it('does not offer finished lots, other-UP lots, inactive houses, feed plants or inactive units', async () => {
-    poultryHouses.mockReturnValue(of([house, { ...house, id: 23, status: 'inactive' }, { ...house, id: 24, type: 'feed' }]));
+    poultryHouses.mockReturnValue(of([{ ...house, current_occupancy: 0 }, { ...house, id: 23, status: 'inactive' }, { ...house, id: 24, type: 'feed' }]));
     list.mockReturnValue(of([{ ...flock, status: 'finished' }, { ...flock, id: 'foreign', production_unit_id: 8 }]));
     const rows = await firstValueFrom(TestBed.inject(QuickAccessService).houses([unit, { ...unit, id: 8, status: 'inactive' }]));
-    expect(rows).toHaveLength(1); expect(rows[0].flock).toBeNull(); expect(rows[0].unavailableReason).toBe('Sin lote activo');
+    expect(rows).toHaveLength(1); expect(rows[0]).toMatchObject({ flock: null, empty: true, unavailableReason: 'Sin lote activo' });
     expect(list).toHaveBeenCalledOnce();
   });
 
   it('blocks ambiguous housing and houses under maintenance, and keeps quarantined lots available', async () => {
-    poultryHouses.mockReturnValue(of([house, { ...house, id: 23, status: 'maintenance' }, { ...house, id: 24 }]));
+    poultryHouses.mockReturnValue(of([{ ...house, current_occupancy: 0 }, { ...house, id: 23, status: 'maintenance' }, { ...house, id: 24 }]));
     list.mockReturnValue(of([flock, { ...flock, id: 'lot-2' }, { ...flock, id: 'lot-3', poultry_house_id: 24, status: 'quarantined' }]));
     const rows = await firstValueFrom(TestBed.inject(QuickAccessService).houses([unit]));
     expect(rows.find((row) => row.house.id === 22)?.unavailableReason).toContain('más de un lote');
+    expect(rows.every((row) => !row.empty)).toBe(true);
     expect(rows.find((row) => row.house.id === 23)?.unavailableReason).toContain('fuera de operación');
     expect(rows.find((row) => row.house.id === 24)?.flock?.status).toBe('quarantined');
   });

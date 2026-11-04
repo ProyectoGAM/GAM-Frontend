@@ -56,6 +56,16 @@ export function hasFeedRecipesPermission(user: Partial<Pick<AuthUser, 'permissio
   return user?.permissions?.includes(`feed-recipes.${permission}`) === true;
 }
 
+export function canCreateFlockFromQuickAccess(user: Pick<AuthUser, 'roles' | 'permissions'> | null): boolean {
+  if (isAdminUser(user)) return true;
+  const permissions = new Set(user?.permissions ?? []);
+  return [
+    'can_manage_flocks', 'can_view_flocks', 'can_view_production_units',
+    'can_view_poultry_houses', 'can_view_breeds', 'can_view_suppliers',
+  ].every((permission) => permissions.has(permission))
+    && (permissions.has('can_view_management_plans') || permissions.has('can_manage_management_plans'));
+}
+
 export function canAccessGroup(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null, group: AdminGroup): boolean {
   // The landing page does not grant permission to any of its underlying operations.
   if (group === 'acceso-rapido') return user !== null;

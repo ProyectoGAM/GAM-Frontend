@@ -14,10 +14,15 @@ Prefer:
 ion-header
 ion-toolbar
 ion-content
-ion-footer
 ```
 
 `ion-content` normally owns scrolling.
+
+Place form confirmation actions after the fields, inside the normal scrolling
+content, on both phone and desktop. Do not use sticky/fixed action bars or an
+`ion-footer` outside `ion-content` for Save, Create, Apply or Review buttons.
+Actions must remain reachable by scrolling when the keyboard opens; do not move
+them over fields using visual-viewport offsets or reserve space for floating bars.
 
 Avoid nested scroll containers.
 
@@ -151,22 +156,23 @@ filter fields, draft selection, applied values and queries; **Limpiar** updates 
 draft and **Ver resultados** applies it. The shell projects content without
 knowing business types, permissions or endpoints.
 
-## Inventory action bars
+## Form confirmation actions
 
-The admin shell exposes its existing bottom padding as `--gam-page-bottom-space`.
-Inventory's fixed bars in Nuevo producto and Registrar movimiento reserve their
-73px bar, safe area, keyboard offset and a 16px content gap, subtracting the space
-already supplied by the shell. This avoids stacking two bottom reserves. Screens
-without a visible bar use the normal shell spacing. Registrar movimiento uses an
-in-flow footer on desktop, so it needs no additional fixed-bar reserve there.
-Presentaciones y precios also relies on the shell for its bottom spacing instead
-of adding another 16px below its cards. Other list pages and modal layouts keep
-their own existing spacing.
+Nuevo producto, Registrar movimiento, Nueva receta, medication/vaccine creation,
+Crear lote and Roles y permisos place their confirmation section after the
+content. The feeding editor places its submit button inside its form in
+`ion-content`. These actions scroll with their forms in every viewport.
 
-Browser verification covered 320/360px phones, desktop and light/dark themes.
-At the end of the fixed-bar forms, the measured content-to-bar gap changed from
-about 64px to 16px; Presentaciones ends with the shell's normal 48px spacing.
-Inventory list pages and the donation dialog were also reviewed. QA screenshots
-are in `.tmp/qa/inventory-*-bottom-{before,after}.png`. Lint, the 899-test suite
-and the production build passed. Physical Android/iOS keyboard and system-bar
-checks remain device validation.
+The admin shell supplies the normal bottom spacing and safe area. Forms do not
+add a second reserve for an action bar. Buttons retain their touch target sizes,
+disabled/loading states, submit handling and confirmation steps. No native
+plugin or API contract changes are required. Physical Android/iOS keyboard and
+system-bar checks remain device validation.
+
+Validation after removing floating confirmation bars: Docker lint, all 1365 tests
+in 165 files, production build and Capacitor sync for Android/iOS passed. Browser
+checks at 320/360 px confirmed that the actions scroll with their forms, remain
+reachable at the end and do not cause horizontal overflow, in light/dark themes.
+Submitting an empty product form still focuses its first invalid field. In the
+feeding editor, submitting without a change still shows its validation message.
+The obsolete test for the removed floating-bar keyboard offsets was deleted.

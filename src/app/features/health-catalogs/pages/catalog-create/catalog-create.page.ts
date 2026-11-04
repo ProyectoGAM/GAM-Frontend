@@ -19,7 +19,6 @@ const nonblank = (control: AbstractControl) => typeof control.value === 'string'
 @Component({
   selector: 'app-health-catalog-create', templateUrl: './catalog-create.page.html', styleUrl: './catalog-create.page.scss',
   imports: [ReactiveFormsModule, RouterLink, IonIcon, SearchableSelectComponent, InfoHelpComponent],
-  host: { '[style.--health-keyboard-offset]': 'viewportBottom() + "px"' },
 })
 export class CatalogCreatePage {
   private readonly auth = inject(AuthStore);
@@ -41,7 +40,6 @@ export class CatalogCreatePage {
   readonly uncertain = signal(false);
   readonly created = signal<CatalogRecord | null>(null);
   readonly error = signal<string | null>(null);
-  readonly viewportBottom = signal(0);
   readonly locked = computed(() => !this.allowed() || this.saving() || this.uncertain() || !!this.created());
   readonly suppliers = signal<HealthSupplier[]>([]);
   readonly suppliersLoading = signal(false);
@@ -75,13 +73,8 @@ export class CatalogCreatePage {
       });
     });
     effect(() => this.successHeading()?.nativeElement.focus());
-    const viewport = window.visualViewport;
-    const updateViewport = () => this.viewportBottom.set(viewport && viewport.scale === 1
-      ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0);
-    viewport?.addEventListener('resize', updateViewport); viewport?.addEventListener('scroll', updateViewport); updateViewport();
     this.destroyRef.onDestroy(() => {
       this.version++; this.supplierVersion++;
-      viewport?.removeEventListener('resize', updateViewport); viewport?.removeEventListener('scroll', updateViewport);
       void this.leaveAlert?.dismiss(undefined, 'cancel');
     });
   }

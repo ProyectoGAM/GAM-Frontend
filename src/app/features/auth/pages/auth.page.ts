@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -14,13 +14,14 @@ import {
   IonCardSubtitle,
   IonCardTitle,
   IonContent,
+  IonIcon,
   IonInput,
   IonItem,
   IonLabel,
-  IonList,
   IonSpinner,
-  IonText,
 } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { arrowBackOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, informationCircleOutline, phonePortraitOutline, refreshOutline } from 'ionicons/icons';
 
 import { AuthStore } from '../../../core/auth/auth.store';
 import { SharedUser } from '../../../core/auth/auth.types';
@@ -38,12 +39,11 @@ import { postLoginPath } from '../../../core/auth/access-policy';
     IonCardSubtitle,
     IonCardTitle,
     IonContent,
+    IonIcon,
     IonInput,
     IonItem,
     IonLabel,
-    IonList,
     IonSpinner,
-    IonText,
     ReactiveFormsModule,
     RouterLink,
   ],
@@ -55,6 +55,7 @@ export class AuthPage {
   readonly submitting = signal(false);
   readonly showPassword = signal(false);
   readonly showPairing = signal(false);
+  readonly sharedLayout = computed(() => this.showPairing() || this.auth.isShared());
   readonly continuationPath = computed(() => postLoginPath(this.auth.user()));
 
   readonly loginForm = new FormGroup({
@@ -86,9 +87,24 @@ export class AuthPage {
     }),
   });
 
-  readonly heading = computed(() =>
-    this.auth.isShared() ? 'Dispositivo compartido' : 'Ingresar a GAM',
-  );
+  readonly heading = computed(() => this.showPairing() && !this.auth.isShared() ? 'Vincular este dispositivo'
+    : this.auth.status() === 'shared_authenticated' ? 'Sesión activa'
+      : this.auth.isShared() ? (this.selectedUser() ? 'Ingresá tu PIN' : '¿Quién va a trabajar?') : 'Ingresar a GAM');
+
+  constructor() {
+    addIcons({ arrowBackOutline, businessOutline, checkmarkCircleOutline, chevronForwardOutline, informationCircleOutline, phonePortraitOutline, refreshOutline });
+    effect(() => {
+      if (this.auth.status() !== 'shared_selector') this.clearUser();
+      if (this.auth.isShared()) { this.showPairing.set(false); this.pairingForm.reset(); }
+    });
+    inject(DestroyRef).onDestroy(() => { this.loginForm.reset(); this.pairingForm.reset(); this.pinForm.reset(); this.selectedUser.set(null); });
+  }
+
+  togglePairing(show: boolean): void {
+    if (this.submitting()) return;
+    this.showPairing.set(show);
+    this.loginForm.controls.password.reset(); this.pairingForm.reset();
+  }
 
   async submitLogin(): Promise<void> {
     if (this.loginForm.invalid || this.submitting()) {
@@ -104,6 +120,8 @@ export class AuthPage {
   }
 
   async submitPairing(): Promise<void> {
+    this.pairingForm.controls.code.setValue(this.pairingForm.controls.code.value.replace(/\s/g, '').toUpperCase());
+    this.pairingForm.controls.name.setValue(this.pairingForm.controls.name.value.trim());
     if (this.pairingForm.invalid || this.submitting()) {
       this.pairingForm.markAllAsTouched();
       return;
@@ -111,11 +129,14 @@ export class AuthPage {
 
     this.submitting.set(true);
     const { code, name } = this.pairingForm.getRawValue();
-    await this.auth.pair(code, name);
-    this.submitting.set(false);
+    try {
+      const success = await this.auth.pair(code, name);
+      if (success || this.auth.isShared()) { this.pairingForm.reset(); this.showPairing.set(false); }
+    } finally { this.submitting.set(false); }
   }
 
   chooseUser(user: SharedUser): void {
+    if (this.submitting() || this.auth.sharedUsersLoading() || this.auth.status() !== 'shared_selector') return;
     this.selectedUser.set(user);
     this.pinForm.reset();
   }
@@ -127,7 +148,7 @@ export class AuthPage {
 
   async submitPin(): Promise<void> {
     const user = this.selectedUser();
-    if (!user || this.pinForm.invalid || this.submitting()) {
+    if (!user || this.auth.status() !== 'shared_selector' || this.pinForm.invalid || this.submitting()) {
       this.pinForm.markAllAsTouched();
       return;
     }
@@ -135,11 +156,18 @@ export class AuthPage {
     this.submitting.set(true);
     const { pin } = this.pinForm.getRawValue();
     const success = await this.auth.loginWithPin(user.id, pin);
+    this.pinForm.reset();
     this.submitting.set(false);
     if (success) await this.router.navigateByUrl(postLoginPath(this.auth.user()));
   }
 
   async reloadUsers(): Promise<void> {
     await this.auth.loadSharedUsers();
+  }
+
+  async retryDevice(): Promise<void> {
+    if (this.submitting()) return;
+    this.submitting.set(true);
+    try { await this.auth.retrySharedDevice(); } finally { this.submitting.set(false); }
   }
 }
