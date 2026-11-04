@@ -9,26 +9,27 @@ export class AppResumeService {
   private readonly document = inject(DOCUMENT);
 
   readonly resumed = new Observable<void>((subscriber) => {
+    if (!Capacitor.isNativePlatform()) return;
+
     let hidden = this.document.visibilityState === 'hidden';
     const visibilityChanged = () => {
       if (this.document.visibilityState === 'hidden') hidden = true;
       else if (hidden) { hidden = false; subscriber.next(); }
     };
-    if (Capacitor.isNativePlatform()) {
-      let disposed = false;
-      let listener: PluginListenerHandle | undefined;
-      void App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) subscriber.next();
-      }).then((handle) => {
-        if (disposed) void handle.remove();
-        else listener = handle;
-      }).catch(() => {
-        if (!disposed) this.document.addEventListener('visibilitychange', visibilityChanged);
-      });
-      return () => { disposed = true; void listener?.remove(); this.document.removeEventListener('visibilitychange', visibilityChanged); };
-    }
-
-    this.document.addEventListener('visibilitychange', visibilityChanged);
-    return () => this.document.removeEventListener('visibilitychange', visibilityChanged);
+    let disposed = false;
+    let listener: PluginListenerHandle | undefined;
+    void App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) subscriber.next();
+    }).then((handle) => {
+      if (disposed) void handle.remove();
+      else listener = handle;
+    }).catch(() => {
+      if (!disposed) this.document.addEventListener('visibilitychange', visibilityChanged);
+    });
+    return () => {
+      disposed = true;
+      void listener?.remove();
+      this.document.removeEventListener('visibilitychange', visibilityChanged);
+    };
   });
 }

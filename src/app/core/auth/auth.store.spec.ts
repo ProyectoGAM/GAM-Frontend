@@ -33,7 +33,38 @@ describe('AuthStore', () => {
     expect(await pending).toBe(false); expect(store.user()).toBeNull(); expect(store.status()).toBe('shared_selector');
   });
 
-  it('clears the employee immediately on resume and returns to the selector without unlinking', async () => {
+  it('keeps the shared web session when the user returns to the tab', async () => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7, expires_at: null, revoked_at: null };
+    const session = { id: 'employee-session' };
+    const api = {
+      sharedStatus: () => of({ data: device }),
+      sharedUsers: () => of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 1 } }),
+      pinLogin: () => of({ user: { id: 4, name: 'Ana', roles: ['employee'] }, session }),
+      finalize: vi.fn(() => of({ message: 'ok' })),
+    };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }],
+    });
+    const store = TestBed.inject(AuthStore);
+    await store.bootstrap();
+    expect(await store.loginWithPin(4, '0007')).toBe(true);
+
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    try {
+      visibility.mockReturnValue('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(store.status()).toBe('shared_authenticated');
+      expect(store.session()).toEqual(session);
+      expect(api.finalize).not.toHaveBeenCalled();
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
+  it('clears the employee immediately on native resume and returns to the selector without unlinking', async () => {
     const resumed = new Subject<void>(); const finalized = new Subject<{ message: string }>();
     const device = { id: 'tablet', name: 'Tablet', up_id: 7, expires_at: null, revoked_at: null };
     const api = {

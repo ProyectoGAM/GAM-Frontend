@@ -30,11 +30,12 @@ el frontend, manteniendo las claves de permisos recibidas. Las cuentas PIN admit
 nulo. El catálogo y la asignación de rol único se describen abajo; los controles de
 permisos de otros módulos conservan su alcance de integración independiente.
 
-`core/native/app-resume.service.ts` encapsula la reanudación nativa y el retorno de una
-pestaña web oculta. Al reanudar se limpia inmediatamente la identidad del empleado,
-se finaliza su sesión y se verifica la vinculación para volver al selector. Se ignoran
-respuestas anteriores de PIN y directorio; un fallo de carga de personas mantiene el
-equipo y permite actualizar la lista. No se agregan plugins ni almacenamiento de secretos.
+`core/native/app-resume.service.ts` encapsula la reanudación de la app nativa.
+Al reanudar se limpia la identidad del empleado, se finaliza su sesión y se verifica
+la vinculación para volver al selector. En web, cambiar de pestaña conserva la
+sesión mientras el servidor la considere vigente. Se ignoran las respuestas
+anteriores de PIN y directorio. Si falla la carga de personas, el equipo conserva
+su vinculación y permite actualizar la lista.
 
 ### Cuentas y roles
 

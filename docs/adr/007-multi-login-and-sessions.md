@@ -15,7 +15,8 @@ El estado de autenticación vive en core/auth como señales. La UI no lee tokens
 - El modo local no es autorización.
 - La web no usa localStorage para secretos.
 - El PIN se envía como string exacto de cuatro caracteres.
-- Al iniciar o reanudar el modo compartido se verifica el dispositivo y se muestra el selector.
+- Al iniciar el modo compartido o reanudar la app nativa se verifica el dispositivo y se muestra el selector.
+- Cambiar de pestaña en web conserva la sesión compartida vigente. El servidor aplica el vencimiento por inactividad.
 - Terminar la sesión limpia el empleado y conserva la vinculación.
 - Un error de sesión de empleado no borra automáticamente la credencial del dispositivo.
 
