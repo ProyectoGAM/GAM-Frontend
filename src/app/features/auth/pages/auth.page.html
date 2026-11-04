@@ -11,8 +11,14 @@
           <button class="back-link" type="button" [disabled]="submitting()" (click)="togglePairing(false)"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al acceso personal</button>
         }
         @if (auth.isShared() && auth.device(); as device) {
-          <p class="linked-label"><ion-icon name="checkmark-circle-outline" aria-hidden="true" /> Dispositivo vinculado</p>
-          <div class="device-context"><ion-icon name="phone-portrait-outline" aria-hidden="true" /><div><strong>{{ device.name }}</strong><p><ion-icon name="business-outline" aria-hidden="true" /> {{ device.up_id ? 'Unidad productiva ' + device.up_id : 'Unidad no informada' }}</p></div></div>
+          <div class="device-context">
+            <ion-icon name="phone-portrait-outline" aria-hidden="true" />
+            <div>
+              <strong>{{ device.name }}</strong>
+              <p><ion-icon name="business-outline" aria-hidden="true" /> {{ device.up_id ? 'Unidad productiva ' + device.up_id : 'Unidad no informada' }}</p>
+            </div>
+            <span class="device-linked" role="img" aria-label="Dispositivo vinculado"><ion-icon name="checkmark-circle-outline" aria-hidden="true" /></span>
+          </div>
         }
         <p class="mobile-label">ACCESO AL SISTEMA</p>
         <h2>{{ heading() }}</h2>
