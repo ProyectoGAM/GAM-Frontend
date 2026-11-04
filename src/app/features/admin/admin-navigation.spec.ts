@@ -33,6 +33,13 @@ describe('admin navigation visibility', () => {
     expect(visibleAdminNavigation(null)).toHaveLength(0);
   });
 
+  it('hides the entire global section when the account has an assigned UP', () => {
+    const admin = { roles: ['admin'], up_id: 7 };
+    expect(visibleAdminNavigation(admin)).toEqual(
+      visibleAdminNavigation({ ...admin, up_id: null }).filter((group) => group.section === 'unit'),
+    );
+  });
+
   it('keeps UP modules before global modules in the requested order and includes the suppliers catalogs', () => {
     const navigation = visibleAdminNavigation({ roles: ['admin'] });
 

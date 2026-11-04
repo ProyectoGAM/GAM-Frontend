@@ -1,15 +1,23 @@
 import { AuthUser } from './auth.types';
 import { hasAnyPermission } from './permission-keys';
 
-export const ADMIN_GROUP_IDS = [
+const unitGroups = [
   'acceso-rapido', 'resumen', 'ubicaciones', 'lotes', 'inventario', 'historial',
+] as const;
+
+const globalGroups = [
   'usuarios', 'clientes', 'proveedores', 'unidades-productivas',
   'manejo-lotes', 'repartos', 'vehiculos', 'alertas-notificaciones', 'reportes',
 ] as const;
 
+export const ADMIN_GROUP_IDS = [...unitGroups, ...globalGroups] as const;
 export type AdminGroup = typeof ADMIN_GROUP_IDS[number];
 
-type AdminUser = Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>;
+export type AdminUser = Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions' | 'up_id'>>;
+
+export function adminGroupSection(group: AdminGroup): 'unit' | 'global' {
+  return globalGroups.some((globalGroup) => globalGroup === group) ? 'global' : 'unit';
+}
 
 const productRead = ['can_view_products', 'can_manage_products', 'can_manage_management_plans'];
 const inventoryRead = ['can_view_inventory'];
@@ -101,6 +109,10 @@ export function canCreateFlockFromQuickAccess(user: Pick<AuthUser, 'roles' | 'pe
 
 export function canAccessAdminItem(user: AdminUser | null, group: AdminGroup, slug: string): boolean {
   if (!user) return false;
+  if (user.up_id != null) {
+    if (adminGroupSection(group) === 'global') return false;
+    if (group === 'ubicaciones' && ['unidades-productivas', 'nueva-unidad-productiva'].includes(slug)) return false;
+  }
   // Quick Access is a landing page. Its operations check their own permissions.
   if (group === 'acceso-rapido' || isAdminUser(user)) return true;
   if (group === 'ubicaciones' && !hasAnyPermission(user.permissions, 'can_view_production_units')) return false;
@@ -113,6 +125,24 @@ export function canAccessGroup(user: AdminUser | null, group: AdminGroup): boole
 }
 
 export function canAccessAdminPath(user: AdminUser | null, group: AdminGroup, path: string): boolean {
+  if (user?.up_id != null) {
+    // Operational links share URLs with these global modules.
+    const legacyUnitPrefix = 'unidades-productivas/';
+    const unitPath = group === 'unidades-productivas' ? path
+      : group === 'ubicaciones' && path.startsWith(legacyUnitPrefix) ? path.slice(legacyUnitPrefix.length) : null;
+    if (unitPath !== null) {
+      const [unitId, ...detail] = unitPath.split('/');
+      const admin = isAdminUser(user);
+      if (unitId !== String(user.up_id) || !(admin || hasAnyPermission(user.permissions, 'can_view_production_units'))) return false;
+      if (detail.length === 0) return true;
+      if (detail.join('/') === 'editar') return admin || hasAnyPermission(user.permissions, 'can_manage_production_units');
+      return /^galpon\/\d+(?:\/(?:editar|elaborar|mantenimientos))?$/.test(detail.join('/'))
+        && (admin || hasAnyPermission(user.permissions, ...houseRead));
+    }
+    if (group === 'manejo-lotes' && /^planes\/lotes\/[^/]+$/.test(path)) {
+      return canAccessAdminItem(user, 'lotes', 'lotes') && hasManagementPlansPermission(user, 'view');
+    }
+  }
   const slug = Object.keys(adminItems[group])
     .filter((item) => item && (path === item || path.startsWith(item + '/')))
     .sort((left, right) => right.length - left.length)[0] ?? '';

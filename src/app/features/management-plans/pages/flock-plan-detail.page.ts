@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { AuthStore } from '../../../core/auth/auth.store';
 import { PlanActivitiesComponent } from '../components/plan-activities.component';
 import { FlockPlan, FlockSummary } from '../interfaces/management-plan';
 import { ManagementPlansService } from '../services/management-plans.service';
@@ -16,13 +17,14 @@ import { currentPlanActivityIds, currentPlanPosition } from '../services/managem
 export class FlockPlanDetailPage {
   private readonly service = inject(ManagementPlansService);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private loadVersion = 0;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   readonly now = signal(new Date());
   readonly flockId = this.route.snapshot.paramMap.get('id') ?? '';
   private readonly queryParams = toSignal(this.route.queryParamMap);
-  readonly fromFlock = computed(() => this.queryParams()?.get('from') === 'flock');
+  readonly fromFlock = computed(() => this.auth.user()?.up_id != null || this.queryParams()?.get('from') === 'flock');
   readonly backQueryParams = computed(() => {
     const params = this.queryParams();
     return this.fromFlock() && params?.get('lotFrom') === 'house'
