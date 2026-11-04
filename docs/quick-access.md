@@ -5,6 +5,16 @@ del panel tras autenticarse, también desde `/home`. Repartidores sin otros
 permisos de módulos mantienen su entrada al modo repartidor. Acceso rápido
 no concede acceso a otros módulos ni autoriza operaciones en el servidor.
 
+Los galpones con ocupación cero y sin lote abierto muestran **Agregar lote**
+con un ícono de huevo junto al acceso de mantenimiento. La acción se habilita
+cuando el galpón está operativo. Abre el formulario habitual con la UP y el
+galpón preseleccionados y vuelve a Acceso rápido al cancelar o guardar.
+
+La ruta y el botón exigen **Gestionar lotes** y los permisos de consulta que usa
+el formulario: lotes, UP, galpones, razas, proveedores y plantillas de manejo.
+Administrador puede entrar por su rol. El servidor verifica nuevamente el
+permiso, el alcance de UP y la disponibilidad del galpón al guardar.
+
 ## Mantenimiento al pie de cada tarjeta
 
 Cada tarjeta incluye **Hacer mantenimiento** al pie, debajo de una línea

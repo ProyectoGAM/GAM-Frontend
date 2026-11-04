@@ -1,6 +1,6 @@
 <section #pageTop class="flock-create-page" aria-labelledby="page-title">
-  <a class="back-link" [routerLink]="listPath">
-    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a lotes
+  <a class="back-link" [routerLink]="returnPath">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> {{ fromQuickAccess ? 'Volver a Acceso rápido' : 'Volver a lotes' }}
   </a>
   <p class="breadcrumb">Manejo de Lotes <span aria-hidden="true">/</span> Crear lote</p>
   <h1 id="page-title">Crear lote</h1>
@@ -219,7 +219,7 @@
 
     <div class="form-actions">
       @if (step() === 1) {
-        <a class="action secondary" [routerLink]="listPath">Cancelar</a>
+        <a class="action secondary" [routerLink]="returnPath">Cancelar</a>
       } @else {
         <button class="action secondary" type="button" (click)="back()">Atrás</button>
       }

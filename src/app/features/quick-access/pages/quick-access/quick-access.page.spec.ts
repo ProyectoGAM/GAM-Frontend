@@ -1,20 +1,26 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, forwardRef, input, output, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AccessDeniedPage } from '../../../admin/access-denied.page';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
 import { FlockHouseTaskRequest } from '../../../flocks/interfaces/flock-house-task.interface';
 import { Flock } from '../../../flocks/interfaces/flock.interface';
+import { FlockCreatePage } from '../../../flocks/pages/flock-create/flock-create.page';
+import { FlocksApi } from '../../../flocks/services/flocks.api';
 import { QuickAccessHouse } from '../../interfaces/quick-access-house';
 import { QuickAccessPlant } from '../../interfaces/quick-access-plant';
 import { QuickAccessManufactureRequest } from '../../interfaces/quick-access-manufacture-request';
 import { QuickAccessManufactureDialogComponent } from '../../components/quick-access-manufacture-dialog/quick-access-manufacture-dialog.component';
 import { FeedManufactureService } from '../../../production-units/services/feed-manufacture.service';
+import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
+import { quickAccessRoutes } from '../../quick-access.routes';
 import { QuickAccessService } from '../../services/quick-access.service';
 import { QuickAccessPage } from './quick-access.page';
 
@@ -39,7 +45,19 @@ class ManufactureStubComponent {
 const unit = { id: 7, name: 'San José', status: 'active' as const, locality: null };
 const row: QuickAccessHouse = { unit, house: { id: 22, name: 'Galpón 1', type: 'poultry', status: 'operational', bird_capacity: 1000 },
   flock: { id: 'lot-1', code: 'L-01', current_week: 32, current_quantity: 950 } as Flock,
-  unavailableReason: null, searchText: 'galpon 1 san jose l-01' };
+  empty: false, unavailableReason: null, searchText: 'galpon 1 san jose l-01' };
+const emptyHouse: QuickAccessHouse = {
+  ...row,
+  house: { ...row.house, id: 23, name: 'Galpón 2', current_occupancy: 0 },
+  flock: null,
+  empty: true,
+  unavailableReason: 'Sin lote activo',
+  searchText: 'galpon 2',
+};
+const flockPermissions = [
+  'can_manage_flocks', 'can_view_flocks', 'can_view_production_units', 'can_view_poultry_houses',
+  'can_view_breeds', 'can_view_management_plans', 'can_view_suppliers',
+];
 const plant: QuickAccessPlant = { unit, plant: { id: 30, name: 'Planta San José', type: 'feed', status: 'operational', bird_capacity: null },
   unavailableReason: null, searchText: 'planta san jose' };
 
@@ -49,12 +67,13 @@ describe('QuickAccessPage', () => {
   beforeEach(() => {
     vi.resetAllMocks(); selectedId.set(7); actor.set({ id: 1, roles: ['admin'], permissions: [] });
     readPending.mockReturnValue(null);
-    houses.mockReturnValue(of([row, { ...row, house: { ...row.house, id: 23, name: 'Galpón 2' }, flock: null, unavailableReason: 'Sin lote activo', searchText: 'galpon 2' }]));
+    houses.mockReturnValue(of([row, emptyHouse]));
     plants.mockReturnValue(of([plant, { ...plant, plant: { ...plant.plant, id: 31, name: 'Planta Norte', status: 'maintenance' }, unavailableReason: 'La planta debe estar operativa para elaborar ración.', searchText: 'planta norte' }]));
     TestBed.configureTestingModule({ imports: [QuickAccessPage], providers: [
       provideRouter([]),
       { provide: AuthStore, useValue: { user: actor, session: () => null, isAdmin: () => actor().roles.includes('admin') } },
-      { provide: AdminUnitContextService, useValue: { state: signal('ready'), selectedId, selectedUnit: () => selectedId() === 7 ? unit : null, units: signal([unit]) } },
+      { provide: AdminUnitContextService, useValue: { state: signal('ready'), selectedId, selectedUnit: () => selectedId() === 7 ? unit : null,
+        units: signal([unit]), select: (id: number | null) => selectedId.set(id) } },
       { provide: QuickAccessService, useValue: { houses, plants } },
       { provide: FeedManufactureService, useValue: { readPending } },
     ] });
@@ -71,11 +90,73 @@ describe('QuickAccessPage', () => {
     return fixture;
   }
 
-  it('shows all four actions for an occupied house and no actions for an empty house', async () => {
+  it('shows flock activities in the occupied house and opens creation with the empty house context', async () => {
     const fixture = await render(); const cards = fixture.nativeElement.querySelectorAll('.house');
     expect(cards.length).toBe(2); expect([...cards[0].querySelectorAll('button')].map((button) => (button as HTMLButtonElement).textContent?.trim()))
       .toEqual(['Postura', 'Mortandad', 'Cambio de ración', 'Sanidad']);
     expect(cards[1].querySelectorAll('button').length).toBe(0); expect(cards[1].textContent).toContain('Sin lote activo');
+    expect(cards[0].querySelector('.add-flock-access')).toBeNull();
+    const link = cards[1].querySelector('.add-flock-access a');
+    expect(link?.getAttribute('href')).toBe('/administracion/acceso-rapido/nuevo-lote?unitId=7&houseId=23');
+    expect(link?.querySelector('ion-icon')?.getAttribute('name')).toBe('egg-outline');
+  });
+
+  it('requires create and catalog permissions and disables creation in an empty house under maintenance', async () => {
+    const permissions = flockPermissions.filter((permission) => permission !== 'can_view_suppliers');
+    actor.set({ id: 2, roles: ['employee'], permissions });
+    houses.mockReturnValue(of([emptyHouse, { ...emptyHouse, house: { ...emptyHouse.house, id: 24, status: 'maintenance' } }]));
+    const fixture = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.add-flock-access a')).toBeNull();
+    expect(host.querySelector('.add-flock-access button:disabled')?.textContent).toContain('Sin permiso');
+
+    actor.set({ id: 2, roles: ['employee'], permissions: flockPermissions });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.querySelectorAll('.add-flock-access a')).toHaveLength(1);
+    expect(host.querySelector('.add-flock-access button:disabled')?.textContent).toContain('Fuera de operación');
+  });
+
+  it('shows the facility summary only for confirmed empty houses', async () => {
+    const unknownOccupancy: QuickAccessHouse = {
+      ...emptyHouse,
+      house: { ...emptyHouse.house, id: 24, current_occupancy: null },
+      empty: false,
+    };
+    const emptyUnderMaintenance: QuickAccessHouse = {
+      ...emptyHouse,
+      house: { ...emptyHouse.house, id: 25, status: 'maintenance', bird_capacity: null },
+    };
+    houses.mockReturnValue(of([row, unknownOccupancy, emptyHouse, emptyUnderMaintenance]));
+    const fixture = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    const summaries = Array.from(host.querySelectorAll('.empty-house-summary'));
+
+    expect(summaries.map((summary) => Array.from(summary.querySelectorAll('dd'), (value) => value.textContent.trim())))
+      .toEqual([['1.000 aves', '0 aves', 'Operativo'], ['Sin datos', '0 aves', 'Mantenimiento']]);
+  });
+
+  it('guards the creation URL and prefills the verified house for an authorized employee', async () => {
+    TestBed.overrideProvider(FlocksApi, { useValue: {
+      activeBreeds: () => of([]), activeSuppliers: () => of([]), publishedTemplates: () => of([]),
+    } });
+    TestBed.overrideProvider(ProductionUnitsService, { useValue: { poultryHouses: () => of([emptyHouse.house]) } });
+    const router = TestBed.inject(Router);
+    router.resetConfig([
+      { path: 'administracion/acceso-rapido', children: quickAccessRoutes },
+      { path: 'acceso-denegado', component: AccessDeniedPage },
+    ]);
+    const path = '/administracion/acceso-rapido/nuevo-lote?unitId=7&houseId=23';
+    actor.set({ id: 2, roles: ['employee'], permissions: ['can_view_flocks'] });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(path, AccessDeniedPage);
+    expect(router.url).toBe('/acceso-denegado');
+
+    actor.set({ id: 2, roles: ['employee'], permissions: flockPermissions });
+    const creator = await harness.navigateByUrl(path, FlockCreatePage);
+    await harness.fixture.whenStable();
+    expect(creator.selectedHouse()?.id).toBe(23);
+    expect(creator.returnPath).toBe('/administracion/acceso-rapido');
   });
 
   it('offers maintenance below the activities in each card, including an empty house', async () => {

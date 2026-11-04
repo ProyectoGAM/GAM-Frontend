@@ -5,6 +5,7 @@ export interface QuickAccessHouse {
   house: PoultryHouse;
   unit: ProductionUnit;
   flock: Flock | null;
+  empty: boolean;
   unavailableReason: string | null;
   searchText: string;
 }
