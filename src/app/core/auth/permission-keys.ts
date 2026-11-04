@@ -16,6 +16,7 @@ const legacyKeys: Readonly<Record<string, string>> = {
   can_view_management_plans: 'management-plans.view',
   can_manage_management_plans: 'management-plans.manage',
   can_execute_management_plans: 'management-plans.execute',
+  can_manage_mortality: 'mortality.manage',
   can_manage_egg_collections: 'egg-collections.manage',
   can_view_egg_stock: 'egg-stock.view',
   can_move_egg_stock: 'egg-stock.move',

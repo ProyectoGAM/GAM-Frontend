@@ -89,10 +89,10 @@
             @if ((item.flock?.current_quantity ?? 0) <= 0) { <p class="availability-note" [id]="'quick-access-no-birds-' + item.house.id">Postura no disponible: el lote no tiene aves vivas.</p> }
           }
           <div class="maintenance-access">
-            @if (canViewMaintenance() && !dialogOpen()) {
+            @if (canDoMaintenance() && !dialogOpen()) {
               <a [routerLink]="['/administracion/ubicaciones/mantenimiento', item.unit.id, 'galpon', item.house.id]" [attr.aria-label]="'Hacer mantenimiento en ' + item.house.name + ' · ' + item.unit.name"><ion-icon name="build-outline" aria-hidden="true" />Hacer mantenimiento</a>
             } @else {
-              <button type="button" disabled><ion-icon [name]="canViewMaintenance() ? 'build-outline' : 'lock-closed-outline'" aria-hidden="true" />Hacer mantenimiento @if (!canViewMaintenance()) { <span>· Sin permiso</span> }</button>
+              <button type="button" disabled><ion-icon [name]="canDoMaintenance() ? 'build-outline' : 'lock-closed-outline'" aria-hidden="true" />Hacer mantenimiento @if (!canDoMaintenance()) { <span>· Sin permiso</span> }</button>
             }
           </div>
         </article>
@@ -112,19 +112,23 @@
               </div>
             </header>
             <div class="plant-actions">
-              <button type="button" class="elaborate" (click)="elaborate(item, $event)" [disabled]="dialogOpen() || (!!item.unavailableReason && !pendingPlantIds().has(item.plant.id))"
+              @let pending = pendingPlantIds().has(item.plant.id);
+              @let allowed = canElaborate(item.plant.id);
+              <button type="button" class="elaborate" (click)="elaborate(item, $event)"
+                [disabled]="!allowed || dialogOpen() || (!!item.unavailableReason && !pending)"
                 [attr.aria-label]="'Elaborar en ' + item.plant.name + ' · ' + item.unit.name"
-                [attr.aria-describedby]="pendingPlantIds().has(item.plant.id) ? 'plant-pending-' + item.plant.id : item.unavailableReason ? 'plant-unavailable-' + item.plant.id : null">
-                <ion-icon name="leaf-outline" aria-hidden="true" />Elaborar
+                [attr.aria-describedby]="!allowed ? 'plant-permission-' + item.plant.id : pending ? 'plant-pending-' + item.plant.id : item.unavailableReason ? 'plant-unavailable-' + item.plant.id : null">
+                <ion-icon [name]="allowed ? 'leaf-outline' : 'lock-closed-outline'" aria-hidden="true" />Elaborar
+                @if (!allowed) { <span class="permission-note" [id]="'plant-permission-' + item.plant.id">· Sin permiso</span> }
               </button>
-              @if (pendingPlantIds().has(item.plant.id)) { <p class="availability-note" [id]="'plant-pending-' + item.plant.id">Hay una elaboración pendiente. Abrí Elaborar para consultar su resultado sin duplicarla.</p> }
+              @if (allowed && pending) { <p class="availability-note" [id]="'plant-pending-' + item.plant.id">Hay una elaboración pendiente. Abrí Elaborar para consultar su resultado sin duplicarla.</p> }
               @else if (item.unavailableReason) { <p class="availability-note" [id]="'plant-unavailable-' + item.plant.id">{{ item.unavailableReason }}</p> }
             </div>
             <div class="maintenance-access">
-              @if (canViewMaintenance() && !dialogOpen()) {
+              @if (canDoMaintenance() && !dialogOpen()) {
                 <a [routerLink]="['/administracion/ubicaciones/mantenimiento', item.unit.id, 'galpon', item.plant.id]" [attr.aria-label]="'Hacer mantenimiento en ' + item.plant.name + ' · ' + item.unit.name"><ion-icon name="build-outline" aria-hidden="true" />Hacer mantenimiento</a>
               } @else {
-                <button type="button" disabled><ion-icon [name]="canViewMaintenance() ? 'build-outline' : 'lock-closed-outline'" aria-hidden="true" />Hacer mantenimiento @if (!canViewMaintenance()) { <span>· Sin permiso</span> }</button>
+                <button type="button" disabled><ion-icon [name]="canDoMaintenance() ? 'build-outline' : 'lock-closed-outline'" aria-hidden="true" />Hacer mantenimiento @if (!canDoMaintenance()) { <span>· Sin permiso</span> }</button>
               }
             </div>
           </article>

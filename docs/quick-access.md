@@ -80,18 +80,21 @@ ignora acentos y mayúsculas y encuentra galpón, lote o UP.
 Cada tarjeta de galpón presenta **Postura**, **Mortandad**, **Cambio de ración** y
 **Sanidad**. Sin un único lote actual, o con el galpón fuera de operación,
 se explica la indisponibilidad y no se ofrecen comandos ambiguos. La cuarentena
-no se interpreta como finalización. Postura requiere aves vivas y el permiso
-`egg-collections.manage`; Sanidad exige `management-plans.execute`. El resto
-conserva la política de los formularios existentes. El backend es autoritativo.
+no se interpreta como finalización. Las cuatro tareas requieren consultar el
+lote. Postura requiere aves vivas y `can_manage_egg_collections`. Mortandad
+requiere `can_manage_mortality`. Cambio de ración requiere
+`can_view_flock_feeding`, `can_manage_flock_feeding` y `can_view_feed_stock`.
+Sanidad requiere `can_execute_management_plans` y `can_manage_management_plans`,
+que habilita los catálogos de vacunas y medicamentos.
 
 Las cuatro acciones conservan su lugar incluso sin autorización. Todas usan
 un fondo neutro; las restringidas muestran el candado superpuesto al icono,
 el texto “Sin permiso” y el botón deshabilitado. Los bloqueos temporales por
 un formulario abierto o por falta de aves no muestran candado. La presentación
-depende de `tasks().allowed`, preparada para conectar los futuros permisos de
-Mortandad y Cambio de ración cuando se defina su contrato, sin inventar permisos
-ni cambiar las reglas actuales. Las combinaciones de cero a cuatro acciones
-autorizadas se verifican con datos simulados en pruebas de componente.
+aplica los mismos permisos al mostrar el botón y al abrir el formulario. En
+plantas, Elaborar requiere `can_manufacture_feed` y `can_view_feed_recipes`. La
+recuperación de una elaboración pendiente exige el permiso de elaboración y
+reutiliza los datos ya guardados. El backend valida cada consulta y registro.
 
 Las acciones de galpón abren directamente los formularios existentes, con lote, galpón
 y UP. Antes de registrar se vuelve a consultar el lote y se verifica su

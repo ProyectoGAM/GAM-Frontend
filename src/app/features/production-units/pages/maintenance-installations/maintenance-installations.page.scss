@@ -1,17 +1,17 @@
+@use '../../../../shared/ui/filter-dialog/filter-controls';
+
 :host { display: block; color: var(--gam-color-text); }
-.maintenance-directory { max-width: 960px; margin-inline: auto; }
+.maintenance-directory {
+  max-width: 960px;
+  margin-inline: auto;
+  @include filter-controls.controls($choices: false);
+}
 header { margin-bottom: 24px; }
 h1, h2 { color: var(--gam-color-heading); }
 h1 { margin: 8px 0; font-size: clamp(1.5rem, 5vw, 2rem); }
 header p { color: var(--gam-color-text-muted); line-height: 1.5; }
-.breadcrumb, .scope, .count { font-size: .8125rem; }
-.scope { color: var(--gam-color-primary); }
-.filters { display: grid; gap: 16px; }
-label { display: grid; gap: 7px; color: var(--gam-color-text-muted); font-size: .875rem; min-width: 0; }
-input, select { box-sizing: border-box; min-width: 0; width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; }
-.search-control { position: relative; }
-.search-control ion-icon { position: absolute; left: 12px; top: 14px; color: var(--gam-color-text-muted); }
-.search-control input { padding-left: 38px; }
+.breadcrumb, .count, .scope { font-size: .8125rem; }
+.scope { margin: 0; color: var(--gam-color-primary); overflow-wrap: anywhere; }
 .count { margin: 18px 0; color: var(--gam-color-text-muted); }
 .installation-list { display: grid; gap: 14px; }
 .installation-card { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-primary); text-decoration: none; }
@@ -26,5 +26,5 @@ h2 { margin: 6px 0; font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; 
 .state-panel p { line-height: 1.5; }
 .error { color: var(--gam-color-danger); }
 ion-button { min-height: 44px; --color: var(--gam-color-primary); --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); }
-a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
-@media (min-width: 600px) { .filters { grid-template-columns: 2fr 1fr; } .installation-list { grid-template-columns: 1fr 1fr; } }
+a:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+@media (min-width: 600px) { .installation-list { grid-template-columns: 1fr 1fr; } }
