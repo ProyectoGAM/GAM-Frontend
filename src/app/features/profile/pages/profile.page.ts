@@ -10,13 +10,17 @@ import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { postLoginPath } from '../../../core/auth/access-policy';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { InitialAvatarComponent } from '../../../shared/components/initial-avatar.component';
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
 
 @Component({
   selector: 'app-profile',
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss',
-  imports: [IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonToolbar, ReactiveFormsModule],
+  imports: [
+    InitialAvatarComponent, IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonToolbar,
+    ReactiveFormsModule,
+  ],
 })
 export class ProfilePage {
   private readonly auth = inject(AuthStore);

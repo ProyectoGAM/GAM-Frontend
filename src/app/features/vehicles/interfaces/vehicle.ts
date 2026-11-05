@@ -34,6 +34,18 @@ export interface VehicleDriverOption {
   name: string;
 }
 
+export interface VehicleInput {
+  plate: string;
+  make: string;
+  model: string;
+  year: number | null;
+  admitted_at: string | null;
+  capacity_kg: number | null;
+  habitual_driver_id: number | null;
+  notes: string;
+  version?: number;
+}
+
 export interface VehicleUsage {
   id: string;
   purpose: string;

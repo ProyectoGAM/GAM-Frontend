@@ -7,6 +7,7 @@ import { menuOutline, moonOutline, sunnyOutline } from 'ionicons/icons';
 import { AuthStore } from '../../core/auth/auth.store';
 import { hasDeliveryRole } from '../../core/auth/access-policy';
 import { ThemeService } from '../../core/theme/theme.service';
+import { InitialAvatarComponent } from '../../shared/components/initial-avatar.component';
 import { AdminSidebarComponent } from './components/admin-sidebar.component';
 import { firstVisibleAdminPath, visibleAdminNavigation } from './admin-navigation';
 import { AdminUnitContextService } from './services/admin-unit-context.service';
@@ -15,7 +16,7 @@ import { AdminUnitContextService } from './services/admin-unit-context.service';
   selector: 'app-admin-shell',
   templateUrl: './admin-shell.page.html',
   styleUrl: './admin-shell.page.scss',
-  imports: [AdminSidebarComponent, IonButton, IonContent, IonHeader, IonIcon, IonToolbar, RouterLink, RouterOutlet],
+  imports: [AdminSidebarComponent, InitialAvatarComponent, IonButton, IonContent, IonHeader, IonIcon, IonToolbar, RouterLink, RouterOutlet],
   providers: [AdminUnitContextService],
 })
 export class AdminShellPage {

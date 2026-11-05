@@ -38,8 +38,17 @@ h1, h2, h3 {
     calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
-.person-name {
+.profile-identity {
+  --avatar-size: 4rem;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin: 0 0 18px;
+}
+
+.person-name {
+  min-width: 0;
+  margin: 0;
   font-size: clamp(1.65rem, 5vw, 2rem);
   overflow-wrap: anywhere;
 }

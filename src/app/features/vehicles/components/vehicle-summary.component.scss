@@ -1,0 +1,29 @@
+:host { display: block; min-width: 0; }
+.vehicle-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+ion-icon { flex: none; color: var(--gam-color-primary); font-size: 2rem; }
+.vehicle-name { flex: 1 1 7rem; min-width: 0; overflow-wrap: anywhere; }
+h1, h2 { margin: 0; color: var(--gam-color-heading); font-weight: 750; }
+h1 { font-size: clamp(1.4rem, 5vw, 1.85rem); }
+h2 { font-size: 1.25rem; }
+p { margin: 4px 0 0; color: var(--gam-color-text-muted); }
+.badge {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--gam-color-success-soft);
+  color: var(--gam-color-success);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.badge.warning { background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
+.vehicle-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--gam-color-border);
+}
+.vehicle-facts > div:first-child { padding-inline-end: 10px; }
+.vehicle-facts > div + div { padding-inline-start: 12px; border-inline-start: 1px solid var(--gam-color-border); }
+dt { color: var(--gam-color-text-muted); font-size: .85rem; }
+dd { margin: 4px 0 0; color: var(--gam-color-heading); font-weight: 700; overflow-wrap: anywhere; }

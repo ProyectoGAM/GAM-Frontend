@@ -45,7 +45,10 @@
           </ion-button>
         </form>
       } @else {
-        <h2 class="person-name">{{ person.name }}</h2>
+        <div class="profile-identity">
+          <app-initial-avatar [name]="person.name" />
+          <h2 class="person-name">{{ person.name }}</h2>
+        </div>
         <section class="profile-card" aria-labelledby="profile-details">
           <h3 id="profile-details">Información personal</h3>
           <dl>

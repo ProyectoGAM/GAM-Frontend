@@ -1,0 +1,56 @@
+.fuel-history { min-width: 0; padding: clamp(14px, 3vw, 22px); }
+.fuel-list { margin: 0; padding: 0; list-style: none; }
+.fuel-list > li { padding-block: 14px; border-top: 1px solid var(--gam-color-border); }
+.fuel-list > li:last-child { padding-bottom: 0; }
+.fuel-entry { display: grid; gap: 10px 14px; align-items: center; overflow-wrap: anywhere; }
+.fuel-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fuel-identity ion-icon {
+  flex: none;
+  box-sizing: content-box;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--gam-color-primary-soft);
+  color: var(--gam-color-primary);
+  font-size: 1.2rem;
+}
+.fuel-identity h3 { margin: 0; color: var(--gam-color-heading); font-size: 1.05rem; font-weight: 750; }
+.fuel-identity p, .fuel-date p { margin: 4px 0 0; }
+.fuel-date, .fuel-receipt-action, .fuel-entry-note { font-size: .875rem; }
+.fuel-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.fuel-values > div + div { padding-inline-start: 8px; border-inline-start: 1px solid var(--gam-color-border); }
+.fuel-values dt { color: var(--gam-color-text-muted); font-size: .85rem; }
+.fuel-values dd { margin: 4px 0 0; color: var(--gam-color-heading); font-weight: 750; }
+.fuel-entry-note { grid-column: 1 / -1; white-space: pre-wrap; }
+.button.fuel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border-color: var(--gam-color-control-border);
+  color: var(--gam-color-primary);
+}
+.button.fuel-action.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+.fuel-dialog-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.fuel-dialog-fields label { min-width: 0; }
+.fuel-dialog-fields input:not([type='file']), .fuel-dialog-fields textarea {
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.fuel-dialog-fields input.ng-invalid.ng-touched { border-color: var(--gam-color-danger); }
+.fuel-dialog-wide { grid-column: 1 / -1; }
+.fuel-dialog-actions .dialog-button { flex: 1 1 auto; }
+
+@media (min-width: 420px) {
+  .fuel-dialog-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 620px) {
+  .fuel-entry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1150px) {
+  .fuel-entry { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.05fr) 14rem; }
+  .fuel-date, .fuel-values, .fuel-receipt-action { padding-inline-start: 12px; border-inline-start: 1px solid var(--gam-color-border); }
+}
