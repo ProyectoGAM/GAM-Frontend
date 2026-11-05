@@ -9,6 +9,16 @@ export interface CustomerAccountSnapshot {
   as_of: string;
 }
 
+export interface CustomerLocationResolution {
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  locality: string | null;
+  department: string | null;
+  postcode: string | null;
+  country_code: 'UY';
+}
+
 export interface CustomerInput {
   name?: string | null;
   business_name?: string | null;

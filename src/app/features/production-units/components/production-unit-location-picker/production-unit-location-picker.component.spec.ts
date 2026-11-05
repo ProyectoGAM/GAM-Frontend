@@ -40,6 +40,7 @@ vi.mock('mapbox-gl/esm', () => {
       return this;
     }
     addTo(): this { return this; }
+    setDraggable(): this { return this; }
     on(event: string, listener: () => void): this { mapboxState.markerListeners.set(event, listener); return this; }
     off(event: string): this { mapboxState.markerListeners.delete(event); return this; }
     getLngLat(): { lng: number; lat: number } {
@@ -81,15 +82,27 @@ describe('ProductionUnitLocationPickerComponent', () => {
     });
   });
 
-  async function render(initialLocation: { address?: string | null; latitude: number | string | null; longitude: number | string | null } | null = null, readOnly = false) {
+  async function render(initialLocation: { address?: string | null; latitude: number | string | null; longitude: number | string | null } | null = null, readOnly = false, initialViewport?: { center: [number, number]; zoom: number }) {
     fixture = TestBed.createComponent(ProductionUnitLocationPickerComponent);
     fixture.componentRef.setInput('initialLocation', initialLocation);
     fixture.componentRef.setInput('readOnly', readOnly);
+    if (initialViewport) fixture.componentRef.setInput('initialViewport', initialViewport);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     return fixture.componentInstance;
   }
+
+  it('uses the requested initial viewport without selecting or validating a point', async () => {
+    const initialViewport = { center: [-56.71339, -34.33898] satisfies [number, number], zoom: 13 };
+    const component = await render(null, false, initialViewport);
+    loadMap();
+
+    expect(mapboxState.mapOptions).toMatchObject(initialViewport);
+    expect(component.location()).toBeNull();
+    expect(mapboxState.markerOptions).toBeNull();
+    expect(validateLocation).not.toHaveBeenCalled();
+  });
 
   function loadMap(): void {
     mapboxState.mapListeners.get('load')?.();
@@ -118,6 +131,44 @@ describe('ProductionUnitLocationPickerComponent', () => {
     expect(validateLocation).toHaveBeenCalledWith(-34.8, -56.1);
     expect(reverse).toHaveBeenCalledWith(-34.8, -56.1);
     expect(component.addressText()).toContain('Punto seleccionado');
+  });
+
+  it('uses the address resolved by the supplied validator and lets an optional location be cleared', async () => {
+    const component = await render();
+    const administrativeContext = { department: 'Canelones', locality: 'Las Piedras' };
+    const resolvePoint = vi.fn().mockReturnValue(of({ address: 'Av. Artigas 100', administrativeContext }));
+    fixture.componentRef.setInput('required', false);
+    fixture.componentRef.setInput('validatePoint', resolvePoint);
+    fixture.detectChanges();
+    loadMap();
+    const changes: Array<ProductionUnitLocationValue | null> = [];
+    const pending: boolean[] = [];
+    component.locationChange.subscribe((value) => changes.push(value));
+    component.validationPending.subscribe((value) => pending.push(value));
+    mapboxState.mapListeners.get('click')?.({ lngLat: { lat: -34.8, lng: -56.2 } });
+
+    expect(resolvePoint).toHaveBeenCalledWith(-34.8, -56.2);
+    expect(validateLocation).not.toHaveBeenCalled();
+    expect(reverse).not.toHaveBeenCalled();
+    expect(pending).toEqual([true, false]);
+    expect(changes[0]).toMatchObject({ address: 'Av. Artigas 100', isConfirmed: true, administrativeContext });
+    component.clearOptionalLocation();
+    expect(component.addressText()).toBe('');
+    expect(changes.at(-1)).toBeNull();
+  });
+
+  it('allows confirming a reference when the server validates a point without suggesting an address', async () => {
+    const component = await render();
+    fixture.componentRef.setInput('validatePoint', () => of({ address: null }));
+    fixture.detectChanges();
+    loadMap();
+    mapboxState.mapListeners.get('click')?.({ lngLat: { lat: -34.8, lng: -56.2 } });
+
+    expect(component.labelState()).toBe('not-found');
+    expect(reverse).not.toHaveBeenCalled();
+    component.onAddressInput('Entrada por el camino principal');
+    component.confirmAddressForPoint();
+    expect(component.location()).toMatchObject({ address: 'Entrada por el camino principal', isConfirmed: true });
   });
 
   it('selects a suggestion, updates the pin/camera and emits GAM latitude/longitude order', async () => {

@@ -1,6 +1,6 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, Subject, catchError, map, of, switchMap, timer } from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, map, of, switchMap, timer } from 'rxjs';
 import mapboxgl from 'mapbox-gl/esm';
 import type { Map as MapboxMap, MapMouseEvent, Marker as MapboxMarker } from 'mapbox-gl';
 
@@ -16,7 +16,8 @@ type SearchOutcome = { id: number; places: MapboxPlace[]; failed: boolean };
 type ReverseRequest = { id: number; latitude: number; longitude: number };
 type ReverseOutcome = { id: number; place: MapboxPlace | null; failed: boolean };
 type LocationCandidate = { id: number; latitude: number; longitude: number; address: string | null; administrativeContext: ProductionUnitLocationValue['administrativeContext']; reverse: boolean };
-type ValidationOutcome = { candidate: LocationCandidate; error: unknown | null };
+type ResolvedAddress = Pick<ProductionUnitLocationValue, 'address' | 'administrativeContext'>;
+type ValidationOutcome = { candidate: LocationCandidate; error: unknown | null; resolved?: ResolvedAddress };
 
 const URUGUAY_CENTER: [number, number] = [-56.1645, -34.9011];
 const URUGUAY_BOUNDS: [[number, number], [number, number]] = [[-58.6, -35.2], [-53.0, -30.0]];
@@ -54,7 +55,15 @@ export class ProductionUnitLocationPickerComponent {
     longitude: number | string | null | undefined;
   } | null>(null);
   readonly context = input<ProductionUnitSearchContext>({});
+  readonly initialViewport = input({ center: URUGUAY_CENTER, zoom: 6 });
   readonly readOnly = input(false);
+  readonly disabled = input(false);
+  readonly required = input(true);
+  readonly label = input('Ubicación de la unidad productiva');
+  readonly addressMaxLength = input(500);
+  readonly validatePoint = input<(latitude: number, longitude: number) => Observable<ResolvedAddress | void>>(
+    (latitude, longitude) => this.units.validateLocation(latitude, longitude),
+  );
   readonly validationError = input<string | null>(null);
   readonly locationChange = output<ProductionUnitLocationValue | null>();
   readonly validationPending = output<boolean>();
@@ -101,8 +110,8 @@ export class ProductionUnitLocationPickerComponent {
     this.validationRequests.pipe(
       switchMap((candidate) => candidate === null
         ? EMPTY
-        : this.units.validateLocation(candidate.latitude, candidate.longitude).pipe(
-          map((): ValidationOutcome => ({ candidate, error: null })),
+        : this.validatePoint()(candidate.latitude, candidate.longitude).pipe(
+          map((resolved): ValidationOutcome => ({ candidate, error: null, resolved: resolved ?? undefined })),
           catchError((error: unknown) => of<ValidationOutcome>({ candidate, error })),
         )),
     ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((outcome) => this.applyValidationResult(outcome));
@@ -113,6 +122,11 @@ export class ProductionUnitLocationPickerComponent {
       if (key === this.initialKey) return;
       this.initialKey = key;
       this.applyInitialLocation(value);
+    });
+
+    effect(() => {
+      const editable = !this.readOnly() && !this.disabled();
+      this.marker?.setDraggable(editable);
     });
 
     effect(() => {
@@ -134,7 +148,7 @@ export class ProductionUnitLocationPickerComponent {
   }
 
   onAddressInput(value: string | null | undefined): void {
-    if (this.readOnly()) return;
+    if (this.readOnly() || this.disabled()) return;
     const text = value ?? '';
     this.addressText.set(text);
     this.searchError.set(null);
@@ -163,9 +177,10 @@ export class ProductionUnitLocationPickerComponent {
   }
 
   chooseSuggestion(place: MapboxPlace): void {
+    if (this.disabled()) return;
     const [longitude, latitude] = place.center;
     if (!isValidProductionUnitPoint(latitude, longitude)) return;
-    const address = place.place_name.trim().slice(0, 500);
+    const address = place.place_name.trim().slice(0, this.addressMaxLength());
     this.requestLocationValidation({
       latitude,
       longitude,
@@ -176,8 +191,9 @@ export class ProductionUnitLocationPickerComponent {
   }
 
   confirmAddressForPoint(): void {
+    if (this.disabled()) return;
     const current = this.location();
-    const address = this.addressText().trim().slice(0, 500);
+    const address = this.addressText().trim().slice(0, this.addressMaxLength());
     if (!current || !isValidProductionUnitPoint(current.latitude, current.longitude) || !address
       || address === this.pointDescription()) return;
     const next = { ...current, address, isConfirmed: true };
@@ -193,6 +209,15 @@ export class ProductionUnitLocationPickerComponent {
     const address = this.addressText().trim();
     return Boolean(current && isValidProductionUnitPoint(current.latitude, current.longitude)
       && address && address !== this.pointDescription() && !this.isValidating());
+  }
+
+  clearOptionalLocation(): void {
+    if (this.required() || this.readOnly() || this.disabled()) return;
+    this.cancelLocationValidation();
+    this.applyInitialLocation(null);
+    this.searchError.set(null);
+    this.selectionError.set(null);
+    this.locationChange.emit(null);
   }
 
   preserveSearchFocus(event: PointerEvent): void {
@@ -214,9 +239,10 @@ export class ProductionUnitLocationPickerComponent {
     const current = this.location();
     const hasInitialPoint = current !== null
       && isValidProductionUnitPoint(current.latitude, current.longitude);
+    const initialViewport = this.initialViewport();
     const center: [number, number] = hasInitialPoint
       ? [current.longitude as number, current.latitude as number]
-      : URUGUAY_CENTER;
+      : initialViewport.center;
     const initialPointOutsideBounds = hasInitialPoint && (
       center[0] < URUGUAY_BOUNDS[0][0] || center[0] > URUGUAY_BOUNDS[1][0]
       || center[1] < URUGUAY_BOUNDS[0][1] || center[1] > URUGUAY_BOUNDS[1][1]
@@ -228,7 +254,7 @@ export class ProductionUnitLocationPickerComponent {
         container: host,
         style: 'mapbox://styles/mapbox/light-v11',
         center,
-        zoom: hasInitialPoint ? 14 : 6,
+        zoom: hasInitialPoint ? 14 : initialViewport.zoom,
         maxBounds: initialPointOutsideBounds ? undefined : URUGUAY_BOUNDS,
         attributionControl: true,
       });
@@ -268,24 +294,24 @@ export class ProductionUnitLocationPickerComponent {
     const longitude = value?.longitude == null ? NaN : Number(value.longitude);
     if (!value || !isValidProductionUnitPoint(latitude, longitude)) {
       this.location.set(null);
-      this.addressText.set('');
+      this.addressText.set(this.required() ? '' : value?.address ?? '');
       this.searchQuery.set('');
       this.labelState.set('idle');
       this.syncMarker();
       return;
     }
 
-    const address = value.address?.trim().slice(0, 500) || null;
+    const address = value.address?.trim().slice(0, this.addressMaxLength()) || null;
     const next: ProductionUnitLocationValue = { address, latitude, longitude, isConfirmed: true };
     this.location.set(next);
     this.addressText.set(address ?? '');
-    this.labelState.set(address ? 'ready' : 'reverse');
+    this.labelState.set(address ? 'ready' : this.required() ? 'reverse' : 'not-found');
     this.syncMarker();
-    if (!address) this.reverseGeocode(latitude, longitude);
+    if (!address && this.required()) this.reverseGeocode(latitude, longitude);
   }
 
   private selectMapPoint(latitude: number, longitude: number): void {
-    if (this.readOnly() || !isValidProductionUnitPoint(latitude, longitude)) return;
+    if (this.readOnly() || this.disabled() || !isValidProductionUnitPoint(latitude, longitude)) return;
     this.requestLocationValidation({ latitude, longitude, address: null, administrativeContext: null, reverse: true });
   }
 
@@ -295,8 +321,8 @@ export class ProductionUnitLocationPickerComponent {
     this.searchError.set(null);
     this.selectionError.set(null);
     this.isValidating.set(true);
-    this.validationRequests.next({ ...candidate, id });
     this.validationPending.emit(true);
+    this.validationRequests.next({ ...candidate, id });
   }
 
   private applyValidationResult(outcome: ValidationOutcome): void {
@@ -314,25 +340,26 @@ export class ProductionUnitLocationPickerComponent {
       return;
     }
 
-    const candidate = outcome.candidate;
-    const address = candidate.address?.trim().slice(0, 500) || null;
+    const { candidate, resolved } = outcome;
+    const address = (candidate.address ?? resolved?.address)?.trim().slice(0, this.addressMaxLength()) || null;
+    const needsReverse = candidate.reverse && !resolved;
     const next: ProductionUnitLocationValue = {
       address,
       latitude: candidate.latitude,
       longitude: candidate.longitude,
       isConfirmed: Boolean(address),
-      administrativeContext: candidate.administrativeContext ?? null,
+      administrativeContext: candidate.administrativeContext ?? resolved?.administrativeContext ?? null,
     };
     this.location.set(next);
     this.addressText.set(address ?? this.pointDescription());
-    this.labelState.set(address ? 'ready' : 'reverse');
+    this.labelState.set(address ? 'ready' : needsReverse ? 'reverse' : 'not-found');
     this.searchError.set(null);
     this.searchQuery.set('');
     this.clearSearch();
     this.locationChange.emit(next);
     this.moveMapTo(candidate.longitude, candidate.latitude, candidate.reverse ? 14 : 15);
     this.syncMarker();
-    if (candidate.reverse) this.reverseGeocode(candidate.latitude, candidate.longitude);
+    if (needsReverse) this.reverseGeocode(candidate.latitude, candidate.longitude);
   }
 
   private cancelLocationValidation(emitState = true): void {
@@ -352,7 +379,7 @@ export class ProductionUnitLocationPickerComponent {
     const current = this.location();
     if (!current) return;
     if (outcome.place?.place_name.trim() && (outcome.place.place_type?.includes('address') ?? true)) {
-      const address = outcome.place.place_name.trim().slice(0, 500);
+      const address = outcome.place.place_name.trim().slice(0, this.addressMaxLength());
       const next = { ...current, address, isConfirmed: true, administrativeContext: outcome.place.administrativeContext ?? null };
       this.location.set(next);
       this.addressText.set(address);
@@ -383,7 +410,7 @@ export class ProductionUnitLocationPickerComponent {
     if (latitude === null || longitude === null) return;
     const coordinates: [number, number] = [longitude, latitude];
     if (!this.marker) {
-      this.marker = new mapboxgl.Marker({ element: this.createMarkerElement(), draggable: !this.readOnly() })
+      this.marker = new mapboxgl.Marker({ element: this.createMarkerElement(), draggable: !this.readOnly() && !this.disabled() })
         .setLngLat(coordinates)
         .addTo(this.map);
       if (!this.readOnly()) {

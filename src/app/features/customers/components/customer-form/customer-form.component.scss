@@ -1,0 +1,14 @@
+.editor-layout { display: grid; gap: 16px; align-items: start; }
+.fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.section-hint { margin: 0 0 16px; }
+.location-card .section-hint { margin: 12px 0 0; }
+.notes-card { padding-block: 0; }
+.notes-card summary { min-height: 44px; padding-block: 12px; color: var(--gam-color-heading); font-weight: 700; cursor: pointer; }
+.notes-card summary:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 3px; }
+.notes-card .optional { margin-inline-start: 6px; font-size: .875rem; }
+.notes-card .fields { padding-block: 4px 18px; }
+
+@media (min-width: 1100px) {
+  .editor-layout { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .location-card { grid-column: 2; grid-row: 1 / span 2; }
+}

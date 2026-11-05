@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { API_CONFIG } from '../../../core/config/api.config';
 import { CustomersApi } from './customers.api';
@@ -31,6 +31,19 @@ describe('CustomersApi', () => {
     expect(request.request.body).toEqual({});
     expect(request.request.headers.get('Idempotency-Key')).toBe('create-key');
     request.flush({ data: { id: 'customer' } });
+  });
+
+  it('resolves a customer address through the customer location endpoint', () => {
+    const resolved = {
+      latitude: -34.8, longitude: -56.2, address: 'Av. Artigas 100',
+      locality: 'Las Piedras', department: 'Canelones', postcode: null, country_code: 'UY',
+    };
+    const result = vi.fn();
+    api.resolveLocation(-34.8, -56.2).subscribe(result);
+    const request = http.expectOne({ method: 'POST', url: '/api/v1/clientes/validar-ubicacion' });
+    expect(request.request.body).toEqual({ latitude: -34.8, longitude: -56.2 });
+    request.flush({ data: resolved });
+    expect(result).toHaveBeenCalledWith({ data: resolved });
   });
 
   it('sends exact payment text separately from balance and actor', () => {

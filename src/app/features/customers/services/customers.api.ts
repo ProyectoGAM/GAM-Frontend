@@ -5,7 +5,7 @@ import { CustomerStatus } from '../types/customer.types';
 
 import { ApiClient } from '../../../core/api/api-client';
 import { DeliveryStop } from '../../deliveries/delivery.models';
-import { Customer, CustomerAccountSnapshot, CustomerAdjustmentInput, CustomerEnvelope, CustomerInput, CustomerListFilters, CustomerMovementPage, CustomerMovementResult, CustomerPaymentInput, MovementFilters, Paginated } from '../interfaces/customer';
+import { Customer, CustomerAccountSnapshot, CustomerAdjustmentInput, CustomerEnvelope, CustomerInput, CustomerListFilters, CustomerLocationResolution, CustomerMovementPage, CustomerMovementResult, CustomerPaymentInput, MovementFilters, Paginated } from '../interfaces/customer';
 
 @Injectable({ providedIn: 'root' })
 export class CustomersApi {
@@ -17,6 +17,12 @@ export class CustomersApi {
 
   detail(id: string): Observable<CustomerEnvelope> { return this.api.get<CustomerEnvelope>(`clientes/${id}`); }
   account(id: string): Observable<{ data: CustomerAccountSnapshot }> { return this.api.get<{ data: CustomerAccountSnapshot }>(`clientes/${id}/cuenta-corriente`); }
+
+  resolveLocation(latitude: number, longitude: number): Observable<{ data: CustomerLocationResolution }> {
+    return this.api.post<{ data: CustomerLocationResolution }, { latitude: number; longitude: number }>(
+      'clientes/validar-ubicacion', { latitude, longitude },
+    );
+  }
 
   create(body: CustomerInput, key: string): Observable<CustomerEnvelope> {
     return this.api.post<CustomerEnvelope>('clientes', body, this.options(key));
