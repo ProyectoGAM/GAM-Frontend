@@ -1,0 +1,38 @@
+.vehicle-dialog {
+  box-sizing: border-box;
+  width: min(calc(100% - 24px), 34rem);
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  margin: auto;
+  padding: clamp(14px, 4vw, 24px);
+  border: 1px solid var(--gam-color-border);
+  border-radius: 12px;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-text);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.vehicle-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 62%, transparent); }
+.dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.dialog-heading h2 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.25rem, 5vw, 1.55rem); font-weight: 750; }
+.dialog-heading p { margin: 5px 0 0; color: var(--gam-color-text-muted); }
+.dialog-close, .dialog-button {
+  min-height: 44px;
+  border: 1px solid var(--gam-color-control-border);
+  border-radius: 8px;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dialog-close { display: grid; flex: 0 0 44px; place-items: center; border-color: transparent; font-size: 1.4rem; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.dialog-button { padding: 8px 12px; }
+.dialog-button.primary { border-color: var(--gam-color-primary); background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+.dialog-button:disabled, .dialog-close:disabled { opacity: .6; cursor: wait; }
+.dialog-button:focus-visible, .dialog-close:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+.dialog-error { margin: 10px 0 0; padding: 10px; border-radius: 8px; background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
+.vehicle-attachment { display: grid; gap: 6px; min-width: 0; }
+.vehicle-attachment-label { color: var(--gam-color-heading); font-size: .9rem; font-weight: 600; }
+.vehicle-file-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.vehicle-file-selection span { min-width: 0; }

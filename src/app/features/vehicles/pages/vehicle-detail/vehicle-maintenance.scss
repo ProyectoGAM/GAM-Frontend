@@ -1,0 +1,62 @@
+.vehicle-maintenance { display: grid; gap: 16px; min-width: 0; }
+.maintenance-heading h2 { font-size: clamp(1.3rem, 4vw, 1.65rem); }
+.maintenance-panel { min-width: 0; padding: clamp(14px, 3vw, 22px); }
+.maintenance-list { margin: 0; padding: 0; list-style: none; }
+.maintenance-list > li { padding-block: 14px; border-top: 1px solid var(--gam-color-border); }
+.maintenance-list > li:last-child { padding-bottom: 0; }
+.maintenance-row { display: grid; align-items: center; gap: 10px 16px; overflow-wrap: anywhere; }
+.maintenance-row p { margin-top: 5px; font-size: .9rem; }
+.maintenance-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.maintenance-name h3 { margin: 0; color: var(--gam-color-heading); font-size: 1.05rem; font-weight: 750; }
+.maintenance-badge {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--gam-color-canvas);
+  color: var(--gam-color-text);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.maintenance-badge.success { background: var(--gam-color-success-soft); color: var(--gam-color-success); }
+.maintenance-badge.warning { background: var(--gam-color-warning-soft); color: var(--gam-color-warning); }
+.maintenance-badge.overdue { background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
+.maintenance-badge.current { background: var(--gam-color-primary-soft); color: var(--gam-color-primary); }
+.maintenance-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.maintenance-metrics > div + div { padding-inline-start: 10px; border-inline-start: 1px solid var(--gam-color-border); }
+.maintenance-metrics dt { color: var(--gam-color-text-muted); font-size: .85rem; }
+.maintenance-metrics dd { margin: 4px 0 0; color: var(--gam-color-heading); font-weight: 700; }
+.maintenance-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 44px;
+  border-color: var(--gam-color-control-border);
+  overflow-wrap: anywhere;
+}
+.maintenance-action ion-icon { flex: none; }
+.maintenance-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.maintenance-fields label { min-width: 0; }
+.maintenance-fields :is(input:not([type='checkbox']), select, textarea) { min-width: 0; min-height: 44px; font-size: 1rem; font-weight: 400; }
+.maintenance-fields input.ng-invalid.ng-touched { border-color: var(--gam-color-danger); }
+.maintenance-fields .check-line { min-height: 44px; }
+.maintenance-fields .check-line input { flex: 0 0 20px; accent-color: var(--gam-color-primary); }
+.maintenance-wide { grid-column: 1 / -1; }
+.maintenance-dialog-actions .dialog-button { flex: 1 1 auto; }
+.maintenance-deactivate { margin-top: 10px; min-height: 44px; }
+
+@media (min-width: 420px) {
+  .maintenance-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 700px) {
+  .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5rem; }
+  .intervention-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .intervention-actions { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1150px) {
+  .intervention-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 14rem); }
+  .intervention-actions { grid-column: auto; justify-content: flex-end; }
+}

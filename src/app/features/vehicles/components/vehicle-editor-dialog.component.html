@@ -1,0 +1,38 @@
+<dialog #dialog class="vehicle-dialog" aria-labelledby="vehicle-editor-title" (cancel)="cancel($event)">
+  <header class="dialog-heading">
+    <div>
+      <h2 id="vehicle-editor-title" tabindex="-1" autofocus>{{ vehicle() ? 'Editar vehículo' : 'Registrar vehículo' }}</h2>
+      <p>Completá los datos de la ficha.</p>
+    </div>
+    <button class="dialog-close" type="button" aria-label="Cerrar formulario" [disabled]="saving()" (click)="cancel()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </header>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <fieldset class="editor-fields" [disabled]="saving()">
+      <label>Matrícula <span aria-hidden="true">*</span><input formControlName="plate" autocomplete="off" maxlength="24" required></label>
+      <label>Marca <span aria-hidden="true">*</span><input formControlName="make" maxlength="80" required></label>
+      <label>Modelo <span aria-hidden="true">*</span><input formControlName="model" maxlength="100" required></label>
+      <label>Año<input formControlName="year" inputmode="numeric" type="number" min="1900" max="2100" step="1"></label>
+      <label>Fecha de alta<input formControlName="admitted_at" type="date"></label>
+      <label>Capacidad (kg)<input formControlName="capacity_kg" inputmode="decimal" type="number" min="0.01" max="99999999" step="0.01"></label>
+      <label class="full-width">Conductor habitual (opcional)
+        <select formControlName="habitual_driver_id">
+          <option value="">Sin conductor habitual</option>
+          @if (unavailableDriver(); as driver) { <option [value]="driver.id">{{ driver.name }}</option> }
+          @for (driver of drivers(); track driver.id) { <option [value]="driver.id">{{ driver.name }}</option> }
+        </select>
+      </label>
+      @if (driverError(); as message) { <p class="dialog-error full-width" role="alert">{{ message }}</p> }
+      <label class="full-width">Observaciones<textarea formControlName="notes" rows="2" maxlength="5000"></textarea></label>
+    </fieldset>
+    @if (form.touched && form.invalid) {
+      <p class="dialog-error" role="alert">Completá la matrícula, la marca y el modelo. Si indicás un año o una capacidad, revisá que sean válidos.</p>
+    }
+    @if (error(); as message) { <p class="dialog-error" role="alert">{{ message }}</p> }
+    <div class="dialog-actions">
+      <button class="dialog-button" type="button" [disabled]="saving()" (click)="cancel()">Cancelar</button>
+      <button class="dialog-button primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar vehículo' }}</button>
+    </div>
+  </form>
+</dialog>

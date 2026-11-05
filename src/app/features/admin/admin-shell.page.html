@@ -16,7 +16,12 @@
         <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
           <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
         </ion-button>
-        <ion-button fill="clear" class="profile-link" routerLink="/mi-perfil">Mi perfil</ion-button>
+        @if (auth.user(); as person) {
+          <ion-button fill="clear" class="profile-link" routerLink="/mi-perfil"
+            [attr.aria-label]="'Mi perfil de ' + person.name">
+            <app-initial-avatar [name]="person.name" />
+          </ion-button>
+        }
         <ion-button fill="clear" class="mobile-logout" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
       </div>
     </div>
@@ -35,8 +40,15 @@
           <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
             <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
           </ion-button>
-          <ion-button fill="outline" class="profile-link" routerLink="/mi-perfil"
-            [attr.aria-label]="'Mi perfil de ' + auth.user()?.name">{{ auth.user()?.name }}</ion-button>
+          @if (auth.user(); as person) {
+            <ion-button fill="outline" class="profile-link" routerLink="/mi-perfil"
+              [attr.aria-label]="'Mi perfil de ' + person.name">
+              <span class="profile-label">
+                <app-initial-avatar [name]="person.name" />
+                <span class="profile-name">{{ person.name }}</span>
+              </span>
+            </ion-button>
+          }
         </div>
       </header>
       <section class="page-content"><router-outlet /></section>

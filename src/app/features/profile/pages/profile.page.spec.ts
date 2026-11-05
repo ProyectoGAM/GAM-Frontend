@@ -42,6 +42,7 @@ describe('Mi perfil', () => {
     await fixture.whenStable();
     const page: HTMLElement = fixture.nativeElement;
     expect(page.textContent).toContain('Lucía Pereira');
+    expect(page.querySelector('app-initial-avatar[aria-hidden="true"]')?.textContent?.trim()).toBe('L');
     expect(page.textContent).toContain('Empleada');
     expect(page.textContent).toContain('Sin UP asignada');
     expect(page.querySelector('.security ion-button')?.textContent).toContain('Cambiar contraseña');

@@ -1,0 +1,13 @@
+<div class="vehicle-identity">
+  <ion-icon name="car-outline" aria-hidden="true" />
+  <div class="vehicle-name">
+    @if (detail()) { <h1 id="vehicle-title">{{ vehicle().plate }}</h1> }
+    @else { <h2>{{ vehicle().plate }}</h2> }
+    <p>{{ vehicle().make }} {{ vehicle().model }}{{ vehicle().year ? ' · ' + vehicle().year : '' }}</p>
+  </div>
+  <span class="badge" [class.warning]="vehicle().status !== 'active'">{{ status() }}</span>
+</div>
+<dl class="vehicle-facts">
+  <div><dt>Disponibilidad</dt><dd>{{ availabilityLabel() }}</dd></div>
+  <div><dt>{{ detail() ? 'Último kilometraje' : 'Kilometraje' }}</dt><dd>{{ odometer() }}</dd></div>
+</dl>

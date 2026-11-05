@@ -29,7 +29,29 @@
 .topbar small { margin-bottom: 3px; color: var(--gam-color-text-muted); font-size: 11px; }
 .topbar strong { color: var(--gam-color-heading); font-size: 17px; }
 .profile-link { min-height: 44px; }
-.topbar .profile-link { --color: var(--gam-color-primary); --border-color: var(--gam-color-primary); }
+.mobile-header .profile-link {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  min-width: 44px;
+  margin: 0;
+}
+.topbar .profile-link {
+  --color: var(--gam-color-heading);
+  --border-color: var(--gam-color-control-border);
+  --border-width: 1px;
+  --border-radius: 8px;
+  --padding-start: 8px;
+  --padding-end: 12px;
+  font-weight: 700;
+  text-transform: none;
+}
+.profile-label { display: flex; align-items: center; gap: 8px; }
+.profile-name {
+  max-inline-size: min(15vw, 16rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .page-content { --gam-page-bottom-space: calc(48px + env(safe-area-inset-bottom)); padding: clamp(18px, 3vw, 36px); padding-bottom: var(--gam-page-bottom-space); }
 @media (max-width: 900px) { .mobile-header { display: block; }.workspace { margin-left: 0; }.topbar { display: none; }.page-content { padding: 16px 16px var(--gam-page-bottom-space); } }
 @media (max-width: 480px) { .mobile-header .mobile-logout { display: none; } }
