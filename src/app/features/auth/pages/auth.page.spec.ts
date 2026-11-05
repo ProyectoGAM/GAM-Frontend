@@ -68,10 +68,25 @@ describe('Device linking and PIN access', () => {
     page.chooseUser(people[0]); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Ingresá tu PIN');
     expect(fixture.nativeElement.querySelector('.person-row')).toBeNull();
+    loginWithPin.mockImplementationOnce(async () => {
+      errorMessage.set('El PIN no es válido.');
+      return false;
+    });
     page.pinForm.controls.pin.setValue('0007'); await page.submitPin();
     expect(loginWithPin).toHaveBeenCalledWith(4, '0007'); expect(page.pinForm.controls.pin.value).toBe('');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('El PIN no es válido.');
+    expect(fixture.nativeElement.querySelector('[aria-label="Ingreso con PIN"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="Acceso personal"]')).toBeNull();
     page.pinForm.controls.pin.setValue('1234'); status.set('shared_verifying'); fixture.detectChanges();
     expect(page.selectedUser()).toBeNull(); expect(page.pinForm.controls.pin.value).toBe('');
+  });
+
+  it('does not offer personal login while the device is in shared mode', async () => {
+    shared.set(true);
+    const fixture = await render();
+    expect(fixture.nativeElement.querySelector('[aria-label="Acceso personal"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Configurar como dispositivo compartido');
   });
 
   it('keeps an actionable pairing error and clears the draft when returning to personal login', async () => {

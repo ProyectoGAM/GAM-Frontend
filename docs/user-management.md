@@ -26,7 +26,7 @@ La API pública de estado solo entrega `up_id`, por lo que el equipo muestra ese
 Administración resuelve el nombre mediante su catálogo autorizado. No se inventa un nombre.
 
 `AuthStore` adapta el `rol` singular del servidor a la representación de roles que ya consume
-el frontend, manteniendo las claves de permisos recibidas. Las cuentas PIN admiten correo
+el frontend y conserva las claves `can_*` junto con sus equivalencias para los controles heredados. Las cuentas PIN admiten correo
 nulo. El catálogo y la asignación de rol único se describen abajo; los controles de
 permisos de otros módulos conservan su alcance de integración independiente.
 

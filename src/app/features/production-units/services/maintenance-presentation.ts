@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthUser } from '../../../core/auth/auth.types';
 import { isAdminUser } from '../../../core/auth/access-policy';
+import { hasAnyPermission } from '../../../core/auth/permission-keys';
 
 export function canManageMaintenance(user: AuthUser | null): boolean {
-  return isAdminUser(user) || user?.permissions?.includes('poultry-houses.manage') === true;
+  return isAdminUser(user) || hasAnyPermission(user?.permissions, 'can_manage_poultry_houses');
 }
 
 export function maintenanceToday(date = new Date()): string {

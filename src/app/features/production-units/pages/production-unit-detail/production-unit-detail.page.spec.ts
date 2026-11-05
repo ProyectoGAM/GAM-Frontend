@@ -4,6 +4,7 @@ import { AlertController } from '@ionic/angular';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { MAPBOX_ACCESS_TOKEN } from '../../../../core/config/mapbox.config';
 import { PoultryHouse } from '../../interfaces/production-unit.interface';
 import { ProductionUnitGeocodingService } from '../../services/production-unit-geocoding.service';
@@ -34,6 +35,7 @@ describe('ProductionUnitDetailPage', () => {
       imports: [ProductionUnitDetailPage],
       providers: [
         provideRouter([]),
+        { provide: AuthStore, useValue: { user: () => null } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: '7' }) } } },
         { provide: AlertController, useValue: {} },
         {

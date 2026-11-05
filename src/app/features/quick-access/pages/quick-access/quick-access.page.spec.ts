@@ -187,15 +187,24 @@ describe('QuickAccessPage', () => {
     expect(element.querySelector('.maintenance-access a')?.getAttribute('aria-label')).toContain('Planta Norte');
   });
 
-  it('does not offer maintenance navigation without access to Instalaciones or while a task is open', async () => {
+  it('blocks the maintenance action while a task is open or the user can only read installations', async () => {
     const fixture = await render();
     fixture.componentInstance.open(row, 'collection', new Event('click')); fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(0);
     expect([...fixture.nativeElement.querySelectorAll('.maintenance-access button')].every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
     fixture.componentInstance.close(null);
-    actor.set({ id: 1, roles: ['employee'], permissions: [] }); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    const readPermissions = ['can_view_production_units', 'can_view_poultry_houses'];
+    actor.set({ id: 1, roles: ['employee'], permissions: readPermissions }); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(0);
-    expect(fixture.nativeElement.querySelector('.maintenance-access')?.textContent).toContain('Sin permiso');
+    expect(fixture.nativeElement.querySelector('.maintenance-access button:disabled')?.textContent).toContain('Sin permiso');
+
+    fixture.componentInstance.selectType('feed'); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelectorAll('.maintenance-access button:disabled')).toHaveLength(2);
+
+    actor.set({ id: 1, roles: ['employee'], permissions: [...readPermissions, 'can_manage_poultry_houses'] });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.maintenance-access a')).toHaveLength(2);
   });
 
   it.each([0, 1, 2, 3, 4])('keeps all four actions and overlays locks only on denied actions with %i grants', async (allowedCount) => {
@@ -248,14 +257,50 @@ describe('QuickAccessPage', () => {
     expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('Galpón 1 · San José');
   });
 
-  it('opens Sanidad with the house context and enforces its own execution grant', async () => {
-    actor.set({ id: 1, roles: ['employee'], permissions: ['management-plans.view'] });
-    const fixture = await render(); const buttons = fixture.nativeElement.querySelectorAll('.house button');
-    expect(buttons[0].disabled).toBe(true); expect(buttons[3].disabled).toBe(true);
-    actor.set({ id: 1, roles: ['employee'], permissions: ['management-plans.execute', 'egg-collections.manage'] });
+  it('blocks tasks without their write or prerequisite read permissions before opening a dialog', async () => {
+    const readPermissions = ['can_view_flocks', 'can_view_management_plans', 'can_view_flock_feeding'];
+    actor.set({ id: 1, roles: ['employee'], permissions: readPermissions });
+    const fixture = await render();
+    const host: HTMLElement = fixture.nativeElement;
+    const disabled = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.actions button'), (button) => button.disabled);
+    expect(disabled()).toEqual([true, true, true, true]);
+
+    const permissions = [...readPermissions, 'can_manage_egg_collections', 'can_manage_mortality',
+      'can_manage_flock_feeding', 'can_execute_management_plans'];
+    actor.set({ id: 1, roles: ['employee'], permissions });
     fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
-    fixture.nativeElement.querySelectorAll('.house button')[3].click(); fixture.detectChanges();
+    expect(disabled()).toEqual([false, false, true, true]);
+    fixture.componentInstance.open(row, 'feeding', new Event('click'));
+    fixture.componentInstance.open(row, 'health', new Event('click'));
+    expect(fixture.componentInstance.task()).toBeNull();
+
+    actor.set({ id: 1, roles: ['employee'], permissions: [...permissions, 'can_view_feed_stock', 'can_manage_management_plans'] });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(disabled()).toEqual([false, false, false, false]);
+    host.querySelectorAll<HTMLButtonElement>('.actions button')[3].click(); fixture.detectChanges();
     expect(fixture.componentInstance.task()).toMatchObject({ kind: 'health', flockId: 'lot-1', houseName: 'Galpón 1', unitName: 'San José' });
+  });
+
+  it('blocks a new manufacture without both the write and recipe permissions', async () => {
+    const permissions = ['can_view_production_units', 'can_view_poultry_houses', 'can_view_feed_stock'];
+    actor.set({ id: 1, roles: ['employee'], permissions: [...permissions, 'can_view_feed_recipes'] });
+    const fixture = await render();
+    const page = fixture.componentInstance;
+    const host: HTMLElement = fixture.nativeElement;
+    const action = () => host.querySelector<HTMLButtonElement>('.elaborate')!;
+    page.selectType('feed'); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(action().disabled).toBe(true);
+    expect(action().textContent).toContain('Sin permiso');
+    page.elaborate(plant);
+    expect(page.manufacture()).toBeNull();
+
+    actor.set({ id: 1, roles: ['employee'], permissions: [...permissions, 'can_manufacture_feed'] });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(action().disabled).toBe(true);
+
+    actor.set({ id: 1, roles: ['employee'], permissions: [...permissions, 'can_manufacture_feed', 'can_view_feed_recipes'] });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(action().disabled).toBe(false);
   });
 
   it('defaults to Galpón and switches to plant cards with one Elaborar action each', async () => {
@@ -320,6 +365,7 @@ describe('QuickAccessPage', () => {
   });
 
   it('allows recovery of an unresolved operation for a plant that is no longer operational', async () => {
+    actor.set({ id: 1, roles: ['employee'], permissions: ['can_view_poultry_houses', 'can_view_feed_stock', 'can_manufacture_feed'] });
     readPending.mockImplementation((owner: string, id: number) => owner === '1:personal' && id === 31
       ? { key: 'pending', request: { planta_id: 31, receta_id: 12, cantidad_g: '26000' } } : null);
     const fixture = await render(); const page = fixture.componentInstance;

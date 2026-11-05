@@ -3,9 +3,19 @@
     <div><p class="eyebrow">Administración / Clientes</p><h1 id="customers-title">Clientes</h1><p class="lead">Fichas, entregas y cuentas corrientes.</p></div>
     @if (canManage()) { <a class="button primary" routerLink="/administracion/clientes/nuevo-cliente" [state]="{ customersReturnUrl: router.url }"><ion-icon name="add-outline" aria-hidden="true" />Nuevo cliente</a> }
   </header>
-  <form class="search-bar" (submit)="$event.preventDefault(); searchCustomers()">
-    <div class="search-control"><label class="sr-only" for="customer-search">Buscar cliente</label><ion-icon name="search-outline" aria-hidden="true" /><input #searchInput id="customer-search" type="search" placeholder="Nombre, documento, contacto o dirección" [value]="search()" (input)="search.set(searchInput.value)" maxlength="100"><button class="button" type="submit" [disabled]="loading()">Buscar</button></div>
-    <button #filterButton class="button" type="button" (click)="openFilters(filterButton)"><ion-icon name="options-outline" aria-hidden="true" />Filtros @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }</button>
+  <form class="filter-toolbar" (submit)="$event.preventDefault(); searchCustomers()">
+    <div class="filter-search">
+      <ion-icon name="search-outline" aria-hidden="true" />
+      <input #searchInput type="search" aria-label="Buscar cliente" placeholder="Nombre, documento, contacto o dirección" [value]="search()" (input)="search.set(searchInput.value)" maxlength="100">
+      <button class="search-submit" type="submit" aria-label="Buscar" [disabled]="loading()"><ion-icon name="arrow-forward-outline" aria-hidden="true" /></button>
+    </div>
+    <button #filterButton class="filter-trigger" type="button" aria-haspopup="dialog"
+      [attr.aria-label]="filterCount() ? 'Filtros, ' + filterCount() + (filterCount() === 1 ? ' aplicado' : ' aplicados') : 'Filtros'"
+      (click)="openFilters(filterButton)">
+      <ion-icon name="funnel-outline" aria-hidden="true" />
+      <span>Filtros</span>
+      @if (filterCount()) { <span class="filter-count" aria-hidden="true">{{ filterCount() }}</span> }
+    </button>
   </form>
   @if (error(); as message) { <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load(meta()?.current_page ?? 1)">Reintentar</button></div> }
   @if (loading()) { <p class="state card" role="status">Cargando clientes…</p> }
@@ -34,7 +44,9 @@
     }
   }
   <app-filter-dialog titleId="customer-filters" (clearRequested)="clearFilters()" (applyRequested)="applyFilters()">
-    <div class="field"><label for="customer-status">Estado</label><select #statusInput id="customer-status" [value]="status()" (change)="setStatus(statusInput.value)"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
-    @if (canViewAccounts()) { <div class="field"><label for="customer-account-status">Cuenta corriente</label><select #situationInput id="customer-account-status" [value]="situation()" (change)="setSituation(situationInput.value)"><option value="">Todas</option><option value="debt">Con deuda</option><option value="settled">Al día</option><option value="credit">Con saldo a favor</option></select></div> }
+    <div class="filter-fields">
+      <div class="filter-section"><label for="customer-status">Estado</label><select #statusInput id="customer-status" [value]="status()" (change)="setStatus(statusInput.value)"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
+      @if (canViewAccounts()) { <div class="filter-section"><label for="customer-account-status">Cuenta corriente</label><select #situationInput id="customer-account-status" [value]="situation()" (change)="setSituation(situationInput.value)"><option value="">Todas</option><option value="debt">Con deuda</option><option value="settled">Al día</option><option value="credit">Con saldo a favor</option></select></div> }
+    </div>
   </app-filter-dialog>
 </section>

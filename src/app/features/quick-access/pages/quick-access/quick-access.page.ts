@@ -6,7 +6,8 @@ import { map } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { buildOutline, businessOutline, checkmarkCircleOutline, clipboardOutline, eggOutline, informationCircleOutline, leafOutline, lockClosedOutline, medicalOutline, searchOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { canAccessGroup, canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
+import { canAccessAdminItem, canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
+import { hasAnyPermission } from '../../../../core/auth/permission-keys';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
@@ -17,6 +18,7 @@ import { QuickAccessManufactureRequest } from '../../interfaces/quick-access-man
 import { QuickAccessManufactureDialogComponent } from '../../components/quick-access-manufacture-dialog/quick-access-manufacture-dialog.component';
 import { PoultryHouseStatus, PoultryHouseType } from '../../../production-units/interfaces/production-unit.interface';
 import { FeedManufactureService } from '../../../production-units/services/feed-manufacture.service';
+import { canManageMaintenance } from '../../../production-units/services/maintenance-presentation';
 import { QuickAccessService, quickAccessSearch } from '../../services/quick-access.service';
 
 const birdCountFormatter = new Intl.NumberFormat('es-UY');
@@ -70,17 +72,30 @@ export class QuickAccessPage {
     ? this.visibleCount() === 1 ? 'galpón' : 'galpones'
     : this.visibleCount() === 1 ? 'planta' : 'plantas');
   readonly tasks = computed(() => {
-    const permissions = this.auth.user()?.permissions ?? [];
+    const permissions = this.auth.user()?.permissions;
+    const isAdmin = this.auth.isAdmin();
+    const canReadFlock = hasAnyPermission(permissions, 'can_view_flocks');
+    const allowed = (...required: string[]) => isAdmin
+      || (canReadFlock && required.every((permission) => hasAnyPermission(permissions, permission)));
     return [
-      { kind: 'collection' as const, label: 'Postura', icon: 'egg-outline', allowed: this.auth.isAdmin() || permissions.includes('egg-collections.manage') },
-      { kind: 'mortality' as const, label: 'Mortandad', icon: 'clipboard-outline', allowed: !!this.auth.user() },
-      { kind: 'feeding' as const, label: 'Cambio de ración', icon: 'leaf-outline', allowed: !!this.auth.user() },
-      { kind: 'health' as const, label: 'Sanidad', icon: 'medical-outline', allowed: this.auth.isAdmin() || permissions.includes('management-plans.execute') },
+      { kind: 'collection' as const, label: 'Postura', icon: 'egg-outline', allowed: allowed('can_manage_egg_collections') },
+      { kind: 'mortality' as const, label: 'Mortandad', icon: 'clipboard-outline', allowed: allowed('can_manage_mortality') },
+      { kind: 'feeding' as const, label: 'Cambio de ración', icon: 'leaf-outline',
+        allowed: allowed('can_view_flock_feeding', 'can_manage_flock_feeding', 'can_view_feed_stock') },
+      { kind: 'health' as const, label: 'Sanidad', icon: 'medical-outline',
+        allowed: allowed('can_execute_management_plans', 'can_manage_management_plans') },
     ];
   });
   readonly hasRestrictedTasks = computed(() => this.tasks().some((task) => !task.allowed));
-  readonly canViewMaintenance = computed(() => canAccessGroup(this.auth.user(), 'ubicaciones'));
+  readonly canDoMaintenance = computed(() => {
+    const user = this.auth.user();
+    return canAccessAdminItem(user, 'ubicaciones', 'mantenimiento') && canManageMaintenance(user);
+  });
   readonly canAddFlock = computed(() => canCreateFlockFromQuickAccess(this.auth.user()));
+  private readonly canManufacture = computed(() => this.auth.isAdmin()
+    || hasAnyPermission(this.auth.user()?.permissions, 'can_manufacture_feed'));
+  private readonly canReadRecipes = computed(() => this.auth.isAdmin()
+    || hasAnyPermission(this.auth.user()?.permissions, 'can_view_feed_recipes'));
   readonly houseStatusLabels: Record<PoultryHouseStatus, string> = {
     operational: 'Operativo',
     maintenance: 'Mantenimiento',
@@ -134,9 +149,14 @@ export class QuickAccessPage {
     this.facilityType.set(type);
   }
 
+  canElaborate(plantId: number): boolean {
+    return this.canManufacture() && (this.canReadRecipes() || this.pendingPlantIds().has(plantId));
+  }
+
   elaborate(item: QuickAccessPlant, event?: Event): void {
     if (this.facilityType() !== 'feed' || this.state() !== 'ready' || this.dialogOpen()
-      || (item.unavailableReason && !this.pendingPlantIds().has(item.plant.id)) || !this.plants().includes(item)) return;
+      || !this.canElaborate(item.plant.id) || (item.unavailableReason && !this.pendingPlantIds().has(item.plant.id))
+      || !this.plants().includes(item)) return;
     this.message.set(null);
     this.manufacture.set({ unitId: item.unit.id, plantId: item.plant.id, plantName: item.plant.name, unitName: item.unit.name,
       trigger: event?.currentTarget instanceof HTMLElement ? event.currentTarget : null });

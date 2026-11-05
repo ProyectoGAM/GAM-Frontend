@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from '../../core/guards/auth.guard';
-import { adminGroupGuard } from '../../core/guards/admin-group.guard';
+import { adminGroupChildGuard, adminGroupGuard } from '../../core/guards/admin-group.guard';
 import { adminPanelGuard } from '../../core/guards/admin-panel.guard';
 import { adminIndexRedirect } from './admin-index.redirect';
 import { ADMIN_NAVIGATION } from './admin-navigation';
@@ -9,6 +9,7 @@ import { ADMIN_NAVIGATION } from './admin-navigation';
 const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   path: group.id,
   canActivate: [authGuard, adminGroupGuard],
+  canActivateChild: [adminGroupChildGuard],
   data: { group: group.id },
   children:
     group.id === 'acceso-rapido'

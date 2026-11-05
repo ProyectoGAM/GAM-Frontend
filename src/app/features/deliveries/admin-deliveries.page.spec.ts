@@ -5,6 +5,7 @@ import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
+import { AuthStore } from '../../core/auth/auth.store';
 import { AdminUnitContextService } from '../admin/services/admin-unit-context.service';
 import { Delivery } from './delivery.models';
 import { DeliveriesApi } from './deliveries.api';
@@ -92,6 +93,7 @@ describe('AdminDeliveriesPage', () => {
     TestBed.configureTestingModule({
       imports: [AdminDeliveriesPage],
       providers: [
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => null } },
         { provide: AdminUnitContextService, useValue: { selectedId, selectedUnit: () => ({ id: 7, name: 'Granja Norte' }) } },
         { provide: DeliveriesApi, useValue: { current, list, detail } },
         { provide: MAPBOX_ACCESS_TOKEN, useValue: 'configured-for-unit-test' },
@@ -106,6 +108,19 @@ describe('AdminDeliveriesPage', () => {
     fixture.detectChanges();
     return fixture.componentInstance;
   }
+
+  it('loads history without requesting live locations for a history reader', async () => {
+    TestBed.overrideProvider(AuthStore, { useValue: {
+      isAdmin: () => false,
+      user: () => ({ permissions: ['can_view_delivery_history'] }),
+    } });
+    const page = await render();
+
+    expect(current).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledWith({ per_page: 50, production_unit_id: 7 });
+    expect(page.history()).toEqual([completedDelivery]);
+    expect(fixture.nativeElement.textContent).not.toContain('Repartos actuales');
+  });
 
   it('filters both API loads, syncs persisted stops and latest location, and destroys Mapbox on navigation away', async () => {
     const page = await render();

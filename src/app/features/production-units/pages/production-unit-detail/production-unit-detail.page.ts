@@ -6,6 +6,8 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline } from 'ionicons/icons';
 import { AlertController, IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 
+import { canAccessAdminItem, canAccessAdminPath } from '../../../../core/auth/access-policy';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { ProductionUnitHouseCardComponent } from '../../components/production-unit-house-card/production-unit-house-card.component';
 import { ProductionUnitLocationPickerComponent } from '../../components/production-unit-location-picker/production-unit-location-picker.component';
 import { PoultryHouse, ProductionUnit } from '../../interfaces/production-unit.interface';
@@ -21,6 +23,7 @@ type PageState = 'loading' | 'success' | 'offline' | 'forbidden' | 'error';
   imports: [IonButton, IonIcon, IonSpinner, ProductionUnitHouseCardComponent, ProductionUnitLocationPickerComponent, RouterLink],
 })
 export class ProductionUnitDetailPage implements OnInit {
+  private readonly auth = inject(AuthStore);
   private readonly service = inject(ProductionUnitsService);
   private readonly route = inject(ActivatedRoute);
   private readonly alertController = inject(AlertController);
@@ -56,6 +59,15 @@ export class ProductionUnitDetailPage implements OnInit {
     return 'Para inhabilitar la unidad, todos sus galpones y plantas deben estar inactivos.';
   });
   readonly unitId = computed(() => Number(this.route.snapshot.paramMap.get('id')));
+  readonly hasAssignedUnit = computed(() => this.auth.user()?.up_id != null);
+  readonly backPath = computed(() => {
+    if (!this.hasAssignedUnit()) return '/administracion/unidades-productivas';
+    return canAccessAdminItem(this.auth.user(), 'ubicaciones', 'galpones')
+      ? '/administracion/ubicaciones/galpones'
+      : '/administracion/acceso-rapido';
+  });
+  readonly canManageUnit = computed(() => !this.hasAssignedUnit()
+    || canAccessAdminPath(this.auth.user(), 'unidades-productivas', `${this.unitId()}/editar`));
 
   constructor() {
     addIcons({ arrowBackOutline, informationCircleOutline, locationOutline, pencilOutline, powerOutline });
@@ -81,7 +93,7 @@ export class ProductionUnitDetailPage implements OnInit {
 
   async changeStatus(): Promise<void> {
     const currentUnit = this.unit();
-    if (!currentUnit || this.isChangingStatus()) return;
+    if (!currentUnit || !this.canManageUnit() || this.isChangingStatus()) return;
     const nextStatus = currentUnit.status === 'active' ? 'inactive' : 'active';
     if (nextStatus === 'inactive' && !this.canChangeStatus()) return;
 

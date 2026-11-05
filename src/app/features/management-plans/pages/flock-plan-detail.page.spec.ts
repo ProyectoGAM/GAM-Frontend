@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 
+import { AuthStore } from '../../../core/auth/auth.store';
 import { ManagementPlansService } from '../services/management-plans.service';
 import { FlockPlan, PlanActivity } from '../interfaces/management-plan';
 import { FlockPlanDetailPage } from './flock-plan-detail.page';
@@ -25,9 +26,10 @@ describe('Flock plan detail page', () => {
       { id: 'revision-1', number: 1, reason: 'Anterior', created_at: null, activities },
     ] };
 
-  async function renderProgress(status = 'active', unavailable = false, from = 'flock') {
+  async function renderProgress(status = 'active', unavailable = false, from = 'flock', upId: number | null = null) {
     const queryParamMap = new BehaviorSubject(convertToParamMap({ from }));
     TestBed.configureTestingModule({ imports: [FlockPlanDetailPage], providers: [provideRouter([]),
+      { provide: AuthStore, useValue: { user: () => ({ up_id: upId }) } },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: 'lot-1' }) }, queryParamMap } },
       { provide: ManagementPlansService, useValue: {
         flock: () => unavailable ? throwError(() => new Error('Unavailable')) : of({ data: { id: 'lot-1', code: 'LOTE-1', status } }),
@@ -44,6 +46,11 @@ describe('Flock plan detail page', () => {
     const { page } = await renderProgress('active', false, from);
     expect(page.querySelector('.back-link')?.getAttribute('href')).toBe('/administracion/manejo-lotes/planes/lotes');
     expect(page.querySelector('.back-link')?.textContent).toContain('Volver a planes por lote');
+  });
+
+  it('returns to the flock from a direct plan link for a user with an assigned UP', async () => {
+    const { page } = await renderProgress('active', false, '', 7);
+    expect(page.querySelector('.back-link')?.getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1');
   });
 
   it('updates the return destination if the same plan is reopened from another origin', async () => {
@@ -121,6 +128,7 @@ describe('Flock plan detail page', () => {
       imports: [FlockPlanDetailPage],
       providers: [
         provideRouter([]),
+        { provide: AuthStore, useValue: { user: () => null } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: 'DEMO-EGG-PROD' }) },
           queryParamMap: of(convertToParamMap({ from: 'flock' })) } },
         { provide: ManagementPlansService, useValue: {

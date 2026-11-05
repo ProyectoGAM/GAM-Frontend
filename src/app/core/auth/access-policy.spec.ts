@@ -1,9 +1,37 @@
-import { canAccessGroup, hasDeliveryRole, hasFeedRecipesPermission, hasManagementPlansPermission, isAdminUser, postLoginPath } from './access-policy';
+import { AdminGroup, canAccessAdminPath, canAccessGroup, hasDeliveryRole, hasFeedRecipesPermission, hasManagementPlansPermission, isAdminUser, postLoginPath } from './access-policy';
 import { AuthUser } from './auth.types';
 
 const user = (roles: string[]): Pick<AuthUser, 'roles'> => ({ roles });
 
 describe('admin access policy', () => {
+  it.each<{ group: AdminGroup; permissions: string[] }>([
+    { group: 'resumen', permissions: ['can_view_admin_dashboard'] },
+    { group: 'ubicaciones', permissions: ['can_view_production_units', 'can_view_poultry_houses'] },
+    { group: 'lotes', permissions: ['can_view_flocks'] },
+    { group: 'inventario', permissions: ['can_view_feed_stock'] },
+    { group: 'historial', permissions: ['can_view_audit'] },
+    { group: 'usuarios', permissions: ['can_manage_users'] },
+    { group: 'clientes', permissions: ['can_view_customers'] },
+    { group: 'proveedores', permissions: ['can_view_suppliers'] },
+    { group: 'unidades-productivas', permissions: ['can_view_production_units'] },
+    { group: 'manejo-lotes', permissions: ['can_view_management_plans'] },
+    { group: 'repartos', permissions: ['can_view_delivery_history'] },
+    { group: 'vehiculos', permissions: ['can_view_vehicles'] },
+    { group: 'reportes', permissions: ['can_view_reports'] },
+  ])('recognizes backend permissions for $group without requiring an administrative role', ({ group, permissions }) => {
+    expect(canAccessGroup({ roles: ['custom'], permissions }, group)).toBe(true);
+  });
+
+  it('keeps read permissions scoped to the corresponding nested pages', () => {
+    const reader = { roles: ['employee'], permissions: ['can_view_products', 'can_view_customers', 'can_view_management_plans'] };
+    expect(canAccessAdminPath(reader, 'inventario', 'existencias/productos')).toBe(true);
+    expect(canAccessAdminPath(reader, 'inventario', 'existencias/ubicaciones')).toBe(false);
+    expect(canAccessAdminPath(reader, 'inventario', 'existencias/productos/nuevo')).toBe(false);
+    expect(canAccessAdminPath(reader, 'clientes', 'clientes/2')).toBe(true);
+    expect(canAccessAdminPath(reader, 'clientes', 'nuevo-cliente')).toBe(false);
+    expect(canAccessAdminPath(reader, 'manejo-lotes', 'planes/plantillas')).toBe(true);
+    expect(canAccessAdminPath(reader, 'manejo-lotes', 'vacunacion')).toBe(false);
+  });
   it('grants audit navigation only to audit readers or administrators', () => {
     expect(canAccessGroup({ roles: ['employee'], permissions: ['audit.view'] }, 'historial')).toBe(true);
     expect(canAccessGroup({ roles: ['employee'], permissions: ['inventory.view'] }, 'historial')).toBe(false);

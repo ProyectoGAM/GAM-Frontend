@@ -11,6 +11,7 @@
 
 <div class="delivery-grid">
   <section class="delivery-lists" aria-label="Listado de repartos">
+    @if (canMonitor()) {
     <ion-card>
       <ion-card-header><ion-card-title>Repartos actuales</ion-card-title></ion-card-header>
       <ion-card-content>
@@ -22,9 +23,11 @@
         } @empty { @if (!loading()) { <p class="muted">No hay repartos activos para esta selección.</p> } }
       </ion-card-content>
     </ion-card>
+    }
     <ion-card>
       <ion-card-header><ion-card-title>Historial</ion-card-title></ion-card-header>
       <ion-card-content>
+        @if (!canMonitor() && loading()) { <div class="loading-state" role="status"><ion-spinner name="crescent" /> Cargando repartos…</div> }
         @for (delivery of history(); track delivery.id) {
           <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
             <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos{{ delivery.started_without_load ? ' · inició sin carga' : '' }} · {{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>

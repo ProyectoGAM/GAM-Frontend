@@ -16,7 +16,7 @@ describe('CustomerFormComponent', () => {
   beforeEach(() => {
     api.create.mockReset(); api.create.mockReturnValue(of({ data: { id: 'client', display_name: 'Cliente', status: 'active', has_location: false, ready_for_delivery: false, created_at: '', updated_at: '' } }));
     user.set({ id: 1, name: 'Admin', email: 'test@example.test', roles: ['admin'], permissions: [], deleted_at: null });
-    TestBed.configureTestingModule({ providers: [{ provide: AuthStore, useValue: { user, session: signal(null) } }, { provide: CustomersApi, useValue: api }, { provide: ProductionUnitsService, useValue: { departments: () => of([]) } }] });
+    TestBed.configureTestingModule({ providers: [{ provide: AuthStore, useValue: { user, session: signal(null) } }, { provide: CustomersApi, useValue: api }, { provide: ProductionUnitsService, useValue: { resolveLocalityId: () => of(17) } }] });
     component = TestBed.runInInjectionContext(() => new CustomerFormComponent());
     component.ngOnInit();
   });
@@ -30,6 +30,25 @@ describe('CustomerFormComponent', () => {
     expect(api.create).not.toHaveBeenCalled(); expect(component.error()).toContain('documento');
     component.form.controls.document_type.reset(); component.form.controls.latitude.setValue('-34.8'); await component.submit();
     expect(api.create).not.toHaveBeenCalled(); expect(component.error()).toContain('coordenadas');
+  });
+  it('saves the confirmed address and coordinates from the map with the resolved locality', async () => {
+    component.onLocationChange({
+      address: 'Av. Artigas 100', latitude: -34.8, longitude: -56.2, isConfirmed: true,
+      administrativeContext: { department: 'Canelones', locality: 'Las Piedras' },
+    });
+    await component.submit();
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      address: 'Av. Artigas 100', latitude: '-34.8000000', longitude: '-56.2000000', locality_id: 17,
+    }), expect.any(String));
+  });
+  it('requires confirmation for a new map point and allows removing it', async () => {
+    component.onLocationChange({ address: null, latitude: -34.8, longitude: -56.2, isConfirmed: false });
+    await component.submit();
+    expect(api.create).not.toHaveBeenCalled();
+    expect(component.locationError()).toContain('Confirmá una dirección');
+    component.onLocationChange(null);
+    await component.submit();
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ address: '', latitude: '', longitude: '', locality_id: null }), expect.any(String));
   });
   it('reuses the original profile and key after a lost response', async () => {
     api.create.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));

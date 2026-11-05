@@ -8,6 +8,7 @@ import { addIcons } from 'ionicons';
 import { addOutline, funnelOutline, globeOutline, searchOutline, chevronForwardOutline } from 'ionicons/icons';
 import { debounceTime, firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { hasManagementPlansPermission } from '../../../../core/auth/access-policy';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
 import { CatalogFilters, CatalogRecord, HealthPage, HealthSupplier } from '../../interfaces/health-catalog';
@@ -27,7 +28,8 @@ export class CatalogListPage {
   private readonly destroyRef = inject(DestroyRef);
   readonly kind = this.route.snapshot.data['catalogKind'] as HealthCatalogKind;
   readonly config = CATALOGS[this.kind];
-  readonly allowed = computed(() => this.auth.isAdmin());
+  readonly canCreate = computed(() => this.auth.isAdmin());
+  readonly allowed = computed(() => this.canCreate() || hasManagementPlansPermission(this.auth.user(), 'manage'));
   readonly search = new FormControl('', { nonNullable: true });
   readonly searchForm = new FormGroup({ search: this.search });
   readonly draft = new FormGroup({

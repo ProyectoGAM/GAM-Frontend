@@ -21,13 +21,16 @@ No se duplica el listado de instalaciones ni se crea una grilla adicional.
 El acceso abre la sección de Mantenimientos; no envía cambios de estado. Reutiliza la UP, tipo
 Galpón/Planta y búsqueda actuales, sin consultas adicionales. La ausencia de
 lote o el estado no operativo no bloquean la consulta de mantenimiento.
-Se conservan las reglas actuales de acceso a Instalaciones; sin permiso se
-muestra la tarjeta deshabilitada. Un formulario abierto también deshabilita la
-navegación, conservando sus bloqueos y recuperación.
+La acción requiere acceso a Instalaciones y el permiso
+`can_manage_poultry_houses`. Las cuentas con permiso de lectura pueden consultar
+el historial desde Instalaciones → Mantenimiento. Un formulario abierto
+también deshabilita la acción.
 
 El sidebar ofrece **Instalaciones → Mantenimiento**, bajo
-`ubicaciones/mantenimiento`. Permite buscar galpones o plantas y limita las
-opciones a la UP seleccionada en el panel. Incluye instalaciones inactivas para
+`ubicaciones/mantenimiento`. Junto a la búsqueda, el botón **Filtros** abre el
+diálogo de tipo y unidad productiva. **Ver resultados** aplica los cambios y
+sincroniza la UP con el panel. Admin puede elegir «Todas las UP».
+Incluye instalaciones inactivas para
 consultar sus trabajos históricos. El historial abre bajo ese mismo apartado,
 con el menú activo, acceso de regreso al selector y enlace al detalle de la
 instalación. No requiere endpoints nuevos: el contrato consulta registros por

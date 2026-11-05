@@ -39,10 +39,10 @@ form ion-button[type="submit"] { margin-top: 20px; }
 .auth-notice { display: flex; align-items: start; gap: 12px; border-radius: 10px; padding: 14px; margin-top: 24px; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-size: 14px; line-height: 1.5; }
 .auth-notice p { margin: 0; }
 .auth-notice > ion-icon { flex-shrink: 0; font-size: 22px; }
-.linked-label { display: flex; align-items: center; gap: 8px; background: var(--gam-color-success-soft); color: var(--gam-color-success); padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; }
 .device-context { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 16px 0 24px; border: 1px solid var(--gam-color-border); background: var(--gam-color-surface); border-radius: 12px; overflow-wrap: anywhere; }
 .device-context > ion-icon { font-size: 30px; flex-shrink: 0; color: var(--gam-color-heading); }
 .device-context p { margin: 6px 0 0; color: var(--gam-color-text-muted); font-size: 14px; }
+.device-linked { display: flex; flex-shrink: 0; margin-inline-start: auto; color: var(--gam-color-success); font-size: 22px; }
 .person-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid var(--gam-color-control-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-text); text-align: left; font: inherit; cursor: pointer; }
 .person-row strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .person-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: var(--gam-color-primary-soft); color: var(--gam-color-primary); font-weight: 700; }

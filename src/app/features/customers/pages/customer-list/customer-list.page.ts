@@ -2,7 +2,7 @@ import { Component, DestroyRef, computed, inject, signal, viewChild } from '@ang
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, searchOutline, optionsOutline, locationOutline, createOutline, chevronForwardOutline } from 'ionicons/icons';
+import { addOutline, arrowForwardOutline, searchOutline, funnelOutline, locationOutline, createOutline, chevronForwardOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 
 import { isAdminUser } from '../../../../core/auth/access-policy';
@@ -43,7 +43,7 @@ export class CustomerListPage {
   readonly money = formatUyuMoney;
 
   constructor() {
-    addIcons({ addOutline, searchOutline, optionsOutline, locationOutline, createOutline, chevronForwardOutline });
+    addIcons({ addOutline, arrowForwardOutline, searchOutline, funnelOutline, locationOutline, createOutline, chevronForwardOutline });
     this.setStatus(this.route.snapshot.queryParamMap.get('status') ?? 'active');
     this.setSituation(this.route.snapshot.queryParamMap.get('account_status') ?? '');
     this.filters.set(this.currentFilters());

@@ -1,0 +1,153 @@
+ion-toolbar {
+  --background: var(--gam-color-surface-alt);
+  --color: var(--gam-color-heading);
+  --border-color: var(--gam-color-border);
+}
+
+ion-buttons {
+  margin-inline-start: max(4px, env(safe-area-inset-left));
+}
+
+ion-buttons ion-button,
+ion-back-button {
+  --color: var(--gam-color-primary);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+ion-content {
+  --background: var(--gam-color-canvas);
+  --color: var(--gam-color-text);
+}
+
+h1 {
+  margin: 0;
+  padding: 12px 12px 12px 4px;
+  font-size: 1.25rem;
+}
+
+h1, h2, h3 {
+  color: var(--gam-color-heading);
+  font-weight: 700;
+}
+
+.profile-content {
+  max-width: 36rem;
+  margin-inline: auto;
+  padding: clamp(18px, 4vw, 32px) max(16px, env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+.person-name {
+  margin: 0 0 18px;
+  font-size: clamp(1.65rem, 5vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
+.profile-card, .credential-form {
+  border: 1px solid var(--gam-color-border);
+  border-radius: 12px;
+  background: var(--gam-color-surface);
+  padding: clamp(16px, 4vw, 24px);
+}
+
+h3 {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+}
+
+dl, dd {
+  margin: 0;
+}
+
+dl > div {
+  padding-block: 12px;
+}
+
+dl > div + div {
+  border-top: 1px solid var(--gam-color-border);
+}
+
+dl > div:last-child {
+  padding-bottom: 0;
+}
+
+dt {
+  color: var(--gam-color-text-muted);
+  font-size: 0.875rem;
+}
+
+dd {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.security {
+  margin-top: 24px;
+}
+
+.security ion-button, .credential-form ion-button {
+  --background: var(--gam-color-primary);
+  --color: var(--gam-color-on-primary);
+  --border-radius: 9px;
+  min-height: 48px;
+  margin: 0;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.security .sign-out {
+  --background: transparent;
+  --border-color: var(--gam-color-danger);
+  --color: var(--gam-color-danger);
+  margin-top: 12px;
+}
+
+.credential-form {
+  display: grid;
+  gap: 18px;
+}
+
+.credential-form p {
+  margin: 0;
+  color: var(--gam-color-text-muted);
+  line-height: 1.45;
+}
+
+fieldset {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--gam-color-control-border);
+  border-radius: 8px;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-text);
+  font: inherit;
+}
+
+input:focus-visible, h1:focus-visible {
+  outline: 2px solid var(--gam-color-focus);
+  outline-offset: 2px;
+}
+
+.error-message, .credential-form .error-message {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--gam-color-danger);
+  background: var(--gam-color-danger-soft);
+}

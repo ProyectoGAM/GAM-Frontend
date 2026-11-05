@@ -6,15 +6,20 @@
 
 <ion-header class="mobile-header">
   <ion-toolbar>
-    <ion-button slot="start" fill="clear" aria-label="Abrir navegación" aria-controls="admin-navigation"
-      [attr.aria-expanded]="sidebar.mobileMenuOpen()" (click)="sidebar.toggleMobileMenu()">
-      <ion-icon slot="icon-only" name="menu-outline" aria-hidden="true" />
-    </ion-button>
-    <ion-title>GAM · Administración</ion-title>
-    <ion-button slot="end" fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
-      <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
-    </ion-button>
-    <ion-button slot="end" fill="clear" class="mobile-logout" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
+    <div class="mobile-toolbar">
+      <ion-button fill="clear" class="menu-toggle" aria-label="Abrir navegación" aria-controls="admin-navigation"
+        [attr.aria-expanded]="sidebar.mobileMenuOpen()" (click)="sidebar.toggleMobileMenu()">
+        <ion-icon slot="icon-only" name="menu-outline" aria-hidden="true" />
+      </ion-button>
+      <span class="mobile-title">GAM · Administración</span>
+      <div class="mobile-actions">
+        <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
+          <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
+        </ion-button>
+        <ion-button fill="clear" class="profile-link" routerLink="/mi-perfil">Mi perfil</ion-button>
+        <ion-button fill="clear" class="mobile-logout" aria-label="Cerrar sesión" (click)="logout()">Salir</ion-button>
+      </div>
+    </div>
   </ion-toolbar>
 </ion-header>
 
@@ -30,7 +35,8 @@
           <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
             <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
           </ion-button>
-          <div class="user-badge"><span>{{ auth.user()?.name?.slice(0, 1) ?? 'G' }}</span>{{ auth.user()?.name }}</div>
+          <ion-button fill="outline" class="profile-link" routerLink="/mi-perfil"
+            [attr.aria-label]="'Mi perfil de ' + auth.user()?.name">{{ auth.user()?.name }}</ion-button>
         </div>
       </header>
       <section class="page-content"><router-outlet /></section>

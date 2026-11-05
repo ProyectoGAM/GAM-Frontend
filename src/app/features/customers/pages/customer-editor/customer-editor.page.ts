@@ -10,8 +10,27 @@ import { customerErrorMessage } from '../../services/customer-errors';
 
 @Component({
   selector: 'app-customer-editor',
-  template: `<section class="customers-page"><header class="page-heading"><div><p class="eyebrow">Administración / Clientes</p><h1>{{ editing() ? 'Editar cliente' : 'Nuevo cliente' }}</h1><p class="lead">Datos generales, ubicación y notas de la ficha.</p></div><a class="button" [routerLink]="returnUrl" [attr.aria-disabled]="busy()">Volver a clientes</a></header>@if (error()) { <p class="feedback error" role="alert">{{ error() }} <button class="button" type="button" (click)="load()">Reintentar</button></p> }@if (loading()) { <p class="state card" role="status">Cargando ficha…</p> }@else if (!error()) { <app-customer-form [customer]="customer()" (saved)="saved($event)" (cancelled)="cancel()" (busyChanged)="busy.set($event)" /> }</section>`,
+  template: `
+    <section class="customers-page" aria-labelledby="customer-editor-title">
+      <header class="page-heading">
+        <div>
+          <a class="back-link" [routerLink]="busy() ? null : returnUrl" [attr.aria-disabled]="busy()"><span aria-hidden="true">←</span> Volver a clientes</a>
+          <h1 id="customer-editor-title">{{ editing() ? 'Editar cliente' : 'Nuevo cliente' }}</h1>
+          <p class="lead">{{ editing() ? 'Actualizá los datos de la ficha.' : 'Completá la ficha con los datos que tengas.' }}</p>
+        </div>
+      </header>
+      @if (error(); as message) {
+        <p class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load()">Reintentar</button></p>
+      }
+      @if (loading()) {
+        <p class="state card" role="status">Cargando ficha…</p>
+      } @else if (!error()) {
+        <app-customer-form [customer]="customer()" (saved)="saved($event)" (cancelled)="cancel()" (busyChanged)="busy.set($event)" />
+      }
+    </section>
+  `,
   styleUrls: ['../../customers.scss'],
+  styles: [`.back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-bottom: 8px; color: var(--gam-color-primary); font-size: .875rem; font-weight: 600; text-decoration: none; }`],
   imports: [RouterLink, CustomerFormComponent],
 })
 export class CustomerEditorPage {

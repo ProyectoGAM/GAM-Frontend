@@ -1,13 +1,62 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AuthApi } from './auth.api';
+import { authInterceptor } from './auth.interceptor';
 import { AuthStore } from './auth.store';
+import { API_CONFIG } from '../config/api.config';
 import { CredentialStorage } from '../native/credential-storage.service';
 import { AppResumeService } from '../native/app-resume.service';
 
 describe('AuthStore', () => {
+  it.each([
+    { platform: 'web', native: false, path: '/api/v1/shared-device/web' },
+    { platform: 'native', native: true, path: '/api/v1/shared-device' },
+  ])('keeps the device linked and allows a retry after an incorrect login PIN on $platform', async ({ native, path }) => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7 };
+    const person = { id: 4, name: 'Ana' };
+    const storage = {
+      isNative: () => native,
+      getMode: async () => 'shared',
+      getDeviceToken: async () => 'test-device-token',
+      removePersonalToken: vi.fn(async () => undefined),
+      clearShared: vi.fn(async () => undefined),
+    };
+    TestBed.configureTestingModule({ providers: [
+      provideHttpClient(withInterceptors([authInterceptor])),
+      provideHttpClientTesting(),
+      { provide: API_CONFIG, useValue: { baseUrl: '/api/v1' } },
+      { provide: CredentialStorage, useValue: storage },
+    ] });
+    const store = TestBed.inject(AuthStore);
+    const http = TestBed.inject(HttpTestingController);
+    const boot = store.bootstrap();
+    await vi.waitFor(() => http.expectOne(path)).then((request) => request.flush({ data: device }));
+    await vi.waitFor(() => http.expectOne(`${path}/users?page=1&per_page=100`))
+      .then((request) => request.flush({ data: [person] }));
+    await boot;
+
+    const failed = store.loginWithPin(4, '0008');
+    http.expectOne(`${path}/login-pin`).flush(
+      { code: 'INVALID_PIN', message: 'El PIN no es válido.' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    expect(await failed).toBe(false);
+    expect(store.status()).toBe('shared_selector');
+    expect(store.device()).toEqual(device);
+    expect(store.errorMessage()).toBe('El PIN no es válido.');
+    expect(storage.removePersonalToken).not.toHaveBeenCalled();
+    expect(storage.clearShared).not.toHaveBeenCalled();
+
+    const retry = store.loginWithPin(4, '0007');
+    http.expectOne(`${path}/login-pin`).flush({ user: person, session: { id: 'employee-session' } });
+    expect(await retry).toBe(true);
+    expect(store.status()).toBe('shared_authenticated');
+    http.verify();
+  });
+
   it('replaces a pending people refresh when resuming and ignores its late result', async () => {
     const late = new Subject<unknown>();
     const sharedUsers = vi.fn().mockReturnValueOnce(of({ data: [], meta: { last_page: 1 } })).mockReturnValueOnce(late)
@@ -137,9 +186,43 @@ describe('AuthStore', () => {
     const invalid = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_CREDENTIALS' } });
     store.handleHttpError(invalid, 'https://api.example.test/api/v1/auth/web/confirm-password');
     store.handleHttpError(invalid, '/api/v1/auth/confirm-password?test=1');
+    store.handleHttpError(invalid, '/api/v1/auth/contrasena');
     expect(store.user()).toEqual(user); expect(store.isAuthenticated()).toBe(true);
     store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), '/api/v1/auth/web/confirm-password');
     expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('allows retrying the current PIN and returns to the selector after a successful change', async () => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7 };
+    const pinError = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_PIN' } });
+    const changeCredential = vi.fn()
+      .mockReturnValueOnce(throwError(() => pinError))
+      .mockReturnValueOnce(of({ requiere_reingreso: true }));
+    const api = {
+      csrf: vi.fn(async () => undefined),
+      sharedStatus: () => of({ data: device }),
+      sharedUsers: () => of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 1 } }),
+      pinLogin: () => of({ user: { id: 4, roles: ['employee'] }, session: { id: 'employee-session' } }),
+      changeCredential,
+    };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }],
+    });
+    const store = TestBed.inject(AuthStore);
+    await store.bootstrap();
+    await store.loginWithPin(4, '0007');
+
+    store.handleHttpError(pinError, '/api/v1/auth/pin');
+    expect(await store.changeCredential('pin', '0008', '0031', '0031')).toBe('El PIN actual no es correcto.');
+    expect(store.sharedSessionId()).toBe('employee-session');
+
+    expect(await store.changeCredential('pin', '0007', '0031', '0031')).toBeNull();
+    expect(changeCredential).toHaveBeenLastCalledWith('pin', '0007', '0031', '0031');
+    expect(store.user()).toBeNull();
+    expect(store.status()).toBe('shared_selector');
+    expect(store.device()).toEqual(device);
+    expect(store.sharedUsers()).toEqual([{ id: 4, name: 'Ana' }]);
   });
 
   it('does not exempt other unauthorized requests with the same error code', async () => {
