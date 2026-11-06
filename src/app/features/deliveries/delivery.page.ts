@@ -34,6 +34,7 @@ import { ServerHealthService } from '../../core/api/server-health.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.service';
 import { DeliveriesApi } from './deliveries.api';
+import { NotificationBellComponent } from '../notifications/components/notification-bell.component';
 import { VehiclesApi } from '../vehicles/services/vehicles.api';
 import { VehicleFuelInput, VehicleOption } from '../vehicles/interfaces/vehicle';
 import { formatFuelLiters } from '../vehicles/vehicle-format';
@@ -50,7 +51,7 @@ type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
   templateUrl: './delivery.page.html',
   styleUrl: './delivery.page.scss',
   imports: [
-    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, ReactiveFormsModule, RouterLink,
+    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, NotificationBellComponent, ReactiveFormsModule, RouterLink,
   ],
 })
 export class DeliveryPage implements AfterViewInit, OnDestroy {

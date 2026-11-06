@@ -13,6 +13,7 @@
       </ion-button>
       <span class="mobile-title">GAM · Administración</span>
       <div class="mobile-actions">
+        @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell /> }
         <ion-button fill="clear" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()">
           <ion-icon slot="icon-only" [name]="theme.toggleIcon()" aria-hidden="true" />
         </ion-button>
@@ -34,6 +35,7 @@
       <header class="topbar">
         <div><small>GAM · Gestión avícola</small><strong>Panel administrativo</strong></div>
         <div class="topbar-actions">
+          @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell /> }
           @if (hasDeliveryRole(auth.user())) {
             <ion-button fill="outline" routerLink="/repartidor">Modo repartidor</ion-button>
           }

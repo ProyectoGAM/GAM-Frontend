@@ -1,0 +1,59 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button [defaultHref]="returnPath()" text="Volver" /></ion-buttons>
+    <ion-title>Notificaciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <section class="inbox" aria-label="Bandeja de notificaciones">
+    @if (!allowed()) {
+      <p>Tu cuenta no tiene acceso a las notificaciones.</p>
+    } @else {
+      <div class="filters" aria-label="Estado de lectura">
+        <ion-button size="small" [fill]="unreadOnly() ? 'outline' : 'solid'"
+          [attr.aria-pressed]="!unreadOnly()" (click)="setFilter(false)">Todas</ion-button>
+        <ion-button size="small" [fill]="unreadOnly() ? 'solid' : 'outline'"
+          [attr.aria-pressed]="unreadOnly()" (click)="setFilter(true)">Sin leer</ion-button>
+      </div>
+      @if (error()) { <p role="alert">{{ error() }}</p> }
+      @if (state().result; as result) {
+        @for (notification of result.data; track notification.id) {
+          <details>
+            <summary>
+              <strong>{{ notification.titulo }}</strong>
+              @if (!notification.leida_en) { <span class="badge">Sin leer</span> }
+              <small>{{ notification.fecha | date:'dd/MM/yyyy HH:mm' }}</small>
+            </summary>
+            <p>{{ notification.mensaje }}</p>
+            <div class="actions">
+              @if (notification.entidad?.ruta; as route) {
+                <a [routerLink]="route">Abrir registro</a>
+              }
+              @if (!notification.leida_en) {
+                <ion-button size="small" fill="outline" [disabled]="saving() !== null"
+                  (click)="markRead(notification.id)">Marcar como leída</ion-button>
+              }
+            </div>
+          </details>
+        } @empty {
+          <p>{{ unreadOnly() ? 'No tenés notificaciones sin leer.' : 'Todavía no tenés notificaciones.' }}</p>
+        }
+        @if (result.meta.last_page > 1 || page() > 1) {
+          <nav aria-label="Páginas de notificaciones">
+            <ion-button size="small" fill="outline" [disabled]="page() === 1"
+              (click)="page.set(page() - 1)">Anterior</ion-button>
+            <span>Página {{ page() }}</span>
+            <ion-button size="small" fill="outline" [disabled]="page() >= result.meta.last_page"
+              (click)="page.set(page() + 1)">Siguiente</ion-button>
+          </nav>
+        }
+      } @else if (state().failed) {
+        <p role="alert">No se pudo cargar la bandeja.</p>
+        <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
+      } @else {
+        <p role="status">Cargando notificaciones…</p>
+      }
+    }
+  </section>
+</ion-content>
