@@ -214,6 +214,10 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'alertas-notificaciones' && item.slug === 'bandeja-de-alertas') {
+                    return { path: item.slug, pathMatch: 'full' as const, redirectTo: '/administracion/notificaciones' };
+                  }
+
                   return {
                     path: item.slug,
                     data: {
@@ -238,6 +242,11 @@ export const adminRoutes: Routes = [
         (module) => module.AdminShellPage,
       ),
     children: [
+      {
+        path: 'notificaciones',
+        data: { embedded: true },
+        loadComponent: () => import('../notifications/pages/notifications.page').then((module) => module.NotificationsPage),
+      },
       { path: 'proveedores/productos/nuevo', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/nuevo' },
       { path: 'proveedores/productos/:id/editar', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/:id/editar' },
       { path: 'proveedores/productos', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos' },

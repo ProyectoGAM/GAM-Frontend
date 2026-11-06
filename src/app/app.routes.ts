@@ -22,6 +22,11 @@ export const routes: Routes = [
     loadChildren: () => import('./features/deliveries/delivery.routes').then((m) => m.deliveryRoutes),
   },
   {
+    path: 'notificaciones',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/notifications/pages/notifications.page').then((m) => m.NotificationsPage),
+  },
+  {
     path: 'mi-perfil',
     canActivate: [authGuard],
     loadComponent: () => import('./features/profile/pages/profile.page').then((m) => m.ProfilePage),

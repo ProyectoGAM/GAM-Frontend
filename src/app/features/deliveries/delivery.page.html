@@ -6,6 +6,7 @@
     </div>
     <div slot="end" class="header-actions">
       <span class="server-status" [class.connected]="serverStatus() === 'online'" [class.disconnected]="serverStatus() === 'offline'" role="status" aria-live="polite" [attr.aria-label]="serverStatusLabel()"><ion-icon name="wifi-outline" aria-hidden="true" /></span>
+      @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell nav-surface /> }
       <button type="button" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()"><ion-icon [name]="theme.toggleIcon()" aria-hidden="true" /></button>
       <button type="button" class="driver-avatar" aria-label="Abrir cuenta" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">{{ driverInitials() }}</button>
     </div>
@@ -211,7 +212,7 @@
         <label [for]="'return-' + index">{{ row.label }}</label><input [id]="'return-' + index" type="text" inputmode="decimal" [formControl]="returnAmounts.at(index)" aria-label="Cantidad a descargar">
       } @empty { <p>No quedan presentaciones para devolver.</p> }</div>
     }
-    @if ((delivery()?.remaining_quantity ?? 0) > 0) {
+    @if ((delivery()?.loaded_quantity ?? 0) > 0 && returnOrigins().length > 0) {
       @if (returnOrigins().length > 1) {
         <label for="return-up">UP de descarga</label><select id="return-up" [formControl]="returnUnit"><option [ngValue]="null">Seleccioná dónde descargar</option>@for (unit of returnOrigins(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
       } @else { <p>Descarga en {{ returnOrigins()[0]?.name }}.</p> }

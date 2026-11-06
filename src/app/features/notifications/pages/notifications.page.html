@@ -1,0 +1,91 @@
+@if (embedded()) {
+  <ng-container *ngTemplateOutlet="inboxContent" />
+} @else {
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start"><ion-back-button [defaultHref]="returnPath()" text="Volver" /></ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content>
+    <div class="standalone"><ng-container *ngTemplateOutlet="inboxContent" /></div>
+  </ion-content>
+}
+
+<ng-template #inboxContent>
+  <section class="inbox" aria-label="Notificaciones y alertas">
+    <h1>Notificaciones y alertas</h1>
+    @if (!allowed()) {
+      <p>Tu cuenta no tiene acceso a las notificaciones.</p>
+    } @else {
+      <div class="filters">
+        <label class="order">
+          Ordenar por
+          <select #orderSelect [value]="order()" (change)="setOrder(orderSelect.value)">
+            <option value="urgencia">Urgencia</option>
+            <option value="fecha">Más recientes</option>
+          </select>
+        </label>
+        <div class="urgency-filter">
+          <span id="notification-urgency-label">Filtrar por urgencia</span>
+          <div class="urgencies" role="group" aria-labelledby="notification-urgency-label">
+            @for (option of urgencyOptions; track option.label) {
+              <button type="button" [attr.aria-pressed]="urgency() === option.value"
+                (click)="setUrgency(option.value)">{{ option.label }}</button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="views" role="group" aria-label="Vista de notificaciones">
+        @for (option of views; track option.value) {
+          <button type="button" [attr.aria-pressed]="view() === option.value"
+            (click)="setView(option.value)">{{ option.label }}</button>
+        }
+      </div>
+      @if (error()) { <p role="alert">{{ error() }}</p> }
+      @if (state().result; as result) {
+        <div class="results">
+          @for (notification of result.data; track notification.id) {
+            <details>
+              <summary>
+                <span class="indicator" [class.unread]="!notification.leida_en && view() !== 'resolved'">
+                  @if (!notification.leida_en && view() !== 'resolved') {
+                    <span class="visually-hidden">Sin leer</span>
+                  }
+                </span>
+                <app-notification-heading [notification]="notification" />
+              </summary>
+              <div class="detail">
+                <p>{{ notification.mensaje }}</p>
+                <div class="actions">
+                  @if (notification.entidad?.ruta; as route) {
+                    <a [routerLink]="route">Abrir registro</a>
+                  }
+                  @if (!notification.leida_en) {
+                    <ion-button size="small" fill="outline" [disabled]="saving() !== null"
+                      (click)="markRead(notification.id)">Marcar como leída</ion-button>
+                  }
+                </div>
+              </div>
+            </details>
+          } @empty {
+            <p class="state" role="status">{{ emptyMessage() }}</p>
+          }
+        </div>
+        @if (result.meta.last_page > 1 || page() > 1) {
+          <nav aria-label="Páginas de notificaciones">
+            <ion-button size="small" fill="outline" [disabled]="page() === 1"
+              (click)="page.set(page() - 1)">Anterior</ion-button>
+            <span>Página {{ page() }}</span>
+            <ion-button size="small" fill="outline" [disabled]="page() >= result.meta.last_page"
+              (click)="page.set(page() + 1)">Siguiente</ion-button>
+          </nav>
+        }
+      } @else if (state().failed) {
+        <p role="alert">No se pudo cargar la bandeja.</p>
+        <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
+      } @else {
+        <p role="status">Cargando notificaciones…</p>
+      }
+    }
+  </section>
+</ng-template>
