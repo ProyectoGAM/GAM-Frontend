@@ -436,7 +436,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   quantityControl(row: DeliveryUnitBalanceRow): FormControl<string> {
     const key = this.balanceKey(row);
     if (!this.quantityControls.has(key)) this.quantityControls.set(key, new FormControl(String(this.selectedUnitAmount(row)), {
-      nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{1,10}(?:[.,]\d{1,3})?$/), Validators.min(0), Validators.max(Number(row.remaining_amount ?? 0))],
+      nonNullable: true, validators: [Validators.required, Validators.pattern(/^\d{1,10}(?:[.,]\d{1,3})?$/), Validators.min(0)],
     }));
     return this.quantityControls.get(key)!;
   }
@@ -462,15 +462,18 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   canIncrementStopUnit(row: DeliveryUnitBalanceRow): boolean {
     if (row.remaining_amount === null) return false;
     const current = this.selectedUnitAmount(row);
-    const next = Math.min(Number(row.remaining_amount), current + 1);
-    return next > current && this.selectedStopEggs() + (next - current) * row.eggs_per_unit <= (this.delivery()?.remaining_quantity ?? 0);
+    return this.selectedStopEggs() + this.stopIncrement(row, current) * row.eggs_per_unit <= 2147483647;
+  }
+
+  private stopIncrement(row: DeliveryUnitBalanceRow, current: number): number {
+    const available = Number(row.remaining_amount);
+    return current < available ? Math.min(1, available - current) : 1;
   }
 
   adjustStopUnit(row: DeliveryUnitBalanceRow, direction: -1 | 1): void {
     if (direction === 1 && !this.canIncrementStopUnit(row)) return;
     const current = this.selectedUnitAmount(row);
-    const available = Number(row.remaining_amount ?? 0);
-    const next = direction === 1 ? Math.min(available, current + 1) : Math.max(0, current - 1);
+    const next = direction === 1 ? current + this.stopIncrement(row, current) : Math.max(0, current - 1);
     this.quantityControl(row).setValue(String(Math.round(next * 1000) / 1000));
     this.stopSelections.update((selections) => ({ ...selections, [this.balanceKey(row)]: Math.round(next * 1000) / 1000 }));
   }
@@ -548,7 +551,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const payment = delivered && this.paymentChoice() === 'payment' ? this.paymentPayload() : { amount: '0.000' };
     if (!payment) return;
     if (delivered && (this.delivery()?.unit_balances?.rows ?? []).some((row) =>
-      this.quantityControl(row).invalid || this.selectedUnitAmount(row) > Number(row.remaining_amount ?? 0)
+      this.quantityControl(row).invalid || (row.remaining_amount === null && this.selectedUnitAmount(row) > 0)
       || this.selectedUnitAmount(row) > 0 && this.priceControl(row).invalid)) {
       this.error.set('Revisá las cantidades y los precios: usá pesos enteros para cada presentación elegida.');
       return;
@@ -556,7 +559,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     const items = delivered ? this.selectedStopItems() : [];
     const quantity = delivered ? this.selectedStopEggs() : 0;
     const reason = this.stopForm.controls.reason.value.trim();
-    if (delivered && (items.length === 0 || !Number.isInteger(quantity) || quantity < 1 || quantity > delivery.remaining_quantity)) {
+    if (delivered && (items.length === 0 || !Number.isInteger(quantity) || quantity < 1 || quantity > 2147483647)) {
       this.error.set('Elegí al menos una presentación disponible para entregar.');
       return;
     }
@@ -677,11 +680,11 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private prepareReturn(): void {
     const delivery = this.delivery();
     this.returnLegacy.set((delivery?.unit_balances?.unallocated_delivered_eggs ?? 0) > 0 || !delivery?.unit_balances);
-    this.returnLegacyQuantity.setValue(String(delivery?.remaining_quantity ?? 0));
+    this.returnLegacyQuantity.setValue(String(Math.max(0, delivery?.remaining_quantity ?? 0)));
     this.returnAmounts.clear();
-    const rows = (delivery?.unit_balances?.rows ?? []).filter((row) => Number(row.remaining_amount ?? 0) > 0);
+    const rows = delivery?.unit_balances?.rows ?? [];
     this.returnRows.set(rows);
-    for (const row of rows) this.returnAmounts.push(new FormControl(row.remaining_amount ?? '0', { nonNullable: true }));
+    for (const row of rows) this.returnAmounts.push(new FormControl(String(Math.max(0, Number(row.remaining_amount))), { nonNullable: true }));
     const origins = this.returnOrigins();
     this.returnUnit.setValue(origins.length === 1 ? origins[0].id : null);
     this.returnNotes.reset();
@@ -723,7 +726,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         : { returned_quantity: 0, pin: this.closePin.value };
     }
     const quantity = payload.returned_items?.reduce((total, item) => total + this.itemEggs(item), 0) ?? payload.returned_quantity ?? 0;
-    if (quantity > delivery.remaining_quantity) { this.error.set('La descarga supera los huevos disponibles.'); return; }
+    if (quantity > 2147483647) { this.error.set('La descarga supera el máximo de huevos permitido.'); return; }
     if (quantity < delivery.remaining_quantity) { this.error.set('La descarga final debe incluir todos los huevos sobrantes.'); return; }
     if (quantity > 0 && !this.returnUnit.value) { this.error.set('Seleccioná la UP donde descargar todos los sobrantes.'); return; }
     if (quantity > 0 && this.returnUnit.value) payload.return_production_unit_id = this.returnUnit.value;
@@ -1230,7 +1233,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       }],
       delivered_quantity: delivery.delivered_quantity + quantity,
       delivered_amount: null,
-      remaining_quantity: Math.max(0, delivery.remaining_quantity - quantity),
+      remaining_quantity: delivery.remaining_quantity - quantity,
       unit_balances: delivery.unit_balances && {
         ...delivery.unit_balances,
         rows: delivery.unit_balances.rows.map((row) => {

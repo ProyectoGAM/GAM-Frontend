@@ -315,7 +315,7 @@ describe('DeliveryPage', () => {
     expect(page.completedStops()).toBe(0);
   });
 
-  it('uses plus and minus per presentation without exceeding the real loaded units', async () => {
+  it('uses plus and minus to record the actual amount even above the loaded units', async () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -335,11 +335,13 @@ describe('DeliveryPage', () => {
     mapleButtons[1].click();
     fixture.detectChanges();
     expect(rows[1].querySelector<HTMLInputElement>('.unit-stepper input')?.value).toBe('1');
-    expect(mapleButtons[1].disabled).toBe(true);
-    expect(fixture.componentInstance.selectedStopEggs()).toBe(30);
+    expect(mapleButtons[1].disabled).toBe(false);
+    mapleButtons[1].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.selectedStopEggs()).toBe(60);
     mapleButtons[0].click();
     fixture.detectChanges();
-    expect(fixture.componentInstance.selectedStopEggs()).toBe(0);
+    expect(fixture.componentInstance.selectedStopEggs()).toBe(30);
     fixture.destroy();
   });
 
@@ -406,17 +408,17 @@ describe('DeliveryPage', () => {
     expect(page.error()).toContain('presentación');
   });
 
-  it('queues a network failure and keeps the visit visible locally', async () => {
+  it('queues a network failure and keeps the actual negative balance visible locally', async () => {
     api.stop.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
     const client = demoClient;
     page.openClient(client);
     page.paymentChoice.set('fiado');
-    page.stopSelections.set({ 'huevo|1': 12 });
+    page.stopSelections.set({ 'huevo|1': 122 });
     await page.saveStop();
     expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'stop' }), undefined);
     expect(page.statusFor(client)).toBe('delivered');
-    expect(page.delivery()?.remaining_quantity).toBe(108);
-    expect(page.delivery()?.unit_balances?.rows[0].remaining_amount).toBe('108');
+    expect(page.delivery()?.remaining_quantity).toBe(-2);
+    expect(page.delivery()?.unit_balances?.rows[0].remaining_amount).toBe('-2');
   });
 
   it('adds an online load to the current delivery', async () => {
@@ -579,14 +581,15 @@ describe('DeliveryPage', () => {
     expect(outbox.enqueue).not.toHaveBeenCalled();
   });
 
-  it('sends zero returned quantity when there are no leftover units', async () => {
+  it.each([0, -2])('sends zero returned quantity when the balance is %i', async (remaining) => {
+    const delivered = 120 - remaining;
     page.delivery.set({
       ...activeDelivery,
-      delivered_quantity: 120,
-      remaining_quantity: 0,
+      delivered_quantity: delivered,
+      remaining_quantity: remaining,
       unit_balances: { ...activeDelivery.unit_balances!, rows: [{
-        ...activeDelivery.unit_balances!.rows[0], delivered_amount: '120', remaining_amount: '0',
-        delivered_eggs: 120,
+        ...activeDelivery.unit_balances!.rows[0], delivered_amount: String(delivered), remaining_amount: String(remaining),
+        delivered_eggs: delivered,
       }] },
     });
 
@@ -662,8 +665,7 @@ describe('DeliveryPage', () => {
     expect(page.error()).toContain('pesos enteros');
   });
 
-  it('rejects a comma quantity exceeding its presentation balance even with other eggs available', async () => {
-    online.set(false);
+  it('sends the normalized comma quantity even when it exceeds the presentation balance', async () => {
     const row = { unit: 'maple', label: 'Maple', eggs_per_unit: 30, loaded_amount: '0.5', delivered_amount: '0',
       remaining_amount: '0.5', loaded_eggs: 15, delivered_eggs: 0 };
     page.delivery.set({ ...activeDelivery, unit_balances: { ...activeDelivery.unit_balances!, rows: [row] } });
@@ -672,10 +674,11 @@ describe('DeliveryPage', () => {
     const input = document.createElement('input');
     input.value = '0,6';
     page.setStopAmount(row, { target: input } as unknown as Event);
+    page.priceControl(row).setValue('80');
     await page.saveStop();
-    expect(api.stop).not.toHaveBeenCalled();
-    expect(outbox.enqueue).not.toHaveBeenCalled();
-    expect(page.error()).toContain('cantidades');
+    expect(api.stop).toHaveBeenCalledWith('delivery-1', expect.objectContaining({
+      items: [{ unit: 'maple', eggs_per_unit: 30, amount: '0.6', unit_price: 80 }],
+    }), expect.any(String));
   });
 
   it('requires one return destination when multiple UPs participated', async () => {

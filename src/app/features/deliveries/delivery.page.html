@@ -212,7 +212,7 @@
         <label [for]="'return-' + index">{{ row.label }}</label><input [id]="'return-' + index" type="text" inputmode="decimal" [formControl]="returnAmounts.at(index)" aria-label="Cantidad a descargar">
       } @empty { <p>No quedan presentaciones para devolver.</p> }</div>
     }
-    @if ((delivery()?.remaining_quantity ?? 0) > 0) {
+    @if ((delivery()?.loaded_quantity ?? 0) > 0 && returnOrigins().length > 0) {
       @if (returnOrigins().length > 1) {
         <label for="return-up">UP de descarga</label><select id="return-up" [formControl]="returnUnit"><option [ngValue]="null">Seleccioná dónde descargar</option>@for (unit of returnOrigins(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
       } @else { <p>Descarga en {{ returnOrigins()[0]?.name }}.</p> }
