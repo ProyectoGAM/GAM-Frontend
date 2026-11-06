@@ -5,8 +5,8 @@
       <span><strong>GAM Repartos</strong><small>{{ delivery()?.status === 'active' ? 'Reparto en curso' : 'Modo repartidor' }}</small></span>
     </div>
     <div slot="end" class="header-actions">
-      @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell /> }
       <span class="server-status" [class.connected]="serverStatus() === 'online'" [class.disconnected]="serverStatus() === 'offline'" role="status" aria-live="polite" [attr.aria-label]="serverStatusLabel()"><ion-icon name="wifi-outline" aria-hidden="true" /></span>
+      @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell nav-surface /> }
       <button type="button" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()"><ion-icon [name]="theme.toggleIcon()" aria-hidden="true" /></button>
       <button type="button" class="driver-avatar" aria-label="Abrir cuenta" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">{{ driverInitials() }}</button>
     </div>

@@ -1,0 +1,75 @@
+:host([nav-surface]) {
+  --gam-notification-trigger-color: var(--gam-color-nav-text);
+  --gam-notification-trigger-focus: var(--gam-color-nav-focus);
+  --gam-notification-counter-background: var(--gam-color-nav-text);
+  --gam-notification-counter-color: var(--gam-color-nav);
+}
+.bell, .close, .retry {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--gam-color-primary);
+  cursor: pointer;
+}
+.bell { position: relative; color: var(--gam-notification-trigger-color, var(--gam-color-primary)); }
+.bell > * { pointer-events: none; }
+.bell ion-icon, .close ion-icon { font-size: 1.4rem; }
+.counter {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  min-inline-size: 1rem;
+  padding-inline: 0.25rem;
+  border-radius: 1rem;
+  background: var(--gam-notification-counter-background, var(--gam-color-primary));
+  color: var(--gam-notification-counter-color, var(--gam-color-on-primary));
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+}
+.bell:focus-visible { outline-color: var(--gam-notification-trigger-focus, var(--gam-color-focus)); }
+ion-popover {
+  --width: min(25rem, calc(100vw - 24px));
+  --max-height: min(36rem, calc(100dvh - 5rem - env(safe-area-inset-bottom)));
+  --background: var(--gam-color-surface);
+  --backdrop-opacity: 0.25;
+}
+.preview { color: var(--gam-color-text); }
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+}
+h2 { margin: 0; color: var(--gam-color-heading); font-size: 1.125rem; }
+.preview-header p { margin: 0.25rem 0 0; color: var(--gam-color-text-muted); }
+ul { margin: 0; padding: 0; list-style: none; }
+li {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-block-start: 1px solid var(--gam-color-border);
+}
+.indicator.unread { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--gam-color-primary); }
+.visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+.state { display: block; padding: 0.75rem 1rem; }
+.retry { padding-inline: 0.5rem; font-weight: 700; }
+.inbox-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-block-size: 44px;
+  padding: 0.75rem 1rem;
+  border-block-start: 1px solid var(--gam-color-border);
+  color: var(--gam-color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+.inbox-link:focus-visible, button:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: -2px; }

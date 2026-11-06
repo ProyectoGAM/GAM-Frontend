@@ -1,0 +1,46 @@
+<button type="button" class="bell" aria-haspopup="dialog" [attr.aria-expanded]="!!triggerEvent()"
+  [attr.aria-label]="'Notificaciones. Sin leer: ' + unread()" (click)="triggerEvent.set($event)">
+  <ion-icon name="notifications-outline" aria-hidden="true" />
+  @if (unread() > 0) {
+    <span class="counter" aria-hidden="true">{{ unread() > 99 ? '99+' : unread() }}</span>
+  }
+</button>
+
+<ion-popover #popover [event]="triggerEvent()" [isOpen]="!!triggerEvent()" side="bottom" alignment="end"
+  aria-label="Notificaciones recientes" (didDismiss)="triggerEvent.set(undefined)">
+  <ng-template>
+    <section class="preview">
+      <header class="preview-header">
+        <div><h2>Notificaciones recientes</h2><p>{{ unread() }} sin leer</p></div>
+        <button type="button" class="close" aria-label="Cerrar notificaciones" (click)="popover.dismiss()">
+          <ion-icon name="close-outline" aria-hidden="true" />
+        </button>
+      </header>
+      @if (recent(); as result) {
+        @if (result.failed) {
+          <p class="state" role="alert">No se pudieron cargar los avisos.
+            <button type="button" class="retry" (click)="reload()">Reintentar</button>
+          </p>
+        } @else {
+          <ul>
+            @for (notification of result.data; track notification.id) {
+              <li>
+                <span class="indicator" [class.unread]="!notification.leida_en">
+                  @if (!notification.leida_en) { <span class="visually-hidden">Sin leer</span> }
+                </span>
+                <app-notification-heading [notification]="notification" />
+              </li>
+            } @empty {
+              <li class="state">No hay notificaciones recientes.</li>
+            }
+          </ul>
+        }
+      } @else {
+        <p class="state" role="status">Cargando notificaciones…</p>
+      }
+      <a class="inbox-link" [routerLink]="inboxPath()" (click)="popover.dismiss()">
+        Ver notificaciones y alertas <ion-icon name="arrow-forward-outline" aria-hidden="true" />
+      </a>
+    </section>
+  </ng-template>
+</ion-popover>

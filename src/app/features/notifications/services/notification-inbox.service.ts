@@ -2,13 +2,13 @@ import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-import { catchError, filter, fromEvent, merge, of, startWith, Subject, switchMap } from 'rxjs';
+import { catchError, filter, forkJoin, fromEvent, map, merge, of, startWith, Subject, switchMap } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { AppResumeService } from '../../../core/native/app-resume.service';
-import { AppNotification, NotificationPage, NotificationSummary } from '../interfaces/notification';
+import { AppNotification, NotificationPage, NotificationQuery, NotificationSummary } from '../interfaces/notification';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationInboxService {
@@ -20,7 +20,7 @@ export class NotificationInboxService {
   private readonly refreshRequested = new Subject<void>();
   private readonly count = signal(0);
   private readonly revision = signal(0);
-  private readonly sessionId = computed(() => this.auth.isAuthenticated()
+  readonly sessionId = computed(() => this.auth.isAuthenticated()
     && this.auth.user()?.permissions.includes('can_view_notifications')
     ? this.auth.session()?.id ?? null
     : null);
@@ -40,13 +40,19 @@ export class NotificationInboxService {
       );
       const subscription = merge(this.refreshRequested, this.resume.resumed, visible).pipe(
         startWith(null),
-        switchMap(() => this.api.get<{ data: NotificationSummary }>('notificaciones/resumen')
-          .pipe(catchError(() => of(null)))),
-      ).subscribe((response) => {
-        if (!response) return;
-        this.count.set(response.data.no_leidas);
+        switchMap(() => forkJoin({
+          summary: this.api.get<{ data: NotificationSummary }>('notificaciones/resumen')
+            .pipe(catchError(() => of(null))),
+          unread: this.list({ view: 'unread', order: 'fecha', perPage: 1 }).pipe(
+            map(({ meta }) => meta.total),
+            catchError(() => of(null)),
+          ),
+        })),
+      ).subscribe(({ summary, unread }) => {
+        if (unread !== null) this.count.set(unread);
         this.revision.update((version) => version + 1);
-        const connection = response.data.tiempo_real;
+        if (!summary) return;
+        const connection = summary.data.tiempo_real;
         if (activeChannel === connection?.canal) return;
 
         echo?.disconnect();
@@ -61,9 +67,16 @@ export class NotificationInboxService {
     });
   }
 
-  list(page: number, unreadOnly: boolean) {
+  list({ page = 1, perPage = 20, order, urgency, view }: NotificationQuery) {
     return this.api.get<NotificationPage>('notificaciones', {
-      params: { page, estado_lectura: unreadOnly ? 'no_leida' : undefined },
+      params: {
+        page,
+        per_page: perPage,
+        orden: order,
+        urgencia: urgency,
+        estado_lectura: view === 'unread' ? 'no_leida' : undefined,
+        estado_resolucion: view === 'resolved' ? 'resuelto' : 'vigente',
+      },
     });
   }
 

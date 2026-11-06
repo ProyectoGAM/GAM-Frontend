@@ -1,52 +1,51 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { IonIcon } from '@ionic/angular';
+import { IonIcon, IonPopover } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { notificationsOutline } from 'ionicons/icons';
+import { arrowForwardOutline, closeOutline, notificationsOutline } from 'ionicons/icons';
+import { catchError, map, of, switchMap } from 'rxjs';
 
 import { NotificationInboxService } from '../services/notification-inbox.service';
+import { NotificationHeadingComponent } from './notification-heading.component';
 
 @Component({
   selector: 'app-notification-bell',
-  imports: [IonIcon, RouterLink],
-  template: `
-    <a routerLink="/notificaciones" [attr.aria-label]="'Notificaciones. Sin leer: ' + unread()">
-      <ion-icon name="notifications-outline" aria-hidden="true" />
-      @if (unread() > 0) {
-        <span aria-hidden="true">{{ unread() > 99 ? '99+' : unread() }}</span>
-      }
-    </a>
-  `,
-  styles: `
-    a {
-      position: relative;
-      display: inline-grid;
-      place-items: center;
-      inline-size: 2.75rem;
-      block-size: 2.75rem;
-      color: var(--gam-color-primary);
-      border-radius: 0.5rem;
-    }
-    a:focus-visible { outline: 2px solid var(--gam-color-focus); }
-    ion-icon { font-size: 1.4rem; }
-    span {
-      position: absolute;
-      inset-block-start: 0;
-      inset-inline-end: 0;
-      padding-inline: 0.25rem;
-      border-radius: 1rem;
-      background: var(--gam-color-primary);
-      color: var(--gam-color-on-primary);
-      font-size: 0.75rem;
-      line-height: 1rem;
-      font-weight: 600;
-    }
-  `,
+  imports: [IonIcon, IonPopover, RouterLink, NotificationHeadingComponent],
+  templateUrl: './notification-bell.component.html',
+  styleUrl: './notification-bell.component.scss',
 })
 export class NotificationBellComponent {
-  readonly unread = inject(NotificationInboxService).unreadCount;
+  private readonly inbox = inject(NotificationInboxService);
+  readonly inboxPath = input('/notificaciones');
+  readonly triggerEvent = signal<Event | undefined>(undefined);
+  readonly unread = this.inbox.unreadCount;
+  private readonly retry = signal(0);
+  private readonly query = computed(() => this.triggerEvent() && this.inbox.sessionId()
+    ? { session: this.inbox.sessionId(), version: this.inbox.version(), retry: this.retry() }
+    : null);
+  private readonly result = toSignal(toObservable(this.query).pipe(
+    switchMap((query) => query
+      ? this.inbox.list({ perPage: 5, order: 'fecha', view: 'all' }).pipe(
+        map(({ data }) => ({ data, failed: false, session: query.session })),
+        catchError(() => of({ data: null, failed: true, session: query.session })),
+      )
+      : of(null)),
+  ), { initialValue: null });
+  readonly recent = computed(() => {
+    const result = this.result();
+    return result?.session === this.inbox.sessionId() ? result : null;
+  });
 
   constructor() {
-    addIcons({ 'notifications-outline': notificationsOutline });
+    addIcons({
+      'arrow-forward-outline': arrowForwardOutline,
+      'close-outline': closeOutline,
+      'notifications-outline': notificationsOutline,
+    });
+  }
+
+  reload(): void {
+    this.retry.update((value) => value + 1);
   }
 }
