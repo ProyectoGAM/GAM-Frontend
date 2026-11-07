@@ -49,6 +49,12 @@ export class FlockFeedingService {
     return this.api.post(`${this.path(flock)}/alimentacion/manual`, request, { headers: { 'Idempotency-Key': key } });
   }
 
+  confirmManual(flock: string, configurationId: number, key: string): Observable<unknown> {
+    return this.api.post(`${this.path(flock)}/alimentacion/manual/confirmacion`, {
+      configuracion_id: configurationId,
+    }, { headers: { 'Idempotency-Key': key } });
+  }
+
   automatic(flock: string, key: string): Observable<unknown> {
     return this.api.post(`${this.path(flock)}/alimentacion/automatico`, {}, { headers: { 'Idempotency-Key': key } });
   }

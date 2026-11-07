@@ -11,9 +11,40 @@
   </ion-content>
 }
 
+@if (review(); as current) {
+  <app-alert-editor-dialog title="Confirmar ración vigente" [saving]="current.state === 'saving'" (dismissRequested)="closeReview()">
+    <div class="ration-review">
+      <p>{{ current.notification.mensaje }}</p>
+      @if (current.state === 'loading') {
+        <p role="status">Consultando la ración vigente…</p>
+      }
+      @if (current.ration; as ration) {
+        <dl>
+          <div><dt>Receta</dt><dd>{{ ration.recipe }}</dd></div>
+          <div><dt>Cantidad diaria</dt><dd>{{ ration.quantity }} kg/día</dd></div>
+          <div><dt>Último cambio o confirmación</dt><dd>{{ ration.since }}</dd></div>
+        </dl>
+        <p>Al confirmar, se registra la revisión, se cierra esta alerta y vuelve a correr el plazo de revisión. La receta y la cantidad se conservan.</p>
+      }
+      @if (current.error) { <p class="review-error" role="alert">{{ current.error }}</p> }
+      <div class="actions review-actions">
+        <ion-button type="button" fill="outline" [disabled]="current.state === 'saving'" (click)="closeReview()">Cancelar</ion-button>
+        @if (current.state === 'retry') {
+          <ion-button type="button" (click)="retryReview()">Volver a consultar</ion-button>
+        }
+        @if (current.ration) {
+          <ion-button type="button" [disabled]="current.state === 'saving'" (click)="confirmReview()">
+            {{ current.state === 'saving' ? 'Confirmando…' : 'Confirmar ración' }}
+          </ion-button>
+        }
+      </div>
+    </div>
+  </app-alert-editor-dialog>
+}
+
 <ng-template #inboxContent>
   <section class="inbox" aria-label="Notificaciones y alertas">
-    <h1>Notificaciones y alertas</h1>
+    <h1 tabindex="-1">Notificaciones y alertas</h1>
     @if (!allowed()) {
       <p>Tu cuenta no tiene acceso a las notificaciones.</p>
     } @else {
@@ -42,6 +73,7 @@
         }
       </div>
       @if (error()) { <p role="alert">{{ error() }}</p> }
+      @if (reviewMessage(); as message) { <p class="review-success" role="status">{{ message }}</p> }
       @if (state().result; as result) {
         <div class="results">
           @for (notification of result.data; track notification.id) {
@@ -57,6 +89,10 @@
               <div class="detail">
                 <p>{{ notification.mensaje }}</p>
                 <div class="actions">
+                  @if (canReview(notification)) {
+                    <button #reviewButton class="review-trigger" type="button" aria-haspopup="dialog"
+                      (click)="openReview(notification, reviewButton)">Revisar ración</button>
+                  }
                   @if (notification.entidad?.ruta; as route) {
                     <a [routerLink]="route">Abrir registro</a>
                   }

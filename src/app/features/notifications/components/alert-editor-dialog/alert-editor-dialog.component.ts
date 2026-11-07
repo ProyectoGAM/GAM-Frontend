@@ -1,4 +1,4 @@
-import { afterNextRender, Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, ElementRef, input, output, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { businessOutline, carOutline, closeOutline } from 'ionicons/icons';
@@ -10,11 +10,16 @@ import { businessOutline, carOutline, closeOutline } from 'ionicons/icons';
   styleUrl: './alert-editor-dialog.component.scss',
 })
 export class AlertEditorDialogComponent {
-  readonly alertName = input.required<string>();
-  readonly scope = input.required<string>();
+  readonly title = input('Editar alerta');
+  readonly alertName = input<string>();
+  readonly scope = input<string>();
   readonly fleet = input(false);
   readonly saving = input(false);
   readonly dismissRequested = output<void>();
+  protected readonly label = computed(() => {
+    const alertName = this.alertName();
+    return alertName ? `${this.title()}: ${alertName}` : this.title();
+  });
 
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private readonly heading = viewChild.required<ElementRef<HTMLHeadingElement>>('heading');

@@ -90,6 +90,35 @@ details[open] summary::after { transform: rotate(225deg); }
 .detail { padding: 0.75rem 1rem; }
 .detail p { margin-block: 0 0.5rem; }
 .actions, nav { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.review-trigger {
+  min-block-size: 44px;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--gam-color-control-border);
+  border-radius: 0.4375rem;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.review-trigger:hover { background: var(--gam-color-primary-soft); }
+.ration-review { display: grid; gap: 0.875rem; padding-block-start: 0.875rem; overflow-wrap: anywhere; }
+.ration-review p, .ration-review dl, .ration-review dd { margin: 0; }
+.ration-review dl {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--gam-color-border);
+  border-radius: 0.4375rem;
+  background: var(--gam-color-surface-alt);
+}
+.ration-review dt { color: var(--gam-color-text-muted); font-size: 0.875rem; }
+.ration-review dd { color: var(--gam-color-heading); font-weight: 700; }
+.review-actions { justify-content: flex-end; }
+.review-actions ion-button { min-block-size: 44px; margin: 0; }
+.review-error, .review-success { padding: 0.625rem; border-radius: 0.375rem; }
+.review-error { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
+.review-success { margin: 0 0 0.75rem; color: var(--gam-color-success); background: var(--gam-color-success-soft); }
 nav { margin-block-start: 1rem; }
 .state { margin: 0; color: var(--gam-color-text-muted); }
 a { color: var(--gam-color-primary); }
