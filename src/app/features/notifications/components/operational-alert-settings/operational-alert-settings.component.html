@@ -25,60 +25,23 @@
       <article class="rule" [attr.aria-labelledby]="'title-' + rule.tipo">
         <div class="rule-header">
           <h2 [id]="'title-' + rule.tipo">{{ rule.nombre }}</h2>
-          @if (editing() !== rule.tipo) {
-            <button type="button" class="edit-button" [id]="'edit-' + rule.tipo" [disabled]="saving()"
-              [attr.aria-label]="'Editar ' + rule.nombre" (click)="edit(rule)">Editar</button>
-            <div class="levels">
-              <span class="level" [class.bajo]="rule.configuracion.habilitada">
-                {{ rule.configuracion.habilitada ? 'Habilitada' : 'Deshabilitada' }}
-              </span>
-              <span class="level" [class]="rule.configuracion.urgencia_fija ?? ''">
-                {{ rule.configuracion.urgencia_fija ? 'Urgencia fija · ' + urgencyLabels[rule.configuracion.urgencia_fija] : 'Urgencia automática' }}
-              </span>
-              @for (field of rule.campos; track field.clave) {
-                @if (field.tipo === 'entero') {
-                  <span class="level">{{ field.etiqueta }} <strong>{{ rule.configuracion[field.clave] }}</strong></span>
-                }
+          <button type="button" class="edit-button" [id]="'edit-' + rule.tipo" [disabled]="saving()"
+            aria-haspopup="dialog" [attr.aria-label]="'Editar ' + rule.nombre" (click)="edit(rule)">Editar</button>
+          <div class="levels">
+            <span class="level" [class.bajo]="rule.configuracion.habilitada">
+              {{ rule.configuracion.habilitada ? 'Habilitada' : 'Deshabilitada' }}
+            </span>
+            <span class="level" [class]="rule.configuracion.urgencia_fija ?? ''">
+              {{ rule.configuracion.urgencia_fija ? 'Urgencia fija · ' + urgencyLabels[rule.configuracion.urgencia_fija] : 'Urgencia automática' }}
+            </span>
+            @for (field of rule.campos; track field.clave) {
+              @if (field.tipo === 'entero') {
+                <span class="level">{{ field.etiqueta }} <strong>{{ rule.configuracion[field.clave] }}</strong></span>
               }
-            </div>
-          }
+            }
+          </div>
         </div>
 
-        @if (editing() === rule.tipo) {
-          <form class="editor" novalidate (submit)="save($event, rule)" [attr.aria-labelledby]="'title-' + rule.tipo">
-            <fieldset [disabled]="saving()">
-              @for (field of rule.campos; track field.clave) {
-                @let value = rule.configuracion[field.clave];
-                <label class="operational-field" [class.toggle]="field.tipo === 'booleano'">
-                  {{ field.etiqueta }}
-                  @switch (field.tipo) {
-                    @case ('booleano') {
-                      <input type="checkbox" [name]="field.clave" [checked]="value === true" />
-                    }
-                    @case ('seleccion') {
-                      <select [name]="field.clave">
-                        @for (option of field.opciones; track option) {
-                          <option [value]="option ?? ''" [selected]="value === option">
-                            {{ option === null ? 'Automática según la regla' : urgencyLabels[option] }}
-                          </option>
-                        }
-                      </select>
-                    }
-                    @case ('entero') {
-                      <input type="number" inputmode="numeric" step="1" required [name]="field.clave"
-                        [min]="field.minimo ?? 0" [max]="field.maximo ?? null" [value]="value ?? ''" />
-                    }
-                  }
-                </label>
-              }
-            </fieldset>
-            @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
-            <div class="form-actions">
-              <ion-button type="button" fill="outline" [disabled]="saving()" (click)="closeEditor()">Cancelar</ion-button>
-              <ion-button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</ion-button>
-            </div>
-          </form>
-        }
         @if (saved() === rule.tipo) {
           <p class="success" role="status">Cambios guardados. Se aplicarán en la próxima evaluación.</p>
         }
@@ -86,3 +49,44 @@
     }
   </div>
 </details>
+
+@if (editingRule(); as rule) {
+  <app-alert-editor-dialog [alertName]="rule.nombre" [scope]="scope()" [fleet]="unitId() === null"
+    [saving]="saving()" (dismissRequested)="closeEditor()">
+    <form class="editor" novalidate (submit)="save($event, rule)">
+      <fieldset [disabled]="saving()">
+        @for (field of rule.campos; track field.clave) {
+          @let value = rule.configuracion[field.clave];
+          <label class="operational-field" [class.toggle]="field.tipo === 'booleano'">
+            @switch (field.tipo) {
+              @case ('booleano') {
+                <input type="checkbox" [name]="field.clave" [checked]="value === true" />
+                {{ field.etiqueta }}
+              }
+              @case ('seleccion') {
+                {{ field.etiqueta }}
+                <select [name]="field.clave">
+                  @for (option of field.opciones; track option) {
+                    <option [value]="option ?? ''" [selected]="value === option">
+                      {{ option === null ? 'Automática según la regla' : urgencyLabels[option] }}
+                    </option>
+                  }
+                </select>
+              }
+              @case ('entero') {
+                {{ field.etiqueta }}
+                <input type="number" inputmode="numeric" step="1" required [name]="field.clave"
+                  [min]="field.minimo ?? 0" [max]="field.maximo ?? null" [value]="value ?? ''" />
+              }
+            }
+          </label>
+        }
+      </fieldset>
+      @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+      <div class="form-actions">
+        <ion-button type="button" fill="outline" [disabled]="saving()" (click)="closeEditor()">Cancelar</ion-button>
+        <ion-button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</ion-button>
+      </div>
+    </form>
+  </app-alert-editor-dialog>
+}

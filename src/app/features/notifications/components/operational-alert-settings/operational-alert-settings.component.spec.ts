@@ -57,7 +57,7 @@ describe('OperationalAlertSettingsComponent', () => {
   async function edit(rule: OperationalAlert) {
     page.querySelector<HTMLButtonElement>('#edit-' + rule.tipo)!.click();
     await fixture.whenStable();
-    return page.querySelector<HTMLFormElement>('form')!;
+    return page.querySelector<HTMLFormElement>('dialog[open] form')!;
   }
 
   function submit(form: HTMLFormElement) {
@@ -68,6 +68,8 @@ describe('OperationalAlertSettingsComponent', () => {
     await load(vehicleRule, [houseRule]);
     expect(page.textContent).not.toContain(houseRule.nombre);
     const form = await edit(vehicleRule);
+    expect(form.closest('dialog')?.textContent).toContain('Global · Vehículos');
+    expect(form.closest('dialog')?.textContent).toContain('Aplica a toda la flota.');
     form.querySelector<HTMLInputElement>('[name="dias_anticipacion"]')!.value = '14';
     form.querySelector<HTMLSelectElement>('[name="urgencia_fija"]')!.value = 'medio';
     submit(form);
@@ -103,8 +105,10 @@ describe('OperationalAlertSettingsComponent', () => {
   });
 
   it('binds installations to their original unit and ignores a late save after scope changes', async () => {
+    fixture.componentRef.setInput('unitName', 'El Ombú');
     await load(houseRule);
     const form = await edit(houseRule);
+    expect(form.closest('dialog')?.textContent).toContain('El Ombú · Instalaciones');
     form.querySelector<HTMLInputElement>('[name="exceso_minimo_aves"]')!.value = '10';
     submit(form);
     const request = http.expectOne('/api/v1/unidades-productivas/7/configuracion-alertas/' + houseRule.tipo);
@@ -119,6 +123,24 @@ describe('OperationalAlertSettingsComponent', () => {
     expect(page.querySelector('form')).toBeNull();
     expect(page.querySelector('.success')).toBeNull();
     expect(page.textContent).toContain('Exceso mínimo de aves 1');
+  });
+
+  it('dismisses a vehicle draft and restores focus to Editar without saving', async () => {
+    await load(vehicleRule);
+    const trigger = page.querySelector<HTMLButtonElement>('#edit-' + vehicleRule.tipo)!;
+    trigger.closest('details')!.open = true;
+    const form = await edit(vehicleRule);
+    const dialog = form.closest('dialog')!;
+    expect(document.activeElement).toBe(dialog.querySelector('h2'));
+    form.querySelector<HTMLInputElement>('[name="dias_anticipacion"]')!.value = '14';
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    await fixture.whenStable();
+
+    expect(page.querySelector('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    http.expectNone((request) => request.method === 'PATCH');
+    const reopened = await edit(vehicleRule);
+    expect(reopened.querySelector<HTMLInputElement>('[name="dias_anticipacion"]')?.value).toBe('30');
   });
 
   it('retries a failed catalog and allows returning from fixed urgency to automatic', async () => {

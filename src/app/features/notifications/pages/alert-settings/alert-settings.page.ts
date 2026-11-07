@@ -6,12 +6,13 @@ import { businessOutline, clipboardOutline, eggOutline } from 'ionicons/icons';
 import { catchError, map, of, startWith, Subject, switchMap } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { AlertEditorDialogComponent } from '../../components/alert-editor-dialog/alert-editor-dialog.component';
 import { OperationalAlertSettingsComponent } from '../../components/operational-alert-settings/operational-alert-settings.component';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
-import { AlertSettingsResult, AlertThresholdField, AlertThresholds } from '../../interfaces/alert-settings';
+import { AlertRule, AlertSettingsResult, AlertThresholdField, AlertThresholds } from '../../interfaces/alert-settings';
 import { alertModules, describeThresholds, readThresholds, thresholdFields, usesDayCount } from '../../services/alert-settings-form';
 import { AlertSettingsService, alertSettingsError } from '../../services/alert-settings.service';
-import { AlertRuleId, AlertRuleKind } from '../../types/alert-settings.type';
+import { AlertRuleId } from '../../types/alert-settings.type';
 
 interface AlertSettingsLoad {
   unitId: number | null;
@@ -19,15 +20,15 @@ interface AlertSettingsLoad {
 }
 
 interface AlertEditor {
-  id: AlertRuleId;
-  kind: AlertRuleKind;
+  rule: AlertRule;
+  scope: string;
   fields: readonly AlertThresholdField[];
   error: string;
 }
 
 @Component({
   selector: 'app-alert-settings-page',
-  imports: [IonButton, IonIcon, OperationalAlertSettingsComponent],
+  imports: [IonButton, IonIcon, AlertEditorDialogComponent, OperationalAlertSettingsComponent],
   templateUrl: './alert-settings.page.html',
   styleUrl: './alert-settings.page.scss',
 })
@@ -86,7 +87,7 @@ export class AlertSettingsPage {
   constructor() {
     addIcons({ 'business-outline': businessOutline, 'clipboard-outline': clipboardOutline, 'egg-outline': eggOutline });
     this.saveRequests.pipe(
-      switchMap(({ unitId, editor, thresholds }) => this.settings.save(unitId, editor.id, thresholds).pipe(
+      switchMap(({ unitId, editor, thresholds }) => this.settings.save(unitId, editor.rule.id, thresholds).pipe(
         map((saved) => ({ unitId, editor, saved })),
         catchError((error: unknown) => of({ unitId, editor, error: alertSettingsError(error, 'No se pudieron guardar los cambios. Volvé a intentar.') })),
       )),
@@ -94,7 +95,7 @@ export class AlertSettingsPage {
     ).subscribe((result) => {
       this.saving.set(false);
       if (this.unitId() !== result.unitId) return;
-      const id = result.editor.id;
+      const id = result.editor.rule.id;
       if ('error' in result) {
         if (this.editor() === result.editor) this.editor.set({ ...result.editor, error: result.error });
         return;
@@ -119,12 +120,17 @@ export class AlertSettingsPage {
     this.retry.update((retry) => retry + 1);
   }
 
-  protected edit(id: AlertRuleId, kind: AlertRuleKind): void {
-    const values = this.result()?.get(id)?.thresholds;
-    if (!values || this.saving()) return;
+  protected edit(rule: AlertRule, moduleTitle: string): void {
+    const unit = this.units.selectedUnit();
+    const values = this.result()?.get(rule.id)?.thresholds;
+    if (!unit || !values || this.saving()) return;
     this.saved.set(null);
-    this.editor.set({ id, kind, fields: thresholdFields(kind, values), error: '' });
-    this.focusAfterRender('.editor select, .editor input');
+    this.editor.set({
+      rule,
+      scope: `${unit.name} · ${moduleTitle}`,
+      fields: thresholdFields(rule.kind, values),
+      error: '',
+    });
   }
 
   protected setMoment(field: AlertThresholdField, value: string): void {
@@ -137,7 +143,8 @@ export class AlertSettingsPage {
   }
 
   protected closeEditor(): void {
-    const id = this.editor()?.id;
+    if (this.saving()) return;
+    const id = this.editor()?.rule.id;
     this.editor.set(null);
     if (id) this.focusAfterRender(`#edit-${id}`);
   }
@@ -147,7 +154,7 @@ export class AlertSettingsPage {
     const unitId = this.unitId();
     const editor = this.editor();
     if (unitId === null || !editor || this.saving()) return;
-    const thresholds = readThresholds(editor.kind, editor.fields);
+    const thresholds = readThresholds(editor.rule.kind, editor.fields);
     if (typeof thresholds === 'string') {
       this.editor.set({ ...editor, error: thresholds });
       return;
@@ -167,7 +174,7 @@ export class AlertSettingsPage {
 
   private focusAfterRender(selector: string): void {
     afterNextRender({
-      write: () => this.element.nativeElement.querySelector<HTMLElement>(selector)?.focus(),
+      write: () => this.element.nativeElement.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true }),
     }, { injector: this.injector });
   }
 }

@@ -74,7 +74,7 @@ describe('AlertSettingsPage', () => {
   async function edit(rule: string) {
     page.querySelector<HTMLButtonElement>(`#edit-${rule}`)!.click();
     await fixture.whenStable();
-    return page.querySelector<HTMLFormElement>('form.editor')!;
+    return page.querySelector<HTMLFormElement>('dialog[open] form.editor')!;
   }
 
   function enterDays(form: HTMLFormElement, urgency: string, value: string) {
@@ -91,8 +91,16 @@ describe('AlertSettingsPage', () => {
     expect(page.textContent).toContain('Seleccioná una unidad productiva para ver sus alertas.');
     http.expectNone((request) => request.url.includes('/umbrales-alertas/'));
 
+    const globalSettings = page.querySelector('section[aria-labelledby="global-alert-settings-title"]')!;
+    expect(globalSettings.querySelector('h2')?.textContent).toBe('Global');
+    expect(globalSettings.querySelector('summary')?.textContent).toContain('Vehículos');
+
     await selectUnit(7);
     await load(7, 7);
+    const installations = Array.from(page.querySelectorAll('summary'))
+      .find((summary) => summary.textContent.includes('Instalaciones'));
+    expect(installations?.compareDocumentPosition(globalSettings)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
     const editor = await edit(daily);
     enterDays(editor, 'alta', '10');
     selectedId.set(9);
@@ -101,6 +109,7 @@ describe('AlertSettingsPage', () => {
     expect(page.querySelector('form')).toBeNull();
     expect(page.querySelector('.level.alto')?.textContent).toContain('5 días');
     expect(page.querySelector<HTMLSelectElement>('#alert-settings-unit')?.value).toBe('9');
+    http.expectNone('/api/v1/configuracion-alertas');
   });
 
   it('blocks invalid timing thresholds and sends days before a date as a negative number', async () => {
@@ -108,6 +117,8 @@ describe('AlertSettingsPage', () => {
     await fixture.whenStable();
     await load(7, 7);
     const form = await edit('vaccination_due');
+    expect(form.closest('dialog')?.getAttribute('aria-label')).toBe('Editar alerta: Vacunación');
+    expect(form.closest('dialog')?.textContent).toContain('El Ombú · Planes de manejo');
     const moment = form.querySelector<HTMLSelectElement>('select[aria-label$="urgencia media"]')!;
     expect(moment.value).toBe('before');
     const highMoment = form.querySelector<HTMLSelectElement>('select[aria-label$="urgencia alta"]')!;
@@ -121,11 +132,16 @@ describe('AlertSettingsPage', () => {
     enterDays(form, 'media', '5');
     submit(form);
     const save = http.expectOne({ method: 'PUT', url: timingPath(7, 'vaccination_due') });
+    await fixture.whenStable();
+    form.closest('dialog')!.dispatchEvent(new Event('cancel', { cancelable: true }));
+    await fixture.whenStable();
+    expect(page.querySelector('dialog[open]')).toBeTruthy();
     expect(save.request.body).toEqual({ bajo: null, medio: -5, alto: 0 });
     save.flush({ data: save.request.body });
     await fixture.whenStable();
     expect(page.querySelector('#title-vaccination_due')?.closest('article')?.textContent).toContain('5 días antes');
     expect(page.querySelector('.success')?.textContent).toContain('Cambios guardados');
+    expect(page.querySelector('dialog')).toBeNull();
   });
 
   it('keeps available rules usable after a partial failure and preserves a rejected coverage draft', async () => {

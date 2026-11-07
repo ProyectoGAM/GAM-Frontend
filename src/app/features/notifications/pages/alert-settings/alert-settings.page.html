@@ -2,10 +2,8 @@
   <header class="heading">
     <p class="path">Alertas y notificaciones</p>
     <h1 id="alert-settings-title">Configuración de alertas</h1>
-    <p>Configurá los avisos generales de la flota y los de cada unidad productiva.</p>
+    <p>Configurá los avisos de cada unidad productiva y los generales de la flota.</p>
   </header>
-
-  <app-operational-alert-settings module="vehicles" [unitId]="null" />
 
   <div class="scope">
     <label for="alert-settings-unit"><ion-icon name="business-outline" aria-hidden="true" /> Unidad productiva</label>
@@ -46,7 +44,6 @@
 
           <div class="rules">
             @for (rule of module.rules; track rule.id) {
-              @let currentEditor = editor();
               <article class="rule" [attr.aria-labelledby]="'title-' + rule.id">
                 <div class="rule-header">
                   <div>
@@ -55,9 +52,9 @@
                   </div>
                   @if (rule.error) {
                     <p class="rule-error">{{ rule.error }}</p>
-                  } @else if (currentEditor?.id !== rule.id) {
+                  } @else {
                     <button type="button" class="edit-button" [id]="'edit-' + rule.id" [disabled]="saving()"
-                      [attr.aria-label]="'Editar ' + rule.title" (click)="edit(rule.id, rule.kind)">Editar</button>
+                      aria-haspopup="dialog" [attr.aria-label]="'Editar ' + rule.title" (click)="edit(rule, module.title)">Editar</button>
                     <div class="levels">
                       @for (level of rule.levels; track level.level) {
                         <span class="level" [class]="level.active ? level.level : ''">
@@ -68,37 +65,6 @@
                   }
                 </div>
 
-                @if (currentEditor && currentEditor.id === rule.id) {
-                  <form class="editor" novalidate (submit)="save($event)" [attr.aria-labelledby]="'title-' + rule.id">
-                    @for (field of currentEditor.fields; track field.level) {
-                      <div class="threshold">
-                        <strong>{{ field.label }}</strong>
-                        @if (field.options.length === 1) {
-                          <span>{{ field.options[0].label }}</span>
-                        } @else {
-                          <select #moment [disabled]="saving()"
-                            [attr.aria-label]="'Momento del aviso de urgencia ' + field.label.toLowerCase()"
-                            (change)="setMoment(field, moment.value)">
-                            @for (option of field.options; track option.value) {
-                              <option [value]="option.value" [selected]="field.moment === option.value">{{ option.label }}</option>
-                            }
-                          </select>
-                        }
-                        @if (usesDayCount(field.moment)) {
-                          <input type="number" inputmode="numeric" step="1" required #days
-                            [min]="field.min" [max]="field.max" [value]="field.days ?? ''" [disabled]="saving()"
-                            [attr.aria-label]="'Días para la urgencia ' + field.label.toLowerCase()"
-                            (input)="setDays(field, days.valueAsNumber)" />
-                        }
-                      </div>
-                    }
-                    @if (currentEditor.error) { <p class="form-error" role="alert">{{ currentEditor.error }}</p> }
-                    <div class="form-actions">
-                      <ion-button type="button" fill="outline" [disabled]="saving()" (click)="closeEditor()">Cancelar</ion-button>
-                      <ion-button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</ion-button>
-                    </div>
-                  </form>
-                }
                 @if (saved() === rule.id) {
                   <p class="success" role="status">Cambios guardados. Se aplicarán en la próxima evaluación.</p>
                 }
@@ -116,6 +82,48 @@
     }
   }
   @if (units.state() === 'ready' && units.selectedUnit(); as unit) {
-    <app-operational-alert-settings module="farm_structure" [unitId]="unit.id" />
+    <app-operational-alert-settings module="farm_structure" [unitId]="unit.id" [unitName]="unit.name" />
   }
+
+  <section class="global-settings" aria-labelledby="global-alert-settings-title">
+    <h2 id="global-alert-settings-title">Global</h2>
+    <app-operational-alert-settings module="vehicles" [unitId]="null" />
+  </section>
 </section>
+
+@if (editor(); as currentEditor) {
+  <app-alert-editor-dialog [alertName]="currentEditor.rule.title" [scope]="currentEditor.scope"
+    [saving]="saving()" (dismissRequested)="closeEditor()">
+    <form class="editor" novalidate (submit)="save($event)">
+      <fieldset class="thresholds" [disabled]="saving()">
+        <legend>Niveles de urgencia</legend>
+        @for (field of currentEditor.fields; track field.level) {
+          <div class="threshold">
+            <strong>{{ field.label }}</strong>
+            @if (field.options.length === 1) {
+              <span>{{ field.options[0].label }}</span>
+            } @else {
+              <select #moment [attr.aria-label]="'Momento del aviso de urgencia ' + field.label.toLowerCase()"
+                (change)="setMoment(field, moment.value)">
+                @for (option of field.options; track option.value) {
+                  <option [value]="option.value" [selected]="field.moment === option.value">{{ option.label }}</option>
+                }
+              </select>
+            }
+            @if (usesDayCount(field.moment)) {
+              <input type="number" inputmode="numeric" step="1" required #days
+                [min]="field.min" [max]="field.max" [value]="field.days ?? ''"
+                [attr.aria-label]="'Días para la urgencia ' + field.label.toLowerCase()"
+                (input)="setDays(field, days.valueAsNumber)" />
+            }
+          </div>
+        }
+      </fieldset>
+      @if (currentEditor.error) { <p class="form-error" role="alert">{{ currentEditor.error }}</p> }
+      <div class="form-actions">
+        <ion-button type="button" fill="outline" [disabled]="saving()" (click)="closeEditor()">Cancelar</ion-button>
+        <ion-button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</ion-button>
+      </div>
+    </form>
+  </app-alert-editor-dialog>
+}

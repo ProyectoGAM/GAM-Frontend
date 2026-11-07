@@ -9,6 +9,7 @@ import { OperationalAlert } from '../../interfaces/operational-alert';
 import { AlertSettingsService, alertSettingsError } from '../../services/alert-settings.service';
 import { AlertLevel } from '../../types/alert-settings.type';
 import { OperationalAlertModule, OperationalAlertValue, OperationalAlertValues } from '../../types/operational-alert.type';
+import { AlertEditorDialogComponent } from '../alert-editor-dialog/alert-editor-dialog.component';
 
 const modules = {
   vehicles: { title: 'Vehículos', description: 'Configuración general de la flota', icon: 'car-outline' },
@@ -25,13 +26,14 @@ interface OperationalAlertState {
 
 @Component({
   selector: 'app-operational-alert-settings',
-  imports: [IonButton, IonIcon],
+  imports: [IonButton, IonIcon, AlertEditorDialogComponent],
   templateUrl: './operational-alert-settings.component.html',
   styleUrl: './operational-alert-settings.component.scss',
 })
 export class OperationalAlertSettingsComponent {
   readonly module = input.required<OperationalAlertModule>();
   readonly unitId = input.required<number | null>();
+  readonly unitName = input<string>();
 
   private readonly settings = inject(AlertSettingsService);
   private readonly destroyRef = inject(DestroyRef);
@@ -39,6 +41,10 @@ export class OperationalAlertSettingsComponent {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly heading = computed(() => modules[this.module()]);
+  protected readonly scope = computed(() => {
+    const name = this.unitId() === null ? 'Global' : this.unitName() ?? 'Unidad productiva';
+    return `${name} · ${this.heading().title}`;
+  });
   protected readonly urgencyLabels = urgencyLabels;
   private readonly retry = signal(0);
   private readonly query = computed(() => ({ unitId: this.unitId(), module: this.module(), retry: this.retry() }));
@@ -55,7 +61,8 @@ export class OperationalAlertSettingsComponent {
   protected readonly rules = computed(() => this.data().unitId === this.unitId() ? this.data().rules ?? [] : []);
   protected readonly loading = computed(() => this.data().unitId !== this.unitId() || (!this.data().rules && !this.data().error));
   protected readonly loadError = computed(() => this.data().unitId === this.unitId() ? this.data().error : '');
-  protected readonly editing = linkedSignal<number | null, string | null>({ source: this.unitId, computation: () => null });
+  private readonly editing = linkedSignal<number | null, string | null>({ source: this.unitId, computation: () => null });
+  protected readonly editingRule = computed(() => this.rules().find((rule) => rule.tipo === this.editing()));
   protected readonly saved = linkedSignal<number | null, string | null>({ source: this.unitId, computation: () => null });
   protected readonly error = signal('');
   protected readonly saving = signal(false);
@@ -69,13 +76,14 @@ export class OperationalAlertSettingsComponent {
   }
 
   protected edit(rule: OperationalAlert): void {
+    if (this.saving()) return;
     this.editing.set(rule.tipo);
     this.saved.set(null);
     this.error.set('');
-    this.focusAfterRender('.editor input');
   }
 
   protected closeEditor(): void {
+    if (this.saving()) return;
     const id = this.editing();
     this.editing.set(null);
     if (id) this.focusAfterRender(`#edit-${id}`);
@@ -153,7 +161,7 @@ export class OperationalAlertSettingsComponent {
 
   private focusAfterRender(selector: string): void {
     afterNextRender({
-      write: () => this.element.nativeElement.querySelector<HTMLElement>(selector)?.focus(),
+      write: () => this.element.nativeElement.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true }),
     }, { injector: this.injector });
   }
 }
