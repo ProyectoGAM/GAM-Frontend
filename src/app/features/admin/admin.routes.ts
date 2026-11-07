@@ -218,6 +218,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     return { path: item.slug, pathMatch: 'full' as const, redirectTo: '/administracion/notificaciones' };
                   }
 
+                  if (group.id === 'alertas-notificaciones' && item.slug === 'configuracion-de-alertas') {
+                    return {
+                      path: item.slug,
+                      loadComponent: () => import('../notifications/pages/alert-settings/alert-settings.page').then((module) => module.AlertSettingsPage),
+                    };
+                  }
+
                   return {
                     path: item.slug,
                     data: {

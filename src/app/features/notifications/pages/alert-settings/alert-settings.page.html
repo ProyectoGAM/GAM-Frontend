@@ -1,0 +1,121 @@
+<section class="settings" aria-labelledby="alert-settings-title">
+  <header class="heading">
+    <p class="path">Alertas y notificaciones</p>
+    <h1 id="alert-settings-title">Configuración de alertas</h1>
+    <p>Configurá los avisos generales de la flota y los de cada unidad productiva.</p>
+  </header>
+
+  <app-operational-alert-settings module="vehicles" [unitId]="null" />
+
+  <div class="scope">
+    <label for="alert-settings-unit"><ion-icon name="business-outline" aria-hidden="true" /> Unidad productiva</label>
+    <select id="alert-settings-unit" #unitSelect [disabled]="units.state() !== 'ready' || !units.units().length || saving()"
+      (change)="selectUnit(unitSelect.value)">
+      @if (!units.selectedUnit()) { <option value="" disabled selected>Seleccioná una unidad</option> }
+      @for (unit of units.units(); track unit.id) {
+        <option [value]="unit.id" [selected]="unit.id === units.selectedId()">{{ unit.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (units.state() === 'loading') {
+    <p class="state" role="status">Cargando unidades productivas…</p>
+  } @else if (units.state() === 'error') {
+    @if (canListUnits()) {
+      <p class="state" role="alert">No se pudieron cargar las unidades productivas.</p>
+      <ion-button fill="outline" (click)="units.load()">Reintentar</ion-button>
+    } @else {
+      <p class="state" role="alert">Tu cuenta necesita permiso para consultar unidades productivas.</p>
+    }
+  } @else if (!units.units().length) {
+    <p class="state" role="status">No hay unidades productivas disponibles.</p>
+  } @else if (!units.selectedUnit()) {
+    <p class="state">Seleccioná una unidad productiva para ver sus alertas.</p>
+  } @else if (!result()) {
+    <p class="state" role="status">Cargando configuración de alertas…</p>
+  } @else {
+    <div class="modules">
+      @for (module of modules(); track module.id) {
+        <details class="module" [open]="module.id === 'lotes'">
+          <summary>
+            <span class="module-icon"><ion-icon [name]="module.icon" aria-hidden="true" /></span>
+            <span class="module-copy"><strong>{{ module.title }}</strong><small>{{ module.description }}</small></span>
+            <span class="count">{{ module.rules.length }} {{ module.rules.length === 1 ? 'alerta' : 'alertas' }}</span>
+            <span class="chevron" aria-hidden="true"></span>
+          </summary>
+
+          <div class="rules">
+            @for (rule of module.rules; track rule.id) {
+              @let currentEditor = editor();
+              <article class="rule" [attr.aria-labelledby]="'title-' + rule.id">
+                <div class="rule-header">
+                  <div>
+                    <h2 [id]="'title-' + rule.id">{{ rule.title }}</h2>
+                    <p>{{ rule.description }}</p>
+                  </div>
+                  @if (rule.error) {
+                    <p class="rule-error">{{ rule.error }}</p>
+                  } @else if (currentEditor?.id !== rule.id) {
+                    <button type="button" class="edit-button" [id]="'edit-' + rule.id" [disabled]="saving()"
+                      [attr.aria-label]="'Editar ' + rule.title" (click)="edit(rule.id, rule.kind)">Editar</button>
+                    <div class="levels">
+                      @for (level of rule.levels; track level.level) {
+                        <span class="level" [class]="level.active ? level.level : ''">
+                          <strong>{{ level.label }}</strong> {{ level.description }}
+                        </span>
+                      }
+                    </div>
+                  }
+                </div>
+
+                @if (currentEditor && currentEditor.id === rule.id) {
+                  <form class="editor" novalidate (submit)="save($event)" [attr.aria-labelledby]="'title-' + rule.id">
+                    @for (field of currentEditor.fields; track field.level) {
+                      <div class="threshold">
+                        <strong>{{ field.label }}</strong>
+                        @if (field.options.length === 1) {
+                          <span>{{ field.options[0].label }}</span>
+                        } @else {
+                          <select #moment [disabled]="saving()"
+                            [attr.aria-label]="'Momento del aviso de urgencia ' + field.label.toLowerCase()"
+                            (change)="setMoment(field, moment.value)">
+                            @for (option of field.options; track option.value) {
+                              <option [value]="option.value" [selected]="field.moment === option.value">{{ option.label }}</option>
+                            }
+                          </select>
+                        }
+                        @if (usesDayCount(field.moment)) {
+                          <input type="number" inputmode="numeric" step="1" required #days
+                            [min]="field.min" [max]="field.max" [value]="field.days ?? ''" [disabled]="saving()"
+                            [attr.aria-label]="'Días para la urgencia ' + field.label.toLowerCase()"
+                            (input)="setDays(field, days.valueAsNumber)" />
+                        }
+                      </div>
+                    }
+                    @if (currentEditor.error) { <p class="form-error" role="alert">{{ currentEditor.error }}</p> }
+                    <div class="form-actions">
+                      <ion-button type="button" fill="outline" [disabled]="saving()" (click)="closeEditor()">Cancelar</ion-button>
+                      <ion-button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</ion-button>
+                    </div>
+                  </form>
+                }
+                @if (saved() === rule.id) {
+                  <p class="success" role="status">Cambios guardados. Se aplicarán en la próxima evaluación.</p>
+                }
+              </article>
+            }
+          </div>
+        </details>
+      }
+    </div>
+    @if (hasErrors()) {
+      <div class="retry">
+        <p class="state" role="status">No se pudieron cargar todas las alertas de esta unidad.</p>
+        <ion-button fill="outline" [disabled]="!!editor() || saving()" (click)="reload()">Reintentar carga</ion-button>
+      </div>
+    }
+  }
+  @if (units.state() === 'ready' && units.selectedUnit(); as unit) {
+    <app-operational-alert-settings module="farm_structure" [unitId]="unit.id" />
+  }
+</section>
