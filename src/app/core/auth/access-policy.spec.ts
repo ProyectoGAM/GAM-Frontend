@@ -50,6 +50,14 @@ describe('admin access policy', () => {
     expect(canAccessGroup(null, 'reportes')).toBe(false);
   });
 
+  it('requires the threshold management grant for alert configuration in the global panel', () => {
+    const manager = { roles: ['employee'], permissions: ['can_manage_alert_thresholds'] };
+    const reader = { roles: ['employee'], permissions: ['can_view_notifications'] };
+    expect(canAccessAdminPath(manager, 'alertas-notificaciones', 'configuracion-de-alertas')).toBe(true);
+    expect(canAccessAdminPath(reader, 'alertas-notificaciones', 'configuracion-de-alertas')).toBe(false);
+    expect(canAccessAdminPath({ ...manager, up_id: 7 }, 'alertas-notificaciones', 'configuracion-de-alertas')).toBe(false);
+  });
+
   it('grants reporting and egg inventory navigation from functional permissions', () => {
     const reader = { roles: ['employee'], permissions: ['reports.view', 'egg-stock.view'] };
     expect(canAccessGroup(reader, 'reportes')).toBe(true);

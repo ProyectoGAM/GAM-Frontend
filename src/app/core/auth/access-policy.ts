@@ -64,7 +64,7 @@ const adminItems: Readonly<Record<AdminGroup, Readonly<Record<string, readonly s
     'can_view_vehicle_fuel', 'can_manage_vehicle_fuel', 'can_view_vehicle_maintenance',
     'can_manage_vehicle_maintenance', 'can_view_vehicle_documents', 'can_manage_vehicle_documents',
   ] },
-  'alertas-notificaciones': { 'bandeja-de-alertas': [], 'configuracion-de-alertas': [] },
+  'alertas-notificaciones': { 'bandeja-de-alertas': [], 'configuracion-de-alertas': ['can_manage_alert_thresholds'] },
   reportes: { reportes: ['can_view_reports'] },
 };
 

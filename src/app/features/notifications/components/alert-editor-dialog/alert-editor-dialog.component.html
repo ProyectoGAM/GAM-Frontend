@@ -1,0 +1,17 @@
+<dialog #dialog class="alert-dialog" [attr.aria-label]="label()" (cancel)="requestDismiss($event)">
+  <header class="dialog-heading">
+    <h2 #heading tabindex="-1" autofocus>{{ title() }}</h2>
+    <button type="button" class="close" [attr.aria-label]="alertName() ? 'Cerrar edición' : 'Cerrar'"
+      [disabled]="saving()" (click)="requestDismiss()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </header>
+  @if (alertName(); as name) {
+    <div class="alert-context">
+      <h3>{{ name }}</h3>
+      <p class="alert-scope"><ion-icon [name]="fleet() ? 'car-outline' : 'business-outline'" aria-hidden="true" /> {{ scope() }}</p>
+      @if (fleet()) { <p>Aplica a toda la flota.</p> }
+    </div>
+  }
+  <ng-content />
+</dialog>

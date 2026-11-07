@@ -18,6 +18,8 @@ export interface FlockFeeding {
   cantidad_manual_g: string | null;
   edad_dias: number;
   fecha_vigencia: string;
+  revision_manual_desde?: string | null;
+  confirmada_en?: string | null;
   etapa: FeedingStage;
   finalizado: boolean;
 }

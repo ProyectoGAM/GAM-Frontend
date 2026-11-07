@@ -16,11 +16,17 @@ Los guards del panel, del grupo y de sus rutas hijas aplican las mismas reglas d
 
 ## Convertir un placeholder en un módulo
 
-Las entradas pendientes, como Resumen y Alertas y notificaciones, usan `AdminPlaceholderPage`. Para conectar una de esas entradas:
+Las entradas pendientes, como Resumen, usan `AdminPlaceholderPage`. Para conectar una de esas entradas:
 
 1. Conecta las rutas del feature mediante carga diferida en `admin.routes.ts`.
 2. Conserva `data.group` y los guards de grupo y rutas hijas.
 3. Mantén el slug y agrega a la política los permisos confirmados por el backend. Verifica el acceso con Admin, una cuenta con permiso y una cuenta sin permiso.
+
+## Configuración de alertas
+
+La ruta `/administracion/alertas-notificaciones/configuracion-de-alertas` permite a Admin y a las cuentas con `can_manage_alert_thresholds` configurar las alertas de Lotes y Planes de manejo. El selector de la pantalla comparte la unidad activa del panel. Las cuentas con un rol personalizado necesitan además permiso para consultar unidades productivas. Cada regla se guarda por separado y el servidor aplica los cambios en su próxima evaluación.
+
+Vehículos tiene alcance general y aparece aun sin seleccionar una UP. Sus tres alertas permiten editar la anticipación de intervenciones, planes preventivos y documentos, incluidos los kilómetros de los planes. Instalaciones usa la UP seleccionada y permite ajustar el aviso por exceso de capacidad antes de la adultez y el exceso mínimo de aves. Ambos módulos consumen el catálogo `configuracion-alertas`, permiten habilitar cada aviso y elegir urgencia automática o fija, y envían por PATCH únicamente los campos modificados.
 
 ## Gestión heredada y autenticación
 

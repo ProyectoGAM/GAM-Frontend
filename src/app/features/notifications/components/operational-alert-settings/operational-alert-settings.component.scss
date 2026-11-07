@@ -1,0 +1,24 @@
+@use '../../styles/alert-module';
+
+:host { display: block; min-inline-size: 0; }
+
+.catalog-state { margin: 0; padding-block: 0.625rem; color: var(--gam-color-text-muted); }
+.catalog-state p { margin: 0; }
+
+fieldset { display: grid; gap: 0.75rem; min-inline-size: 0; border: 0; padding: 0; margin: 0; }
+.operational-field { display: grid; gap: 0.375rem; }
+.operational-field.toggle {
+  display: flex;
+  min-block-size: 44px;
+  align-items: center;
+  gap: 0.5rem;
+}
+.operational-field input[type='checkbox'] {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  min-block-size: 0;
+  margin: 0;
+  accent-color: var(--gam-color-primary);
+}
+.level { display: inline-block; max-inline-size: 100%; overflow-wrap: anywhere; }
+.level strong { margin-inline-start: 0.25rem; }
