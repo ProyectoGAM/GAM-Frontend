@@ -45,19 +45,10 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
         : group.id === 'vehiculos'
           ? [{ path: '', loadChildren: () => import('../vehicles/vehicles.routes').then((module) => module.vehiclesRoutes) }]
         : group.id === 'resumen'
-          ? [
-              {
-                path: '',
-                data: {
-                  title: group.label,
-                  groupLabel: group.label,
-                },
-                loadComponent: () =>
-                  import('./admin-placeholder.page').then(
-                    (module) => module.AdminPlaceholderPage,
-                  ),
-              },
-            ]
+          ? [{
+              path: '',
+              loadComponent: () => import('../operational-summary/pages/operational-summary.page').then((module) => module.OperationalSummaryPage),
+            }]
           : [
               ...(group.id === 'repartos' ? [{ path: 'catalogo-y-precios', pathMatch: 'full' as const, redirectTo: '/administracion/inventario/presentaciones-huevos' }] : []),
               ...(group.id === 'ubicaciones'

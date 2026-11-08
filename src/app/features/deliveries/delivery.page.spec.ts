@@ -581,21 +581,28 @@ describe('DeliveryPage', () => {
     expect(outbox.enqueue).not.toHaveBeenCalled();
   });
 
-  it.each([0, -2])('sends zero returned quantity when the balance is %i', async (remaining) => {
-    const delivered = 120 - remaining;
+  it('sends zero returned quantity when the balance is zero', async () => {
     page.delivery.set({
       ...activeDelivery,
-      delivered_quantity: delivered,
-      remaining_quantity: remaining,
+      delivered_quantity: 120,
+      remaining_quantity: 0,
       unit_balances: { ...activeDelivery.unit_balances!, rows: [{
-        ...activeDelivery.unit_balances!.rows[0], delivered_amount: String(delivered), remaining_amount: String(remaining),
-        delivered_eggs: delivered,
+        ...activeDelivery.unit_balances!.rows[0], delivered_amount: '120', remaining_amount: '0', delivered_eggs: 120,
       }] },
     });
 
     await page.closeDelivery();
 
     expect(api.close).toHaveBeenCalledWith('delivery-1', expect.objectContaining({ returned_quantity: 0, pin: '0007' }), expect.any(String));
+  });
+
+  it('requires a rectification before closing a delivery with negative balance', async () => {
+    page.delivery.set({ ...activeDelivery, delivered_quantity: 122, remaining_quantity: -2 });
+
+    await page.closeDelivery();
+
+    expect(api.close).not.toHaveBeenCalled();
+    expect(page.error()).toContain('Un administrador debe rectificar la entrega antes del cierre.');
   });
 
   it('replays queued loads and visits but asks for a PIN to close a legacy queued delivery', async () => {

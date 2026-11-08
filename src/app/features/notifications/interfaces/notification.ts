@@ -31,3 +31,19 @@ export interface NotificationPage {
   data: AppNotification[];
   meta: { current_page: number; last_page: number; total: number };
 }
+
+export interface OperationalAlertEpisode {
+  id: string;
+  tipo: string;
+  modulo: string;
+  up_id: number | null;
+  urgencia: NotificationUrgency;
+  titulo: string;
+  ocurrida_en: string;
+  entidad: NonNullable<AppNotification['entidad']>;
+}
+
+export interface OperationalAlertPage {
+  data: OperationalAlertEpisode[];
+  meta: NotificationPage['meta'];
+}

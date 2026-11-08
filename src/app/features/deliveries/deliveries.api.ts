@@ -12,6 +12,8 @@ import {
   DeliveryListResponse,
   DeliveryUnit,
   DeliveryProductionUnit,
+  DeliveryStopCorrection,
+  DeliveryStopCorrectionInput,
   LocationInput,
   StartDeliveryInput,
   StopInput,
@@ -63,6 +65,12 @@ export class DeliveriesApi {
 
   stop(id: string, body: StopInput, idempotencyKey: string): Observable<{ data: unknown }> {
     return this.api.post<{ data: unknown }, StopInput>(`repartos/${id}/entregas`, body, this.commandOptions(idempotencyKey));
+  }
+
+  rectifyStop(id: string, stopId: number, body: DeliveryStopCorrectionInput, key: string) {
+    return this.api.post<{ data: DeliveryStopCorrection }, DeliveryStopCorrectionInput>(
+      `repartos/${id}/entregas/${stopId}/rectificaciones`, body, this.commandOptions(key),
+    );
   }
 
   locations(id: string, locations: LocationInput[]): Observable<{ data: { accepted: number; duplicates: number; pending: number } }> {

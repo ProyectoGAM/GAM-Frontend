@@ -16,11 +16,19 @@ Los guards del panel, del grupo y de sus rutas hijas aplican las mismas reglas d
 
 ## Convertir un placeholder en un módulo
 
-Las entradas pendientes, como Resumen, usan `AdminPlaceholderPage`. Para conectar una de esas entradas:
+Las entradas pendientes usan `AdminPlaceholderPage`. Para conectar una de esas entradas:
 
 1. Conecta las rutas del feature mediante carga diferida en `admin.routes.ts`.
 2. Conserva `data.group` y los guards de grupo y rutas hijas.
 3. Mantén el slug y agrega a la política los permisos confirmados por el backend. Verifica el acceso con Admin, una cuenta con permiso y una cuenta sin permiso.
+
+## Resumen operativo
+
+`/administracion/resumen` toma la UP seleccionada en la barra lateral. Ambos selectores comparten la selección, incluida la vista Global para administradores. Las sesiones con PIN consultan el alcance de su unidad. Los indicadores históricos comparten un período inclusivo en America/Montevideo. Las aves vivas, las alertas abiertas y el stock de raciones reflejan el momento de consulta.
+
+En Global, el bloque financiero muestra como ingresos por ventas el valor de mercadería entregada, junto a los gastos por moneda. Al filtrar por UP se muestran solo sus gastos. Las aves vivas y la mortalidad comparten otro bloque.
+
+El panel de alertas conserva el total y el desglose por urgencia. **Gestionar alertas** abre la vista operativa de la bandeja con el mismo alcance del Resumen; los avisos personales permanecen en su propia vista. Para una UP concreta, **Ver lotes** abre el listado existente con el filtro de esa unidad. El stock de raciones se mantiene en la vista por UP.
 
 ## Configuración de alertas
 

@@ -50,6 +50,7 @@
         <ion-card-header><ion-card-title>Detalle del reparto</ion-card-title></ion-card-header>
         <ion-card-content>
           @if (detailLoading()) { <p class="muted" role="status">Actualizando detalle…</p> }
+          @if (correctionMessage()) { <p role="status">{{ correctionMessage() }}</p> }
           @if (detailError()) { <p class="page-error" role="alert">{{ detailError() }}</p> }
           <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
           <p><strong>Carga al inicio:</strong> {{ delivery.started_without_load ? 'No cargó huevos al inicio' : 'Con carga inicial' }}</p>
@@ -57,7 +58,7 @@
           <p><strong>Vehículo:</strong> {{ delivery.vehicle ? delivery.vehicle.plate + ' · ' + delivery.vehicle.make + ' ' + delivery.vehicle.model : delivery.vehicle_reference ?? '—' }}</p>
           @if (delivery.vehicle_usage; as usage) { <p><strong>Tablero:</strong> Salida {{ usage.start_odometer_km ? usage.start_odometer_km + ' km' : 'sin lectura' }} · Cierre {{ usage.end_odometer_km ? usage.end_odometer_km + ' km' : 'sin lectura' }}@if (usage.distance_km) { · Distancia registrada {{ usage.distance_km }} km }</p> }
           <p><strong>Inicio:</strong> {{ delivery.started_at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }} · <strong>Fin:</strong> {{ delivery.closed_at ? (delivery.closed_at | date:'dd/MM/yyyy HH:mm:ss':'-0300') : 'En curso' }}</p>
-          <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }}</p>
+          <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }} · <strong>Saldo:</strong> {{ delivery.remaining_quantity }} huevos</p>
           @if (!hasMapPoints()) { <p class="muted" role="status">Ubicación no disponible: el reparto no tiene puntos persistidos para mostrar.</p> }
           <section class="timeline-section" aria-label="Línea de tiempo del reparto">
             <h3>De inicio a cierre</h3>
@@ -85,8 +86,27 @@
                 <div><span>{{ stop.client_name }} @if (stop.status === 'delivered') { <small>Valor: {{ money(stop.total_amount) }}</small> }
                   @for (item of stop.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} · {{ item.eggs }} huevos @if (item.unit_price !== undefined) { · Precio: {{ money(item.unit_price) }} · Importe: {{ money(item.line_amount) }} }</small> }
                 </span><small>{{ stop.status === 'delivered' ? stop.delivered_quantity + ' huevos' : stop.status === 'not_delivered' ? 'Sin entrega' : 'Sin visita registrada' }}</small></div>
+                @if (editingStop() === stop.id) {
+                  <app-delivery-stop-correction [delivery]="delivery" [stop]="stop"
+                    (cancelled)="editingStop.set(null)" (refreshed)="refreshCorrection(delivery.id, $event)" />
+                } @else if (canRectify() && stop.status === 'delivered' && stop.version && !editingStop()) {
+                  <ion-button fill="outline" size="small" (click)="editingStop.set(stop.id); correctionMessage.set('')">Rectificar entrega</ion-button>
+                }
               }
             </div>
+          }
+          @if (delivery.rectificaciones_entregas?.length) {
+            <section class="stops-detail" aria-label="Historial de rectificaciones">
+              <h3>Rectificaciones de entregas</h3>
+              @for (correction of delivery.rectificaciones_entregas; track correction.operation_id) {
+                <div>
+                  <span>{{ correction.motivo }}
+                    <small>{{ correction.antes.cantidad_entregada }} → {{ correction.despues.cantidad_entregada }} huevos · Saldo posterior {{ correction.despues.saldo_huevos }}</small>
+                  </span>
+                  <time [attr.datetime]="correction.registrada_en">{{ correction.registrada_en | date:'dd/MM/yyyy HH:mm':'-0300' }}</time>
+                </div>
+              }
+            </section>
           }
         </ion-card-content>
       </ion-card>

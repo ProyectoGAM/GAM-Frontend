@@ -1,0 +1,40 @@
+:host { display: block; color: var(--gam-color-text); }
+.summary-page { display: grid; gap: 1.2rem; max-width: 100rem; margin-inline: auto; }
+.page-heading {
+  display: flex; align-items: end; justify-content: space-between; gap: .75rem 1rem; flex-wrap: wrap;
+}
+h1, h2, p { margin: 0; }
+h1, h2 { color: var(--gam-color-heading); letter-spacing: -.025em; }
+h1 { font: 700 clamp(2rem, 4vw, 2.65rem)/1.04 Georgia, 'Times New Roman', serif; margin-block: .32rem .2rem; }
+h2 { font-size: clamp(1.32rem, 3vw, 1.8rem); font-weight: 750; line-height: 1.16; margin-block-end: .55rem; }
+p { color: var(--gam-color-text-muted); }
+.breadcrumb { font-size: .8125rem; }
+.filters { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; }
+.filter {
+  position: relative; display: grid; width: 14rem; max-width: 100%; min-height: 44px;
+  border: 1px solid var(--gam-color-control-border); border-radius: .48rem;
+  color: var(--gam-color-heading); background: var(--gam-color-surface);
+}
+.filter-label {
+  position: absolute; inset-block-start: .32rem; inset-inline-start: .75rem;
+  font-size: .72rem; color: var(--gam-color-text-muted); pointer-events: none;
+}
+.filter select {
+  appearance: none; min-height: 44px; min-width: 0; width: 100%; padding: .48rem 2.2rem .48rem .75rem;
+  border: 0; border-radius: inherit; color: inherit; background: transparent; font: inherit; font-weight: 700;
+  cursor: pointer; text-overflow: ellipsis;
+}
+.period-filter select { padding-inline-start: 2.3rem; }
+.unit-filter select { min-height: 48px; padding-block: 1.2rem .28rem; }
+.filter ion-icon { position: absolute; top: 50%; transform: translateY(-50%); font-size: 1.125rem; pointer-events: none; }
+.calendar { inset-inline-start: .68rem; }
+.chevron { inset-inline-end: .7rem; }
+button {
+  min-height: 44px; padding: .5rem .75rem; border: 1px solid var(--gam-color-control-border);
+  border-radius: .5rem; color: var(--gam-color-heading); background: var(--gam-color-surface); font: inherit;
+}
+select:focus-visible, button:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
+@media (max-width: 35rem) {
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); width: 100%; }
+  .filter { width: 100%; }
+}

@@ -6,6 +6,9 @@ import { checkmarkCircleOutline } from 'ionicons/icons';
 
 import { AppNotification } from '../interfaces/notification';
 
+type NotificationHeading = Pick<AppNotification, 'titulo' | 'modulo' | 'fecha' | 'urgencia'>
+  & Partial<Pick<AppNotification, 'estado_resolucion' | 'resuelta_en'>>;
+
 const urgencyLabels = {
   bajo: { level: 1, label: 'Baja' },
   medio: { level: 2, label: 'Media' },
@@ -76,7 +79,7 @@ function formatRecentDate(date: string): string | null {
   `,
 })
 export class NotificationHeadingComponent {
-  readonly notification = input.required<AppNotification>();
+  readonly notification = input.required<NotificationHeading>();
   readonly urgency = computed(() => urgencyLabels[this.notification().urgencia]);
   readonly recentDate = computed(() => formatRecentDate(this.notification().fecha));
   readonly recentResolution = computed(() => {

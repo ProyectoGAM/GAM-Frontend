@@ -1,0 +1,38 @@
+:host { display: block; min-width: 0; container-type: inline-size; }
+.unit-operations { display: grid; gap: .85rem; margin-block-start: .9rem; }
+.panel {
+  min-width: 0; padding: .95rem; background: var(--gam-color-surface);
+  border: 1px solid var(--gam-color-border); border-radius: .6rem;
+}
+h3 {
+  display: flex; align-items: center; gap: .55rem;
+  color: var(--gam-color-heading); margin: 0 0 .5rem; font-size: 1.18rem; font-weight: 750; line-height: 1.2;
+}
+h3 ion-icon { flex: none; font-size: 1.25rem; }
+header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem; margin-block-end: .5rem; }
+header h3 { margin: 0; }
+.panel-link {
+  display: inline-flex; align-items: center; min-height: 44px; padding-inline: .7rem;
+  border: 1px solid var(--gam-color-control-border); border-radius: .4rem;
+  color: var(--gam-color-primary); text-decoration: none; font-size: .875rem; font-weight: 650;
+}
+.panel-link:hover { background: var(--gam-color-primary-soft); }
+p { color: var(--gam-color-text-muted); margin-block: .5rem; }
+.warning { color: var(--gam-color-warning); }
+.entries { padding: 0; margin: 0; list-style: none; }
+.entries li {
+  display: flex; flex-wrap: wrap; gap: .4rem .85rem; align-items: center; justify-content: space-between;
+  padding-block: .65rem; border-block-start: 1px solid var(--gam-color-border);
+}
+button {
+  min-height: 44px; padding-inline: .55rem; color: var(--gam-color-primary); font-weight: 600;
+  background: transparent; cursor: pointer;
+}
+button:focus-visible, .panel-link:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+th, td { text-align: start; padding: .5rem .4rem; border-block-end: 1px solid var(--gam-color-border); overflow-wrap: anywhere; }
+th { color: var(--gam-color-text-muted); background: var(--gam-color-surface-alt); }
+@container (min-width: 50rem) {
+  .unit-operations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .unit-operations > :only-child { grid-column: 1 / -1; }
+}

@@ -1,6 +1,7 @@
 import { formatDeliveryMoney } from './delivery-money';
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { DeliveryStopCorrectionComponent } from './components/delivery-stop-correction.component';
 import { DeliveryFinancialSummaryComponent } from './components/delivery-financial-summary.component';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -44,7 +45,7 @@ const LOCATION_MATCH_WINDOW_MS = 10 * 60 * 1000;
   selector: 'app-admin-deliveries',
   templateUrl: './admin-deliveries.page.html',
   styleUrl: './admin-deliveries.page.scss',
-  imports: [DeliveryFinancialSummaryComponent, DatePipe, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText],
+  imports: [DeliveryFinancialSummaryComponent, DeliveryStopCorrectionComponent, DatePipe, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonIcon, IonSpinner, IonText],
 })
 export class AdminDeliveriesPage {
   readonly money = formatDeliveryMoney;
@@ -71,6 +72,13 @@ export class AdminDeliveriesPage {
   readonly active = signal<Delivery[]>([]);
   readonly history = signal<Delivery[]>([]);
   readonly selected = signal<Delivery | null>(null);
+  readonly editingStop = signal<number | null>(null);
+  readonly correctionMessage = signal('');
+  readonly canRectify = computed(() => {
+    const delivery = this.selected();
+    return !!delivery && delivery.status !== 'cancelled' && delivery.remaining_quantity < 0
+      && this.auth.isAdmin() && this.auth.status() === 'personal_authenticated';
+  });
   readonly timeline = computed(() => {
     const delivery = this.selected();
     return delivery ? this.buildTimeline(delivery) : [];
@@ -183,10 +191,19 @@ export class AdminDeliveriesPage {
 
   select(delivery: Delivery): void {
     if (this.selected()?.id !== delivery.id) {
+      this.editingStop.set(null);
+      this.correctionMessage.set('');
       this.selected.set(delivery);
       this.updateMap(delivery);
     }
     this.selectedDeliveryRequests.next(delivery.id);
+  }
+
+  refreshCorrection(deliveryId: string, message: string): void {
+    if (this.selected()?.id !== deliveryId) return;
+    this.editingStop.set(null);
+    this.correctionMessage.set(message);
+    this.selectedDeliveryRequests.next(deliveryId);
   }
 
   hasRecordedDelay(event: DeliveryTimelineEvent): boolean {
