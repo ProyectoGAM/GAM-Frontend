@@ -27,6 +27,7 @@ export interface DeliveryClient {
 
 export interface DeliveryStop {
   id: number;
+  version?: number;
   client_reference: string;
   client_name: string;
   address: string;
@@ -142,6 +143,7 @@ export interface Delivery {
   return_production_unit?: DeliveryProductionUnit | null;
   financial_summary?: DeliveryFinancialSummary;
   closed_financial_summary?: DeliveryFinancialSummary | null;
+  rectificaciones_entregas?: DeliveryStopCorrection[];
   account_movements?: CustomerMovement[];
   delivered_amount?: string | null;
   currency?: 'UYU';
@@ -239,6 +241,34 @@ export interface LocationInput {
   accuracy?: number;
   speed?: number | null;
   captured_at: string;
+}
+
+export interface DeliveryStopCorrectionInput {
+  version: number;
+  motivo: string;
+  lineas?: { indice: number; cantidad: string }[];
+  cantidad_entregada?: number;
+  importe?: string;
+  return_production_unit_id?: number;
+}
+
+interface DeliveryStopCorrectionSnapshot {
+  version: number;
+  cantidad_entregada: number;
+  importe: string | null;
+  huevos_devueltos: number;
+  return_production_unit_id: number | null;
+  saldo_huevos: number;
+}
+
+export interface DeliveryStopCorrection {
+  operation_id: string;
+  entrega_id: number;
+  motivo: string;
+  antes: DeliveryStopCorrectionSnapshot;
+  despues: DeliveryStopCorrectionSnapshot;
+  movimiento_cuenta_id: string | null;
+  registrada_en: string;
 }
 
 export interface CloseDeliveryInput {

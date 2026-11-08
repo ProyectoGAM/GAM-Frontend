@@ -727,7 +727,14 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     }
     const quantity = payload.returned_items?.reduce((total, item) => total + this.itemEggs(item), 0) ?? payload.returned_quantity ?? 0;
     if (quantity > 2147483647) { this.error.set('La descarga supera el máximo de huevos permitido.'); return; }
-    if (quantity < delivery.remaining_quantity) { this.error.set('La descarga final debe incluir todos los huevos sobrantes.'); return; }
+    if (delivery.remaining_quantity < 0) {
+      this.error.set('El reparto tiene saldo negativo. Un administrador debe rectificar la entrega antes del cierre.');
+      return;
+    }
+    if (quantity !== delivery.remaining_quantity) {
+      this.error.set('La descarga final debe coincidir con todos los huevos sobrantes.');
+      return;
+    }
     if (quantity > 0 && !this.returnUnit.value) { this.error.set('Seleccioná la UP donde descargar todos los sobrantes.'); return; }
     if (quantity > 0 && this.returnUnit.value) payload.return_production_unit_id = this.returnUnit.value;
     payload.notes = this.returnNotes.value.trim() || 'Cierre desde modo repartidor';

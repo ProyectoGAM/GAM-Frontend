@@ -25,10 +25,6 @@
         [routerLinkActiveOptions]="{ exact: false }" ariaCurrentWhenActive="page">
         <ion-icon class="group-icon" [name]="group.icon" aria-hidden="true" />
         <span>{{ group.label }}</span>
-
-        @if (group.id === 'resumen') {
-        <small>Próximamente</small>
-        }
       </a>
       } @else {
       <button class="group-toggle" type="button" [attr.aria-expanded]="isGroupExpanded(group.id)"
