@@ -2,7 +2,12 @@
   @if (flocks.state(); as current) {
     @if (current.status !== 'hidden') {
       <section class="panel" aria-label="Lotes por galpón">
-        <h3>Lotes por galpón</h3>
+        <header>
+          <h3><ion-icon [icon]="flocksIcon" aria-hidden="true" /> Lotes por galpón</h3>
+          @if (current.status !== 'forbidden') {
+            <a class="panel-link" routerLink="/administracion/lotes/lotes" [queryParams]="flockQuery()">Ver lotes</a>
+          }
+        </header>
         @switch (current.status) {
           @case ('loading') { <p role="status">Cargando lotes…</p> }
           @case ('forbidden') { <p>Sin permiso para consultar los lotes.</p> }
@@ -33,7 +38,7 @@
     }
   }
   <section class="panel" aria-label="Stock de raciones">
-    <h3>Stock de raciones</h3>
+    <h3><ion-icon [icon]="stockIcon" aria-hidden="true" /> Stock de raciones</h3>
     @if (stock.state(); as current) {
       @switch (current.status) {
         @case ('loading') { <p role="status">Cargando stock…</p> }

@@ -11,7 +11,7 @@ p { color: var(--gam-color-text-muted); }
 .breadcrumb { font-size: .8125rem; }
 .filters { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; }
 .filter {
-  position: relative; display: grid; width: min(100%, 14rem); min-height: 44px;
+  position: relative; display: grid; width: 14rem; max-width: 100%; min-height: 44px;
   border: 1px solid var(--gam-color-control-border); border-radius: .48rem;
   color: var(--gam-color-heading); background: var(--gam-color-surface);
 }

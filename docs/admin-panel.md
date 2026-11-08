@@ -24,9 +24,11 @@ Las entradas pendientes usan `AdminPlaceholderPage`. Para conectar una de esas e
 
 ## Resumen operativo
 
-`/administracion/resumen` abre la vista Global en cuentas personales. El filtro superior permite consultar una unidad productiva en el mismo bloque de indicadores. Las sesiones con PIN consultan el alcance de su unidad. Los indicadores históricos comparten un período inclusivo en America/Montevideo. Las aves vivas, las alertas abiertas y el stock de raciones reflejan el momento de consulta.
+`/administracion/resumen` toma la UP seleccionada en la barra lateral. Ambos selectores comparten la selección, incluida la vista Global para administradores. Las sesiones con PIN consultan el alcance de su unidad. Los indicadores históricos comparten un período inclusivo en America/Montevideo. Las aves vivas, las alertas abiertas y el stock de raciones reflejan el momento de consulta.
 
-El valor de mercadería entregada tiene alcance empresa. Los gastos se muestran por moneda y el resultado neto queda por validar. El stock de raciones y los lotes por galpón se muestran para una UP concreta.
+En Global, el bloque financiero muestra como ingresos por ventas el valor de mercadería entregada, junto a los gastos por moneda. Al filtrar por UP se muestran solo sus gastos. Las aves vivas y la mortalidad comparten otro bloque.
+
+El panel de alertas conserva el total y el desglose por urgencia. **Gestionar alertas** abre la vista operativa de la bandeja con el mismo alcance del Resumen; los avisos personales permanecen en su propia vista. Para una UP concreta, **Ver lotes** abre el listado existente con el filtro de esa unidad. El stock de raciones se mantiene en la vista por UP.
 
 ## Configuración de alertas
 

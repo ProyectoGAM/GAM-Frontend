@@ -1,6 +1,6 @@
 import { Component, computed, input, output } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
-import { barChartOutline, cashOutline, eggOutline, notificationsOutline, pulseOutline, walletOutline } from 'ionicons/icons';
+import { cashOutline, eggOutline, pulseOutline, walletOutline } from 'ionicons/icons';
 
 const icons = {
   eggs: eggOutline,
@@ -8,8 +8,6 @@ const icons = {
   birds: '',
   delivered: cashOutline,
   expenses: walletOutline,
-  result: barChartOutline,
-  alerts: notificationsOutline,
 };
 
 @Component({
@@ -44,9 +42,8 @@ const icons = {
   `,
   styles: [`
     :host {
-      display: flex; flex-direction: column; gap: .45rem; min-width: 0;
-      padding: .78rem .85rem; border: 1px solid var(--gam-color-border);
-      border-radius: .6rem; background: var(--gam-color-surface);
+      display: flex; flex-direction: column; justify-content: center;
+      gap: .3rem; min-width: 0; padding: .75rem 1rem;
     }
     .card-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .65rem; }
     .icon {
@@ -56,13 +53,13 @@ const icons = {
     .icon ion-icon, .icon svg { width: 1.25rem; height: 1.25rem; }
     .eggs { color: var(--gam-color-success); background: var(--gam-color-success-soft); }
     .mortality { color: var(--gam-color-danger); background: var(--gam-color-danger-soft); }
-    .result { color: var(--gam-color-finance); background: var(--gam-color-finance-soft); }
-    .alerts { color: var(--gam-color-warning); background: var(--gam-color-warning-soft); }
-    .reading { display: grid; gap: .15rem; }
+    .delivered { color: var(--gam-color-finance); background: var(--gam-color-finance-soft); }
+    .reading { display: grid; gap: .15rem; overflow-wrap: anywhere; }
     h3, p { margin: 0; font-size: .8125rem; line-height: 1.2; }
     h3 { color: var(--gam-color-text); font-weight: 550; }
     p { color: var(--gam-color-text-muted); }
-    .card-body { display: flex; flex-direction: column; flex: 1; gap: .2rem; }
+    .card-body { display: flex; flex-direction: column; gap: .2rem; }
+    .card-body:empty { display: none; }
     button {
       align-self: flex-start; min-height: 44px; padding: 0; background: transparent;
       color: var(--gam-color-primary); font-weight: 650;

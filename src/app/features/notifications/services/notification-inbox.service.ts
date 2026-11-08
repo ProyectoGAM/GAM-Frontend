@@ -8,7 +8,8 @@ import { ApiClient } from '../../../core/api/api-client';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { AppResumeService } from '../../../core/native/app-resume.service';
-import { AppNotification, NotificationPage, NotificationQuery, NotificationSummary } from '../interfaces/notification';
+import { AppNotification, NotificationPage, NotificationQuery, NotificationSummary, OperationalAlertPage } from '../interfaces/notification';
+import { NotificationUrgency } from '../types/notification.type';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationInboxService {
@@ -78,6 +79,10 @@ export class NotificationInboxService {
         estado_resolucion: view === 'resolved' ? 'resuelto' : 'vigente',
       },
     });
+  }
+
+  listOperational(unit: number | null, page: number, urgency?: NotificationUrgency) {
+    return this.api.get<OperationalAlertPage>('alertas-operativas', { params: { up_id: unit, page, urgencia: urgency } });
   }
 
   markRead(id: string) {

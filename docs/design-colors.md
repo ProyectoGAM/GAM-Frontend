@@ -41,8 +41,8 @@ El panel administrativo actual usa un lienzo claro (`#eef2f6`), barra superior c
 | `--gam-color-success` | Texto/icono de éxito | `#176b45` | `#9be5bd` |
 | `--gam-color-chart-first-point` | Verde decorativo del primer punto histórico de recolección; no comunica un estado ni agrega leyendas | `#176b45` | `#9be5bd` |
 | `--gam-color-chart-bar` | Barras de producción del resumen | `#5c8aad` | `#79a5cc` |
-| `--gam-color-finance` | Icono de ganancias y pérdidas del resumen | `#5141a6` | `#c9bdff` |
-| `--gam-color-finance-soft` | Fondo del icono de ganancias y pérdidas | `#edeafa` | `#38325d` |
+| `--gam-color-finance` | Icono de ingresos del resumen | `#5141a6` | `#c9bdff` |
+| `--gam-color-finance-soft` | Fondo del icono de ingresos | `#edeafa` | `#38325d` |
 | `--gam-color-success-soft` | Fondo de mensaje de éxito | `#e6f5ec` | `#183a2c` |
 | `--gam-color-warning` | Texto/icono de advertencia | `#8a5a00` | `#f4cc7a` |
 | `--gam-color-warning-soft` | Fondo de advertencia | `#fff2d6` | `#44351d` |

@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
-import { swapHorizontalOutline } from 'ionicons/icons';
+import { barChartOutline, notificationsOutline, swapHorizontalOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { formatUyuMoney } from '../../../shared/utils/uyu-money';
 import { hasAnyPermission } from '../../../core/auth/permission-keys';
@@ -13,7 +14,7 @@ import { SummaryProductionChartComponent } from './summary-production-chart.comp
 
 @Component({
   selector: 'app-summary-scope',
-  imports: [IonIcon, SummaryCardComponent, SummaryProductionChartComponent],
+  imports: [IonIcon, RouterLink, SummaryCardComponent, SummaryProductionChartComponent],
   templateUrl: './summary-scope.component.html',
   styleUrl: './summary-scope.component.scss',
 })
@@ -21,6 +22,7 @@ export class SummaryScopeComponent {
   readonly period = input.required<SummaryPeriod>();
   readonly unit = input<number | null>(null);
   readonly company = input(false);
+  readonly unitName = input<string>();
 
   private readonly api = inject(OperationalSummaryService);
   private readonly auth = inject(AuthStore);
@@ -46,6 +48,8 @@ export class SummaryScopeComponent {
     return rest ? equivalent + ' + ' + summaryNumber(rest) + ' ' + extraEggs : equivalent;
   });
   protected readonly cycleIcon = swapHorizontalOutline;
+  protected readonly chartIcon = barChartOutline;
+  protected readonly alertsIcon = notificationsOutline;
   protected readonly birds = summaryResource(() => this.allowed('can_view_flocks') ? this.scope() : null,
     ({ unit }) => this.api.liveBirds(unit));
   protected readonly mortality = summaryResource(() => this.allowed('can_view_mortality') ? this.rangeAndUnit() : null,
@@ -56,8 +60,11 @@ export class SummaryScopeComponent {
     'can_view_vehicle_maintenance') ? this.rangeAndUnit() : null, ({ period, unit }) => this.api.expenses(period, unit));
   protected readonly delivered = summaryResource(() => this.company() && this.allowed('can_view_reports')
     && this.allowed('can_view_delivery_history') ? this.period() : null, (period) => this.api.deliveredValue(period));
-  protected readonly showNetResult = computed(() => this.delivered.state().status !== 'hidden'
+  protected readonly showFinances = computed(() => this.delivered.state().status !== 'hidden'
     || this.expenses.state().status !== 'hidden');
+  protected readonly showBirdHealth = computed(() => this.birds.state().status !== 'hidden'
+    || this.mortality.state().status !== 'hidden');
+  protected readonly alertQuery = computed(() => ({ vista: 'operativas', up_id: this.unit() }));
 
   protected readonly hasIndicators = computed(() => [this.eggs, this.mortality, this.birds, this.delivered, this.expenses, this.alerts]
     .some((card) => card.state().status !== 'hidden'));

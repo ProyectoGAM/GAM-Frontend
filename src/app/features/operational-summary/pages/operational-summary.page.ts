@@ -1,4 +1,4 @@
-import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { calendarOutline, chevronDownOutline } from 'ionicons/icons';
 import { AuthStore } from '../../../core/auth/auth.store';
@@ -20,18 +20,17 @@ export class OperationalSummaryPage {
   protected readonly days = signal(7);
   protected readonly period = computed(() => summaryPeriod(this.days()));
   protected readonly pin = computed(() => this.auth.status() === 'shared_authenticated');
+  protected readonly canSelectGlobal = this.auth.isAdmin;
   protected readonly calendarIcon = calendarOutline;
   protected readonly chevronIcon = chevronDownOutline;
-  protected readonly selectedUnit = linkedSignal({
-    source: this.context.units,
-    computation: (units, previous): number | null => units.find((unit) => unit.id === previous?.value)?.id ?? null,
-  });
+  protected readonly selectedUnit = this.context.selectedId;
   protected readonly effectiveUnit = computed(() => this.pin() ? this.auth.user()?.up_id ?? null : this.selectedUnit());
-  protected readonly global = computed(() => !this.pin() && this.effectiveUnit() === null);
+  protected readonly global = computed(() => !this.pin() && this.canSelectGlobal() && this.effectiveUnit() === null);
+  protected readonly unitName = computed(() => this.context.units().find((unit) => unit.id === this.effectiveUnit())?.name);
   protected readonly title = computed(() => {
     if (this.pin()) return 'Tu unidad productiva';
     if (this.global()) return 'Resumen global';
-    return this.context.units().find((unit) => unit.id === this.effectiveUnit())?.name ?? 'Unidad productiva';
+    return this.unitName() ?? 'Unidad productiva';
   });
 
   protected updateDays(value: string): void {
@@ -40,6 +39,6 @@ export class OperationalSummaryPage {
   }
 
   protected updateUnit(value: string): void {
-    this.selectedUnit.set(this.context.units().find((unit) => unit.id === Number(value))?.id ?? null);
+    this.context.select(value === '' ? null : Number(value));
   }
 }

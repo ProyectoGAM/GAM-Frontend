@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { computed, signal, WritableSignal } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -71,7 +72,7 @@ describe('FlocksListPage', () => {
     TestBed.configureTestingModule({
       imports: [FlocksListPage],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'lotes', component: FlocksListPage }]),
         { provide: FlocksApi, useValue: { list: listFlocks } },
         { provide: FlockDetailService, useValue: { mortalityTotals: () => of(new Map()) } },
         { provide: ProductionUnitsService, useValue: { listAllPoultryHouses } },
@@ -97,6 +98,13 @@ describe('FlocksListPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   }
+
+  it('opens the lot list scoped to the UP from the summary link', async () => {
+    selectedUnitId.set(null);
+    const harness = await RouterTestingHarness.create('/lotes?up_id=7');
+    expect(listFlocks).toHaveBeenLastCalledWith({ production_unit_id: 7 });
+    expect(harness.routeNativeElement?.querySelector('.filter-chip')?.textContent).toContain('Granja Norte');
+  });
 
   it('shows flock code, resolved house and entry date with the global UP chip', async () => {
     await render();

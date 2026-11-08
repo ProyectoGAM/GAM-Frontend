@@ -1,7 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { AdminUnitSelectorComponent } from '../../admin/components/admin-unit-selector.component';
 import { AdminUnitContextService } from '../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
 import { OperationalSummaryPage } from '../pages/operational-summary.page';
@@ -35,11 +37,13 @@ describe('Operational summary scopes', () => {
       mortality: vi.fn().mockReturnValue(throwError(() => new Error('Offline'))),
       alerts: vi.fn().mockReturnValue(of({ total: 3, por_urgencia: { alto: 1, medio: 2, bajo: 0 } })),
       expenses: vi.fn().mockReturnValue(of({ totales: [], fuentes_sin_permiso: ['combustible'] })),
-      deliveredValue: vi.fn().mockReturnValue(of({ amount: null, deliveries: 1, unpriced: 1 })),
+      deliveredValue: vi.fn()
+        .mockReturnValueOnce(of({ amount: null, deliveries: 1, unpriced: 1 }))
+        .mockReturnValue(of({ amount: '1250', deliveries: 3, unpriced: 1 })),
     };
     await TestBed.configureTestingModule({
       imports: [SummaryScopeComponent],
-      providers: [{ provide: AuthStore, useValue: { user, isAdmin: () => true } },
+      providers: [provideRouter([]), { provide: AuthStore, useValue: { user, isAdmin: () => true } },
         { provide: OperationalSummaryService, useValue: api }],
     }).compileComponents();
     const fixture = TestBed.createComponent(SummaryScopeComponent);
@@ -53,11 +57,23 @@ describe('Operational summary scopes', () => {
     };
 
     expect(await render()).toContain('Importe desconocido');
+    const top = (fixture.nativeElement as HTMLElement).querySelector('.metrics')!;
+    expect((fixture.nativeElement as HTMLElement).querySelector('.chart-panel h3')?.textContent).toBe('Postura');
+    const health = top.querySelector('[aria-label="Aves vivas y mortalidad"]');
+    expect(health?.textContent).toContain('Aves vivas');
+    expect(health?.textContent).toContain('Mortalidad');
+    const finance = top.querySelector('[aria-label="Resumen financiero"]')!;
+    expect(Array.from(finance.querySelectorAll('h3'), (heading) => heading.textContent)).toEqual([
+      'Ingresos por ventas', 'Gastos registrados',
+    ]);
+    expect(top.textContent).not.toMatch(/Ganancias y pérdidas|Alertas pendientes/);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No se pudo cargar este indicador');
     expect(stale.observed).toBe(true);
 
     fixture.componentRef.setInput('period', nextPeriod);
     expect(await render()).toContain('185');
+    expect(finance.textContent).toContain('$1.250');
+    expect(finance.textContent).toContain('Subtotal parcial');
     const toggle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.equivalence-toggle')!;
     expect(toggle.textContent).toContain('6 × Maple + 5 huevos sueltos');
     toggle.click();
@@ -77,7 +93,8 @@ describe('Operational summary scopes', () => {
 
     fixture.componentRef.setInput('company', false);
     fixture.componentRef.setInput('unit', 12);
-    expect(await render()).not.toContain('Valor entregado');
+    await render();
+    expect(Array.from(finance.querySelectorAll('h3'), (heading) => heading.textContent)).toEqual(['Gastos registrados']);
     expect(api.eggs).toHaveBeenLastCalledWith(nextPeriod, 12);
     expect(api.alerts).toHaveBeenLastCalledWith(12);
     expect(api.expenses).toHaveBeenLastCalledWith(nextPeriod, 12);
@@ -87,28 +104,42 @@ describe('Operational summary scopes', () => {
     expect(api.deliveredValue).toHaveBeenCalledTimes(2);
   });
 
-  it('starts at Global and reuses the single summary when an UP is chosen', async () => {
+  it('opens with the sidebar UP, keeps both selectors in sync and carries the scope to its links', async () => {
     const birds = vi.fn((unit: number | null) => of({
       aves_vivas: unit === null ? 320 : 120, consultado_en: '2026-11-07T14:00:00-03:00',
     }));
     const alertCounts = vi.fn().mockReturnValue(of({ total: 3, por_urgencia: { alto: 1, medio: 2, bajo: 0 } }));
     const emptyPage = of({ data: [], meta: { current_page: 1, last_page: 1, total: 0 } });
     await TestBed.configureTestingModule({
-      imports: [OperationalSummaryPage],
+      imports: [OperationalSummaryPage, AdminUnitSelectorComponent],
       providers: [
+        provideRouter([]),
         { provide: AuthStore, useValue: {
           user: () => ({ permissions: ['can_view_flocks', 'can_view_notifications'] }),
-          isAdmin: () => false, status: () => 'personal_authenticated',
+          isAdmin: () => true, status: () => 'personal_authenticated',
         } },
-        { provide: AdminUnitContextService, useValue: {
-          units: signal([{ id: 12, name: 'UP San José' }]), state: signal('ready'), selectedId: signal(12),
+        AdminUnitContextService,
+        { provide: ProductionUnitsService, useValue: {
+          listAll: () => of([{ id: 12, name: 'UP San José' }, { id: 19, name: 'UP Santa Clara' }]),
+          poultryHouses: () => of([]),
         } },
-        { provide: ProductionUnitsService, useValue: { poultryHouses: () => of([]) } },
         { provide: OperationalSummaryService, useValue: {
           liveBirds: birds, alerts: alertCounts, flocks: () => emptyPage, feedBalances: () => emptyPage,
+          eggs: () => of(metrics(0)), eggPresentations: () => of([]), mortality: () => of({ bajas_registradas: 0, poblacion_referencia: 100, tasa_porcentual: 0 }),
+          expenses: () => of({ totales: [], fuentes_sin_permiso: [] }),
+          deliveredValue: () => of({ amount: '0', deliveries: 0, unpriced: 0 }),
         } },
       ],
     }).compileComponents();
+
+    const context = TestBed.inject(AdminUnitContextService);
+    await context.load();
+    const sidebar = TestBed.createComponent(AdminUnitSelectorComponent);
+    sidebar.componentRef.setInput('isAdmin', true);
+    sidebar.detectChanges();
+    const sidebarSelector = (sidebar.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select')!;
+    sidebarSelector.value = '12';
+    sidebarSelector.dispatchEvent(new Event('change'));
 
     const fixture = TestBed.createComponent(OperationalSummaryPage);
     const host = fixture.nativeElement as HTMLElement;
@@ -116,31 +147,37 @@ describe('Operational summary scopes', () => {
       fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
+      sidebar.detectChanges();
     };
 
     await render();
     const selector = host.querySelector<HTMLSelectElement>('#summary-unit')!;
     const summary = host.querySelector('app-summary-scope');
-    expect(selector.selectedOptions[0].textContent).toBe('Global');
-    expect(birds).toHaveBeenLastCalledWith(null);
-    expect(alertCounts).toHaveBeenLastCalledWith(null);
-    expect(host.querySelector('app-summary-unit-operations')).toBeNull();
-
-    selector.value = '12';
-    selector.dispatchEvent(new Event('change'));
-    await render();
-    expect(host.querySelectorAll('app-summary-scope')).toHaveLength(1);
-    expect(host.querySelector('app-summary-scope')).toBe(summary);
+    expect(selector.selectedOptions[0].textContent).toBe('UP San José');
     expect(birds).toHaveBeenLastCalledWith(12);
+    expect(birds).not.toHaveBeenCalledWith(null);
     expect(alertCounts).toHaveBeenLastCalledWith(12);
     expect(host.querySelector('app-summary-unit-operations')).not.toBeNull();
-    expect(host.querySelectorAll('a')).toHaveLength(0);
+    expect(Array.from(host.querySelectorAll('a'), (link) => link.getAttribute('href'))).toEqual([
+      '/administracion/notificaciones?vista=operativas&up_id=12',
+      '/administracion/lotes/lotes?up_id=12',
+    ]);
+
+    sidebarSelector.value = '19';
+    sidebarSelector.dispatchEvent(new Event('change'));
+    await render();
+    expect(selector.selectedOptions[0].textContent).toBe('UP Santa Clara');
+    expect(host.querySelector('.alert-panel')?.textContent).toContain('Por urgencia · UP Santa Clara');
+    expect(birds).toHaveBeenLastCalledWith(19);
 
     selector.value = '';
     selector.dispatchEvent(new Event('change'));
     await render();
     expect(host.querySelector('app-summary-scope')).toBe(summary);
+    expect(sidebarSelector.value).toBe('');
     expect(birds).toHaveBeenLastCalledWith(null);
+    expect(alertCounts).toHaveBeenLastCalledWith(null);
     expect(host.querySelector('app-summary-unit-operations')).toBeNull();
+    expect(host.querySelector('a')?.getAttribute('href')).toBe('/administracion/notificaciones?vista=operativas');
   });
 });

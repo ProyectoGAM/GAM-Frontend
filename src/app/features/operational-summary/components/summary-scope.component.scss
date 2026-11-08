@@ -1,14 +1,24 @@
 :host { display: block; container-type: inline-size; }
-.metrics, .overview { display: grid; gap: .7rem; }
-.metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); }
-.overview { margin-block-start: 1rem; gap: .85rem; }
+.metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 1fr;
+  border: 1px solid var(--gam-color-border);
+  border-radius: .6rem; background: var(--gam-color-surface);
+}
+.metrics:empty { display: none; }
+.metric-section { min-width: 0; }
+.metric-group { display: grid; grid-auto-rows: 1fr; }
+.metric-section + .metric-section, .metric-group > app-summary-card + app-summary-card {
+  border-block-start: 1px solid var(--gam-color-border);
+}
+.overview { display: grid; margin-block-start: 1rem; gap: .85rem; }
 .overview:empty { display: none; }
 .value {
   color: var(--gam-color-heading); font-size: clamp(1.125rem, 2cqi, 1.65rem);
   line-height: 1.13; font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
 }
 .value-text { font-size: 1rem; }
-.value-label { font-size: clamp(1rem, 1.65cqi, 1.35rem); }
 .expense-values { display: grid; gap: .2rem; }
 .hint { margin: 0; color: var(--gam-color-text-muted); font-size: .78rem; line-height: 1.3; }
 .trend > strong { color: inherit; }
@@ -28,11 +38,17 @@
 .equivalence-toggle span { min-width: 0; overflow-wrap: anywhere; }
 .equivalence-toggle ion-icon { flex: none; font-size: 1rem; }
 .equivalence-toggle:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
-.retry-expenses {
+.inline-action {
   align-self: flex-start; min-height: 44px; padding: 0; color: var(--gam-color-primary);
   background: transparent; font-weight: 650; cursor: pointer;
 }
-.retry-expenses:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
+.panel-link {
+  display: inline-flex; align-items: center; align-self: flex-start; min-height: 44px;
+  margin-block-start: .55rem; padding-inline: .7rem; border: 1px solid var(--gam-color-control-border);
+  border-radius: .4rem; color: var(--gam-color-primary); text-decoration: none; font-size: .875rem; font-weight: 650;
+}
+.panel-link:hover { background: var(--gam-color-primary-soft); }
+.panel-link:focus-visible, .inline-action:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
 dl, dd, h3 { margin: 0; }
 dt { font-size: .78rem; color: var(--gam-color-text-muted); }
 dd { font-size: 1.12rem; font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -45,6 +61,8 @@ header {
 }
 header { min-height: 44px; }
 h3 { font-size: clamp(1.08rem, 2cqi, 1.28rem); font-weight: 750; line-height: 1.2; color: var(--gam-color-heading); }
+.panel-heading { display: flex; align-items: flex-start; gap: .55rem; }
+.panel-heading ion-icon { flex: none; font-size: 1.25rem; color: var(--gam-color-heading); }
 .panel-state { color: var(--gam-color-text-muted); margin: auto 0; padding-block: 1.5rem; }
 .chart-totals {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -79,13 +97,20 @@ h3 { font-size: clamp(1.08rem, 2cqi, 1.28rem); font-weight: 750; line-height: 1.
   --urgency-background: var(--gam-color-warning-soft);
 }
 .severity-count { color: var(--urgency); background: var(--urgency-background); min-width: 2rem; text-align: center; font-weight: 750; }
-@container (min-width: 38rem) {
-  .metrics { grid-template-columns: repeat(auto-fit, minmax(calc((100% - 1.4rem) / 3), 1fr)); }
-}
 @container (min-width: 50rem) {
+  .metrics {
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    grid-auto-rows: auto;
+  }
+  .metric-section + .metric-section {
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--gam-color-border);
+  }
+  .egg-equivalence {
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    align-items: center;
+    gap: .5rem;
+  }
   .overview { grid-template-columns: minmax(0, 1.76fr) minmax(0, 1fr); }
   .overview > :only-child { grid-column: 1 / -1; }
-}
-@container (min-width: 63rem) {
-  .metrics { grid-template-columns: repeat(auto-fit, minmax(calc((100% - 3.5rem) / 6), 1fr)); }
 }

@@ -48,14 +48,27 @@
     @if (!allowed()) {
       <p>Tu cuenta no tiene acceso a las notificaciones.</p>
     } @else {
+      <div class="views" role="group" aria-label="Tipo de aviso">
+        <a [routerLink]="[]" [attr.aria-current]="!operational() ? 'page' : null">Avisos personales</a>
+        <a [routerLink]="[]" [queryParams]="{ vista: 'operativas', up_id: unit() }"
+          [attr.aria-current]="operational() ? 'page' : null">Alertas operativas</a>
+      </div>
+      @if (operational()) {
+        <div class="scope-label">
+          <p>Alcance: <strong>{{ unitName() }}</strong></p>
+          @if (unit() !== null && canClearUnit()) {
+            <a class="origin-link" [routerLink]="[]" [queryParams]="{ vista: 'operativas' }">Ver todas las UP</a>
+          }
+        </div>
+      }
       <div class="filters">
-        <label class="order">
+        @if (!operational()) { <label class="order">
           Ordenar por
           <select #orderSelect [value]="order()" (change)="setOrder(orderSelect.value)">
             <option value="urgencia">Urgencia</option>
             <option value="fecha">Más recientes</option>
           </select>
-        </label>
+        </label> }
         <div class="urgency-filter">
           <span id="notification-urgency-label">Filtrar por urgencia</span>
           <div class="urgencies" role="group" aria-labelledby="notification-urgency-label">
@@ -66,6 +79,30 @@
           </div>
         </div>
       </div>
+      @if (operational()) {
+        @if (operationalState().result; as result) {
+          <div class="results">
+            @for (alert of result.data; track alert.id) {
+              <article class="operational-row">
+                <app-notification-heading [notification]="{
+                  titulo: alert.titulo, modulo: alert.modulo, fecha: alert.ocurrida_en, urgencia: alert.urgencia
+                }" />
+                @if (alertOrigin(alert.entidad); as origin) {
+                  <a class="origin-link" [routerLink]="origin">Abrir registro</a>
+                }
+              </article>
+            } @empty {
+              <p class="state" role="status">No hay alertas operativas pendientes para este filtro.</p>
+            }
+          </div>
+          <ng-container *ngTemplateOutlet="pagination; context: { $implicit: result.meta.last_page }" />
+        } @else if (operationalState().failed) {
+          <p role="alert">No se pudieron cargar las alertas operativas.</p>
+          <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
+        } @else {
+          <p role="status">Cargando alertas operativas…</p>
+        }
+      } @else {
       <div class="views" role="group" aria-label="Vista de notificaciones">
         @for (option of views; track option.value) {
           <button type="button" [attr.aria-pressed]="view() === option.value"
@@ -107,21 +144,26 @@
             <p class="state" role="status">{{ emptyMessage() }}</p>
           }
         </div>
-        @if (result.meta.last_page > 1 || page() > 1) {
-          <nav aria-label="Páginas de notificaciones">
-            <ion-button size="small" fill="outline" [disabled]="page() === 1"
-              (click)="page.set(page() - 1)">Anterior</ion-button>
-            <span>Página {{ page() }}</span>
-            <ion-button size="small" fill="outline" [disabled]="page() >= result.meta.last_page"
-              (click)="page.set(page() + 1)">Siguiente</ion-button>
-          </nav>
-        }
+        <ng-container *ngTemplateOutlet="pagination; context: { $implicit: result.meta.last_page }" />
       } @else if (state().failed) {
         <p role="alert">No se pudo cargar la bandeja.</p>
         <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
       } @else {
         <p role="status">Cargando notificaciones…</p>
       }
+      }
     }
   </section>
+</ng-template>
+
+<ng-template #pagination let-lastPage>
+  @if (lastPage > 1 || page() > 1) {
+    <nav aria-label="Páginas de la bandeja">
+      <ion-button size="small" fill="outline" [disabled]="page() === 1"
+        (click)="page.set(page() - 1)">Anterior</ion-button>
+      <span>Página {{ page() }}</span>
+      <ion-button size="small" fill="outline" [disabled]="page() >= lastPage"
+        (click)="page.set(page() + 1)">Siguiente</ion-button>
+    </nav>
+  }
 </ng-template>

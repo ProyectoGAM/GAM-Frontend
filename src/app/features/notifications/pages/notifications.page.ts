@@ -2,19 +2,20 @@ import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input, linkedSignal, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonToolbar } from '@ionic/angular';
 import { catchError, map, of, startWith, Subject, switchMap } from 'rxjs';
 
 import { isAdminUser, postLoginPath } from '../../../core/auth/access-policy';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { hasAnyPermission } from '../../../core/auth/permission-keys';
+import { AdminUnitContextService } from '../../admin/services/admin-unit-context.service';
 import { feedingDate, formatFeedKg, snapshotRecipeName } from '../../flocks/services/feeding-summary';
 import { todayInLotsTimezone } from '../../flocks/services/flock-detail.service';
 import { FlockFeedingService } from '../../flocks/services/flock-feeding.service';
 import { AlertEditorDialogComponent } from '../components/alert-editor-dialog/alert-editor-dialog.component';
 import { NotificationHeadingComponent } from '../components/notification-heading.component';
-import { AppNotification, NotificationPage } from '../interfaces/notification';
+import { AppNotification, NotificationPage, OperationalAlertEpisode, OperationalAlertPage } from '../interfaces/notification';
 import { NotificationInboxService } from '../services/notification-inbox.service';
 import { NotificationOrder, NotificationUrgency, NotificationView } from '../types/notification.type';
 
@@ -41,12 +42,32 @@ export class NotificationsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly units = inject(AdminUnitContextService, { optional: true });
   private readonly markRequests = new Subject<string>();
 
   readonly embedded = input(false);
   readonly allowed = computed(() => this.auth.user()?.permissions.includes('can_view_notifications') === true);
   readonly returnPath = computed(() => postLoginPath(this.auth.user()));
-  readonly page = signal(1);
+  private readonly params = toSignal(this.route.queryParamMap, { requireSync: true });
+  protected readonly operational = computed(() => this.params().get('vista') === 'operativas');
+  protected readonly canClearUnit = computed(() => this.auth.user()?.up_id == null);
+  protected readonly unit = computed(() => {
+    const assigned = this.auth.user()?.up_id;
+    if (assigned != null) return assigned;
+    const id = Number(this.params().get('up_id'));
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  });
+  protected readonly unitName = computed(() => {
+    const id = this.unit();
+    return id === null ? 'Todas las UP' : this.units?.units().find((unit) => unit.id === id)?.name ?? `UP #${id}`;
+  });
+  readonly page = linkedSignal(() => {
+    this.operational();
+    this.unit();
+    return 1;
+  });
   readonly view = signal<NotificationView>('all');
   readonly order = signal<NotificationOrder>('urgencia');
   readonly urgency = signal<NotificationUrgency | undefined>(undefined);
@@ -77,21 +98,31 @@ export class NotificationsPage {
   private readonly retry = signal(0);
   private readonly query = computed(() => ({
     session: this.inbox.sessionId(), page: this.page(),
+    operational: this.operational(), unit: this.unit(),
     order: this.order(), urgency: this.urgency(), view: this.view(),
     version: this.inbox.version(), retry: this.retry(),
   }));
 
   readonly state = toSignal(toObservable(this.query).pipe(
-    switchMap(({ session, page, order, urgency, view }) => session ? this.inbox.list({ page, order, urgency, view }).pipe(
+    switchMap(({ session, operational, page, order, urgency, view }) => session && !operational ? this.inbox.list({ page, order, urgency, view }).pipe(
       map((result) => ({ result, failed: false })),
       startWith({ result: null, failed: false }),
       catchError(() => of({ result: null, failed: true })),
     ) : of({ result: null, failed: false })),
   ), { initialValue: { result: null as NotificationPage | null, failed: false } });
 
+  protected readonly operationalState = toSignal(toObservable(this.query).pipe(
+    switchMap(({ session, operational, unit, page, urgency }) => session && operational
+      ? this.inbox.listOperational(unit, page, urgency).pipe(
+        map((result) => ({ result, failed: false })),
+        startWith({ result: null, failed: false }),
+        catchError(() => of({ result: null, failed: true })),
+      ) : of({ result: null, failed: false })),
+  ), { initialValue: { result: null as OperationalAlertPage | null, failed: false } });
+
   constructor() {
     effect(() => {
-      const lastPage = this.state().result?.meta.last_page;
+      const lastPage = (this.operational() ? this.operationalState() : this.state()).result?.meta.last_page;
       if (lastPage && this.page() > lastPage) this.page.set(lastPage);
     });
     this.markRequests.pipe(
@@ -109,6 +140,14 @@ export class NotificationsPage {
         this.error.set('No se pudo marcar la notificación como leída.');
       }
     });
+  }
+
+  protected alertOrigin({ id, tipo, ruta }: OperationalAlertEpisode['entidad']) {
+    if (!ruta?.startsWith('/administracion/')) return null;
+    if (tipo === 'delivery' && ruta === '/administracion/repartos/repartos') {
+      return this.router.createUrlTree([ruta], { queryParams: { reparto: id } });
+    }
+    return this.router.parseUrl(ruta);
   }
 
   setView(view: NotificationView): void {

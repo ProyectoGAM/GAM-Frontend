@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +16,42 @@ import { NotificationInboxService } from '../services/notification-inbox.service
 import { NotificationsPage } from './notifications.page';
 
 describe('NotificationsPage', () => {
+  it('abre las alertas operativas de la UP solicitada y conserva el filtro por urgencia', async () => {
+    const personal = vi.fn();
+    const listOperational = vi.fn().mockReturnValue(of({
+      data: [{
+        id: 'episode-1', titulo: 'Saldo negativo', modulo: 'deliveries', urgencia: 'alto',
+        ocurrida_en: '2026-11-05T15:00:00Z', up_id: 12,
+        entidad: { tipo: 'delivery', id: 'delivery-1', ruta: '/administracion/repartos/repartos' },
+      }],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([{ path: 'notificaciones', component: NotificationsPage, data: { embedded: true } }]),
+        { provide: AuthStore, useValue: { user: () => ({ permissions: ['can_view_notifications'] }) } },
+        { provide: NotificationInboxService, useValue: {
+          list: personal, listOperational, version: signal(0), sessionId: () => 'session-1',
+        } },
+        { provide: FlockFeedingService, useValue: {} },
+      ],
+    });
+    const harness = await RouterTestingHarness.create('/notificaciones?vista=operativas&up_id=12');
+    const host = harness.routeNativeElement!;
+    expect(listOperational).toHaveBeenLastCalledWith(12, 1, undefined);
+    expect(personal).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('UP #12');
+    expect(host.querySelector('.operational-row a')?.getAttribute('href')).toBe('/administracion/repartos/repartos?reparto=delivery-1');
+    press(host, 'Alta');
+    await harness.fixture.whenStable();
+    expect(listOperational).toHaveBeenLastCalledWith(12, 1, 'alto');
+
+    await harness.navigateByUrl('/notificaciones?vista=operativas');
+    await harness.fixture.whenStable();
+    expect(listOperational).toHaveBeenLastCalledWith(null, 1, 'alto');
+    expect(harness.routeNativeElement?.textContent).toContain('Todas las UP');
+  });
+
   it('muestra una alerta resuelta en su pestaña después de la actualización en vivo', async () => {
     const alert: AppNotification = {
       id: 'alert-1',
