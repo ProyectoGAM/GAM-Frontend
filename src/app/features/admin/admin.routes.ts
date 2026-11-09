@@ -186,6 +186,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'razas') {
+                    return {
+                      path: item.slug,
+                      loadComponent: () => import('../flocks/pages/breeds/breeds.page').then((module) => module.BreedsPage),
+                    };
+                  }
+
                   if (group.id === 'manejo-lotes' && item.slug === 'vacunacion') {
                     return {
                       path: item.slug,

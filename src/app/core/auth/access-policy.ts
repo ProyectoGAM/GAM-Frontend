@@ -57,6 +57,7 @@ const adminItems: Readonly<Record<AdminGroup, Readonly<Record<string, readonly s
     vacunacion: ['can_manage_management_plans'],
     medicacion: ['can_manage_management_plans'],
     Recetas: ['can_view_feed_recipes', 'can_manage_feed_recipes'],
+    razas: ['can_view_breeds'],
   },
   repartos: { repartos: ['can_view_delivery_history', 'can_monitor_deliveries'] },
   vehiculos: { '': [

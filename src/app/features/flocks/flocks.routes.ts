@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import type { FlockFractionationPage } from './pages/flock-fractionation/flock-fractionation.page';
 import type { FlockHealthPage } from './pages/flock-health/flock-health.page';
+import type { FlockBeakTrimmingsPage } from './pages/flock-beak-trimmings/flock-beak-trimmings.page';
 
 export const flocksRoutes: Routes = [
   {
@@ -37,6 +38,11 @@ export const flocksRoutes: Routes = [
     path: ':id/sanidad',
     loadComponent: () => import('./pages/flock-health/flock-health.page').then((module) => module.FlockHealthPage),
     canDeactivate: [(page: FlockHealthPage) => page.canLeave()],
+  },
+  {
+    path: ':id/despiques',
+    loadComponent: () => import('./pages/flock-beak-trimmings/flock-beak-trimmings.page').then((module) => module.FlockBeakTrimmingsPage),
+    canDeactivate: [(page: FlockBeakTrimmingsPage) => page.canLeave()],
   },
   {
     path: ':id/fraccionar',
