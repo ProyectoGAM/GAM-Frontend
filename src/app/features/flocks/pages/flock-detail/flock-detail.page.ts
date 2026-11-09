@@ -6,7 +6,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
-  arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
+  arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
   eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
 } from 'ionicons/icons';
 import { Observable } from 'rxjs';
@@ -26,6 +26,7 @@ import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-de
 import { feedingDate } from '../../services/feeding-summary';
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { FlockStatusService } from '../../services/flock-status.service';
+import { canViewBeakTrimmings } from '../../services/flock-beak-trimming';
 import { FlockStatusDialogComponent } from '../../components/flock-status-dialog/flock-status-dialog.component';
 import { FlockFinalizationRequest, FlockStatusRequest } from '../../interfaces/flock-status.interface';
 
@@ -56,6 +57,7 @@ export class FlockDetailPage {
   readonly canFinalizeStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.finalize') === true);
   readonly canEditStatus = computed(() => this.canManageStatus() || this.canFinalizeStatus());
   readonly canViewHealth = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('management-plans.view') === true);
+  readonly canViewBeakTrimmings = computed(() => canViewBeakTrimmings(this.auth.user()));
   readonly statusSaving = signal(false);
   readonly statusUncertain = signal(false);
   readonly statusConflict = signal(false);
@@ -131,7 +133,7 @@ export class FlockDetailPage {
       if (dialog?.open) dialog.close();
     });
     addIcons({
-      arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
+      arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
       eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
     });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {

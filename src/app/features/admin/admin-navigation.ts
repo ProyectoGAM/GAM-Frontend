@@ -99,6 +99,7 @@ const navigation: readonly Omit<AdminNavigationGroup, 'section'>[] = [
       { label: 'Vacunación', slug: 'vacunacion' },
       { label: 'Medicación', slug: 'medicacion' },
       { label: 'Recetas', slug: 'Recetas' },
+      { label: 'Razas', slug: 'razas' },
     ],
   },
   {

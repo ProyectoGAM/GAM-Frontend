@@ -1,0 +1,85 @@
+<section class="breeds-page" aria-labelledby="breeds-title">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">MANEJO DE LOTES</p>
+      <h1 #heading id="breeds-title" tabindex="-1">Razas</h1>
+      <p class="lead">Consultá las razas y sus rangos de peso esperado por etapa.</p>
+    </div>
+    @if (canManage()) {
+      <button type="button" class="button primary" (click)="openEditor(null)">
+        <ion-icon name="add-outline" aria-hidden="true" /> Nueva raza
+      </button>
+    }
+  </header>
+  <p class="global-note"><ion-icon name="globe-outline" aria-hidden="true" /> Catálogo global · Disponible para todas las unidades productivas</p>
+  @if (success()) { <p class="feedback success" role="status">{{ success() }}</p> }
+  @if (state().forbidden) {
+    <p class="feedback error" role="alert">Tu cuenta no tiene permiso para consultar razas.</p>
+  } @else {
+    <div class="tools">
+      <label class="search">
+        <ion-icon name="search-outline" aria-hidden="true" />
+        <input #search type="search" aria-label="Buscar raza por nombre" placeholder="Buscar por nombre"
+          autocomplete="off" maxlength="120" [value]="searchInput()" (input)="searchInput.set(search.value)" />
+      </label>
+      <label class="status-filter">Estado
+        <select #statusSelect [value]="status()" (change)="selectStatus(statusSelect.value)">
+          <option value="">Todas</option><option value="active">Activas</option><option value="inactive">Inactivas</option>
+        </select>
+      </label>
+    </div>
+    @if (state().result; as result) {
+      <p class="count" role="status">{{ result.meta.total }} {{ result.meta.total === 1 ? 'raza' : 'razas' }}</p>
+      @if (rows().length) {
+        <div class="table-card">
+          <table aria-label="Catálogo global de razas y rangos en gramos por ave">
+            <thead>
+              <tr>
+                <th scope="col">Raza</th><th scope="col">Pollitos</th><th scope="col">Adultas</th><th scope="col">Estado</th>
+                @if (canManage()) { <th scope="col"><span class="sr-only">Acciones</span></th> }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.breed.id) {
+                <tr>
+                  <td class="name">{{ row.breed.name }}</td>
+                  <td class="chick">
+                    <small class="mobile-label">Pollitos</small><strong>{{ row.chick.weight }}</strong>
+                    @if (row.chick.source) { <small>{{ row.chick.source }}</small> }
+                  </td>
+                  <td class="adult">
+                    <small class="mobile-label">Adultas</small><strong>{{ row.adult.weight }}</strong>
+                    @if (row.adult.source) { <small>{{ row.adult.source }}</small> }
+                  </td>
+                  <td class="state-cell">
+                    <span class="badge" [class.inactive]="row.breed.status === 'inactive'">{{ row.breed.status === 'active' ? 'Activa' : 'Inactiva' }}</span>
+                  </td>
+                  @if (canManage()) {
+                    <td class="action-cell">
+                      <button type="button" class="edit" [attr.aria-label]="'Editar ' + row.breed.name" (click)="openEditor(row.breed)">Editar</button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="feedback">{{ hasFilters() ? 'No hay razas que coincidan con el nombre o estado.' : 'Todavía no hay razas registradas.' }}</p>
+      }
+      @if (result.meta.last_page > 1) {
+        <nav class="pagination" aria-label="Páginas de razas">
+          <button type="button" class="button" [disabled]="page() <= 1" (click)="page.set(page() - 1)">Anterior</button>
+          <span>Página {{ result.meta.current_page }} de {{ result.meta.last_page }}</span>
+          <button type="button" class="button" [disabled]="page() >= result.meta.last_page" (click)="page.set(page() + 1)">Siguiente</button>
+        </nav>
+      }
+    } @else if (state().error) {
+      <div class="feedback error"><p role="alert">{{ state().error }}</p><button type="button" class="button" (click)="reload()">Reintentar</button></div>
+    } @else {
+      <p class="feedback" role="status">Cargando razas…</p>
+    }
+  }
+  <app-breed-editor-dialog [references]="references()" [saving]="saving()" [conflict]="conflict()" [retryOnly]="retryOnly()"
+    [serverError]="saveError()" (saveRequested)="save($event)" />
+</section>

@@ -108,7 +108,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(29);
+    ).toBe(30);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
@@ -145,6 +145,12 @@ describe('admin navigation visibility', () => {
     expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
     expect(visibleAdminNavigation(reader)[1]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
     expect(firstVisibleAdminPath(reader)).toBe('/administracion/acceso-rapido');
+  });
+
+  it('shows Razas under Manejo de Lotes with the breed catalogue grant', () => {
+    const reader = { roles: ['employee'], permissions: ['can_view_breeds'] };
+    const group = visibleAdminNavigation(reader).find(({ id }) => id === 'manejo-lotes');
+    expect(group?.items).toEqual([{ label: 'Razas', slug: 'razas' }]);
   });
 
   it('shows the farmer’s contracted modules and limits their items to permitted entries', () => {
@@ -235,11 +241,14 @@ describe('admin navigation visibility', () => {
     const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
     const flocksRoutes = await loader?.();
 
-    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id/sanidad', ':id/fraccionar', ':id', '']);
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id/sanidad', ':id/despiques', ':id/fraccionar', ':id', '']);
     expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.[1]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.find((route) => route.path === ':id/alimentacion')?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.find((route) => route.path === ':id/sanidad')?.loadComponent).toBeTypeOf('function');
+    const beakTrimmings = flocksRoutes?.find((route) => route.path === ':id/despiques');
+    expect(beakTrimmings?.loadComponent).toBeTypeOf('function');
+    expect(beakTrimmings?.canDeactivate).toHaveLength(1);
   });
 
   it('opens the maintenance directory and its guarded installation history from Instalaciones', async () => {
