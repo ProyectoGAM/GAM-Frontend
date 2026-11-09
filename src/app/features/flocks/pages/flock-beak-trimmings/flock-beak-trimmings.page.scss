@@ -13,7 +13,6 @@ button {
 }
 button:disabled { opacity: .6; cursor: default; }
 .primary { background: var(--gam-color-primary); color: var(--gam-color-on-primary); border-color: var(--gam-color-primary); }
-.danger { background: var(--gam-color-danger); color: var(--gam-color-on-danger); border-color: var(--gam-color-danger); }
 .history { display: grid; gap: 10px; margin: 12px 0; padding: 0; list-style: none; }
 .record, .feedback { padding: 12px; border: 1px solid var(--gam-color-border); border-radius: 9px; background: var(--gam-color-surface); }
 .record { display: grid; gap: 8px; }
@@ -33,23 +32,4 @@ button:disabled { opacity: .6; cursor: default; }
 .error { background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
 .success { background: var(--gam-color-success-soft); color: var(--gam-color-success); }
 
-.despique-dialog {
-  box-sizing: border-box; inline-size: min(calc(100% - 24px), 33rem);
-  max-block-size: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
-  margin: auto; padding: clamp(14px, 3vw, 24px); overflow: auto; overscroll-behavior: contain;
-  border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-text);
-}
-.despique-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 62%, transparent); }
-.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 10px; }
-.dialog-heading h2 { font-size: clamp(1.25rem, 5vw, 1.5rem); }
-.close { flex: 0 0 44px; padding: 0; border-color: transparent; font-size: 1.25rem; }
-.fields { display: grid; gap: 10px; min-inline-size: 0; padding: 0; margin: 0; border: 0; }
-label { display: grid; gap: 4px; min-inline-size: 0; color: var(--gam-color-heading); font-weight: 700; }
-input, textarea, select {
-  box-sizing: border-box; min-inline-size: 0; inline-size: 100%; min-block-size: 44px; padding: 6px 8px;
-  border: 1px solid var(--gam-color-control-border); border-radius: 7px; background: var(--gam-color-surface);
-  color: var(--gam-color-text); font: inherit; font-size: 1rem; font-weight: 400;
-}
-textarea { resize: vertical; }
-.actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; margin-block-start: 16px; }
-:is(a, button, input, textarea, select):focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }

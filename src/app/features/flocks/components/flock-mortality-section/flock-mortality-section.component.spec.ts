@@ -115,20 +115,29 @@ describe('FlockMortalitySectionComponent', () => {
     expect(component.pendingConfirmation()?.balance).toBe(-5);
   });
 
-  it('shows exact reasons without interpreting text as HTML and recalculates fixed period summaries', () => {
+  it('offers week, month and all history, recalculating summaries and rendering reasons as text', () => {
     const fixture = setup();
     fixture.componentRef.setInput('records', [{ id: '1', version: 1, quantity: 4, occurred_at: '2026-10-07T12:00:00Z',
       notes: '<img src=x onerror=alert(1)>', status: 'recorded' },
-    { id: '2', version: 1, quantity: 7, occurred_at: '2026-09-10T12:00:00Z', notes: 'Lesión', status: 'recorded' }]);
+    { id: '2', version: 1, quantity: 7, occurred_at: '2026-08-10T12:00:00Z', notes: 'Lesión', status: 'recorded' },
+    { id: '3', version: 1, quantity: 10, occurred_at: '2026-03-10T12:00:00Z', notes: 'Enfermedad', status: 'recorded' }]);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('tbody').textContent).toContain('<img src=x onerror=alert(1)>');
     expect(fixture.nativeElement.querySelector('tbody img')).toBeNull();
     expect(fixture.componentInstance.leaders()[0].quantity).toBe(4);
-    fixture.componentInstance.changePeriod('month');
+    const filters: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.segments button'));
+    expect(filters.map((button) => button.textContent?.trim())).toEqual(['Semana', 'Mes', 'Histórico']);
+    expect(filters[0].getAttribute('aria-pressed')).toBe('true');
+    filters[1].click();
     fixture.detectChanges();
     expect(fixture.componentInstance.leaders()[0]).toEqual({ reason: 'Lesión', quantity: 7 });
     expect(fixture.nativeElement.querySelectorAll('.period-filter input')).toHaveLength(0);
     expect(fixture.nativeElement.querySelectorAll('tbody tr')).toHaveLength(2);
+    filters[2].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.leaders()[0]).toEqual({ reason: 'Enfermedad', quantity: 10 });
+    expect(fixture.nativeElement.querySelectorAll('tbody tr')).toHaveLength(3);
+    expect(filters[2].getAttribute('aria-pressed')).toBe('true');
   });
 
   it('reports inaccessible data distinctly and offers retry without fabricating zeros', () => {

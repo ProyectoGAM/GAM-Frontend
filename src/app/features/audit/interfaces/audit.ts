@@ -43,7 +43,10 @@ export interface AuditAction {
   label: string;
   available: boolean;
   reason: string | null;
-  target: { resource: string; id: number | string; flock_id?: string; production_unit_id?: number };
+  target: {
+    resource: string; id: number | string; flock_id?: string; production_unit_id?: number;
+    version?: number; destination_version?: number; status?: string;
+  };
 }
 
 export interface AuditDetail extends AuditRecord {

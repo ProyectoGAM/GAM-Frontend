@@ -27,6 +27,7 @@ const overview: FlockFeedingOverview = {
 describe('FlockDetailPage feeding overview', () => {
   const changeStatus = vi.fn<FlockStatusService['change']>();
   const finalize = vi.fn<FlockStatusService['finalize']>();
+  const update = vi.fn<FlockDetailService['update']>();
   const user = signal({ id: 1, roles: ['admin'], permissions: [] as string[] });
   const loadOverview = vi.fn<FlockFeedingService['overview']>();
   let queryParamMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
@@ -36,13 +37,14 @@ describe('FlockDetailPage feeding overview', () => {
     loadOverview.mockReset().mockReturnValue(of(overview));
     changeStatus.mockReset();
     finalize.mockReset();
+    update.mockReset();
     user.set({ id: 1, roles: ['admin'], permissions: [] });
     TestBed.configureTestingModule({ imports: [FlockDetailPage], providers: [provideRouter([]),
       { provide: AuthStore, useValue: { user, session: signal(null) } },
       { provide: FlockStatusService, useValue: { change: changeStatus, finalize } },
       { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: flock.id })), queryParamMap } },
       { provide: FlockDetailService, useValue: {
-        flock: () => of(flock), mortalityTotal: () => of(0), latestWeighing: () => of(null),
+        flock: () => of(flock), update, mortalityTotal: () => of(0), latestWeighing: () => of(null),
       } },
       { provide: FlockFeedingService, useValue: { overview: loadOverview } },
       { provide: FlockCollectionsService, useValue: { summary: () => of(null) } },
@@ -59,6 +61,73 @@ describe('FlockDetailPage feeding overview', () => {
     return { fixture, page: fixture.componentInstance,
       card: fixture.nativeElement.querySelector('.feeding-card') as HTMLElement };
   };
+
+  function editorControls(host: HTMLElement) {
+    const dialog = host.querySelector<HTMLDialogElement>('.flock-editor-dialog')!;
+    dialog.showModal = () => dialog.setAttribute('open', '');
+    dialog.close = () => dialog.removeAttribute('open');
+    const trigger = [...host.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Editar lote');
+    return { dialog, trigger, code: dialog.querySelector<HTMLInputElement>('input')!, notes: dialog.querySelector<HTMLTextAreaElement>('textarea')!,
+      submit: dialog.querySelector<HTMLButtonElement>('button[type="submit"]')! };
+  }
+
+  function fill(field: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+    field.value = value;
+    field.dispatchEvent(new Event('input'));
+  }
+
+  it('edits code and notes in a modal and applies the saved version without losing grouping', async () => {
+    const { fixture, page } = await setup();
+    page.flock.set({ ...flock, notes: 'Observación inicial' });
+    fixture.detectChanges();
+    const { dialog, trigger, code, notes, submit } = editorControls(fixture.nativeElement);
+    expect(fixture.nativeElement.querySelector('#alerts-title')).toBeNull();
+    trigger!.click(); fixture.detectChanges();
+    expect(dialog.open).toBe(true);
+    expect(code.value).toBe(flock.code);
+    expect(notes.value).toBe('Observación inicial');
+    expect(submit.disabled).toBe(true);
+    fill(code, 'sin espacios?'); fixture.detectChanges();
+    submit.click(); fixture.detectChanges();
+    expect(code.getAttribute('aria-invalid')).toBe('true');
+    expect(update).not.toHaveBeenCalled();
+    fill(code, ' lote-025 '); fill(notes, ''); fixture.detectChanges();
+    const snapshot = { ...flock, code: 'LOTE-025', notes: null, version: 3 };
+    Reflect.deleteProperty(snapshot, 'is_grouped');
+    update.mockReturnValue(of(snapshot));
+    submit.click(); fixture.detectChanges();
+    expect(update).toHaveBeenCalledExactlyOnceWith(flock.id, { code: 'LOTE-025', notes: null, version: 2 }, expect.any(String));
+    expect(page.flock()).toMatchObject({ code: 'LOTE-025', version: 3, is_grouped: true });
+    expect(fixture.nativeElement.querySelector('#flock-title').textContent).toContain('LOTE-025');
+    expect(dialog.open).toBe(false);
+  });
+
+  it('retries an uncertain edit with the same version, payload and idempotency key', async () => {
+    const { fixture } = await setup();
+    const { dialog, trigger, notes, submit } = editorControls(fixture.nativeElement);
+    update.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })))
+      .mockReturnValueOnce(of({ ...flock, notes: 'Revisado', version: 3 }));
+    trigger!.click(); fixture.detectChanges();
+    fill(notes, 'Revisado'); fixture.detectChanges();
+    submit.click(); fixture.detectChanges();
+    expect(dialog.open).toBe(true);
+    expect(notes.matches(':disabled')).toBe(true);
+    expect(submit.textContent).toContain('Reintentar guardado');
+    submit.click(); fixture.detectChanges();
+    expect(update.mock.calls).toHaveLength(2);
+    expect(update.mock.calls[0]).toEqual(update.mock.calls[1]);
+    expect(update.mock.calls[0][1]).toEqual({ notes: 'Revisado', version: 2 });
+    expect(dialog.open).toBe(false);
+  });
+
+  it('hides the editor for finished flocks and users without manage permission', async () => {
+    const { fixture, page } = await setup();
+    page.flock.set({ ...flock, status: 'finished' }); fixture.detectChanges();
+    expect(editorControls(fixture.nativeElement).trigger).toBeUndefined();
+    page.flock.set(flock);
+    user.set({ id: 1, roles: [], permissions: ['flocks.finalize'] }); fixture.detectChanges();
+    expect(editorControls(fixture.nativeElement).trigger).toBeUndefined();
+  });
 
   it('opens health history from the detail and hides its entry without history permission', async () => {
     const { fixture } = await setup();

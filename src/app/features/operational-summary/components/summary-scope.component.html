@@ -39,7 +39,7 @@
     }
   }
   @if (showBirdHealth()) {
-    <div class="metric-section metric-group" role="group" aria-label="Aves vivas y mortalidad">
+    <div class="metric-section metric-group" role="group" aria-label="Aves vivas y mortandad">
       @if (birds.state(); as card) {
         @if (card.status !== 'hidden') {
           <app-summary-card label="Aves vivas" symbol="birds" [status]="card.status" (retry)="birds.reload()">
@@ -53,7 +53,7 @@
       @if (mortality.state(); as card) {
         @if (card.status !== 'hidden') {
           @let percentage = card.data?.tasa_porcentual ?? null;
-          <app-summary-card label="Mortalidad" symbol="mortality" [status]="card.status" (retry)="mortality.reload()">
+          <app-summary-card label="Mortandad" symbol="mortality" [status]="card.status" (retry)="mortality.reload()">
             <strong summaryValue class="value">{{ percentage === null ? '—' : number(percentage) + ' %' }}</strong>
             @if (card.data; as rate) {
               @switch (rate.estado_tasa) {

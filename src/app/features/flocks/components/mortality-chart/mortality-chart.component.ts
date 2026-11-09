@@ -62,7 +62,7 @@ export class MortalityChartComponent {
         xAxis: { type: 'category', data: points.map((point) => point.label), boundaryGap: true,
           name: 'Fecha', nameLocation: 'middle', nameGap: 44, nameTextStyle: { color: muted },
           axisLine: { lineStyle: { color: muted } }, axisTick: { show: false },
-          axisLabel: { color: muted, interval: 0, rotate: width < 500 ? 35 : 0, fontSize: width < 500 ? 10 : 12 } },
+          axisLabel: { color: muted, interval: 'auto', rotate: width < 500 ? 35 : 0, fontSize: width < 500 ? 10 : 12 } },
         yAxis: { type: 'value', min: 0, minInterval: 1, max: Math.max(1, ...points.map((point) => point.quantity)),
           name: 'Gallinas fallecidas', nameLocation: 'middle', nameGap: 36, nameTextStyle: { color: muted },
           axisLabel: { color: muted }, splitLine: { lineStyle: { color: color('border') } } },

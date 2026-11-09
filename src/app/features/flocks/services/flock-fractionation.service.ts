@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
-import { FractionationContext, FractionationRequest, FractionationResult } from '../interfaces/flock-fractionation.interface';
+import { FractionationContext, FractionationRequest, FractionationResult, ReverseFractionationRequest } from '../interfaces/flock-fractionation.interface';
 import { FlockDetailService } from './flock-detail.service';
 import { FlocksApi } from './flocks.api';
 
@@ -25,5 +25,11 @@ export class FlockFractionationService {
     return this.api.post<{ data: FractionationResult }, FractionationRequest>(
       `flocks/${encodeURIComponent(id)}/redistributions`, body, { headers: { 'Idempotency-Key': key } },
     ).pipe(map((response) => response.data));
+  }
+
+  reverse(id: string, body: ReverseFractionationRequest, key: string): Observable<unknown> {
+    return this.api.post<unknown, ReverseFractionationRequest>(
+      `redistributions/${encodeURIComponent(id)}/reversals`, body, { headers: { 'Idempotency-Key': key } },
+    );
   }
 }

@@ -8,7 +8,7 @@
       @if (state()?.result?.flock; as flock) { <p>Lote {{ flock.code }}</p> }
     </div>
     @if (canRecord()) {
-      <button class="primary" type="button" (click)="openRecord()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar despique</button>
+      <button class="primary" type="button" (click)="editor.openRecord()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar despique</button>
     }
   </header>
 
@@ -35,7 +35,7 @@
                   @if (reversal.reason) { <p>{{ reversal.reason }}</p> }
                 </div>
               } @else if (canReverse() && !row.antecedent) {
-                <button type="button" class="reverse-action" (click)="openReverse(row)"
+                <button type="button" class="reverse-action" (click)="editor.openReverse(row)"
                   [attr.aria-label]="'Revertir registro del ' + row.date">Revertir registro</button>
               }
             </li>
@@ -57,42 +57,6 @@
     <p class="feedback" role="status">Cargando despiques…</p>
   }
 
-  <dialog #dialog class="despique-dialog" aria-labelledby="beak-editor-title" (cancel)="cancel($event)">
-    @if (editor(); as draft) {
-      <header class="dialog-heading">
-        <h2 id="beak-editor-title" tabindex="-1" autofocus>{{ draft.kind === 'record' ? 'Registrar despique' : 'Revertir registro' }}</h2>
-        <button class="close" type="button" aria-label="Cerrar formulario" [disabled]="saving() || uncertain()" (click)="cancel()">
-          <ion-icon name="close-outline" aria-hidden="true" />
-        </button>
-      </header>
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <fieldset class="fields" [disabled]="saving() || uncertain()">
-          @if (draft.kind === 'record') {
-            <label>Fecha<input type="date" formControlName="date" [max]="today()" required /></label>
-            <label>Hora<input type="time" formControlName="time" required /></label>
-            @if (activities().length) {
-              <label>Actividad del plan (opcional)
-                <select formControlName="activity">
-                  <option value="">Sin vincular</option>
-                  @for (activity of activities(); track activity.id) { <option [value]="activity.id">{{ activity.title }}</option> }
-                </select>
-              </label>
-            }
-            <label>Observaciones (opcional)<textarea formControlName="notes" maxlength="5000" rows="3"></textarea></label>
-            <p class="muted">Responsable · {{ currentUser() }}</p>
-          } @else {
-            <p class="muted">Despique del {{ draft.row.date }}. El registro original se conserva en el historial.</p>
-            <label>Motivo de reversión<textarea formControlName="reason" maxlength="500" rows="3" required></textarea></label>
-          }
-        </fieldset>
-        @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
-        <div class="actions">
-          <button type="button" [disabled]="saving() || uncertain()" (click)="cancel()">Cancelar</button>
-          <button type="submit" [class.primary]="draft.kind === 'record'" [class.danger]="draft.kind === 'reverse'" [disabled]="saving()">
-            {{ saving() ? 'Guardando…' : uncertain() ? 'Reintentar guardado' : draft.kind === 'record' ? 'Guardar despique' : 'Revertir registro' }}
-          </button>
-        </div>
-      </form>
-    }
-  </dialog>
+  <app-beak-trimming-dialog #editor [flockId]="flockId()" [flock]="state()?.result?.flock ?? null"
+    [rows]="state()?.result?.rows ?? []" (saved)="onSaved($event)" (conflict)="reload()" />
 </section>

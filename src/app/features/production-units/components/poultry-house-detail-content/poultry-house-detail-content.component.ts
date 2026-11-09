@@ -27,6 +27,7 @@ export class PoultryHouseDetailContentComponent {
   readonly mortalities = input<ReadonlyMap<string, DetailMetric<number>>>(new Map());
   readonly state = input.required<'loading' | 'success' | 'error'>();
   readonly canAddLot = input(false);
+  readonly canRecordBeakTrimming = input(false);
   readonly addLot = output<void>();
   readonly retry = output<void>();
   readonly taskRequested = output<FlockHouseTaskAction>();

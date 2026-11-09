@@ -42,4 +42,14 @@ describe('FlockFractionationService', () => {
     request.flush({ data: operation });
     expect(result).toHaveBeenCalledExactlyOnceWith(operation);
   });
+
+  it('reverses the original movement with both versions and its idempotency key', () => {
+    const body = { version: 2, destination_version: 8, reason: 'Destino incorrecto' };
+    TestBed.inject(FlockFractionationService).reverse('movement/id', body, 'reversal-key').subscribe();
+    const request = TestBed.inject(HttpTestingController).expectOne('/api/v1/redistributions/movement%2Fid/reversals');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('Idempotency-Key')).toBe('reversal-key');
+    expect(request.request.body).toEqual(body);
+    request.flush({ data: { operation_id: 'op' } });
+  });
 });

@@ -59,9 +59,9 @@ describe('Operational summary scopes', () => {
     expect(await render()).toContain('Importe desconocido');
     const top = (fixture.nativeElement as HTMLElement).querySelector('.metrics')!;
     expect((fixture.nativeElement as HTMLElement).querySelector('.chart-panel h3')?.textContent).toBe('Postura');
-    const health = top.querySelector('[aria-label="Aves vivas y mortalidad"]');
+    const health = top.querySelector('[aria-label="Aves vivas y mortandad"]');
     expect(health?.textContent).toContain('Aves vivas');
-    expect(health?.textContent).toContain('Mortalidad');
+    expect(health?.textContent).toContain('Mortandad');
     const finance = top.querySelector('[aria-label="Resumen financiero"]')!;
     expect(Array.from(finance.querySelectorAll('h3'), (heading) => heading.textContent)).toEqual([
       'Ingresos por ventas', 'Gastos registrados',

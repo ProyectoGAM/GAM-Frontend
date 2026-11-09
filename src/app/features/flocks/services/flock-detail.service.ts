@@ -4,7 +4,7 @@ import { catchError, concatMap, forkJoin, from, map, mergeMap, Observable, of, s
 import { ApiClient } from '../../../core/api/api-client';
 import { DetailMetric, EggHistorySummary, EggMetrics, FlockLatestWeighing } from '../interfaces/flock-detail.interface';
 import { DailyWeighingPage } from '../interfaces/flock-weighing.interface';
-import { Flock } from '../interfaces/flock.interface';
+import { Flock, UpdateFlockRequest } from '../interfaces/flock.interface';
 
 interface Envelope<T> { data: T }
 interface Page<T> { data: T[]; meta: { last_page: number } }
@@ -47,6 +47,12 @@ export class FlockDetailService {
 
   flock(id: string): Observable<Flock> {
     return this.api.get<Envelope<Flock>>(`flocks/${encodeURIComponent(id)}`).pipe(map((response) => response.data));
+  }
+
+  update(id: string, request: UpdateFlockRequest, key: string): Observable<Omit<Flock, 'is_grouped'>> {
+    return this.api.patch<Envelope<{ flock: Omit<Flock, 'is_grouped'> }>, UpdateFlockRequest>(
+      `flocks/${encodeURIComponent(id)}`, request, { headers: { 'Idempotency-Key': key } },
+    ).pipe(map((response) => response.data.flock));
   }
 
   mortalityTotal(id: string): Observable<number> {

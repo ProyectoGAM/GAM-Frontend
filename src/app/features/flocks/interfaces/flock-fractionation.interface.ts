@@ -41,3 +41,9 @@ export interface FractionationTarget {
   house: PoultryHouse;
   flock?: Flock;
 }
+
+export interface ReverseFractionationRequest {
+  version: number;
+  destination_version?: number;
+  reason: string;
+}

@@ -17,6 +17,9 @@
       [houseName]="request().houseName" [unitName]="request().unitName"
       [saving]="task.saving()" [saveError]="task.saveError()" [fieldErrors]="task.fieldErrors()"
       (formClosed)="finish()" (edited)="task.clearErrors()" (submitted)="task.saveMortality($event)" />
+  } @else if (request().kind === 'beak-trimming') {
+    <app-beak-trimming-dialog [flockId]="flock.id" [flock]="flock" [context]="context()"
+      (saved)="finish($event)" (cancelled)="finish()" />
   } @else if (task.feeding(); as feeding) {
     <app-feeding-editor [open]="editorOpen()" [context]="context()" [currentQuantity]="feeding.cantidad_diaria_g"
       [currentRecipe]="task.currentRecipe()" [currentMode]="feeding.modo" [options]="task.options()"

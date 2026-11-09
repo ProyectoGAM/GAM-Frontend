@@ -27,7 +27,7 @@
   @if (showTasks() && returnHouse() && flock().status !== 'finished') {
     <section class="flock-tasks" [attr.aria-label]="'Tareas del lote ' + flock().code">
       <h4>Tareas del lote</h4>
-      @for (task of tasks; track task.path) {
+      @for (task of tasks(); track task.path) {
         @if (task.kind; as kind) {
         <button type="button" class="task-link" aria-haspopup="dialog" (click)="requestTask(kind, $event)">
           <span class="task-icon"><ion-icon [name]="task.icon" aria-hidden="true" /></span>

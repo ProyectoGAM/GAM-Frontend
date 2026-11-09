@@ -64,6 +64,8 @@ El filtro no requiere identity.users.manage ni consulta users.
 | reverse_inventory_movement | POST inventory/movements/{id}/reversals | reason requerido, máximo 255 |
 | correct_feed_consumption | POST lotes/{flock_id}/consumos-alimento/{id}/rectificaciones | motivo máximo 2000 y receta_id, cantidad_g o ambos |
 | undo_mortality | Abre la confirmación de Mortandad sobre el detalle del historial | El módulo conserva POST mortalities/{id}/cancellation con version, flock_version, reason y confirm_reactivation cuando corresponde |
+| reverse_flock_status | PATCH flocks/{target.id}/status | `audit_entry_id` de `data.id` del detalle, `status`, `version` y `reason` de hasta 500 caracteres |
+| reverse_flock_redistribution | POST redistributions/{target.id}/reversals | `version`, `destination_version` si el destino es otro lote y `reason` de hasta 500 caracteres |
 
 Los comandos usan Idempotency-Key con UUID; la clave no va en el body. cantidad_g son
 gramos enteros, de 0 a 999999999999. Los valores editables se obtienen del recurso
@@ -82,7 +84,7 @@ se mapean a servicios existentes. El resto conserva su explicación sin anunciar
 una corrección genérica.
 
 undo_mortality requiere target.resource=mortality_record y dos ULID públicos
-válidos: target.id del registro y target.flock_id del lote. Los otros comandos
+válidos: target.id del registro y target.flock_id del lote. Inventario y consumos
 conservan sus IDs numéricos. La disponibilidad depende de permisos, estado y
 versión del registro; se vuelve a consultar antes de abrir la confirmación. El módulo consulta
 el lote y las mortalidades actuales antes de abrir su confirmación con motivo
@@ -96,3 +98,9 @@ apuntan al mismo registro; no se interpreta un cambio de cantidad como payload.
 Los detalles, búsquedas y confirmaciones se invalidan al cambiar de sesión.
 Los nombres históricos ausentes no se reconstruyen a partir del directorio actual.
 La interfaz conserva eventos desconocidos y totales calculados por el backend.
+
+Historial vuelve a consultar la disponibilidad antes de abrir una confirmación
+de Lotes. Ambos destinos usan ULID y las acciones bloqueadas muestran el motivo
+del servidor. La reversión de estado conserva la referencia a la entrada original.
+El [contrato de reversiones de lotes](audit-flock-reversals-backend.md) detalla la
+elegibilidad y los casos de aceptación.

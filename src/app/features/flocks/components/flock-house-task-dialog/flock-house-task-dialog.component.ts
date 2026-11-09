@@ -3,14 +3,16 @@ import { IonSpinner } from '@ionic/angular';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FlockHouseTaskRequest } from '../../interfaces/flock-house-task.interface';
+import { canChangeBeakTrimmings } from '../../services/flock-beak-trimming';
 import { FlockHouseTaskService } from '../../services/flock-house-task.service';
+import { BeakTrimmingDialogComponent } from '../beak-trimming-dialog/beak-trimming-dialog.component';
 import { CollectionFormComponent } from '../collection-form/collection-form.component';
 import { FeedingEditorComponent } from '../feeding-editor/feeding-editor.component';
 import { FlockMortalitySectionComponent } from '../flock-mortality-section/flock-mortality-section.component';
 
 @Component({
   selector: 'app-flock-house-task-dialog',
-  imports: [IonSpinner, FeedingEditorComponent, FlockMortalitySectionComponent, CollectionFormComponent],
+  imports: [IonSpinner, FeedingEditorComponent, FlockMortalitySectionComponent, CollectionFormComponent, BeakTrimmingDialogComponent],
   templateUrl: './flock-house-task-dialog.component.html',
   styleUrl: './flock-house-task-dialog.component.scss',
   providers: [FlockHouseTaskService],
@@ -20,13 +22,16 @@ export class FlockHouseTaskDialogComponent implements OnInit {
   readonly closed = output<string | null>();
   readonly task = inject(FlockHouseTaskService);
   readonly editorOpen = signal(true);
-  readonly title = computed(() => this.request().kind === 'collection' ? 'Registrar postura' : this.request().kind === 'mortality' ? 'Registrar mortandad' : 'Cambiar ración');
+  readonly title = computed(() => ({ collection: 'Registrar postura', mortality: 'Registrar mortandad', feeding: 'Cambiar ración',
+    health: 'Sanidad', 'beak-trimming': 'Registrar despique' })[this.request().kind]);
   readonly context = computed(() => `Lote ${this.task.flock()?.code ?? ''} · ${this.request().houseName} · ${this.request().unitName}`);
   private readonly statusDialog = viewChild<ElementRef<HTMLDialogElement>>('statusDialog');
   private readonly mortality = viewChild(FlockMortalitySectionComponent);
   private readonly collection = viewChild(CollectionFormComponent);
+  private readonly beakTrimming = viewChild(BeakTrimmingDialogComponent);
   private readonly auth = inject(AuthStore);
   private readonly actorId = this.auth.user()?.id;
+  private readonly session = this.auth.session?.();
   private completed = false;
 
   constructor() {
@@ -47,23 +52,33 @@ export class FlockHouseTaskDialogComponent implements OnInit {
       const form = this.collection();
       if (form) untracked(() => form.openForm());
     });
-    effect(() => { if (this.auth.user()?.id !== this.actorId) untracked(() => this.finish()); });
+    effect(() => {
+      const user = this.auth.user();
+      if (user?.id !== this.actorId || (this.request().kind === 'beak-trimming'
+        && (this.auth.session?.() !== this.session || !canChangeBeakTrimmings(user, 'record')))) untracked(() => this.finish());
+    });
+    effect(() => {
+      const editor = this.beakTrimming();
+      if (editor && !this.completed) untracked(() => editor.openRecord());
+    });
     inject(DestroyRef).onDestroy(() => { if (this.statusDialog()?.nativeElement.open) this.statusDialog()?.nativeElement.close(); });
   }
 
   ngOnInit(): void { this.task.start(this.request()); }
 
+  canLeave(): boolean { return this.beakTrimming()?.canLeave() ?? true; }
+
   close(): void {
-    if (this.task.saving()) return;
+    if (this.task.saving() || !this.canLeave()) return;
     if (this.request().kind === 'feeding' && this.task.state() === 'ready') this.editorOpen.set(false);
     else this.finish();
   }
 
   cancel(event: Event): void { event.preventDefault(); this.close(); }
 
-  finish(): void {
+  finish(message = this.task.result()): void {
     if (this.completed) return;
     this.completed = true;
-    this.closed.emit(this.task.result());
+    this.closed.emit(message);
   }
 }

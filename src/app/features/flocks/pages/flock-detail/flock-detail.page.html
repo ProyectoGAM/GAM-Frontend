@@ -25,10 +25,14 @@
             @if (canEditStatus()) {
               <button class="status-edit" type="button" (click)="openStatusEditor()">Cambiar estado</button>
             }
+            @if (canManageStatus() && item.status !== 'finished') {
+              <button #editTrigger class="status-edit" type="button" (click)="openDataEditor(editTrigger)">Editar lote</button>
+            }
           </div>
         </div>
       </header>
       @if (statusSuccess()) { <p class="status-success" role="status">{{ statusSuccess() }}</p> }
+      @if (dataEditSuccess()) { <p class="status-success" role="status">{{ dataEditSuccess() }}</p> }
 
       <app-flock-status-dialog #statusDialog [flock]="item" [statusText]="statusText()" [form]="statusForm"
         [selectedStatus]="statusDraft()"
@@ -36,17 +40,9 @@
         [conflict]="statusConflict()" [canManage]="canManageStatus()" [canFinalize]="canFinalizeStatus()" [error]="statusError()"
         (submitted)="saveStatus()" (closed)="closeStatusEditor()" (cancelled)="closeStatusEditor($event)" (backRequested)="backToStatusChoices()" (finalizeRequested)="openFinalization()" (reloadRequested)="load()" />
 
-      <section class="alerts-card" aria-labelledby="alerts-title">
-        <ion-icon name="notifications-outline" aria-hidden="true" />
-        <div class="alert-copy">
-          <div class="alert-heading">
-            <h2 id="alerts-title">2 alertas para revisar</h2>
-            <span class="preview-badge">Vista preliminar · datos de ejemplo</span>
-          </div>
-          <p>Ejemplo: revisar consumo de alimento</p>
-        </div>
-        <span class="preview-action">Ver alertas · próximamente</span>
-      </section>
+      <app-flock-data-editor-dialog [saving]="dataEditState() === 'saving'" [retryOnly]="dataEditState() === 'uncertain'"
+        [showReload]="dataEditState() === 'conflict'" [error]="dataEditError()"
+        (saveRequested)="saveData($event)" (reloadRequested)="load()" />
 
       <div class="metric-grid">
         <section class="card small-card" aria-labelledby="mortality-title">
@@ -165,7 +161,7 @@
         </a>
       }
       @if (canViewBeakTrimmings()) {
-        <a class="card plan-card beak-card" [routerLink]="['/administracion/lotes/lotes', item.id, 'despiques']" [queryParams]="planQueryParams()">
+        <a class="card plan-card" [routerLink]="['/administracion/lotes/lotes', item.id, 'despiques']" [queryParams]="planQueryParams()">
           <ion-icon class="card-icon" name="cut-outline" aria-hidden="true" />
           <span class="plan-copy"><strong>Despiques</strong><small>Registro e historial del lote</small></span>
           <span class="plan-action">Ver despiques <ion-icon name="chevron-forward-outline" aria-hidden="true" /></span>

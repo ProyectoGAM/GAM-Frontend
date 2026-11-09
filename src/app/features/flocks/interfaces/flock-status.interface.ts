@@ -7,6 +7,7 @@ export interface FlockFinalizationRequest {
 
 export interface FlockStatusRequest extends FlockFinalizationRequest {
   status: Exclude<Flock['status'], 'finished'>;
+  audit_entry_id?: number;
 }
 
 export interface FlockStatusResult {

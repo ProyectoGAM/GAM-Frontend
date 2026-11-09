@@ -2,7 +2,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, ViewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -14,12 +14,16 @@ import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filte
 import { SearchableSelectComponent } from '../../../../shared/ui/searchable-select/searchable-select.component';
 import { FeedConsumptionCorrectionComponent } from '../../../flocks/components/feed-consumption-correction/feed-consumption-correction.component';
 import { MortalityUndoComponent } from '../../../flocks/components/mortality-undo/mortality-undo.component';
+import { FlockFractionationService } from '../../../flocks/services/flock-fractionation.service';
+import { FlockStatusService } from '../../../flocks/services/flock-status.service';
 import { MovementReversalDialogComponent } from '../../../inventory/components/movement-reversal-dialog/movement-reversal-dialog.component';
 import { InventoryApi } from '../../../inventory/services/inventory.api';
 import { AuditAction, AuditActorOption, AuditDetail, AuditEntry, AuditFilters, AuditOptions, AuditPage } from '../../interfaces/audit';
 import { actorFilters, actorKey, actorLabel, AUDIT_MODULES, auditTitle, moduleLabel, sourceLabel, unitLabel } from '../../services/audit-presentation';
-import { auditFlockNavigation, auditUserLink, sameAction, supportedAction } from '../../services/audit-actions';
+import { auditFlockNavigation, auditUserLink, flockReversal, sameAction, supportedAction } from '../../services/audit-actions';
 import { AuditService } from '../../services/audit.service';
+
+type FlockReversalConfirmation = NonNullable<ReturnType<typeof flockReversal>> & { auditEntryId: number };
 
 @Component({
   selector: 'app-audit-history',
@@ -30,6 +34,8 @@ export class AuditHistoryPage {
   private readonly api = inject(AuditService);
   private readonly auth = inject(AuthStore);
   private readonly inventory = inject(InventoryApi);
+  private readonly flockStatus = inject(FlockStatusService);
+  private readonly fractionation = inject(FlockFractionationService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
@@ -42,6 +48,7 @@ export class AuditHistoryPage {
   private detailVersion = 0;
   private actionVersion = 0;
   private detailTrigger: HTMLElement | null = null;
+  private reversalAttempt: { key: string; reason: string } | null = null;
   private previousContext: string | undefined;
   @ViewChild(FilterDialogComponent) private filterDialog!: FilterDialogComponent;
   @ViewChild(MovementReversalDialogComponent) private reversalDialog!: MovementReversalDialogComponent;
@@ -49,6 +56,7 @@ export class AuditHistoryPage {
   @ViewChild(MortalityUndoComponent) private mortalityUndo!: MortalityUndoComponent;
   @ViewChild('detailDialog', { static: true }) private detailDialog!: ElementRef<HTMLDialogElement>;
   @ViewChild('detailHeading', { static: true }) private detailHeading!: ElementRef<HTMLHeadingElement>;
+  @ViewChild('flockReversalDialog', { static: true }) private flockReversalDialog!: ElementRef<HTMLDialogElement>;
   readonly modules = AUDIT_MODULES;
   readonly activeModule = computed(() => this.modules.find((module) => module.id === this.queryParams().get('modulo')) ?? this.modules[0]);
   readonly state = signal<'loading' | 'success' | 'empty' | 'error' | 'forbidden'>('loading');
@@ -76,6 +84,15 @@ export class AuditHistoryPage {
   readonly detailError = signal('');
   readonly actionLoading = signal(false);
   readonly actionError = signal('');
+  readonly flockReversal = signal<FlockReversalConfirmation | null>(null);
+  readonly flockReversalForm = new FormGroup({
+    reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
+  });
+  readonly reversalReason = this.flockReversalForm.controls.reason;
+  readonly reversalSaving = signal(false);
+  readonly reversalBlocked = signal(false);
+  readonly reversalUncertain = signal(false);
+  readonly reversalError = signal('');
   readonly selectedActorLink = computed(() => this.detail() ? auditUserLink(this.detail()!.actor) : null);
   readonly flockNavigation = computed(() => {
     const entry = this.detail();
@@ -119,7 +136,7 @@ export class AuditHistoryPage {
       this.responsibleLabel.set(actor ? actorLabel({ ...actor, id: actor.value }) : null);
     });
     effect(() => {
-      const context = JSON.stringify([this.auth.user(), this.auth.session?.(), this.auth.status?.()]);
+      const context = this.identity();
       const module = this.activeModule().id;
       untracked(() => {
         if (context !== this.previousContext) {
@@ -133,6 +150,7 @@ export class AuditHistoryPage {
     });
     this.destroyRef.onDestroy(() => { this.loadVersion++; this.optionsVersion++; this.directoryVersion++; this.detailVersion++; this.actionVersion++; });
   }
+  private identity(): string { return JSON.stringify([this.auth.user(), this.auth.session?.(), this.auth.status?.()]); }
   private invalidateSession(): void {
     this.loadVersion++; this.optionsVersion++; this.directoryVersion++; this.actionVersion++;
     this.closeDetail(); this.reversalDialog?.invalidate(); this.feedCorrection?.invalidate();
@@ -198,6 +216,7 @@ export class AuditHistoryPage {
   resetFilters(): void { this.appliedActor = null; this.applied.set({}); void this.load(); }
   openDetail(entry: AuditEntry, trigger: HTMLElement): void {
     this.actionVersion++; this.actionLoading.set(false);
+    this.resetFlockReversal();
     this.reversalDialog.invalidate(); this.feedCorrection.invalidate(); this.mortalityUndo.invalidate();
     this.selectedEntry.set(entry); this.detailTrigger = trigger; this.actionError.set('');
     this.detailDialog.nativeElement.showModal(); this.detailDialog.nativeElement.scrollTop = 0;
@@ -219,7 +238,7 @@ export class AuditHistoryPage {
     }
   }
   async runAction(action: AuditAction, trigger: HTMLElement): Promise<void> {
-    if (this.actionLoading() || !action.available || !supportedAction(action)) return;
+    if (this.actionLoading() || this.flockReversal() || !action.available || !supportedAction(action)) return;
     const version = ++this.actionVersion;
     this.actionLoading.set(true); this.actionError.set('');
     try {
@@ -229,7 +248,17 @@ export class AuditHistoryPage {
       if (!current?.available || !supportedAction(current)) {
         this.actionError.set(current?.reason || fresh.presentation.reversibility.reason); return;
       }
-      if (current.kind === 'undo_mortality' && typeof current.target.id === 'string') {
+      const reversal = flockReversal(current);
+      if (reversal) {
+        if (fresh.id !== this.selectedEntry()?.id || !Number.isSafeInteger(fresh.id) || fresh.id <= 0) {
+          this.actionError.set('No se pudo verificar la entrada original. Volvé a abrir el detalle.');
+          return;
+        }
+        this.flockReversal.set({ ...reversal, auditEntryId: fresh.id });
+        const dialog = this.flockReversalDialog.nativeElement;
+        dialog.showModal(); dialog.scrollTop = 0;
+        dialog.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+      } else if (current.kind === 'undo_mortality' && typeof current.target.id === 'string') {
         await this.mortalityUndo.open(current.target.flock_id!, current.target.id, this.detailHeading.nativeElement);
       } else if (current.kind === 'reverse_inventory_movement' && typeof current.target.id === 'number') {
         const response = await firstValueFrom(this.inventory.movement(current.target.id).pipe(takeUntilDestroyed(this.destroyRef)));
@@ -245,6 +274,52 @@ export class AuditHistoryPage {
         this.actionError.set('No se pudo abrir la operación. Intenta de nuevo.'); this.resumeDetail();
       }
     } finally { if (version === this.actionVersion) this.actionLoading.set(false); }
+  }
+  closeFlockReversal(event?: Event): void {
+    event?.preventDefault();
+    if (this.reversalSaving()) return;
+    this.resetFlockReversal();
+    this.detailHeading.nativeElement.focus({ preventScroll: true });
+  }
+  private resetFlockReversal(): void {
+    this.flockReversalDialog?.nativeElement.close();
+    this.flockReversal.set(null); this.reversalReason.reset(); this.reversalReason.enable();
+    this.reversalAttempt = null; this.reversalError.set(''); this.reversalSaving.set(false);
+    this.reversalBlocked.set(false); this.reversalUncertain.set(false);
+  }
+  async confirmFlockReversal(): Promise<void> {
+    const reversal = this.flockReversal();
+    const identity = this.identity();
+    if (!reversal || identity !== this.previousContext || this.reversalSaving() || this.reversalBlocked()) return;
+    const reason = this.reversalReason.value.trim();
+    if (!reason || reason.length > 500) {
+      this.reversalError.set('Ingresá un motivo de hasta 500 caracteres.'); return;
+    }
+    const attempt = this.reversalAttempt ??= { key: crypto.randomUUID(), reason };
+    const version = this.actionVersion;
+    this.reversalSaving.set(true); this.reversalReason.disable(); this.reversalError.set('');
+    try {
+      const request = reversal.kind === 'reverse_flock_status'
+        ? this.flockStatus.change(reversal.id, { ...reversal.body, audit_entry_id: reversal.auditEntryId, reason: attempt.reason }, attempt.key)
+        : this.fractionation.reverse(reversal.id, { ...reversal.body, reason: attempt.reason }, attempt.key);
+      await firstValueFrom(request.pipe(takeUntilDestroyed(this.destroyRef)));
+      if (version !== this.actionVersion || identity !== this.identity()) return;
+      this.reversalSaving.set(false); this.closeFlockReversal(); this.onCorrected();
+    } catch (error) {
+      if (version !== this.actionVersion || identity !== this.identity()) return;
+      const status = error instanceof HttpErrorResponse ? error.status : 0;
+      const blocked = [401, 403, 404, 409].includes(status);
+      const uncertain = status === 0 || status >= 500;
+      const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+      this.reversalSaving.set(false); this.reversalBlocked.set(blocked); this.reversalUncertain.set(uncertain);
+      if (!uncertain) this.reversalAttempt = null;
+      if (!blocked && !uncertain) this.reversalReason.enable();
+      this.reversalError.set(status === 409 && typeof detail === 'string' ? detail
+        : blocked ? 'La reversión ya no está disponible. Volvé al detalle actualizado.'
+          : uncertain ? 'No se pudo confirmar la reversión. Podés reintentar con los mismos datos.'
+            : 'Revisá el motivo y volvé a intentar.');
+      this.onCommandFailed(status);
+    }
   }
   resumeDetail(): void {
     if (this.selectedEntry() && !this.detailDialog.nativeElement.open) {
@@ -262,6 +337,7 @@ export class AuditHistoryPage {
   closeDetail(event?: Event): void {
     event?.preventDefault(); this.detailVersion++; this.actionVersion++; this.actionLoading.set(false);
     this.mortalityUndo?.invalidate();
+    this.resetFlockReversal();
     this.detailDialog?.nativeElement.close(); this.selectedEntry.set(null); this.detail.set(null); this.detailState.set('idle');
     if (this.detailTrigger?.isConnected) this.detailTrigger.focus({ preventScroll: true }); this.detailTrigger = null;
   }

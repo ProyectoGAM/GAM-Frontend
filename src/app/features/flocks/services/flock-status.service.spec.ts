@@ -36,4 +36,14 @@ describe('FlockStatusService', () => {
     request.flush({ data: result });
     expect(received).toHaveBeenCalledExactlyOnceWith(result);
   });
+
+  it('sends the audit entry reference when reversing a status change', () => {
+    const body = { version: 3, status: 'active' as const, reason: 'Registro equivocado', audit_entry_id: 21 };
+    TestBed.inject(FlockStatusService).change('lot/id', body, 'reversal-key').subscribe();
+    const request = TestBed.inject(HttpTestingController).expectOne('/api/v1/flocks/lot%2Fid/status');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual(body);
+    expect(request.request.headers.get('Idempotency-Key')).toBe('reversal-key');
+    request.flush({ data: { operation_id: 'op', flock: fractionationFlock({ status: 'active', version: 4 }) } });
+  });
 });

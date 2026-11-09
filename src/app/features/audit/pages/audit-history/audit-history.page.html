@@ -132,6 +132,28 @@
   }
   @if (actionError()) { <p class="detail-body field-error" role="alert">{{ actionError() }}</p> }
 </dialog>
+<dialog #flockReversalDialog class="detail-dialog flock-reversal-dialog" aria-labelledby="flock-reversal-title" (cancel)="closeFlockReversal($event)">
+  <header class="detail-heading"><h2 id="flock-reversal-title" tabindex="-1">Confirmar reversión</h2></header>
+  @if (flockReversal(); as reversal) {
+    <form class="detail-body flock-reversal-form" [formGroup]="flockReversalForm" (ngSubmit)="confirmFlockReversal()">
+      @if (reversal.kind === 'reverse_flock_status') {
+        <p>El lote volverá a <strong>{{ reversal.body.status === 'active' ? 'Activo' : 'En cuarentena' }}</strong>.</p>
+      } @else {
+        <p>Se compensará el fraccionamiento y se restituirán las aves según el movimiento original.</p>
+      }
+      <p class="filter-help">El registro original quedará en el historial.</p>
+      <label for="flock-reversal-reason">Motivo de la reversión</label>
+      <textarea id="flock-reversal-reason" formControlName="reason" required maxlength="500" rows="3"></textarea>
+      @if (reversalError()) { <p class="field-error flock-reversal-error" role="alert">{{ reversalError() }}</p> }
+      <div class="toolbar-actions">
+        <button class="button" type="button" [disabled]="reversalSaving()" (click)="closeFlockReversal()">Volver al detalle</button>
+        <button class="button flock-reversal-submit" type="submit" [disabled]="reversalSaving() || reversalBlocked() || (!reversalUncertain() && reversalReason.invalid)">
+          {{ reversalSaving() ? 'Revirtiendo…' : reversalUncertain() ? 'Reintentar reversión' : 'Confirmar reversión' }}
+        </button>
+      </div>
+    </form>
+  }
+</dialog>
 <app-movement-reversal-dialog [productNames]="referenceNames().products" [locationNames]="referenceNames().locations" (reversed)="onCorrected()" (failed)="onCommandFailed($event)" />
 <app-feed-consumption-correction (corrected)="onCorrected()" (closed)="resumeDetail()" (failed)="onCommandFailed($event)" />
 <app-mortality-undo (undone)="onCorrected()" (closed)="resumeDetail()" (failed)="onCommandFailed($event)" />

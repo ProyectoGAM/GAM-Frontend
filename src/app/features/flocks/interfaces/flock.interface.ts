@@ -79,3 +79,9 @@ export interface CreateFlockRequest {
 export interface CreateFlockResponse {
   data: { operation_id: string; flock?: { id: string; code: string } };
 }
+
+export interface UpdateFlockRequest {
+  version: number;
+  code?: string;
+  notes?: string | null;
+}

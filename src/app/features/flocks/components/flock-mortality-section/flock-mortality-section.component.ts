@@ -64,10 +64,10 @@ export class FlockMortalitySectionComponent {
   readonly pendingConfirmation = signal<{ draft: MortalityDraft; version: number; balance: number } | null>(null);
   readonly confirmationAlive = computed(() => Math.max(0, this.pendingConfirmation()?.balance ?? 0));
   readonly confirmationExcess = computed(() => (this.pendingConfirmation()?.draft.quantity ?? 0) - this.confirmationAlive());
-  readonly period = signal<MortalityPeriod>('day');
+  readonly period = signal<MortalityPeriod>('week');
   readonly selectedKey = signal<string | null>(null);
   readonly historyLimit = signal(20);
-  readonly points = computed(() => mortalitySummary(this.records(), this.period(), this.today()));
+  readonly points = computed(() => mortalitySummary(this.records(), this.period(), this.today(), this.flock().entry_date));
   readonly windowRecords = computed(() => this.points().flatMap((point) => point.records)
     .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at) || right.id.localeCompare(left.id)));
   readonly leaders = computed(() => leadingMortalityReasons(this.windowRecords()));
@@ -81,8 +81,8 @@ export class FlockMortalitySectionComponent {
   readonly history = computed(() => this.windowRecords().slice(0, this.historyLimit()).map((record) => ({
     ...record, dateText: mortalityDateLabel(mortalityDate(record)), reason: mortalityReason(record),
   })));
-  readonly periodCaption = computed(() => ({ day: 'Últimos 7 días', week: 'Últimas 8 semanas · lunes a domingo',
-    month: 'Últimos 6 meses' })[this.period()] + (this.period() === 'day' ? '' : ' · período actual en curso'));
+  readonly periodCaption = computed(() => ({ week: 'Últimas 8 semanas · lunes a domingo · período actual en curso',
+    month: 'Últimos 6 meses · período actual en curso', historical: 'Todos los registros del lote' })[this.period()]);
   readonly windowCaption = computed(() => `${mortalityDateLabel(this.points()[0].key)} – ${mortalityDateLabel(this.today())}`);
   readonly minimumDate = computed(() => [this.flock().entry_date,
     todayInLotsTimezone(new Date(this.flock().established_at))].sort().at(-1)!);

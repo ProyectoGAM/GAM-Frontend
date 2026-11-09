@@ -36,6 +36,8 @@ import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface'
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
 import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskAction, FlockHouseTaskRequest } from '../../../flocks/interfaces/flock-house-task.interface';
+import { AuthStore } from '../../../../core/auth/auth.store';
+import { canChangeBeakTrimmings } from '../../../flocks/services/flock-beak-trimming';
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
 type RelatedState = 'loading' | 'success' | 'error';
@@ -61,6 +63,7 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
 })
 export class PoultryHouseDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly auth = inject(AuthStore);
   private readonly flockDetail = inject(FlockDetailService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -84,6 +87,8 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
   readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
   private readonly healthDialog = viewChild(FlockHouseHealthDialogComponent);
+  private readonly taskDialog = viewChild(FlockHouseTaskDialogComponent);
+  readonly canRecordBeakTrimming = computed(() => canChangeBeakTrimmings(this.auth.user(), 'record'));
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -193,13 +198,14 @@ export class PoultryHouseDetailPage implements OnInit {
     else this.loadFeedStock(house.id);
   }
 
-  canLeave(): boolean { return this.healthDialog()?.canLeave() ?? true; }
+  canLeave(): boolean { return (this.healthDialog()?.canLeave() ?? true) && (this.taskDialog()?.canLeave() ?? true); }
 
   openFlockTask(action: FlockHouseTaskAction): void {
     const house = this.house();
     const flocks = this.currentFlocks();
     if (this.flockTask() || !house || house.type !== 'poultry' || this.flocksState() !== 'success'
-      || flocks.length !== 1 || flocks[0].id !== action.flockId) return;
+      || flocks.length !== 1 || flocks[0].id !== action.flockId
+      || (action.kind === 'beak-trimming' && !this.canRecordBeakTrimming())) return;
     this.taskMessage.set(null);
     this.flockTask.set({ ...action, origin: { unitId: house.production_unit_id, houseId: house.id },
       houseName: house.name, unitName: house.production_unit.name });

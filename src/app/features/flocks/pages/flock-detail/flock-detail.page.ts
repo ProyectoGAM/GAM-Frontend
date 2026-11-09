@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, WritableSignal, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, WritableSignal, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -7,7 +7,7 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
-  eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
+  eggOutline, gitBranchOutline, informationCircleOutline, scaleOutline, medicalOutline,
 } from 'ionicons/icons';
 import { Observable } from 'rxjs';
 
@@ -17,10 +17,11 @@ import { isAdminUser } from '../../../../core/auth/access-policy';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
+import { FlockDataEditorDialogComponent } from '../../components/flock-data-editor-dialog/flock-data-editor-dialog.component';
 import { CollectionSummary } from '../../interfaces/flock-collection.interface';
 import { DetailMetric, FlockHouseOrigin, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
 import { FlockFeedingOverview } from '../../interfaces/flock-feeding.interface';
-import { Flock } from '../../interfaces/flock.interface';
+import { Flock, UpdateFlockRequest } from '../../interfaces/flock.interface';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { feedingDate } from '../../services/feeding-summary';
@@ -38,7 +39,7 @@ const loadingMetric = <T>(): DetailMetric<T> => ({ state: 'loading', value: null
   selector: 'app-flock-detail-page',
   templateUrl: './flock-detail.page.html',
   styleUrl: './flock-detail.page.scss',
-  imports: [IonIcon, IonSpinner, RouterLink, CollectionSummaryComponent, FlockStatusDialogComponent],
+  imports: [IonIcon, IonSpinner, RouterLink, CollectionSummaryComponent, FlockStatusDialogComponent, FlockDataEditorDialogComponent],
 })
 export class FlockDetailPage {
   private readonly route = inject(ActivatedRoute);
@@ -51,6 +52,8 @@ export class FlockDetailPage {
   private readonly auth = inject(AuthStore);
   private readonly statuses = inject(FlockStatusService);
   private readonly statusDialog = viewChild<FlockStatusDialogComponent>('statusDialog');
+  private readonly dataEditor = viewChild(FlockDataEditorDialogComponent);
+  private dataAttempt: { id: string; body: UpdateFlockRequest; key: string } | null = null;
   private statusAttempt: ({ kind: 'status'; body: FlockStatusRequest } | { kind: 'finalization'; body: FlockFinalizationRequest }) & { id: string; key: string } | null = null;
   private statusGeneration = 0;
   readonly canManageStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.manage') === true);
@@ -64,6 +67,10 @@ export class FlockDetailPage {
   readonly statusError = signal<string | null>(null);
   readonly statusSuccess = signal<string | null>(null);
   readonly statusLocked = computed(() => this.statusSaving() || this.statusUncertain());
+  readonly dataEditState = signal<'idle' | 'saving' | 'uncertain' | 'conflict'>('idle');
+  readonly dataEditError = signal<string | null>(null);
+  readonly dataEditSuccess = signal<string | null>(null);
+  private readonly dataEditLocked = computed(() => this.dataEditState() === 'saving' || this.dataEditState() === 'uncertain');
   readonly statusForm = new FormGroup({
     status: new FormControl<Flock['status']>('active', { nonNullable: true }),
     reason: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(500),
@@ -126,7 +133,7 @@ export class FlockDetailPage {
     effect(() => {
       this.auth.user();
       this.auth.session();
-      this.resetStatusEditor();
+      untracked(() => { this.resetStatusEditor(); this.resetDataEditor(); });
     });
     this.destroyRef.onDestroy(() => {
       const dialog = this.statusDialog()?.element().nativeElement;
@@ -134,18 +141,20 @@ export class FlockDetailPage {
     });
     addIcons({
       arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
-      eggOutline, gitBranchOutline, informationCircleOutline, notificationsOutline, scaleOutline, medicalOutline,
+      eggOutline, gitBranchOutline, informationCircleOutline, scaleOutline, medicalOutline,
     });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.resetStatusEditor();
+      this.resetDataEditor();
       this.flockId.set(params.get('id') ?? '');
       this.load();
     });
   }
 
   load(): void {
-    if (this.statusLocked()) return;
+    if (this.statusLocked() || this.dataEditLocked()) return;
     this.resetStatusEditor();
+    this.resetDataEditor();
     const version = ++this.loadVersion;
     const id = this.flockId();
     this.state.set('loading');
@@ -174,9 +183,59 @@ export class FlockDetailPage {
     });
   }
 
+  openDataEditor(trigger: HTMLElement): void {
+    const flock = this.flock();
+    if (!flock || flock.status === 'finished' || !this.canManageStatus() || this.statusLocked() || this.dataEditLocked()) return;
+    this.dataEditState.set('idle');
+    this.dataEditError.set(null);
+    this.dataEditSuccess.set(null);
+    this.dataEditor()?.open(flock, trigger);
+  }
+
+  saveData(body: UpdateFlockRequest): void {
+    const flock = this.flock();
+    if (!flock || flock.status === 'finished' || !this.canManageStatus() || this.dataEditState() === 'saving') return;
+    const attempt = this.dataEditState() === 'uncertain' ? this.dataAttempt : { id: flock.id, body, key: crypto.randomUUID() };
+    if (!attempt || attempt.id !== flock.id) return;
+    this.dataAttempt = attempt;
+    this.dataEditState.set('saving');
+    this.dataEditError.set(null);
+    this.detail.update(attempt.id, attempt.body, attempt.key).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (saved) => {
+        if (this.dataAttempt !== attempt) return;
+        this.resetDataEditor();
+        this.flock.update((current) => current?.id === attempt.id ? { ...current, ...saved } : current);
+        this.dataEditSuccess.set('Datos del lote actualizados.');
+      },
+      error: (error: unknown) => {
+        if (this.dataAttempt !== attempt) return;
+        const status = error instanceof HttpErrorResponse ? error.status : 0;
+        if (status === 0 || status >= 500 || (status >= 200 && status < 300)) {
+          this.dataEditState.set('uncertain');
+          this.dataEditError.set('No pudimos confirmar el guardado. Reintentá con los mismos datos.');
+          return;
+        }
+        this.dataAttempt = null;
+        this.dataEditState.set(status === 409 ? 'conflict' : 'idle');
+        const problem: unknown = error instanceof HttpErrorResponse ? error.error : null;
+        const detail = problem && typeof problem === 'object' && 'detail' in problem && typeof problem.detail === 'string' ? problem.detail : null;
+        this.dataEditError.set(status === 401 || status === 403 ? 'No tenés permiso para editar este lote.'
+          : detail ?? (status === 409 ? 'El lote cambió. Actualizá el detalle y revisá los datos.' : 'No se pudieron guardar los datos del lote. Revisalos e intentá de nuevo.'));
+      },
+    });
+  }
+
+  private resetDataEditor(): void {
+    this.dataAttempt = null;
+    this.dataEditState.set('idle');
+    this.dataEditError.set(null);
+    this.dataEditSuccess.set(null);
+    this.dataEditor()?.close();
+  }
+
   openStatusEditor(): void {
     const flock = this.flock();
-    if (!flock || !this.canEditStatus() || this.statusLocked()) return;
+    if (!flock || !this.canEditStatus() || this.statusLocked() || this.dataEditLocked()) return;
     this.statusSuccess.set(null);
     this.statusError.set(null);
     this.statusConflict.set(false);

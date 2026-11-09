@@ -8,7 +8,9 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
 import { FlockFeedingService } from '../../../flocks/services/flock-feeding.service';
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
+import { FlockFractionationService } from '../../../flocks/services/flock-fractionation.service';
 import { FlockMortalitiesService } from '../../../flocks/services/flock-mortalities.service';
+import { FlockStatusService } from '../../../flocks/services/flock-status.service';
 import { MortalityUndoComponent } from '../../../flocks/components/mortality-undo/mortality-undo.component';
 import { InventoryApi } from '../../../inventory/services/inventory.api';
 import { AuditAction, AuditActorOption, AuditDetail, AuditEntry, AuditPage } from '../../interfaces/audit';
@@ -43,6 +45,8 @@ describe('Audit history API presentation', () => {
   const auth = { user, session, status: () => 'personal_authenticated', isAdmin: () => false, refreshIdentity: vi.fn() };
   const api = { entries: vi.fn(), detail: vi.fn(), options: vi.fn(), responsibles: vi.fn() };
   const inventory = { movement: vi.fn(), reverse: vi.fn() };
+  const flockStatus = { change: vi.fn() };
+  const fractionation = { reverse: vi.fn() };
   beforeEach(() => {
     restore = stubNativeDialog(); vi.resetAllMocks(); params.next(convertToParamMap({}));
     user.set({ id: 1, name: 'Auditor', permissions: ['audit.view', 'inventory.adjust'], roles: [] }); session.set({ id: 'session-1' });
@@ -55,6 +59,8 @@ describe('Audit history API presentation', () => {
       { provide: AuditService, useValue: api }, { provide: AuthStore, useValue: auth }, { provide: InventoryApi, useValue: inventory },
       { provide: FlockFeedingService, useValue: { consumptions: vi.fn(), balances: vi.fn(), correct: vi.fn() } },
       { provide: FlockDetailService, useValue: { flock: vi.fn() } },
+      { provide: FlockStatusService, useValue: flockStatus },
+      { provide: FlockFractionationService, useValue: fractionation },
       { provide: FlockMortalitiesService, useValue: { list: vi.fn(), cancel: vi.fn() } },
     ] });
     fixture = TestBed.createComponent(AuditHistoryPage);
@@ -64,6 +70,71 @@ describe('Audit history API presentation', () => {
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const button = (label: string) => [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((item) => item.textContent?.trim() === label)!;
   async function openDetail() { (fixture.nativeElement.querySelector('.detail-button') as HTMLButtonElement).click(); await settle(); }
+
+  function enterReversalReason(reason: string): void {
+    const field = fixture.nativeElement.querySelector('#flock-reversal-reason') as HTMLTextAreaElement;
+    field.value = reason; field.dispatchEvent(new Event('input'));
+  }
+
+  it('restores the previous open status with the revalidated version and original audit entry', async () => {
+    const statusAction: AuditAction = { kind: 'reverse_flock_status', label: 'Revertir cambio de estado', available: true,
+      reason: null, target: { resource: 'flock', id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G', status: 'active', version: 2 } };
+    api.detail.mockReturnValueOnce(of({ data: detail([statusAction]) }))
+      .mockReturnValueOnce(of({ data: detail([{ ...statusAction, target: { ...statusAction.target, version: 3 } }]) }));
+    flockStatus.change.mockReturnValue(of({}));
+    await settle(); await openDetail();
+    await fixture.componentInstance.runAction(statusAction, button(statusAction.label)); await settle();
+    expect(text()).toContain('El lote volverá a Activo');
+    expect(button('Confirmar reversión').disabled).toBe(true);
+    enterReversalReason('  Fin de la cuarentena  '); await settle();
+    button('Confirmar reversión').click();
+    await vi.waitFor(() => expect(api.detail).toHaveBeenCalledTimes(3)); await settle();
+    expect(flockStatus.change).toHaveBeenCalledExactlyOnceWith(statusAction.target.id,
+      { version: 3, status: 'active', reason: 'Fin de la cuarentena', audit_entry_id: entry.id }, expect.any(String));
+    expect(api.entries).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks a status reversal when the refreshed detail belongs to a different audit entry', async () => {
+    const statusAction: AuditAction = { kind: 'reverse_flock_status', label: 'Revertir cambio de estado', available: true,
+      reason: null, target: { resource: 'flock', id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G', status: 'active', version: 2 } };
+    api.detail.mockReturnValueOnce(of({ data: detail([statusAction]) }))
+      .mockReturnValueOnce(of({ data: { ...detail([statusAction]), id: entry.id + 1 } }));
+    await settle(); await openDetail();
+    await fixture.componentInstance.runAction(statusAction, button(statusAction.label)); await settle();
+    expect(text()).toContain('No se pudo verificar la entrada original.');
+    expect(fixture.nativeElement.querySelector('.flock-reversal-dialog').open).toBe(false);
+    expect(flockStatus.change).not.toHaveBeenCalled();
+  });
+
+  it('disables a status command that targets finished', async () => {
+    const invalid: AuditAction = { kind: 'reverse_flock_status', label: 'Revertir cambio de estado', available: true,
+      reason: null, target: { resource: 'flock', id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G', status: 'finished', version: 2 } };
+    api.detail.mockReturnValue(of({ data: detail([invalid]) }));
+    await settle(); await openDetail();
+    expect(button(invalid.label).disabled).toBe(true);
+    expect(flockStatus.change).not.toHaveBeenCalled();
+  });
+
+  it('leaves a blocked fraccionamiento disabled and stops resubmission after a conflict', async () => {
+    const split: AuditAction = { kind: 'reverse_flock_redistribution', label: 'Revertir redistribución', available: true,
+      reason: null, target: { resource: 'flock_redistribution', id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G', version: 2, destination_version: 1 } };
+    const conflict = 'La redistribución tiene operaciones posteriores y no puede revertirse.';
+    api.detail.mockReturnValue(of({ data: detail([{ ...split, available: false, reason: conflict,
+      target: { id: split.target.id, resource: split.target.resource } }]) }))
+      .mockReturnValueOnce(of({ data: detail([split]) })).mockReturnValueOnce(of({ data: detail([split]) }));
+    fractionation.reverse.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { detail: conflict } })));
+    await settle(); await openDetail();
+    await fixture.componentInstance.runAction(split, button(split.label)); await settle();
+    enterReversalReason('Corregir el destino'); await settle();
+    button('Confirmar reversión').click();
+    await vi.waitFor(() => expect(fixture.componentInstance.reversalBlocked()).toBe(true)); await settle();
+    expect(fractionation.reverse).toHaveBeenCalledExactlyOnceWith(split.target.id,
+      { version: 2, destination_version: 1, reason: 'Corregir el destino' }, expect.any(String));
+    expect(text()).toContain(conflict);
+    expect(button('Confirmar reversión').disabled).toBe(true);
+    button('Volver al detalle').click(); await settle();
+    expect(button(split.label).disabled).toBe(true);
+  });
 
   it('uses list summaries without fetching per-row details and keeps server totals', async () => {
     await settle();

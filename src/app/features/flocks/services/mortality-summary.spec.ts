@@ -6,15 +6,17 @@ const record = (date: string, quantity: number, notes: string | null = 'Golpe de
 });
 
 describe('Mortality summaries', () => {
-  it('counts dates in Montevideo, fills empty days and excludes cancellations and out-of-window records', () => {
+  it('includes old records in history with Montevideo dates, excluding cancellations and future records', () => {
     const records = [record('2026-10-08T02:59:00Z', 3), record('2026-10-08T03:00:00Z', 2),
       { ...record('2026-10-07T15:00:00Z', 20), status: 'cancelled' as const },
-      record('2026-09-30T15:00:00Z', 9), record('2026-10-09T15:00:00Z', 40)];
+      record('2024-09-30T15:00:00Z', 9), record('2026-10-09T15:00:00Z', 40)];
     expect(mortalityDate(records[0])).toBe('2026-10-07');
-    const days = mortalitySummary(records, 'day', '2026-10-08');
-    expect(days.map((day) => day.key)).toEqual(['2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05',
-      '2026-10-06', '2026-10-07', '2026-10-08']);
-    expect(days.map((day) => day.quantity)).toEqual([0, 0, 0, 0, 0, 3, 2]);
+    const history = mortalitySummary(records, 'historical', '2026-10-08');
+    expect(history.length).toBeLessThanOrEqual(8);
+    expect(history[0]).toMatchObject({ key: '2024-09-01', quantity: 9 });
+    expect(history.at(-1)?.quantity).toBe(5);
+    expect(history.slice(1, -1).every((point) => point.quantity === 0)).toBe(true);
+    expect(history.flatMap((point) => point.records)).toEqual([records[3], records[0], records[1]]);
   });
 
   it('groups calendar weeks starting Monday across a year boundary and marks the current partial week', () => {
@@ -24,6 +26,12 @@ describe('Mortality summaries', () => {
     expect(weeks.at(-2)?.quantity).toBe(3);
     expect(weeks.at(-1)).toMatchObject({ key: '2026-12-28', quantity: 6 });
     expect(weeks.at(-1)?.description).toContain('En curso');
+  });
+
+  it('starts an empty historical window in the month the flock entered', () => {
+    const history = mortalitySummary([], 'historical', '2026-10-08', '2026-08-17');
+    expect(history.map((point) => point.key)).toEqual(['2026-08-01', '2026-09-01', '2026-10-01']);
+    expect(history.every((point) => point.quantity === 0)).toBe(true);
   });
 
   it('groups six calendar months without overflowing on a long month or including future records', () => {

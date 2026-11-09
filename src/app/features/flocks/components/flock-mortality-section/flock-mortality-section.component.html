@@ -22,11 +22,11 @@
         @if (missingReasons()) { <small>{{ missingReasons() }} gallinas sin motivo informado; no se incluyen en este resumen.</small> }
       </section>
       <div class="period-filter">
-        <span id="mortality-group-label">Agrupar por</span>
+        <span id="mortality-group-label">Período</span>
         <div class="segments" role="group" aria-labelledby="mortality-group-label">
-          <button type="button" [class.active]="period() === 'day'" [attr.aria-pressed]="period() === 'day'" (click)="changePeriod('day')">Día</button>
           <button type="button" [class.active]="period() === 'week'" [attr.aria-pressed]="period() === 'week'" (click)="changePeriod('week')">Semana</button>
           <button type="button" [class.active]="period() === 'month'" [attr.aria-pressed]="period() === 'month'" (click)="changePeriod('month')">Mes</button>
+          <button type="button" [class.active]="period() === 'historical'" [attr.aria-pressed]="period() === 'historical'" (click)="changePeriod('historical')">Histórico</button>
         </div>
         <small>{{ periodCaption() }}</small><small>{{ windowCaption() }}</small>
       </div>

@@ -23,7 +23,7 @@ export function auditFlockNavigation(entry: AuditRecord): {
   path: string; label: string; section: { path: string; label: string; description: string } | null;
 } | null {
   const subject = entry.presentation.subject;
-  if (subject.resource !== 'flock' || typeof subject.id !== 'string' || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(subject.id)) return null;
+  if (subject.resource !== 'flock' || !publicId(subject.id)) return null;
   const path = `/administracion/lotes/lotes/${encodeURIComponent(subject.id)}`;
   const event = entry.event ?? '';
   const knownSection = Object.hasOwn(FLOCK_SECTIONS, event) ? FLOCK_SECTIONS[event] : undefined;
@@ -39,15 +39,39 @@ export function auditUserLink(actor: AuditActor): string | null {
     ? `/administracion/usuarios/${encodeURIComponent(String(actor.id))}` : null;
 }
 export function supportedAction(action: AuditAction): boolean {
+  if (action.kind === 'reverse_flock_status' || action.kind === 'reverse_flock_redistribution') {
+    const resource = action.kind === 'reverse_flock_status' ? 'flock' : 'flock_redistribution';
+    return action.target.resource === resource && publicId(action.target.id)
+      && (!action.available || flockReversal(action) !== null);
+  }
   if (action.kind === 'undo_mortality') {
-    return action.target.resource === 'mortality_record'
-      && typeof action.target.id === 'string' && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(action.target.id)
-      && typeof action.target.flock_id === 'string' && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(action.target.flock_id);
+    return action.target.resource === 'mortality_record' && publicId(action.target.id) && publicId(action.target.flock_id);
   }
   if (typeof action.target.id !== 'number' || !Number.isSafeInteger(action.target.id) || action.target.id <= 0) return false;
   return action.kind === 'reverse_inventory_movement' && action.target.resource === 'inventory_movement'
     || action.kind === 'correct_feed_consumption' && action.target.resource === 'feed_consumption'
       && typeof action.target.flock_id === 'string' && !!action.target.flock_id.trim();
+}
+
+export function flockReversal({ kind, target }: AuditAction) {
+  const { id, resource, status, version, destination_version } = target;
+  if (!publicId(id) || !validVersion(version)) return null;
+  if (kind === 'reverse_flock_status' && resource === 'flock' && (status === 'active' || status === 'quarantined')) {
+    return { kind, id, body: { version, status } } as const;
+  }
+  if (kind === 'reverse_flock_redistribution' && resource === 'flock_redistribution'
+    && (destination_version === undefined || validVersion(destination_version))) {
+    return { kind, id, body: { version, ...(destination_version === undefined ? {} : { destination_version }) } } as const;
+  }
+  return null;
+}
+
+function publicId(id: unknown): id is string {
+  return typeof id === 'string' && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(id);
+}
+
+function validVersion(version: unknown): version is number {
+  return typeof version === 'number' && Number.isInteger(version) && version > 0 && version <= 2147483647;
 }
 export function sameAction(left: AuditAction, right: AuditAction): boolean {
   return left.kind === right.kind && left.target.resource === right.target.resource

@@ -1,0 +1,35 @@
+<dialog #dialog class="flock-editor-dialog" aria-labelledby="flock-editor-title" (cancel)="cancel($event)">
+  <header class="dialog-heading">
+    <div><h2 #heading id="flock-editor-title" tabindex="-1" autofocus>Editar lote</h2>
+      <p>Actualizá el código y las observaciones del lote.</p></div>
+    <button class="close" type="button" aria-label="Cerrar edición del lote" [disabled]="locked()" (click)="cancel()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </header>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <fieldset [disabled]="locked()">
+      <div class="field">
+        <label for="flock-editor-code">Código del lote</label>
+        <input id="flock-editor-code" formControlName="code" maxlength="60" required autocomplete="off" autocapitalize="characters"
+          [attr.aria-invalid]="form.controls.code.touched && form.controls.code.invalid ? 'true' : null" aria-describedby="flock-editor-code-help" />
+        <small id="flock-editor-code-help" [class.invalid]="form.controls.code.touched && form.controls.code.invalid">
+          Hasta 60 caracteres. Empezá con una letra o un número y usá solo letras, números, guiones o guiones bajos.
+        </small>
+      </div>
+      <div class="field">
+        <label for="flock-editor-notes">Observaciones <span>· Opcional</span></label>
+        <textarea id="flock-editor-notes" formControlName="notes" maxlength="5000" rows="4"
+          [attr.aria-invalid]="form.controls.notes.touched && form.controls.notes.invalid ? 'true' : null" aria-describedby="flock-editor-notes-help"></textarea>
+        <small id="flock-editor-notes-help" [class.invalid]="form.controls.notes.touched && form.controls.notes.invalid">Hasta 5000 caracteres.</small>
+      </div>
+    </fieldset>
+    @if (error(); as message) { <p class="error" role="alert">{{ message }}</p> }
+    <div class="dialog-actions">
+      <button type="button" [disabled]="locked()" (click)="cancel()">Cancelar</button>
+      @if (showReload()) { <button type="button" [disabled]="locked()" (click)="reloadRequested.emit()">Actualizar detalle</button> }
+      <button class="primary" type="submit" [disabled]="saving() || !changes()">
+        {{ saving() ? 'Guardando…' : retryOnly() ? 'Reintentar guardado' : 'Guardar cambios' }}
+      </button>
+    </div>
+  </form>
+</dialog>

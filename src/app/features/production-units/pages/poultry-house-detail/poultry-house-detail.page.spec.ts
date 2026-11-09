@@ -14,6 +14,8 @@ import { FeedAdjustmentService } from '../../services/feed-adjustment.service';
 import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
 import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
 import { FlockHealthService } from '../../../flocks/services/flock-health.service';
+import { FlockMortalitiesService } from '../../../flocks/services/flock-mortalities.service';
+import { FlockFeedingService } from '../../../flocks/services/flock-feeding.service';
 import { ManagementPlansService } from '../../../management-plans/services/management-plans.service';
 import { HealthApplicationComponent } from '../../../flocks/components/health-application/health-application.component';
 import { HealthOperation } from '../../../flocks/interfaces/flock-health.interface';
@@ -191,6 +193,7 @@ describe('PoultryHouseDetailPage', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     render(); await fixture.whenStable();
     const buttons = fixture.nativeElement.querySelectorAll('app-flock-card button.task-link') as NodeListOf<HTMLButtonElement>;
+    expect([...buttons].some((button) => button.textContent?.includes('Registrar despique'))).toBe(false);
     buttons[0].click();
     expect(fixture.componentInstance.flockTask()).toMatchObject({ kind: 'mortality', flockId: 'lot-1', origin: { unitId: 7, houseId: 22 } });
     fixture.componentInstance.closeFlockTask(null);
@@ -259,6 +262,44 @@ describe('PoultryHouseDetailPage', () => {
       expect(houseFlocks).toHaveBeenCalledTimes(2);
       expect(document.activeElement?.textContent).toContain('Sanidad');
       expect(TestBed.inject(Router).url).toBe('/');
+    } finally { fixture?.destroy(); restore(); }
+  });
+
+  it('registers despique from the house without leaving it or requesting history', async () => {
+    const restore = stubNativeDialog();
+    const pending = new Subject<{ operation_id: string }>();
+    const saveBeakTrimming = vi.fn(() => pending);
+    const beakTrimmingHistory = vi.fn();
+    const flock = { ...healthFlock, poultry_house_id: 22, production_unit_id: 7 };
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(AuthStore, { useValue: { user: () => ({ id: 1, name: 'María', roles: ['admin'] }), session: () => null } });
+    TestBed.overrideProvider(FlockDetailService, { useValue: { flock: () => of(flock), mortalityTotals: () => of(new Map()) } });
+    TestBed.configureTestingModule({ providers: [
+      { provide: FlockHealthService, useValue: { saveBeakTrimming, beakTrimmingHistory } },
+      { provide: ManagementPlansService, useValue: { flockPlan: () => of({ data: healthPlan }) } },
+      { provide: FlockMortalitiesService, useValue: {} },
+      { provide: FlockFeedingService, useValue: {} },
+    ] });
+    try {
+      render(); await fixture.whenStable();
+      const host = fixture.nativeElement as HTMLElement;
+      const button = [...host.querySelectorAll<HTMLButtonElement>('button.task-link')]
+        .find((item) => item.textContent?.includes('Registrar despique'))!;
+      button.click(); await fixture.whenStable(); fixture.detectChanges();
+      const dialog = host.querySelector<HTMLDialogElement>('.despique-dialog[open]')!;
+      expect(dialog.textContent).toContain(flock.code);
+      expect(dialog.textContent).toContain(house.name);
+      expect(beakTrimmingHistory).not.toHaveBeenCalled();
+      dialog.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      expect(saveBeakTrimming).toHaveBeenCalledExactlyOnceWith(flock.id,
+        { kind: 'record', body: { practice_type: 'beak_trimming', occurred_at: expect.any(String) } }, expect.any(String));
+      expect(fixture.componentInstance.canLeave()).toBe(false);
+      pending.next({ operation_id: 'op-1' }); pending.complete();
+      await fixture.whenStable(); fixture.detectChanges();
+      expect(host.querySelector('.despique-dialog[open]')).toBeNull();
+      expect(fixture.componentInstance.taskMessage()).toBe('Despique registrado.');
+      expect(TestBed.inject(Router).url).toBe('/');
+      expect(document.activeElement).toBe(button);
     } finally { fixture?.destroy(); restore(); }
   });
 
