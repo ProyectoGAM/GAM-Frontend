@@ -1,12 +1,181 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { AuthApi } from './auth.api';
+import { authInterceptor } from './auth.interceptor';
 import { AuthStore } from './auth.store';
+import { API_CONFIG } from '../config/api.config';
 import { CredentialStorage } from '../native/credential-storage.service';
+import { AppResumeService } from '../native/app-resume.service';
 
 describe('AuthStore', () => {
+  it.each([
+    { platform: 'web', native: false, path: '/api/v1/shared-device/web' },
+    { platform: 'native', native: true, path: '/api/v1/shared-device' },
+  ])('keeps the device linked and allows a retry after an incorrect login PIN on $platform', async ({ native, path }) => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7 };
+    const person = { id: 4, name: 'Ana' };
+    const storage = {
+      isNative: () => native,
+      getMode: async () => 'shared',
+      getDeviceToken: async () => 'test-device-token',
+      removePersonalToken: vi.fn(async () => undefined),
+      clearShared: vi.fn(async () => undefined),
+    };
+    TestBed.configureTestingModule({ providers: [
+      provideHttpClient(withInterceptors([authInterceptor])),
+      provideHttpClientTesting(),
+      { provide: API_CONFIG, useValue: { baseUrl: '/api/v1' } },
+      { provide: CredentialStorage, useValue: storage },
+    ] });
+    const store = TestBed.inject(AuthStore);
+    const http = TestBed.inject(HttpTestingController);
+    const boot = store.bootstrap();
+    await vi.waitFor(() => http.expectOne(path)).then((request) => request.flush({ data: device }));
+    await vi.waitFor(() => http.expectOne(`${path}/users?page=1&per_page=100`))
+      .then((request) => request.flush({ data: [person] }));
+    await boot;
+
+    const failed = store.loginWithPin(4, '0008');
+    http.expectOne(`${path}/login-pin`).flush(
+      { code: 'INVALID_PIN', message: 'El PIN no es válido.' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    expect(await failed).toBe(false);
+    expect(store.status()).toBe('shared_selector');
+    expect(store.device()).toEqual(device);
+    expect(store.errorMessage()).toBe('El PIN no es válido.');
+    expect(storage.removePersonalToken).not.toHaveBeenCalled();
+    expect(storage.clearShared).not.toHaveBeenCalled();
+
+    const retry = store.loginWithPin(4, '0007');
+    http.expectOne(`${path}/login-pin`).flush({ user: person, session: { id: 'employee-session' } });
+    expect(await retry).toBe(true);
+    expect(store.status()).toBe('shared_authenticated');
+    http.verify();
+  });
+
+  it('replaces a pending people refresh when resuming and ignores its late result', async () => {
+    const late = new Subject<unknown>();
+    const sharedUsers = vi.fn().mockReturnValueOnce(of({ data: [], meta: { last_page: 1 } })).mockReturnValueOnce(late)
+      .mockReturnValueOnce(of({ data: [{ id: 5, name: 'Luis' }], meta: { last_page: 1 } }));
+    const api = { sharedStatus: () => of({ data: { id: 'tablet', name: 'Tablet', up_id: 7 } }), sharedUsers };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore); await store.bootstrap();
+    const refreshing = store.loadSharedUsers(); await store.finishSharedSession();
+    expect(store.status()).toBe('shared_selector'); expect(store.sharedUsers()).toEqual([{ id: 5, name: 'Luis' }]);
+    late.next({ data: [{ id: 4, name: 'Anterior' }], meta: { last_page: 1 } }); late.complete(); await refreshing;
+    expect(store.sharedUsers()).toEqual([{ id: 5, name: 'Luis' }]); expect(store.sharedUsersLoading()).toBe(false);
+  });
+
+  it('ignores a delayed PIN login after returning to the selector on resume', async () => {
+    const login = new Subject<unknown>();
+    const api = { sharedStatus: () => of({ data: { id: 'tablet', name: 'Tablet', up_id: 7 } }), sharedUsers: () => of({ data: [], meta: { last_page: 1 } }), pinLogin: () => login };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore); await store.bootstrap();
+    const pending = store.loginWithPin(4, '0007'); await store.finishSharedSession();
+    login.next({ user: { id: 4, roles: ['employee'] }, session: { id: 'late-session' } }); login.complete();
+    expect(await pending).toBe(false); expect(store.user()).toBeNull(); expect(store.status()).toBe('shared_selector');
+  });
+
+  it('keeps the shared web session when the user returns to the tab', async () => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7, expires_at: null, revoked_at: null };
+    const session = { id: 'employee-session' };
+    const api = {
+      sharedStatus: () => of({ data: device }),
+      sharedUsers: () => of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 1 } }),
+      pinLogin: () => of({ user: { id: 4, name: 'Ana', roles: ['employee'] }, session }),
+      finalize: vi.fn(() => of({ message: 'ok' })),
+    };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }],
+    });
+    const store = TestBed.inject(AuthStore);
+    await store.bootstrap();
+    expect(await store.loginWithPin(4, '0007')).toBe(true);
+
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    try {
+      visibility.mockReturnValue('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(store.status()).toBe('shared_authenticated');
+      expect(store.session()).toEqual(session);
+      expect(api.finalize).not.toHaveBeenCalled();
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
+  it('clears the employee immediately on native resume and returns to the selector without unlinking', async () => {
+    const resumed = new Subject<void>(); const finalized = new Subject<{ message: string }>();
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7, expires_at: null, revoked_at: null };
+    const api = {
+      sharedStatus: () => of({ data: device }), sharedUsers: () => of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 1 } }),
+      pinLogin: () => of({ user: { id: 4, name: 'Ana', email: null, rol: { id: 2, clave: 'employee', nombre: 'Empleado' }, permissions: ['can_login_shared'], deleted_at: null }, session: { id: 'employee-session' } }),
+      finalize: vi.fn(() => finalized),
+    };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }, { provide: AppResumeService, useValue: { resumed } }] });
+    const store = TestBed.inject(AuthStore); await store.bootstrap(); await store.loginWithPin(4, '0007');
+    expect(store.user()?.name).toBe('Ana'); resumed.next();
+    expect(store.user()).toBeNull(); expect(store.session()).toBeNull(); expect(store.device()).toEqual(device);
+    expect(api.finalize).toHaveBeenCalledWith('employee-session', true);
+    finalized.next({ message: 'ok' }); finalized.complete();
+    await vi.waitFor(() => expect(store.status()).toBe('shared_selector'));
+    expect(store.isShared()).toBe(true); expect(store.sharedUsers()).toEqual([{ id: 4, name: 'Ana' }]);
+  });
+
+  it('recognizes the authoritative single role from the current login contract', async () => {
+    const user = { id: 1, name: 'Admin', email: 'admin@example.test', rol: { id: 1, clave: 'admin', nombre: 'Administrador' }, permissions: ['can_manage_shared_devices'], deleted_at: null };
+    const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }) };
+    const storage = { isNative: () => false, setMode: async () => undefined };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    expect(await store.login(user.email, 'example-only')).toBe(true);
+    expect(store.isAdmin()).toBe(true); expect(store.user()?.roles).toEqual(['admin']);
+    expect(store.user()?.permissions).toEqual(['can_manage_shared_devices']);
+  });
+
+  it('loads every page of eligible people and recovers a failed selector without losing the device', async () => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7, expires_at: null, revoked_at: null };
+    const sharedUsers = vi.fn().mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })))
+      .mockReturnValueOnce(of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 2 } }))
+      .mockReturnValueOnce(of({ data: [{ id: 5, name: 'Luis' }], meta: { last_page: 2 } }));
+    const api = { sharedStatus: () => of({ data: device }), sharedUsers };
+    const storage = { isNative: () => false, getMode: async () => 'shared', getDeviceToken: async () => null };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore); await store.bootstrap();
+    expect(store.status()).toBe('shared_selector'); expect(store.device()).toEqual(device); expect(store.errorMessage()).toContain('conectar');
+    await store.loadSharedUsers();
+    expect(store.sharedUsers().map((person) => person.name)).toEqual(['Ana', 'Luis']);
+    expect(sharedUsers).toHaveBeenLastCalledWith(true, 2); expect(store.errorMessage()).toBeNull();
+  });
+
+  it('refreshes permissions without overwriting an identity that changed during the request', async () => {
+    const user = { id: 1, name: 'Auditor', email: 'auditor@example.test', roles: [], permissions: ['audit.view'], deleted_at: null };
+    const pending = new Subject<{ data: typeof user; session: null }>();
+    const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }), me: vi.fn().mockReturnValue(pending) };
+    const storage = { isNative: () => false, setMode: async () => undefined, removePersonalToken: async () => undefined };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    await store.login(user.email, 'example-only');
+    const refreshing = store.refreshIdentity();
+    pending.next({ data: { ...user, permissions: [] }, session: null }); pending.complete(); await refreshing;
+    expect(store.user()?.permissions).toEqual([]);
+    const late = new Subject<{ data: typeof user; session: null }>(); api.me.mockReturnValue(late);
+    const stale = store.refreshIdentity();
+    store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), 'me');
+    late.next({ data: user, session: null }); late.complete(); await stale;
+    expect(store.user()).toBeNull();
+  });
+
   it('keeps the current identity on a wrong confirmation password, but clears a real unauthorized session', async () => {
     const user = { id: 1, name: 'Admin', email: 'admin@example.test', roles: ['admin'], permissions: [], deleted_at: null };
     const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }) };
@@ -17,9 +186,43 @@ describe('AuthStore', () => {
     const invalid = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_CREDENTIALS' } });
     store.handleHttpError(invalid, 'https://api.example.test/api/v1/auth/web/confirm-password');
     store.handleHttpError(invalid, '/api/v1/auth/confirm-password?test=1');
+    store.handleHttpError(invalid, '/api/v1/auth/contrasena');
     expect(store.user()).toEqual(user); expect(store.isAuthenticated()).toBe(true);
     store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), '/api/v1/auth/web/confirm-password');
     expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('allows retrying the current PIN and returns to the selector after a successful change', async () => {
+    const device = { id: 'tablet', name: 'Tablet', up_id: 7 };
+    const pinError = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_PIN' } });
+    const changeCredential = vi.fn()
+      .mockReturnValueOnce(throwError(() => pinError))
+      .mockReturnValueOnce(of({ requiere_reingreso: true }));
+    const api = {
+      csrf: vi.fn(async () => undefined),
+      sharedStatus: () => of({ data: device }),
+      sharedUsers: () => of({ data: [{ id: 4, name: 'Ana' }], meta: { last_page: 1 } }),
+      pinLogin: () => of({ user: { id: 4, roles: ['employee'] }, session: { id: 'employee-session' } }),
+      changeCredential,
+    };
+    const storage = { isNative: () => false, getMode: async () => 'shared' };
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }],
+    });
+    const store = TestBed.inject(AuthStore);
+    await store.bootstrap();
+    await store.loginWithPin(4, '0007');
+
+    store.handleHttpError(pinError, '/api/v1/auth/pin');
+    expect(await store.changeCredential('pin', '0008', '0031', '0031')).toBe('El PIN actual no es correcto.');
+    expect(store.sharedSessionId()).toBe('employee-session');
+
+    expect(await store.changeCredential('pin', '0007', '0031', '0031')).toBeNull();
+    expect(changeCredential).toHaveBeenLastCalledWith('pin', '0007', '0031', '0031');
+    expect(store.user()).toBeNull();
+    expect(store.status()).toBe('shared_selector');
+    expect(store.device()).toEqual(device);
+    expect(store.sharedUsers()).toEqual([{ id: 4, name: 'Ana' }]);
   });
 
   it('does not exempt other unauthorized requests with the same error code', async () => {

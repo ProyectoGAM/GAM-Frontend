@@ -1,6 +1,6 @@
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { IonButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonModal, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonModal, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { lockClosedOutline, warningOutline } from 'ionicons/icons';
 
@@ -13,7 +13,7 @@ import { formatFeedKg, parseFeedKg } from '../../services/feeding-summary';
   selector: 'app-feeding-editor',
   templateUrl: './feeding-editor.component.html',
   styleUrl: './feeding-editor.component.scss',
-  imports: [ReactiveFormsModule, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonContent, IonFooter, IonIcon, InfoHelpComponent],
+  imports: [ReactiveFormsModule, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonContent, IonIcon, InfoHelpComponent],
 })
 export class FeedingEditorComponent {
   readonly open = input(true);
@@ -26,6 +26,7 @@ export class FeedingEditorComponent {
   readonly options = input.required<readonly FeedingRecipeOption[]>();
   readonly state = input.required<FeedingLoadState>();
   readonly saving = input(false);
+  readonly submitBlocked = input(false);
   readonly error = input<string | null>(null);
   readonly submitted = output<FeedingSubmission>();
   readonly closeRequested = output<void>();
@@ -60,12 +61,12 @@ export class FeedingEditorComponent {
   }
 
   changeMode(mode: FeedingMode): void {
-    if (!this.open() || this.saving() || this.pending()) return;
+    if (!this.open() || this.saving() || this.submitBlocked() || this.pending()) return;
     this.selectedMode.set(mode); this.validation.set('');
   }
 
   submit(dialog?: HTMLDialogElement): void {
-    if (!this.open() || this.saving() || this.pending()) return;
+    if (!this.open() || this.saving() || this.submitBlocked() || this.pending()) return;
     this.validation.set('');
     if (this.automatic()) {
       if (!this.unchangedAutomatic()) this.submitted.emit({ mode: 'automatico', recipeId: null, grams: null, reason: '' });

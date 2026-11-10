@@ -61,17 +61,17 @@ describe('PoultryHousesListPage', () => {
     render();
     expect(fixture.nativeElement.querySelector('.global-chip')?.textContent).toContain('Granja Norte');
     expect(fixture.nativeElement.querySelector('#house-unit-filter')).toBeNull();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(1);
 
     selectedId.set(null);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#house-unit-filter')).not.toBeNull();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(2);
 
     fixture.componentInstance.draftUnitId.set(8);
     fixture.componentInstance.applyFilters();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(1);
     expect(fixture.nativeElement.textContent).toContain('Galpón Sur');
 
     selectedId.set(7);
@@ -109,19 +109,19 @@ describe('PoultryHousesListPage', () => {
     search.value = 'ombu';
     search.dispatchEvent(new Event('input'));
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(2);
 
     search.value = 'norte';
     search.dispatchEvent(new Event('input'));
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(1);
     expect(fixture.nativeElement.textContent).not.toContain('Galpón Sur');
 
     search.value = 'sin coincidencia';
     search.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.no-results h2')?.textContent).toBe('Sin resultados');
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(0);
   });
 
   it('combines status and occupancy, excluding unknown occupancy from Con aves and Sin aves', () => {
@@ -138,15 +138,15 @@ describe('PoultryHousesListPage', () => {
     fixture.componentInstance.draftOccupancy.set('empty');
     fixture.componentInstance.applyFilters();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
-    expect(fixture.nativeElement.querySelector('a.house-link')?.textContent).toContain('Sin aves');
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('.house-link')?.textContent).toContain('Sin aves');
     expect(fixture.nativeElement.querySelector('.filter-badge')?.textContent).toBe('2');
 
     fixture.componentInstance.draftOccupancy.set('occupied');
     fixture.componentInstance.applyFilters();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('a.house-link')).toHaveLength(1);
-    expect(fixture.nativeElement.querySelector('a.house-link')?.textContent).toContain('Con aves');
+    expect(fixture.nativeElement.querySelectorAll('.house-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('.house-link')?.textContent).toContain('Con aves');
   });
 
   it('separates operational, maintenance and out-of-service houses from inactive houses', () => {
@@ -166,13 +166,13 @@ describe('PoultryHousesListPage', () => {
 
     const activeGroup = fixture.nativeElement.querySelector('[aria-labelledby="active-houses-title"]');
     const inactiveGroup = fixture.nativeElement.querySelector('[aria-labelledby="inactive-houses-title"]');
-    expect(activeGroup.querySelectorAll('a.house-link')).toHaveLength(3);
+    expect(activeGroup.querySelectorAll('.house-link')).toHaveLength(3);
     expect(activeGroup.textContent).toContain('Galpón Operativo');
     expect(activeGroup.textContent).toContain('Mantenimiento');
     expect(activeGroup.textContent).toContain('Fuera de servicio');
     expect(activeGroup.querySelector('.context-label')?.textContent).toContain('Granja Norte');
     expect(activeGroup.querySelector('.location')?.textContent).toContain('Pando, Canelones');
-    expect(inactiveGroup.querySelectorAll('a.house-link')).toHaveLength(1);
+    expect(inactiveGroup.querySelectorAll('.house-link')).toHaveLength(1);
     expect(inactiveGroup.textContent).toContain('Galpón Inactivo');
     expect(inactiveGroup.querySelector('.house-status[data-status="inactive"]')?.textContent).toBe('Inactivo');
   });
@@ -193,10 +193,10 @@ describe('PoultryHousesListPage', () => {
 
     render();
 
-    const activeLink = fixture.nativeElement.querySelector('a.house-link');
+    const activeLink = fixture.nativeElement.querySelector('.house-link');
     const inactiveGroup = fixture.nativeElement.querySelector('[aria-labelledby="inactive-houses-title"]');
-    expect(activeLink.getAttribute('href')).toBe('/administracion/unidades-productivas/12/galpon/22');
-    expect(activeLink.getAttribute('aria-label'))
+    expect(activeLink.querySelector('a.house-navigation').getAttribute('href')).toBe('/administracion/unidades-productivas/12/galpon/22');
+    expect(activeLink.querySelector('a.house-navigation').getAttribute('aria-label'))
       .toBe('Abrir el detalle del galpón Galpón Lotes Cuarentena Demo');
     expect(activeLink.textContent).toContain('Capacidad: 6.000 aves');
     expect((activeLink.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
@@ -222,7 +222,7 @@ describe('PoultryHousesListPage', () => {
 
     render();
 
-    const card = fixture.nativeElement.querySelector('a.house-link');
+    const card = fixture.nativeElement.querySelector('.house-link');
     const occupancyBar = card.querySelector('.occupancy-bar');
     expect(card.textContent).toContain('1.500 aves de 6.000 plazas');
     expect(occupancyBar.getAttribute('aria-label')).toBe('Ocupación: 1.500 aves de 6.000 plazas');
@@ -245,7 +245,7 @@ describe('PoultryHousesListPage', () => {
 
     render();
 
-    const card = fixture.nativeElement.querySelector('a.house-link');
+    const card = fixture.nativeElement.querySelector('.house-link');
     expect(card.querySelector('.capacity')?.textContent).toContain('Capacidad no disponible');
     expect(card.querySelector('.occupancy-bar')).toBeNull();
   });
@@ -256,6 +256,26 @@ describe('PoultryHousesListPage', () => {
     render();
 
     expect(fixture.nativeElement.textContent).toContain('No hay galpones avícolas');
+  });
+
+  it('opens the excess tooltip separately from the card link and clears it when occupancy changes', () => {
+    const house = { id: 1, name: 'Norte', type: 'poultry', status: 'operational', bird_capacity: 6000, current_occupancy: 6200,
+      productionUnit: { id: 7, name: 'Granja Norte' } };
+    listAllPoultryHouses.mockReturnValue(of([house]));
+    render();
+    const card: HTMLElement = fixture.nativeElement.querySelector('.house-link');
+    const trigger = card.querySelector<HTMLButtonElement>('app-info-help button')!;
+    expect(trigger.closest('a')).toBeNull();
+    expect(card.querySelector('a.house-navigation')?.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/1');
+    trigger.click(); fixture.detectChanges();
+    const tooltip = card.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.textContent).toContain('Capacidad excedida');
+    expect(tooltip.textContent).toContain('Se excede en 200 aves.');
+    expect(card.querySelector('.occupancy-bar')?.getAttribute('aria-valuenow')).toBe('100');
+    listAllPoultryHouses.mockReturnValue(of([{ ...house, current_occupancy: 6000 }]));
+    fixture.componentInstance.retry(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-info-help')).toBeNull();
   });
 
   it('reuses the list for feed plants with a leaf icon and no capacity', () => {
@@ -275,12 +295,12 @@ describe('PoultryHousesListPage', () => {
 
     render();
 
-    const link = fixture.nativeElement.querySelector('a.house-link');
+    const link = fixture.nativeElement.querySelector('.house-link');
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Plantas de ración');
     expect(listAllFeedPlants).toHaveBeenCalledOnce();
     expect(listAllPoultryHouses).not.toHaveBeenCalled();
-    expect(link.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/30');
-    expect(link.getAttribute('aria-label')).toBe('Abrir el detalle de la planta de ración Planta Norte');
+    expect(link.querySelector('a.house-navigation').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/30');
+    expect(link.querySelector('a.house-navigation').getAttribute('aria-label')).toBe('Abrir el detalle de la planta de ración Planta Norte');
     expect((link.querySelector('.house-icon ion-icon') as HTMLElement & { name: string }).name)
       .toBe('leaf-outline');
     expect(link.querySelector('.capacity')).toBeNull();

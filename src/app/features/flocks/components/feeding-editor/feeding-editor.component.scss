@@ -3,7 +3,8 @@ ion-toolbar { --background: var(--gam-color-surface-alt); --color: var(--gam-col
 ion-title { font-size: .9375rem; padding-inline: 16px; }
 .toolbar-title { display: flex; align-items: center; white-space: normal; }
 ion-content { --background: var(--gam-color-surface); --color: var(--gam-color-text); }
-ion-footer ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); margin: 8px 16px; min-height: 44px; }
+.form-actions { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--gam-color-border); }
+.form-actions ion-button { --background: var(--gam-color-primary); --color: var(--gam-color-on-primary); margin: 0; min-height: 48px; }
 ion-buttons ion-button { --color: var(--gam-color-primary); }
 form { padding: 16px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }

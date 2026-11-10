@@ -1,31 +1,116 @@
-@if (!editor()) {
-  <div class="heading"><h2>Roles y permisos</h2><button type="button" (click)="open(null)"><ion-icon name="add-outline" aria-hidden="true" />Nuevo rol</button></div>
-  <p class="intro">Los roles definen acciones; la UP limitará dónde pueden realizarlas.</p>
-  <p class="pending" role="status"><strong>Roles personalizados y catálogo de permisos: Por implementar.</strong> Actualmente solo se pueden asignar los tres roles del contrato desde la gestión de una cuenta.</p>
-  <div class="role-list">
-    @for (role of roles; track role.id) {
-      <article class="card"><div class="role-heading"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /><h3>{{ role.label }}</h3><span class="tag">Sistema</span></div><p>{{ role.description }}</p>
-        <button type="button" (click)="open(role)" [attr.aria-label]="'Ver permisos de ' + role.label">Ver permisos</button>
-      </article>
+<section aria-label="Roles y permisos">
+  @if (!state.editor()) {
+    <header class="heading"><div><h2 #listTitle tabindex="-1">Roles y permisos</h2><p>Definí qué puede hacer cada persona en GAM.</p></div><button class="primary" type="button" [disabled]="!state.canManage()" (click)="open(null)"><ion-icon name="add-outline" aria-hidden="true" /> Nuevo rol</button></header>
+    <p class="information"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /> Cada persona tiene un solo rol. Sus permisos se configuran desde aquí.</p>
+    <form class="role-search" (submit)="$event.preventDefault(); searchRoles()"><label for="role-search">Buscar roles</label><div><input id="role-search" type="search" [formControl]="search" placeholder="Nombre del rol" maxlength="120" /><button type="submit" aria-label="Buscar roles" [disabled]="!state.canManage()"><ion-icon name="search-outline" aria-hidden="true" /><span>Buscar</span></button>@if (state.query()) { <button type="button" (click)="clearSearch()">Limpiar</button> }</div></form>
+    @if (state.listError()) { <div class="error" role="alert"><p>{{ state.listError() }}</p><button type="button" (click)="state.loadList()">Reintentar carga de roles</button></div> }
+    @if (state.message()) { <p class="success" role="status">{{ state.message() }}</p> }
+    @if (state.listLoading()) { <p class="loading" role="status"><ion-spinner name="crescent" /> Cargando roles…</p> }
+    @else if (state.listLoaded()) {
+      <div class="role-list"><div class="table-heading" aria-hidden="true"><span>Rol</span><span>Permisos</span><span>Usuarios</span><span>Acción</span></div>
+        @for (role of state.roleRows(); track role.id) {
+          <article class="role-row"><div class="role-copy"><h3>{{ role.nombre }}</h3><p>{{ role.descripcion || 'Sin descripción.' }}</p><span class="tag">@if (role.protegido) { <ion-icon name="lock-closed-outline" aria-hidden="true" /> Protegido } @else { Personalizado }</span></div><p class="role-count"><strong>{{ role.permisos.length }}</strong> permisos</p><p class="role-count"><strong>{{ role.usuarios_count ?? '—' }}</strong> asignados</p><button type="button" [attr.aria-label]="(role.canEdit ? 'Configurar ' : 'Ver permisos de ') + role.nombre" (click)="open(role.id)">{{ role.canEdit ? 'Configurar' : 'Ver detalle' }}<ion-icon name="chevron-forward-outline" aria-hidden="true" /></button></article>
+        } @empty { <div class="empty"><ion-icon name="shield-checkmark-outline" aria-hidden="true" /><h3>{{ state.query() ? 'No hay roles que coincidan' : 'No hay roles para mostrar' }}</h3><p>{{ state.query() ? 'Probá otro nombre o limpiá la búsqueda.' : 'Podés crear un rol para configurar sus permisos.' }}</p></div> }
+      </div>
+      <nav class="pagination" aria-label="Páginas de roles"><span>{{ state.total() }} roles · Página {{ state.page() }} de {{ state.lastPage() }}</span><div><button type="button" [disabled]="state.page() <= 1" (click)="state.loadList(state.query(), state.page() - 1)">Anterior</button><button type="button" [disabled]="state.page() >= state.lastPage()" (click)="state.loadList(state.query(), state.page() + 1)">Siguiente</button></div></nav>
     }
+    <p class="information"><ion-icon name="business-outline" aria-hidden="true" /> Los permisos no cambian la UP de las cuentas que ingresan con PIN.</p><p class="muted">Los roles protegidos no se pueden eliminar.</p>
+  } @else {
+    <button type="button" class="back" [disabled]="state.busy()" (click)="back()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver a roles</button>
+    <header class="heading"><div><h2 #editorTitle tabindex="-1">{{ state.creating() ? 'Crear rol' : state.selected()?.nombre || 'Detalle del rol' }}</h2>
+      @if (state.selected(); as role) { <p>{{ role.usuarios_count ?? '—' }} usuarios asignados · {{ state.selection().length }} permisos seleccionados</p><span class="tag">{{ role.protegido ? 'Protegido' : 'Personalizado' }}</span> }
+      @else if (state.creating()) { <p>Definí su nombre y las acciones que podrá realizar.</p> }
+    </div>@if (state.selected() && !state.readOnly()) { <button type="button" [disabled]="state.busy() || !!state.blocked()" (click)="openMetadata()"><ion-icon name="create-outline" aria-hidden="true" /> Editar nombre y descripción</button> }</header>
+    @if (state.message()) { <p class="success" role="status">{{ state.message() }}</p> }
+    @if (state.error()) { <p class="error" role="alert">{{ state.error() }}</p> }
+    @if (state.blocked(); as blocked) {
+      <section class="notice" aria-label="Revisión de la configuración">
+        @if (state.selected() && blocked !== 'missing' && blocked !== 'forbidden') {
+          @if (!state.latest()) { <button type="button" [disabled]="state.detailLoading() || state.busy()" (click)="state.reloadConflict()">Recargar y comparar</button> }
+          @else {
+            <p>La configuración actual tiene {{ state.latest()?.permisos?.length }} permisos y {{ state.latest()?.usuarios_count ?? '—' }} usuarios asignados. Tu borrador se conservó.</p>
+            <div class="actions"><button type="button" [disabled]="state.busy()" (click)="state.adoptLatest(false)">Usar configuración actual</button><button type="button" [disabled]="state.busy() || !state.catalogLoaded()" (click)="compareDraft()">Comparar mi borrador</button></div>
+          }
+        } @else { <button type="button" (click)="back()">Revisar el listado de roles</button> }
+      </section>
+    }
+    @if (state.detailLoading()) { <p class="loading" role="status"><ion-spinner name="crescent" /> Cargando el rol…</p> }
+    @else if (!state.creating() && !state.selected()) { <button type="button" (click)="state.open(state.detailId())">Reintentar carga del rol</button> }
+    @else {
+      @if (state.creating()) {
+        <section class="card metadata" aria-label="Datos del nuevo rol" [formGroup]="details"><label for="new-role-name">Nombre del rol</label><input id="new-role-name" formControlName="nombre" maxlength="120" required aria-describedby="new-role-name-error" [attr.aria-invalid]="details.controls.nombre.touched && (details.controls.nombre.invalid || !details.controls.nombre.value.trim()) ? 'true' : null" /><small>Hasta 120 caracteres.</small>
+          @if (details.controls.nombre.touched && (details.controls.nombre.invalid || !details.controls.nombre.value.trim())) { <p class="field-error" id="new-role-name-error">Ingresá un nombre de hasta 120 caracteres.</p> } @if (state.fields().nombre) { <p class="field-error">{{ state.fields().nombre }}</p> }
+          <label for="new-role-description">Descripción</label><textarea id="new-role-description" formControlName="descripcion" maxlength="500" rows="3"></textarea><small>Opcional · Hasta 500 caracteres.</small>@if (state.fields().descripcion) { <p class="field-error">{{ state.fields().descripcion }}</p> }
+          <p class="information"><ion-icon name="people-outline" aria-hidden="true" /> Crear el rol no asigna usuarios. Se elige desde la cuenta de cada persona.</p>
+        </section>
+      } @else if (state.readOnly()) { <p class="information"><ion-icon name="lock-closed-outline" aria-hidden="true" /> {{ state.selected()?.clave === 'unassigned' ? 'Sin rol no tiene permisos ni permite acceder a la aplicación.' : 'Este rol se muestra en modo de lectura. Administrador conserva todos los permisos registrados.' }}</p> }
+
+      <section class="card permission-editor" aria-labelledby="role-permissions-title">
+        <h3 id="role-permissions-title">Permisos del rol</h3><p class="muted">Activá las acciones que este rol puede realizar.</p>
+        @if (state.catalogLoading()) { <p class="loading" role="status"><ion-spinner name="crescent" /> Cargando permisos…</p> }
+        @else if (state.catalogError()) { <div class="error" role="alert"><p>{{ state.catalogError() }}</p><button type="button" (click)="state.loadCatalog()">Reintentar catálogo</button></div> }
+        @else if (state.catalogLoaded()) {
+          <label for="permission-search">Buscar permisos</label><input #permissionSearch id="permission-search" type="search" placeholder="Acción o módulo" [value]="state.permissionQuery()" (input)="state.searchPermissions(permissionSearch.value)" />
+          <div class="editor-columns">
+            <nav class="module-nav" aria-label="Módulos de permisos"><h4>Módulos · {{ state.modules().length }}</h4>@for (module of state.moduleViews(); track module.modulo) { <button type="button" [class.active]="state.selectedModule() === module.modulo" [attr.aria-current]="state.selectedModule() === module.modulo ? 'true' : null" (click)="state.selectedModule.set(module.modulo)"><span>{{ module.etiqueta }}</span><span class="count">{{ module.selectedCount }}</span></button> }</nav>
+            <div class="module-content"><div class="mobile-module"><label for="role-module">Módulo</label><select #moduleSelect id="role-module" [value]="state.selectedModule()" (change)="state.selectedModule.set(moduleSelect.value)">@for (module of state.moduleViews(); track module.modulo) { <option [value]="module.modulo">{{ module.etiqueta }} ({{ module.selectedCount }})</option> }</select></div>
+              @if (state.currentModule(); as module) {
+                <header class="module-heading"><h4>{{ module.etiqueta }}</h4><span class="tag">{{ module.selectedCount }} de {{ module.permisos.length }} activos</span></header>
+                @if (!state.readOnly()) { <div class="module-actions"><button type="button" [disabled]="!module.missingCount || state.busy() || !!state.blocked()" (click)="state.addModule()"><ion-icon name="add-outline" aria-hidden="true" />{{ module.missingCount ? (state.permissionQuery().trim() ? 'Agregar todo el módulo' : 'Agregar todos') + ' (' + module.missingCount + ')' : 'Todos agregados' }}</button><small>{{ module.assignableCount ? 'Solo permisos asignables' : 'Este módulo no tiene permisos asignables para este rol.' }}</small></div> }
+                <div class="permission-list">
+                  @for (permission of module.visiblePermissions; track permission.nombre) {
+                    <label class="permission-row" [class.locked]="!permission.asignable && !state.readOnly()"><input type="checkbox" [checked]="state.selectedSet().has(permission.nombre)" [disabled]="state.readOnly() || !permission.asignable || state.busy() || !!state.blocked()" (change)="toggle($event, permission.nombre)" /><span><strong>{{ permission.etiqueta }}</strong><small>{{ permission.descripcion }}</small>
+                      @if (permission.requiere.length) { <small class="dependency">Requiere @for (dependency of permission.requiere; track dependency; let last = $last) { {{ state.permissionLabels().get(dependency) ?? 'un permiso relacionado' }}{{ last ? '' : ', ' }} }</small> }
+                      @if (!permission.asignable) { <span class="tag"><ion-icon name="lock-closed-outline" aria-hidden="true" /> Solo Administrador</span> }
+                      @if (!state.creating() && state.addedSet().has(permission.nombre)) { <span class="tag added">+ Se activa</span> } @if (state.removedSet().has(permission.nombre)) { <span class="tag removed">− Se desactiva</span> }
+                    </span></label>
+                  } @empty { <p class="empty">{{ state.permissionQuery() ? 'No hay permisos coincidentes en este módulo. Cambiá el módulo o la búsqueda.' : 'Este módulo no tiene permisos.' }}</p> }
+                </div>
+              } @else { <p class="empty">No hay módulos de permisos disponibles.</p> }
+            </div>
+          </div>
+        }
+        @if (state.selectionError()) { <p class="error" role="alert">{{ state.selectionError() }}</p><button type="button" [disabled]="state.catalogLoading()" (click)="state.loadCatalog()">Actualizar catálogo</button> }
+        @if (state.fields().permisos) { <p class="field-error">{{ state.fields().permisos }}</p> }
+      </section>
+      @if (!state.readOnly()) {
+        <footer class="review-bar"><div><strong>{{ state.creating() ? 'Selección del nuevo rol' : state.dirty() ? 'Cambios sin guardar' : 'Sin cambios pendientes' }}</strong><p>{{ state.added().length }} permisos se activan · {{ state.removed().length }} se desactivan</p><small>{{ state.creating() ? 'Crear el rol no asigna usuarios.' : 'Afecta a ' + (state.selected()?.usuarios_count ?? '—') + ' usuarios asignados. No modifica la UP.' }}</small></div><div class="actions"><button type="button" [disabled]="state.busy()" (click)="back()">Cancelar</button><button class="primary" type="button" [disabled]="!state.canReview()" (click)="review()">{{ state.creating() ? 'Revisar y crear' : 'Revisar cambios' }}</button></div></footer>
+        @if (state.selected() && !state.selected()?.protegido) { <section class="delete-section"><button class="danger" type="button" [disabled]="!state.canDelete()" (click)="dialog.set('delete')"><ion-icon name="trash-outline" aria-hidden="true" /> Eliminar rol</button>@if (state.selected()?.usuarios_count !== 0) { <p>No se puede eliminar mientras tenga usuarios asignados, incluidas cuentas deshabilitadas.</p> }</section> }
+      }
+    }
+  }
+</section>
+<dialog #roleDialog class="role-dialog" aria-labelledby="role-dialog-title" (cancel)="closeDialog($event)">
+  <header class="dialog-heading"><h2 #dialogTitle id="role-dialog-title" tabindex="-1">{{ dialog() === 'metadata' ? 'Editar nombre y descripción' : dialog() === 'delete' ? 'Eliminar rol' : dialog() === 'discard' ? '¿Descartar los cambios?' : dialog() === 'selection' ? 'Revisar selección' : 'Revisar cambios' }}</h2><button type="button" aria-label="Cerrar diálogo" [disabled]="state.busy()" (click)="closeDialog()"><ion-icon name="close-outline" aria-hidden="true" /></button></header>
+  <div class="dialog-body">
+    @if (dialog() === 'selection') {
+      <p>Se actualizará el borrador con estos permisos y sus dependencias.</p>
+      @if (state.pendingSelection(); as plan) {
+        @if (plan.added.length) { <h3>Se agregan</h3><ul class="change-list">@for (permission of plan.added; track permission.nombre) { <li><strong>{{ permission.etiqueta }}</strong><small>{{ permission.moduleLabel }}</small></li> }</ul> }
+        @if (plan.removed.length) { <h3>Se desactivan juntos</h3><ul class="change-list">@for (permission of plan.removed; track permission.nombre) { <li><strong>{{ permission.etiqueta }}</strong><small>{{ permission.moduleLabel }}</small></li> }</ul> }
+      }
+      <p class="muted">Podés revisar el resultado antes de guardarlo.</p>
+    } @else if (dialog() === 'metadata') {
+      <form id="role-metadata-form" [formGroup]="details" (ngSubmit)="save()"><label for="role-name">Nombre del rol</label><input id="role-name" formControlName="nombre" maxlength="120" required [readOnly]="state.busy()" />
+        @if (details.controls.nombre.touched && (details.controls.nombre.invalid || !details.controls.nombre.value.trim())) { <p class="field-error">Ingresá un nombre de hasta 120 caracteres.</p> } @if (state.fields().nombre) { <p class="field-error">{{ state.fields().nombre }}</p> }
+        <label for="role-description">Descripción</label><textarea id="role-description" formControlName="descripcion" rows="3" maxlength="500" [readOnly]="state.busy()"></textarea><small>Opcional · Hasta 500 caracteres.</small>@if (state.fields().descripcion) { <p class="field-error">{{ state.fields().descripcion }}</p> }
+        <p class="information">Guardar estos datos conserva la selección de permisos que estás editando.</p>
+      </form>
+    } @else if (dialog() === 'review') {
+      <h3>{{ state.creating() ? reviewMetadata()?.nombre : state.selected()?.nombre }}</h3>
+      @if (state.creating()) { <p>{{ reviewMetadata()?.descripcion || 'Sin descripción.' }}</p><p>El rol se creará sin asignar usuarios.</p> }
+      @if (state.added().length) { <h4 class="added-ink">Se activan</h4><ul class="change-list">@for (permission of state.added(); track permission.nombre) { <li>{{ permission.etiqueta }}<small>{{ permission.moduleLabel }}</small></li> }</ul> }
+      @if (state.removed().length) { <h4 class="removed-ink">Se desactivan</h4><ul class="change-list">@for (permission of state.removed(); track permission.nombre) { <li>{{ permission.etiqueta }}<small>{{ permission.moduleLabel }}</small></li> }</ul> }
+      @if (!state.selection().length) { <p class="notice">El rol quedará sin permisos. No concede acceso ni acciones por sí solo.</p> }
+      @if (!state.creating()) { <p><strong>Afecta a {{ state.selected()?.usuarios_count ?? '—' }} usuarios asignados.</strong></p><p>Conservan el mismo rol. Los nuevos permisos se aplican al guardar.</p> }
+      @if (state.removedChannels().length) { <p class="notice">Se cerrarán las sesiones de los canales cuyo permiso de acceso se retira.</p> }
+    } @else if (dialog() === 'delete') { <h3>{{ state.selected()?.nombre }}</h3><p>Se eliminará esta definición de rol. El servidor comprobará nuevamente que no tenga usuarios asignados.</p> }
+    @else if (dialog() === 'discard') { <p>Hay cambios sin guardar. Podés continuar editando o descartarlos para salir.</p> }
+    @if (state.error() && dialog() !== 'discard' && dialog() !== 'selection') { <p class="error" role="alert">{{ state.error() }}</p> }
   </div>
-} @else {
-  <button class="back" type="button" (click)="back()"><ion-icon name="arrow-back-outline" aria-hidden="true" />Volver a roles</button>
-  <section class="card editor" aria-labelledby="role-editor-title">
-    <h2 id="role-editor-title" #editorTitle tabindex="-1">{{ selected() ? 'Permisos de ' + selected()?.label : 'Crear rol' }}</h2>
-    <p class="pending"><strong>Por implementar.</strong> La API aún no permite consultar ni guardar la definición de un rol y sus permisos.</p>
-    <label>Nombre del rol<input disabled [value]="selected()?.label ?? ''" placeholder="Por implementar" /></label>
-    <label>Descripción<textarea disabled placeholder="Por implementar"></textarea></label>
-    <h3>Permisos</h3>
-    <p class="intro">Se usarán casillas agrupadas por módulo cuando esté disponible el catálogo.</p>
-    <fieldset disabled><legend>Estructura del permiso · Por implementar</legend>
-      <label>Módulo<input placeholder="Ej.: LOTS" /></label>
-      <label class="checkbox"><input type="checkbox" />Permiso del módulo · Por implementar</label>
-      <label>Identificador del permiso<input placeholder="Ej.: ALLOW_EDIT" /></label>
-      <p class="intro">Los ejemplos no son permisos disponibles. Los demás atributos están por implementar.</p>
-    </fieldset>
-    <p class="intro">El aislamiento por UP también está por implementar en el servidor.</p>
-    <button class="save" disabled>{{ selected() ? 'Guardar cambios' : 'Crear rol' }} · Por implementar</button>
-    <button type="button" (click)="back()">Volver</button>
-  </section>
-}
+  <footer class="dialog-actions">
+    @if (dialog() === 'discard') { <button type="button" (click)="closeDialog()">Continuar editando</button><button class="danger" type="button" (click)="discard()">Descartar y salir</button> }
+    @else if (dialog() === 'selection') { <button type="button" (click)="closeDialog()">Cancelar</button><button class="primary" type="button" (click)="acceptSelection()">Aplicar al borrador</button> }
+    @else { <button type="button" [disabled]="state.busy()" (click)="closeDialog()">{{ dialog() === 'review' ? 'Volver al editor' : 'Cancelar' }}</button><button type="button" [class.primary]="dialog() !== 'delete'" [class.danger]="dialog() === 'delete'" [disabled]="state.busy() || (dialog() === 'delete' && !state.canDelete())" (click)="save()">@if (state.busy()) { <ion-spinner name="crescent" /> Guardando… } @else { {{ dialog() === 'metadata' ? 'Guardar datos' : dialog() === 'delete' ? 'Eliminar rol' : state.creating() ? 'Crear rol' : 'Guardar permisos' }} }</button> }
+  </footer>
+</dialog>

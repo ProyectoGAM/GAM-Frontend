@@ -25,10 +25,6 @@
         [routerLinkActiveOptions]="{ exact: false }" ariaCurrentWhenActive="page">
         <ion-icon class="group-icon" [name]="group.icon" aria-hidden="true" />
         <span>{{ group.label }}</span>
-
-        @if (group.id === 'resumen') {
-        <small>Próximamente</small>
-        }
       </a>
       } @else {
       <button class="group-toggle" type="button" [attr.aria-expanded]="isGroupExpanded(group.id)"
@@ -41,7 +37,7 @@
       <div class="nav-items" [id]="'nav-items-' + group.id" [hidden]="!isGroupExpanded(group.id)">
         @for (item of group.items; track item.slug) {
         <a [routerLink]="itemRouteCommands(group.id, item.slug)" routerLinkActive="active" ariaCurrentWhenActive="page"
-          [routerLinkActiveOptions]="{ paths: group.id === 'manejo-lotes' && (item.slug === 'planes' || item.slug === 'Recetas') ? 'subset' : 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }">
+          [routerLinkActiveOptions]="{ paths: (group.id === 'manejo-lotes' && (item.slug === 'planes' || item.slug === 'Recetas')) || (group.id === 'ubicaciones' && item.slug === 'mantenimiento') ? 'subset' : 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }">
           {{ item.label }}
         </a>
         }

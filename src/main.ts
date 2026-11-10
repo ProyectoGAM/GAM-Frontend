@@ -16,6 +16,7 @@ import { API_CONFIG } from './app/core/config/api.config';
 import { MAPBOX_ACCESS_TOKEN } from './app/core/config/mapbox.config';
 import { authInterceptor } from './app/core/auth/auth.interceptor';
 import { AuthStore } from './app/core/auth/auth.store';
+import { NativeStatusBarService } from './app/core/native/native-status-bar.service';
 import { ThemeService } from './app/core/theme/theme.service';
 import { environment } from './environments/environment';
 
@@ -37,6 +38,8 @@ bootstrapApplication(AppComponent, {
     provideHttpClient(withInterceptors([authInterceptor])),
 
     provideAppInitializer(() => inject(ThemeService).initialize()),
+
+    provideAppInitializer(() => inject(NativeStatusBarService).initialize()),
 
     provideAppInitializer(() => inject(AuthStore).bootstrap()),
 

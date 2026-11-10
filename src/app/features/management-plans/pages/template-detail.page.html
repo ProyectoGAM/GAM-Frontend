@@ -14,18 +14,30 @@
           @if (item.current_version > (item.published_version ?? 0) && selectedVersion() !== item.current_version) {
             <a class="button soft" [routerLink]="detailPath()" [queryParams]="{ version: item.current_version }">Abrir borrador v{{ item.current_version }}</a>
           }
-          @if (canPublish()) { <button class="button primary" type="button" (click)="confirmation.set('publish')">Publicar versión {{ item.current_version }}</button> }
+          @if (canPublish()) { <button class="button primary" type="button" aria-haspopup="dialog" aria-controls="publication-modal" [attr.aria-expanded]="confirmation() === 'publish'" (click)="openPublication()">Publicar versión {{ item.current_version }}</button> }
           <button class="button danger-outline" type="button" (click)="confirmation.set('retire')">Eliminar plan</button>
         } @else { <p class="retired-explanation">Esta plantilla está desactivada y no puede asignarse a nuevos lotes.</p><button class="button outline" type="button" (click)="confirmation.set('activate')">Activar plan</button> }
       </div>
       @if (confirmation(); as action) {
+        @if (action !== 'publish') {
         <section class="action-confirmation" aria-label="Confirmar acción">
-          <h2>{{ action === 'publish' ? 'Publicar versión ' + item.current_version : action === 'retire' ? 'Desactivar plantilla' : 'Activar plantilla' }}</h2>
-          <p>{{ action === 'publish' ? 'Los nuevos lotes podrán usar esta versión. Los planes ya asignados conservan su copia.' : action === 'retire' ? 'La plantilla dejará de estar disponible para nuevas asignaciones. Los lotes existentes conservarán su plan. No se borrará físicamente.' : item.published_version === null ? 'La plantilla volverá a estar activa. Publicá su borrador para poder asignarla a nuevos lotes.' : 'La versión publicada volverá a estar disponible para nuevos lotes. Los lotes existentes conservarán su plan.' }}</p>
-          <div class="row-actions"><button class="button outline" type="button" [disabled]="!!workingAction()" (click)="confirmation.set(null)">Cancelar</button><button class="button" [class.primary]="action !== 'retire'" [class.danger]="action === 'retire'" type="button" [disabled]="!!workingAction() || !!conflictVersion()" (click)="confirmAction(action)">{{ workingAction() ? 'Guardando…' : action === 'publish' ? 'Confirmar publicación' : action === 'retire' ? 'Confirmar desactivación' : 'Confirmar activación' }}</button></div>
+          <h2>{{ action === 'retire' ? 'Desactivar plantilla' : 'Activar plantilla' }}</h2>
+          <p>{{ action === 'retire' ? 'La plantilla dejará de estar disponible para nuevas asignaciones. Los lotes existentes conservarán su plan. No se borrará físicamente.' : item.published_version === null ? 'La plantilla volverá a estar activa. Publicá su borrador para poder asignarla a nuevos lotes.' : 'La versión publicada volverá a estar disponible para nuevos lotes. Los lotes existentes conservarán su plan.' }}</p>
+          <div class="row-actions"><button class="button outline" type="button" [disabled]="!!workingAction()" (click)="confirmation.set(null)">Cancelar</button><button class="button" [class.primary]="action !== 'retire'" [class.danger]="action === 'retire'" type="button" [disabled]="!!workingAction() || !!conflictVersion()" (click)="confirmAction(action)">{{ workingAction() ? 'Guardando…' : action === 'retire' ? 'Confirmar desactivación' : 'Confirmar activación' }}</button></div>
         </section>
+        }
       }
-      @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
+      <ion-modal id="publication-modal" class="publication-modal" [isOpen]="confirmation() === 'publish'" [keepContentsMounted]="true" [canDismiss]="confirmation() !== 'publish' || !workingAction()" [backdropDismiss]="!workingAction()" (didPresent)="focusPublication()" (didDismiss)="closePublication()" aria-labelledby="publication-title" aria-describedby="publication-description">
+        <ng-template>
+          <section class="plans-page publication-confirmation" [attr.aria-busy]="workingAction() === 'publish'">
+            <h2 #publicationTitle id="publication-title" tabindex="-1">Publicar versión {{ item.current_version }}</h2>
+            <p id="publication-description">Los nuevos lotes podrán usar esta versión. Los planes ya asignados conservan su copia.</p>
+            @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> }
+            <div class="row-actions"><button class="button outline" type="button" [disabled]="!!workingAction()" (click)="closePublication()">Cancelar</button><button class="button primary" type="button" [disabled]="!!workingAction() || !!conflictVersion() || !canPublish()" (click)="confirmAction('publish')">{{ workingAction() === 'publish' ? 'Publicando…' : 'Confirmar publicación' }}</button></div>
+          </section>
+        </ng-template>
+      </ion-modal>
+      @if (confirmation() !== 'publish') { @if (actionError(); as message) { <p class="feedback" role="alert">{{ message }}</p> } }
       @if (conflictVersion()) {
         <section class="conflict-card" aria-label="Cambios recientes"><h2>Cambios recientes</h2><ul>@for (change of conflictChanges(); track change) { <li>{{ change }}</li> }</ul><button class="button outline" type="button" (click)="showCurrentVersion()">Revisar versión actual</button></section>
       }

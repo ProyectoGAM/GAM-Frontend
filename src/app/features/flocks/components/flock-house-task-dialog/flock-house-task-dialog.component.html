@@ -9,11 +9,17 @@
   }
 </dialog>
 @if (task.state() === 'ready' && task.flock(); as flock) {
-  @if (request().kind === 'mortality') {
+  @if (request().kind === 'collection') {
+    <app-collection-form [flock]="flock" [context]="context()" [saving]="task.saving()" [error]="task.saveError()"
+      [fieldErrors]="task.collectionFieldErrors()" (submitted)="task.saveCollection($event)" (closed)="finish()" />
+  } @else if (request().kind === 'mortality') {
     <app-flock-mortality-section [flock]="flock" [registrationOnly]="true"
       [houseName]="request().houseName" [unitName]="request().unitName"
       [saving]="task.saving()" [saveError]="task.saveError()" [fieldErrors]="task.fieldErrors()"
       (formClosed)="finish()" (edited)="task.clearErrors()" (submitted)="task.saveMortality($event)" />
+  } @else if (request().kind === 'beak-trimming') {
+    <app-beak-trimming-dialog [flockId]="flock.id" [flock]="flock" [context]="context()"
+      (saved)="finish($event)" (cancelled)="finish()" />
   } @else if (task.feeding(); as feeding) {
     <app-feeding-editor [open]="editorOpen()" [context]="context()" [currentQuantity]="feeding.cantidad_diaria_g"
       [currentRecipe]="task.currentRecipe()" [currentMode]="feeding.modo" [options]="task.options()"

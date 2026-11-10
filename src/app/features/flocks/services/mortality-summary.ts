@@ -20,29 +20,44 @@ export function mortalityReason(record: FlockMortality): string {
 }
 
 /** Calendar buckets in the farm timezone; weeks start on Monday, current bucket is partial. */
-export function mortalitySummary(records: readonly FlockMortality[], period: MortalityPeriod, today: string): MortalityPoint[] {
+export function mortalitySummary(records: readonly FlockMortality[], period: MortalityPeriod, today: string, entryDate = today): MortalityPoint[] {
   const current = new Date(`${today}T00:00:00Z`);
-  const count = period === 'day' ? 7 : period === 'week' ? 8 : 6;
-  if (period === 'week') current.setUTCDate(current.getUTCDate() - (current.getUTCDay() + 6) % 7);
-  if (period === 'month') current.setUTCDate(1);
-  const starts = Array.from({ length: count + 1 }, (_, index) => {
-    const date = new Date(current);
-    const offset = index - count + 1;
-    if (period === 'month') date.setUTCMonth(date.getUTCMonth() + offset);
-    else date.setUTCDate(date.getUTCDate() + offset * (period === 'week' ? 7 : 1));
-    return date;
-  });
   const dated = records.filter((record) => record.status === 'recorded')
     .map((record) => ({ record, date: mortalityDate(record) })).filter(({ date }) => date <= today);
+  const weekly = period === 'week';
+  if (weekly) current.setUTCDate(current.getUTCDate() - (current.getUTCDay() + 6) % 7);
+  else current.setUTCDate(1);
+
+  let first = new Date(current);
+  let count = weekly ? 8 : 6;
+  let monthsPerPoint = 1;
+  if (period === 'historical') {
+    const earliest = dated.reduce((date, item) => item.date < date ? item.date : date, entryDate < today ? entryDate : today);
+    first = new Date(`${earliest.slice(0, 7)}-01T00:00:00Z`);
+    const monthCount = (current.getUTCFullYear() - first.getUTCFullYear()) * 12 + current.getUTCMonth() - first.getUTCMonth() + 1;
+    monthsPerPoint = Math.ceil(monthCount / 8);
+    count = Math.ceil(monthCount / monthsPerPoint);
+  } else if (weekly) {
+    first.setUTCDate(first.getUTCDate() - (count - 1) * 7);
+  } else {
+    first.setUTCMonth(first.getUTCMonth() - (count - 1));
+  }
+  const starts = Array.from({ length: count + 1 }, (_, index) => {
+    const date = new Date(first);
+    if (weekly) date.setUTCDate(date.getUTCDate() + index * 7);
+    else date.setUTCMonth(date.getUTCMonth() + index * monthsPerPoint);
+    return date;
+  });
   return starts.slice(0, -1).map((start, index) => {
     const key = start.toISOString().slice(0, 10);
     const end = starts[index + 1].toISOString().slice(0, 10);
     const selected = dated.filter(({ date }) => date >= key && date < end).map(({ record }) => record);
     const last = new Date(Math.min(starts[index + 1].getTime() - DAY_MS, Date.parse(`${today}T00:00:00Z`)));
-    return { key, label: (period === 'month' ? monthDate : shortDate).format(start),
-      description: period === 'day' ? fullDate.format(start) : period === 'month'
-        ? `${monthDate.format(start)}${index === count - 1 ? ' · En curso' : ''}`
-        : `${fullDate.format(start)} – ${fullDate.format(last)}${index === count - 1 ? ' · En curso' : ''}`,
+    const span = weekly ? `${fullDate.format(start)} – ${fullDate.format(last)}`
+      : start.getUTCMonth() === last.getUTCMonth() && start.getUTCFullYear() === last.getUTCFullYear()
+        ? monthDate.format(start) : `${monthDate.format(start)} – ${monthDate.format(last)}`;
+    return { key, label: (weekly ? shortDate : monthDate).format(start),
+      description: span + (index === count - 1 ? ' · En curso' : ''),
       quantity: selected.reduce((total, record) => total + record.quantity, 0), records: selected };
   });
 }

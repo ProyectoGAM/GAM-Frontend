@@ -18,7 +18,7 @@
     @if (houseName()) { <p class="house-name">{{ houseName() }}</p> }
     <p class="entry-date" [id]="'flock-entry-' + flock().id"><ion-icon name="calendar-outline" aria-hidden="true" /><span>Ingreso: {{ entryDate() }}</span></p>
     <dl class="bird-metrics" [id]="'flock-counts-' + flock().id">
-      <div><dt>Mortalidad</dt><dd [class.pending]="mortality().state !== 'ready'">{{ mortalityText() }}</dd></div>
+      <div><dt>Mortandad</dt><dd [class.pending]="mortality().state !== 'ready'">{{ mortalityText() }}</dd></div>
       <div><dt>Aves vivas</dt><dd>{{ liveBirds() }}</dd></div>
     </dl>
     @if (negativeBalance(); as balance) { <p class="balance-note">Saldo registrado: {{ balance }} aves</p> }
@@ -27,7 +27,7 @@
   @if (showTasks() && returnHouse() && flock().status !== 'finished') {
     <section class="flock-tasks" [attr.aria-label]="'Tareas del lote ' + flock().code">
       <h4>Tareas del lote</h4>
-      @for (task of tasks; track task.path) {
+      @for (task of tasks(); track task.path) {
         @if (task.kind; as kind) {
         <button type="button" class="task-link" aria-haspopup="dialog" (click)="requestTask(kind, $event)">
           <span class="task-icon"><ion-icon [name]="task.icon" aria-hidden="true" /></span>

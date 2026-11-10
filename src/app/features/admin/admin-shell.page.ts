@@ -1,12 +1,14 @@
 import { Component, computed, effect, inject } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { IonButton, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonContent, IonHeader, IonIcon, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { menuOutline, moonOutline, sunnyOutline } from 'ionicons/icons';
 
 import { AuthStore } from '../../core/auth/auth.store';
 import { hasDeliveryRole } from '../../core/auth/access-policy';
 import { ThemeService } from '../../core/theme/theme.service';
+import { InitialAvatarComponent } from '../../shared/components/initial-avatar.component';
+import { NotificationBellComponent } from '../notifications/components/notification-bell.component';
 import { AdminSidebarComponent } from './components/admin-sidebar.component';
 import { firstVisibleAdminPath, visibleAdminNavigation } from './admin-navigation';
 import { AdminUnitContextService } from './services/admin-unit-context.service';
@@ -15,7 +17,7 @@ import { AdminUnitContextService } from './services/admin-unit-context.service';
   selector: 'app-admin-shell',
   templateUrl: './admin-shell.page.html',
   styleUrl: './admin-shell.page.scss',
-  imports: [AdminSidebarComponent, IonButton, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar, RouterLink, RouterOutlet],
+  imports: [AdminSidebarComponent, InitialAvatarComponent, NotificationBellComponent, IonButton, IonContent, IonHeader, IonIcon, IonToolbar, RouterLink, RouterOutlet],
   providers: [AdminUnitContextService],
 })
 export class AdminShellPage {

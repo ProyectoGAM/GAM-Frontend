@@ -37,6 +37,7 @@ export interface PlanCatalogOption { value: string; label: string }
 export interface PlanActivity {
   id: string;
   type: string;
+  practice_type?: 'beak_trimming' | 'nest_placement' | 'other' | null;
   title: string;
   timing_kind: PlanTimingKind;
   start_day: number | null;

@@ -23,7 +23,7 @@
       <button type="submit" form="movement-reversal-form" class="primary" [disabled]="loading() || !!loadError()">Continuar</button>
     } @else {
       <button type="button" [disabled]="saving()" (click)="editReason()">Editar motivo</button>
-      <button type="button" class="danger" [disabled]="saving()" (click)="confirm()">{{ saving() ? 'Revirtiendo…' : 'Confirmar reversión' }}</button>
+      <button type="button" class="danger" [disabled]="saving() || commandBlocked()" (click)="confirm()">{{ saving() ? 'Revirtiendo…' : 'Confirmar reversión' }}</button>
     }
   </footer>
 </dialog>

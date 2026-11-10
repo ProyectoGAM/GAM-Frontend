@@ -1,0 +1,47 @@
+<section class="health-page" aria-labelledby="health-title">
+  <a class="back-link" [routerLink]="backLink()" [queryParams]="backQuery()"><ion-icon name="arrow-back-outline" aria-hidden="true" /> Detalle del lote</a>
+  <header class="heading"><div><h1 id="health-title">Sanidad del lote</h1>
+    @if (flock(); as item) { <p>Lote {{ item.code }} @if (houseName()) { · {{ houseName() }} } @if (unitName()) { · {{ unitName() }} }</p> }
+  </div>
+  @if (state() === 'ready' && canApply()) { <button class="primary" type="button" (click)="openApplication()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar aplicación</button> }
+  </header>
+  @if (success()) { <p class="success" role="status">{{ success() }}</p> }
+  @if (state() === 'ready') {
+    @if (flock(); as item) {
+      @if (item.status === 'finished') { <p class="notice">Lote finalizado: el historial sigue disponible para consulta.</p> }
+      <app-health-application #editor [flock]="item" [plan]="plan()" [vaccines]="vaccines()" [medicines]="medicines()"
+        [dataReady]="dataReady()" [dataError]="dataError()" [saving]="saving()" [uncertain]="uncertain()" [error]="actionError()"
+        (submitted)="save($event)" (retried)="retry()" (reloadRequested)="loadEditorData()" />
+    }
+    <section class="history" aria-labelledby="health-history-title">
+      <div class="history-heading"><h2 id="health-history-title">Historial de aplicaciones</h2>
+        @if (historyState() === 'ready') { <span>{{ rows().length }} registros</span> }
+      </div>
+      @if (historyState() === 'loading') { <div class="state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando historial…</div> }
+      @else if (historyState() !== 'ready') {
+        <div class="state" role="alert"><p>{{ historyState() === 'forbidden' ? 'No tenés permiso para consultar el historial.' : historyState() === 'offline' ? 'Sin conexión. No se pudo cargar el historial.' : 'No se pudo cargar el historial completo.' }}</p><button class="secondary" type="button" (click)="loadHistory()">Reintentar</button></div>
+      } @else if (!rows().length) {
+        <div class="state"><ion-icon name="medical-outline" aria-hidden="true" /><h3>Este lote aún no tiene aplicaciones</h3><p>Las vacunas y medicamentos registrados aparecerán aquí.</p></div>
+      } @else {
+        <p class="list-caption">Aplicaciones · Más recientes primero</p>
+        <ol class="application-list">
+          @for (row of visibleRows(); track row.key) {
+            <li><div class="row-meta"><time [attr.datetime]="row.occurredAt">{{ row.date }}</time><span class="badge" [class.medicine]="row.kind === 'medication'">{{ row.kind === 'medication' ? 'Medicamento' : 'Vacuna' }}</span></div>
+              <div class="row-main"><h3>{{ row.correction ? 'Corrección · ' : '' }}{{ row.name }}</h3><p>{{ row.responsible }}</p></div>
+              @if (row.corrected) { <p class="correction-note">Aplicación corregida · se conserva como antecedente</p> }
+              @if (row.antecedent) { <p class="correction-note">Antecedente del lote de origen</p> }
+              <details><summary>{{ row.correction ? 'Ver corrección' : 'Ver aplicación' }}</summary><dl>
+                <div><dt>Origen</dt><dd>{{ row.origin }}</dd></div>
+                @if (row.reason) { <div><dt>{{ row.correction ? 'Motivo de corrección' : 'Motivo' }}</dt><dd>{{ row.reason }}</dd></div> }
+                @if (row.batch) { <div><dt>Partida</dt><dd>{{ row.batch }}</dd></div> }
+                <div><dt>Notas</dt><dd>{{ row.notes ?? 'Sin observaciones.' }}</dd></div>
+              </dl></details>
+            </li>
+          }
+        </ol>
+        @if (visibleCount() < rows().length) { <button class="secondary more" type="button" (click)="visibleCount.set(visibleCount() + 20)">Ver más aplicaciones</button> }
+      }
+    </section>
+  } @else if (state() === 'loading') { <div class="state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando lote…</div> }
+  @else { <div class="state" role="alert"><p>{{ state() === 'forbidden' ? 'No tenés permiso para consultar la sanidad del lote.' : state() === 'not-found' ? 'Lote no encontrado.' : state() === 'offline' ? 'Sin conexión. Revisá la conexión e intentá de nuevo.' : 'No se pudo cargar el lote.' }}</p><button class="secondary" type="button" (click)="load()">Reintentar</button></div> }
+</section>

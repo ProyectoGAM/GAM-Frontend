@@ -12,6 +12,14 @@ import { FlockDetailService } from '../../../flocks/services/flock-detail.servic
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FeedAdjustmentService } from '../../services/feed-adjustment.service';
 import { FeedStockDetailComponent } from '../../components/feed-stock-detail/feed-stock-detail.component';
+import { stubNativeDialog } from '../../../../shared/testing/native-dialog-test';
+import { FlockHealthService } from '../../../flocks/services/flock-health.service';
+import { FlockMortalitiesService } from '../../../flocks/services/flock-mortalities.service';
+import { FlockFeedingService } from '../../../flocks/services/flock-feeding.service';
+import { ManagementPlansService } from '../../../management-plans/services/management-plans.service';
+import { HealthApplicationComponent } from '../../../flocks/components/health-application/health-application.component';
+import { HealthOperation } from '../../../flocks/interfaces/flock-health.interface';
+import { healthFlock, healthPlan } from '../../../flocks/testing/health-fixtures';
 
 describe('PoultryHouseDetailPage', () => {
   let fixture: ComponentFixture<PoultryHouseDetailPage>;
@@ -109,6 +117,37 @@ describe('PoultryHouseDetailPage', () => {
     });
   });
 
+  it('adds the maintenance history link without replacing the existing poultry content', () => {
+    render();
+    expect(fixture.nativeElement.querySelector('.maintenance-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-poultry-house-detail-content')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-installation-maintenance-status')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Poner en mantenimiento');
+  });
+
+  it('adds the same maintenance access for plants while preserving their stock section', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, type: 'feed', bird_capacity: null } })); render();
+    expect(fixture.nativeElement.querySelector('.maintenance-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-feed-stock-detail')).not.toBeNull();
+  });
+
+  it('shows excess, real percentage and zero free places while keeping the bar within its range', () => {
+    getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 6200 } }));
+    render();
+    const warning = fixture.nativeElement.querySelector('.capacity-warning');
+    expect(warning.textContent).toContain('Se está sobrepasando el límite del galpón');
+    expect(warning.textContent).toContain('Se excede en 200 aves.');
+    expect(fixture.nativeElement.querySelector('.occupancy-copy').textContent).toContain('103 %');
+    const progress = fixture.nativeElement.querySelector('.progress');
+    expect(progress.getAttribute('aria-valuenow')).toBe('100');
+    expect(progress.getAttribute('aria-valuetext')).toBe('103 % de ocupación');
+    expect(progress.querySelector('span').style.width).toBe('100%');
+    expect(fixture.componentInstance.availableCapacityLabel()).toBe('0 plazas');
+    fixture.componentInstance.house.set({ ...house, current_occupancy: 6000 }); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.capacity-warning')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.occupancy-copy').textContent).toContain('100 %');
+  });
+
   it('does not offer lot creation when the house is not operational', () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 0 } }));
     render();
@@ -154,6 +193,7 @@ describe('PoultryHouseDetailPage', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     render(); await fixture.whenStable();
     const buttons = fixture.nativeElement.querySelectorAll('app-flock-card button.task-link') as NodeListOf<HTMLButtonElement>;
+    expect([...buttons].some((button) => button.textContent?.includes('Registrar despique'))).toBe(false);
     buttons[0].click();
     expect(fixture.componentInstance.flockTask()).toMatchObject({ kind: 'mortality', flockId: 'lot-1', origin: { unitId: 7, houseId: 22 } });
     fixture.componentInstance.closeFlockTask(null);
@@ -176,12 +216,91 @@ describe('PoultryHouseDetailPage', () => {
     getPoultryHouseById.mockReturnValue(of({ data: { ...house, current_occupancy: 749 } }));
     houseFlocks.mockReturnValue(of([{ ...flock, current_quantity: 749 }]));
     totals.mockReturnValue(of(new Map([['lot-1', { state: 'ready', value: 10 }]])));
-    fixture.componentInstance.closeFlockTask('Mortalidad registrada.');
+    fixture.componentInstance.closeFlockTask('Mortandad registrada.');
     await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.componentInstance.state()).toBe('success'); expect(fixture.componentInstance.occupancyLabel()).toBe('749 aves');
     const counts = fixture.nativeElement.querySelectorAll('app-flock-card dd') as NodeListOf<HTMLElement>;
     expect(counts[0].textContent).toBe('10'); expect(counts[1].textContent).toBe('749');
-    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortalidad registrada.');
+    expect(totals).toHaveBeenCalledTimes(2); expect(fixture.nativeElement.textContent).toContain('Mortandad registrada.');
+  });
+
+  it('opens Sanidad from the house card, blocks leaving during save and refreshes the same detail on success', async () => {
+    const restore = stubNativeDialog();
+    const pending = new Subject<HealthOperation>();
+    const record = vi.fn(() => pending); const history = vi.fn();
+    const actor = { id: 1, name: 'María', roles: ['admin'], permissions: [] };
+    const flock = { ...healthFlock, poultry_house_id: 22, production_unit_id: 7 };
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(AuthStore, { useValue: { user: () => actor, session: () => null } });
+    TestBed.overrideProvider(FlockDetailService, { useValue: { flock: () => of(flock), mortalityTotals: () => of(new Map()) } });
+    TestBed.configureTestingModule({ providers: [
+      { provide: FlockHealthService, useValue: { record, history } },
+      { provide: ManagementPlansService, useValue: { catalogOptions: async () => [{ value: 'vaccine-1', label: 'Vacuna A' }], flockPlan: () => of({ data: healthPlan }) } },
+    ] });
+    try {
+      render(); await fixture.whenStable(); fixture.detectChanges();
+      const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.task-link')]
+        .find((item) => item.textContent?.includes('Sanidad'))!;
+      expect(button).toBeDefined(); button.click(); fixture.detectChanges();
+      await vi.waitFor(async () => {
+        await fixture.whenStable(); fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.health-dialog')?.open).toBe(true);
+      });
+      expect(fixture.nativeElement.querySelector('app-flock-house-task-dialog')).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain(house.name);
+      expect(history).not.toHaveBeenCalled(); expect(TestBed.inject(Router).url).toBe('/');
+      const editor = fixture.debugElement.query(By.directive(HealthApplicationComponent)).componentInstance as HealthApplicationComponent;
+      editor.submitted.emit({ kind: 'vaccination', body: { vaccine_id: 'vaccine-1', occurred_at: '2026-10-20T10:00:00-03:00', reason: 'Indicación' } });
+      expect(fixture.componentInstance.canLeave()).toBe(false);
+      pending.next({ operation_id: 'op-1', vaccination_application: { id: 'app-1' } }); pending.complete();
+      await vi.waitFor(async () => {
+        await fixture.whenStable(); fixture.detectChanges();
+        expect(fixture.componentInstance.taskMessage()).toBe('Aplicación registrada.');
+      });
+      expect(fixture.componentInstance.flockTask()).toBeNull();
+      expect(fixture.componentInstance.canLeave()).toBe(true);
+      expect(houseFlocks).toHaveBeenCalledTimes(2);
+      expect(document.activeElement?.textContent).toContain('Sanidad');
+      expect(TestBed.inject(Router).url).toBe('/');
+    } finally { fixture?.destroy(); restore(); }
+  });
+
+  it('registers despique from the house without leaving it or requesting history', async () => {
+    const restore = stubNativeDialog();
+    const pending = new Subject<{ operation_id: string }>();
+    const saveBeakTrimming = vi.fn(() => pending);
+    const beakTrimmingHistory = vi.fn();
+    const flock = { ...healthFlock, poultry_house_id: 22, production_unit_id: 7 };
+    houseFlocks.mockReturnValue(of([flock]));
+    TestBed.overrideProvider(AuthStore, { useValue: { user: () => ({ id: 1, name: 'María', roles: ['admin'] }), session: () => null } });
+    TestBed.overrideProvider(FlockDetailService, { useValue: { flock: () => of(flock), mortalityTotals: () => of(new Map()) } });
+    TestBed.configureTestingModule({ providers: [
+      { provide: FlockHealthService, useValue: { saveBeakTrimming, beakTrimmingHistory } },
+      { provide: ManagementPlansService, useValue: { flockPlan: () => of({ data: healthPlan }) } },
+      { provide: FlockMortalitiesService, useValue: {} },
+      { provide: FlockFeedingService, useValue: {} },
+    ] });
+    try {
+      render(); await fixture.whenStable();
+      const host = fixture.nativeElement as HTMLElement;
+      const button = [...host.querySelectorAll<HTMLButtonElement>('button.task-link')]
+        .find((item) => item.textContent?.includes('Registrar despique'))!;
+      button.click(); await fixture.whenStable(); fixture.detectChanges();
+      const dialog = host.querySelector<HTMLDialogElement>('.despique-dialog[open]')!;
+      expect(dialog.textContent).toContain(flock.code);
+      expect(dialog.textContent).toContain(house.name);
+      expect(beakTrimmingHistory).not.toHaveBeenCalled();
+      dialog.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      expect(saveBeakTrimming).toHaveBeenCalledExactlyOnceWith(flock.id,
+        { kind: 'record', body: { practice_type: 'beak_trimming', occurred_at: expect.any(String) } }, expect.any(String));
+      expect(fixture.componentInstance.canLeave()).toBe(false);
+      pending.next({ operation_id: 'op-1' }); pending.complete();
+      await fixture.whenStable(); fixture.detectChanges();
+      expect(host.querySelector('.despique-dialog[open]')).toBeNull();
+      expect(fixture.componentInstance.taskMessage()).toBe('Despique registrado.');
+      expect(TestBed.inject(Router).url).toBe('/');
+      expect(document.activeElement).toBe(button);
+    } finally { fixture?.destroy(); restore(); }
   });
 
   it('renders feed stock without avian sections', () => {
@@ -419,16 +538,12 @@ describe('PoultryHouseDetailPage', () => {
     expect(updatePoultryHouseStatus).not.toHaveBeenCalled();
   });
 
-  it('changes the operational state through the dedicated status action', async () => {
-    alertCreate.mockResolvedValue({
-      present: vi.fn(),
-      onDidDismiss: vi.fn().mockResolvedValue({ role: 'confirm', data: { values: 'operational' } }),
-    });
+  it('opens the maintenance section for status changes without mutating from the detail page', () => {
     render();
-
-    await fixture.componentInstance.changeStatus();
-
-    expect(updatePoultryHouseStatus).toHaveBeenCalledWith(22, 'operational');
-    expect(getPoultryHouseById).toHaveBeenCalledTimes(2);
+    const link = fixture.nativeElement.querySelector('.actions ion-button:nth-child(2)');
+    expect(link.getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22/mantenimientos');
+    expect(fixture.nativeElement.querySelector('app-installation-maintenance-status')).toBeNull();
+    expect(updatePoultryHouseStatus).not.toHaveBeenCalled();
+    expect(alertCreate).not.toHaveBeenCalled();
   });
 });

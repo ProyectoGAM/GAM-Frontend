@@ -1,0 +1,45 @@
+<form (submit)="submit($event)" aria-label="Rectificar entrega">
+  <h4>Rectificar entrega de {{ stop().client_name }}</h4>
+  <p>Ingresá las cantidades finales. Se conservan los precios de las líneas registradas.</p>
+  <fieldset [disabled]="saving() || uncertain()">
+    @if (hasLines()) {
+      @for (item of stop().items ?? []; track $index; let index = $index) {
+        <label> {{ item.label }} · Original {{ item.amount }}
+          <input #line type="text" inputmode="decimal" [value]="amounts()[index]" (input)="changeAmount(index, line.value)" />
+        </label>
+        @if (lineError(index); as error) { <small class="error">{{ error }}</small> }
+      }
+      @if (fieldError('lineas'); as error) { <small class="error">{{ error }}</small> }
+    } @else {
+      <label>Huevos entregados · Original {{ stop().delivered_quantity }}
+        <input #eggs type="text" inputmode="numeric" [value]="quantity()" (input)="quantity.set(eggs.value.trim())" />
+      </label>
+      @if (+quantity() > 0) {
+        <label>Importe rectificado en UYU · Original {{ money(stop().total_amount) }}
+          <input #price type="text" inputmode="decimal" [value]="amount()" (input)="amount.set(price.value)" />
+        </label>
+        @if (fieldError('importe'); as error) { <small class="error">{{ error }}</small> }
+      }
+    }
+    @if (fieldError('cantidad_entregada'); as error) { <small class="error">{{ error }}</small> }
+    <label>Motivo
+      <textarea #reasonInput rows="2" maxlength="2000" [value]="reason()" (input)="reason.set(reasonInput.value)"></textarea>
+    </label>
+    @if (fieldError('motivo'); as error) { <small class="error">{{ error }}</small> }
+    @if (needsReturn()) {
+      <label>UP de devolución del sobrante
+        <select #returnSelect [value]="returnUnit() ?? ''" (change)="returnUnit.set(+returnSelect.value || null)">
+          <option value="" [selected]="returnUnit() === null">Seleccioná una UP</option>
+          @for (unit of origins(); track unit.id) { <option [value]="unit.id" [selected]="returnUnit() === unit.id">{{ unit.name }}</option> }
+        </select>
+      </label>
+      <p>Se devolverán {{ remaining() }} huevos al stock de esa UP.</p>
+    }
+    @if (fieldError('return_production_unit_id'); as error) { <small class="error">{{ error }}</small> }
+  </fieldset>
+  @if (message()) { <p role="alert" class="error">{{ message() }}</p> }
+  <div class="actions">
+    <button type="button" [disabled]="saving() || uncertain()" (click)="cancelled.emit()">Cancelar</button>
+    <button type="submit" [disabled]="saving()">{{ saving() ? 'Confirmando…' : uncertain() ? 'Reintentar envío' : 'Confirmar rectificación' }}</button>
+  </div>
+</form>

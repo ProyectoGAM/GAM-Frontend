@@ -46,6 +46,27 @@ El resultado solo existe durante ese recorrido: no hay ruta de comprobante,
 historial, cancelación ni acceso adicional desde Inventario. Volver a la planta
 reemplaza la entrada de navegación y vuelve a consultar su stock.
 
+Acceso rápido reutiliza este mismo flujo dentro de una modal nativa, centrada
+en escritorio y adaptable al teléfono. `FeedManufactureFlowComponent` es dueño
+del formulario, cálculo, confirmación, resultado y recuperación; la página de
+elaboración sólo aporta los identificadores de su ruta. La modal aporta esos
+identificadores desde la tarjeta y revalida tipo, pertenencia y estado con el
+servidor, sin confiar en los datos de presentación.
+
+En la modal, encabezado con planta/UP y pie de acciones permanecen visibles;
+sólo desplaza el cuerpo. El selector de receta es nativo para no abrir una capa
+Ionic por detrás del diálogo. Se conserva multiplicador ×1 al iniciar, slider
+×1–×10, entrada manual para valores mayores y total de sólo lectura. El resultado
+compacto muestra la cantidad y saldo confirmados. Listo cierra sin navegar y
+Acceso rápido conserva la búsqueda y la selección de Planta.
+
+El cálculo y guardado bloquean cierre y navegación en ambos accesos. Un resultado
+incierto conserva cuerpo y clave en el servicio compartido; se permite cerrar
+la modal y reabrir la operación pendiente para Consultar resultado, incluso si
+la planta dejó de estar operativa. No se vuelve a calcular ni se crea otra clave.
+Escape y el fondo cancelan sólo cuando no hay una petición en curso; el foco
+regresa al origen o al título de Acceso rápido tras actualizar sus tarjetas.
+
 `FeedManufactureService` usa `ApiClient` y el contrato del backend
 `contracts/openapi/feed-recipes.yaml`:
 
@@ -61,6 +82,15 @@ positivo**, con 1 por defecto. El total es de solo lectura: rendimiento base ×
 multiplicador (por ejemplo, 13 kg × 2 = 26 kg). Al cambiar de receta se conserva
 el multiplicador y se recalcula desde su base. La revisión muestra también esta
 relación con el rendimiento y factor devueltos por el servidor.
+
+El selector rápido utiliza un slider Ionic de **×1 a ×10**, con pasos enteros y
+valor inicial ×1. Permanece deshabilitado hasta seleccionar una ración activa;
+si la selección se pierde, vuelve a bloquearse y no acepta cambios. Al soltarlo
+o ajustarlo con el teclado se sincronizan el campo
+manual y el total. El campo manual también admite multiplicadores mayores a diez,
+dentro del límite de cantidad existente: el slider queda en su extremo ×10 sin
+recortar el valor ingresado ni el cálculo. Ambos controles se bloquean durante
+el cálculo; cambiar de receta conserva el multiplicador.
 
 El cálculo utiliza enteros `BigInt`, respeta el máximo de 999999999999 gramos y
 envía el total en `cantidad_g` al contrato existente. Se rechazan cero, negativos,
@@ -97,6 +127,16 @@ estado y conexión se presentan dentro del flujo.
 No hay cambios de plugins, configuración o integraciones nativas. Se utilizan
 controles Ionic, el scroll existente de `ion-content`, áreas seguras y tokens
 GAM compartidos para claro y oscuro.
+
+## Verificación del slider — 29/10/2026
+
+Las pruebas del formulario cubren los extremos ×1/×10, la sincronización con el
+campo manual, valores mayores a diez, cambio de receta y bloqueo durante el
+cálculo. El navegador integrado comprobó arrastre y flechas, 13 kg × 10 = 130 kg,
+el ingreso manual de ×25 y su cálculo real de 325 kg, conservado al volver a
+editar. Se revisaron 320 y 1280 px en claro y oscuro sin desbordamientos. No se
+confirmó ninguna elaboración ni se modificó stock. No se probaron dispositivos
+físicos.
 
 ## Verificación del multiplicador — 26/10/2026
 

@@ -1,4 +1,4 @@
-<section class="location-picker" [class.read-only]="readOnly()" aria-label="Ubicación de la unidad productiva">
+<section class="location-picker" [class.read-only]="readOnly()" [attr.aria-label]="label()">
   @if (readOnly()) {
     <p class="address-display" aria-live="polite">
       @if (addressText()) {
@@ -12,17 +12,18 @@
   }
 
   <div class="map-shell">
-    <div #mapHost class="map-canvas" role="application" aria-label="Mapa de ubicación de la unidad productiva"></div>
+    <div #mapHost class="map-canvas" role="application" [attr.aria-label]="'Mapa · ' + label()"></div>
 
     @if (!readOnly()) {
       <div class="search-panel">
-        <label class="address-label" for="production-unit-address">Dirección <span aria-hidden="true">*</span></label>
+        <label class="address-label" for="production-unit-address">Dirección @if (required()) { <span aria-hidden="true">*</span> }</label>
         <input
           id="production-unit-address"
           class="address-input"
           type="search"
           autocomplete="street-address"
-          maxlength="500"
+          [maxLength]="addressMaxLength()"
+          [disabled]="disabled()"
           placeholder="Calle, número y localidad"
           [value]="addressText()"
           [attr.aria-expanded]="suggestions().length > 0"
@@ -100,6 +101,9 @@
     }
   } @else if (searchError()) {
     <p class="location-help" role="status">{{ searchError() }}</p>
+  }
+  @if (!required() && !readOnly() && (location() || addressText())) {
+    <button class="confirm-address" type="button" [disabled]="disabled()" (click)="clearOptionalLocation()">Quitar ubicación</button>
   }
   <span class="screen-reader-only" id="production-unit-location-guidance">Escribí una dirección, elegí una sugerencia o marcá el punto en el mapa.</span>
   @if (validationError()) {

@@ -1,18 +1,18 @@
 import { Component, DestroyRef, ElementRef, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { informationCircleOutline } from 'ionicons/icons';
+import { informationCircleOutline, warningOutline } from 'ionicons/icons';
 
 let nextHelpId = 0;
 
 @Component({
   selector: 'app-info-help',
   imports: [IonIcon],
-  host: { '[class.fallback-open]': '!nativePopover && opened()' },
+  host: { '[class.fallback-open]': '!nativePopover && opened()', '[class.warning]': 'tone() === "warning"' },
   template: `
     <button #trigger type="button" [attr.aria-label]="'Información sobre ' + label()" [attr.aria-describedby]="helpId" [attr.aria-controls]="helpId" [attr.aria-expanded]="opened()"
       (pointerenter)="enter()" (pointerleave)="leave()" (focus)="focus()" (blur)="blur()" (click)="togglePinned()">
-      <ion-icon name="information-circle-outline" aria-hidden="true" />
+      <ion-icon [name]="tone() === 'warning' ? 'warning-outline' : 'information-circle-outline'" aria-hidden="true" />
     </button>
     <span #popup class="help-text" [class.inline-help]="!nativePopover" [class.right-help]="placement() === 'right'" [attr.popover]="nativePopover ? 'auto' : null" [hidden]="!opened()" [id]="helpId" role="tooltip"
       (pointerenter)="enter()" (pointerleave)="leave()" (toggle)="popoverChanged()"><strong>{{ label() }}</strong><span>{{ text() }}</span></span>
@@ -22,6 +22,9 @@ let nextHelpId = 0;
     button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; color: var(--gam-color-primary); background: transparent; cursor: pointer; vertical-align: middle; }
     button:hover, button[aria-expanded="true"] { background: var(--gam-color-primary-soft); }
     button:focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; } ion-icon { font-size: 1.25rem; }
+    :host(.warning) button { position: relative; width: 28px; height: 28px; border-radius: 6px; color: var(--gam-color-warning); background: var(--gam-color-warning-soft); }
+    :host(.warning) ion-icon { font-size: 1rem; }
+    @media (pointer: coarse) { :host(.warning) button::before { content: ''; position: absolute; inset: -8px; } }
     .help-text { position: fixed; inset: auto; margin: 0; padding: 1rem; box-sizing: border-box; border: 1px solid var(--gam-color-control-border); border-radius: .6rem; background: var(--gam-color-surface); color: var(--gam-color-text); font: inherit; line-height: 1.5; max-height: calc(100dvh - 24px); overflow-y: auto; box-shadow: 0 4px 18px color-mix(in srgb, var(--gam-color-heading) 18%, transparent); }
     .help-text[hidden] { display: none; } .help-text strong, .help-text > span { display: block; } .help-text strong { color: var(--gam-color-heading); margin-bottom: .5rem; } .help-text > span { white-space: pre-line; }
     :host(.fallback-open) { max-width: 100%; } .inline-help { position: static; max-width: 100%; margin-top: .5rem; }
@@ -33,6 +36,7 @@ export class InfoHelpComponent {
   readonly label = input.required<string>();
   readonly text = input.required<string>();
   readonly placement = input<'bottom' | 'right'>('bottom');
+  readonly tone = input<'info' | 'warning'>('info');
   readonly helpId = 'info-help-' + nextHelpId++;
   readonly opened = signal(false);
   readonly nativePopover = typeof HTMLElement.prototype.showPopover === 'function';
@@ -44,7 +48,7 @@ export class InfoHelpComponent {
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    addIcons({ 'information-circle-outline': informationCircleOutline });
+    addIcons({ 'information-circle-outline': informationCircleOutline, 'warning-outline': warningOutline });
     effect(() => { this.text(); this.label(); untracked(() => this.close()); });
     inject(DestroyRef).onDestroy(() => this.close());
   }

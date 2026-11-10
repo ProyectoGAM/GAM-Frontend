@@ -1,6 +1,8 @@
 import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { AuthStore } from '../../core/auth/auth.store';
+import { canAccessAdminItem } from '../../core/auth/access-policy';
+import { hasAnyPermission } from '../../core/auth/permission-keys';
 
 export const inventoryRoutes: Routes = [
   {
@@ -19,11 +21,12 @@ export const inventoryRoutes: Routes = [
         path: '',
         canActivate: [() => {
           const auth = inject(AuthStore);
-          const permissions = auth.user()?.permissions ?? [];
-          return auth.isAdmin() || permissions.includes('inventory.view')
-            || !permissions.some((permission) => ['products.view', 'products.manage', 'management-plans.manage'].includes(permission))
-            ? true
-            : inject(Router).parseUrl('/administracion/inventario/existencias/productos');
+          const user = auth.user();
+          if (auth.isAdmin() || hasAnyPermission(user?.permissions, 'can_view_inventory')) return true;
+          const destination = ['productos', 'huevos', 'raciones'].find((slug) =>
+            canAccessAdminItem(user, 'inventario', `existencias/${slug}`));
+          return inject(Router).parseUrl(destination
+            ? `/administracion/inventario/existencias/${destination}` : '/acceso-denegado');
         }],
         data: { title: 'Existencias', groupLabel: 'Inventario' },
         loadComponent: () => import('./pages/stock/stock.page').then((m) => m.StockPage),

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from '../../core/guards/auth.guard';
-import { adminGroupGuard } from '../../core/guards/admin-group.guard';
+import { adminGroupChildGuard, adminGroupGuard } from '../../core/guards/admin-group.guard';
 import { adminPanelGuard } from '../../core/guards/admin-panel.guard';
 import { adminIndexRedirect } from './admin-index.redirect';
 import { ADMIN_NAVIGATION } from './admin-navigation';
@@ -9,10 +9,15 @@ import { ADMIN_NAVIGATION } from './admin-navigation';
 const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
   path: group.id,
   canActivate: [authGuard, adminGroupGuard],
+  canActivateChild: [adminGroupChildGuard],
   data: { group: group.id },
   children:
-    group.id === 'usuarios'
+    group.id === 'acceso-rapido'
+      ? [{ path: '', loadChildren: () => import('../quick-access/quick-access.routes').then((module) => module.quickAccessRoutes) }]
+      : group.id === 'usuarios'
       ? [{ path: '', loadChildren: () => import('../users/users.routes').then((module) => module.usersRoutes) }]
+      : group.id === 'clientes'
+      ? [{ path: '', loadChildren: () => import('../customers/customers.routes').then((module) => module.customersRoutes) }]
       : group.id === 'inventario'
       ? [
           {
@@ -35,20 +40,15 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                 ),
             },
           ]
-        : group.id === 'resumen' || group.id === 'historial'
-          ? [
-              {
-                path: '',
-                data: {
-                  title: group.label,
-                  groupLabel: group.label,
-                },
-                loadComponent: () =>
-                  import('./admin-placeholder.page').then(
-                    (module) => module.AdminPlaceholderPage,
-                  ),
-              },
-            ]
+        : group.id === 'historial'
+          ? [{ path: '', loadChildren: () => import('../audit/audit.routes').then((module) => module.auditRoutes) }]
+        : group.id === 'vehiculos'
+          ? [{ path: '', loadChildren: () => import('../vehicles/vehicles.routes').then((module) => module.vehiclesRoutes) }]
+        : group.id === 'resumen'
+          ? [{
+              path: '',
+              loadComponent: () => import('../operational-summary/pages/operational-summary.page').then((module) => module.OperationalSummaryPage),
+            }]
           : [
               ...(group.id === 'repartos' ? [{ path: 'catalogo-y-precios', pathMatch: 'full' as const, redirectTo: '/administracion/inventario/presentaciones-huevos' }] : []),
               ...(group.id === 'ubicaciones'
@@ -77,6 +77,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
               ...group.items
                 .filter((item) => !item.slug.includes('/'))
                 .map((item) => {
+                  if (group.id === 'ubicaciones' && item.slug === 'mantenimiento') {
+                    return {
+                      path: item.slug,
+                      loadChildren: () => import('../production-units/production-units.routes')
+                        .then((module) => module.installationMaintenanceRoutes),
+                    };
+                  }
                   if (group.id === 'reportes' && item.slug === 'reportes') {
                     return { path: item.slug, loadChildren: () => import('../reporting/reporting.routes').then((module) => module.reportingRoutes) };
                   }
@@ -170,6 +177,13 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'manejo-lotes' && item.slug === 'razas') {
+                    return {
+                      path: item.slug,
+                      loadComponent: () => import('../flocks/pages/breeds/breeds.page').then((module) => module.BreedsPage),
+                    };
+                  }
+
                   if (group.id === 'manejo-lotes' && item.slug === 'vacunacion') {
                     return {
                       path: item.slug,
@@ -198,6 +212,17 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                     };
                   }
 
+                  if (group.id === 'alertas-notificaciones' && item.slug === 'bandeja-de-alertas') {
+                    return { path: item.slug, pathMatch: 'full' as const, redirectTo: '/administracion/notificaciones' };
+                  }
+
+                  if (group.id === 'alertas-notificaciones' && item.slug === 'configuracion-de-alertas') {
+                    return {
+                      path: item.slug,
+                      loadComponent: () => import('../notifications/pages/alert-settings/alert-settings.page').then((module) => module.AlertSettingsPage),
+                    };
+                  }
+
                   return {
                     path: item.slug,
                     data: {
@@ -222,6 +247,11 @@ export const adminRoutes: Routes = [
         (module) => module.AdminShellPage,
       ),
     children: [
+      {
+        path: 'notificaciones',
+        data: { embedded: true },
+        loadComponent: () => import('../notifications/pages/notifications.page').then((module) => module.NotificationsPage),
+      },
       { path: 'proveedores/productos/nuevo', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/nuevo' },
       { path: 'proveedores/productos/:id/editar', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos/:id/editar' },
       { path: 'proveedores/productos', pathMatch: 'full', redirectTo: '/administracion/inventario/existencias/productos' },

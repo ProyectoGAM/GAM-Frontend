@@ -1,5 +1,4 @@
-import { canAccessGroup, hasFeedRecipesPermission, hasManagementPlansPermission, AdminGroup } from '../../core/auth/access-policy';
-import { AuthUser } from '../../core/auth/auth.types';
+import { adminGroupSection, canAccessAdminItem, AdminGroup, AdminUser } from '../../core/auth/access-policy';
 
 export interface AdminNavigationGroup {
   id: AdminGroup;
@@ -8,22 +7,27 @@ export interface AdminNavigationGroup {
   section: 'unit' | 'global';
   items: ReadonlyArray<{ label: string; slug: string }>;
 }
-export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
+const navigation: readonly Omit<AdminNavigationGroup, 'section'>[] = [
+  {
+    id: 'acceso-rapido',
+    label: 'Acceso rápido',
+    icon: 'flash-outline',
+    items: [{ label: 'Acceso rápido', slug: '' }],
+  },
   {
     id: 'resumen',
     label: 'Resumen',
     icon: 'grid-outline',
-    section: 'unit',
     items: [{ label: 'Resumen', slug: '' }],
   },
   {
     id: 'ubicaciones',
     label: 'Instalaciones',
     icon: 'location-outline',
-    section: 'unit',
     items: [
       { label: 'Galpones', slug: 'galpones' },
       { label: 'Plantas de ración', slug: 'plantas-de-racion' },
+      { label: 'Mantenimiento', slug: 'mantenimiento' },
       { label: 'Crear instalación', slug: 'nuevo-galpon' },
     ],
   },
@@ -31,14 +35,12 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'lotes',
     label: 'Lotes',
     icon: 'egg-outline',
-    section: 'unit',
     items: [{ label: 'Lotes', slug: 'lotes' }],
   },
   {
     id: 'inventario',
     label: 'Inventario',
     icon: 'cube-outline',
-    section: 'unit',
     items: [
       { label: 'Existencias', slug: 'existencias' },
       { label: 'Presentaciones y precios', slug: 'presentaciones-huevos' },
@@ -52,14 +54,12 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'historial',
     label: 'Historial',
     icon: 'time-outline',
-    section: 'unit',
     items: [{ label: 'Historial', slug: '' }],
   },
   {
     id: 'usuarios',
     label: 'Usuarios',
     icon: 'people-outline',
-    section: 'global',
     items: [
       { label: 'Usuarios', slug: '' },
     ],
@@ -68,7 +68,6 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'clientes',
     label: 'Clientes',
     icon: 'person-outline',
-    section: 'global',
     items: [
       { label: 'Clientes', slug: 'clientes' },
       { label: 'Nuevo cliente', slug: 'nuevo-cliente' },
@@ -77,8 +76,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
   {
     id: 'proveedores',
     label: 'Proveedores',
-    icon: 'business-outline',
-    section: 'global',
+    icon: 'storefront-outline',
     items: [
       { label: 'Proveedores', slug: 'proveedores' },
     ],
@@ -87,7 +85,6 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'unidades-productivas',
     label: 'Unidades productivas',
     icon: 'business-outline',
-    section: 'global',
     items: [
       { label: 'Listado', slug: '' },
       { label: 'Crear unidad productiva', slug: 'nueva' },
@@ -97,29 +94,33 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'manejo-lotes',
     label: 'Manejo de Lotes',
     icon: 'clipboard-outline',
-    section: 'global',
     items: [
       { label: 'Planes', slug: 'planes' },
       { label: 'Vacunación', slug: 'vacunacion' },
       { label: 'Medicación', slug: 'medicacion' },
       { label: 'Recetas', slug: 'Recetas' },
+      { label: 'Razas', slug: 'razas' },
     ],
   },
   {
     id: 'repartos',
     label: 'Repartos',
-    icon: 'car-outline',
-    section: 'global',
+    icon: 'map-outline',
     items: [
       { label: 'Repartos', slug: 'repartos' },
 
     ],
   },
   {
+    id: 'vehiculos',
+    label: 'Vehículos',
+    icon: 'car-outline',
+    items: [{ label: 'Flota', slug: '' }],
+  },
+  {
     id: 'alertas-notificaciones',
     label: 'Alertas y notificaciones',
     icon: 'notifications-outline',
-    section: 'global',
     items: [
       { label: 'Bandeja de alertas', slug: 'bandeja-de-alertas' },
       { label: 'Configuración de alertas', slug: 'configuracion-de-alertas' },
@@ -129,26 +130,27 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = [
     id: 'reportes',
     label: 'Reportes',
     icon: 'bar-chart-outline',
-    section: 'global',
     items: [{ label: 'Reportes', slug: 'reportes' }],
   },
 ];
+
+export const ADMIN_NAVIGATION: readonly AdminNavigationGroup[] = navigation.map((group) => ({
+  ...group,
+  section: adminGroupSection(group.id),
+}));
 
 export function adminItemPath(group: AdminNavigationGroup, slug: string): string {
   return `/administracion/${group.id}${slug ? `/${slug}` : ''}`;
 }
 
-export function visibleAdminNavigation(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): readonly AdminNavigationGroup[] {
-  return ADMIN_NAVIGATION.filter((group) => canAccessGroup(user, group.id)).map((group) => {
-    if (group.id !== 'manejo-lotes') return group;
-    const isAdmin = user?.roles.some((role) => role.trim().toLowerCase() === 'admin');
-    const hasPlans = hasManagementPlansPermission(user, 'view');
-    const hasRecipes = hasFeedRecipesPermission(user, 'view') || hasFeedRecipesPermission(user, 'manage');
-    return { ...group, items: group.items.filter((item) => item.slug === 'planes' ? hasPlans : item.slug === 'Recetas' ? isAdmin || hasRecipes : isAdmin) };
-  });
+export function visibleAdminNavigation(user: AdminUser | null): readonly AdminNavigationGroup[] {
+  return ADMIN_NAVIGATION.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => canAccessAdminItem(user, group.id, item.slug)),
+  })).filter((group) => group.items.length > 0);
 }
 
-export function firstVisibleAdminPath(user: (Pick<AuthUser, 'roles'> & Partial<Pick<AuthUser, 'permissions'>>) | null): string | null {
+export function firstVisibleAdminPath(user: AdminUser | null): string | null {
   const group = visibleAdminNavigation(user)[0];
   const item = group?.items[0];
   return group && item ? adminItemPath(group, item.slug) : null;

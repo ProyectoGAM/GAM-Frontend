@@ -48,12 +48,12 @@ describe('FlockCreatePage', () => {
     fixture.detectChanges();
   }
 
-  function completeFirstStep(): void {
+  function completeFirstStep(quantity = '1200'): void {
     const page = fixture.componentInstance;
     page.update('code', 'PONEDORAS-A24');
     page.selectHouse('22');
     page.update('entryDate', '2026-09-29');
-    page.update('initialQuantity', '1200');
+    page.update('initialQuantity', quantity);
     page.next();
     fixture.detectChanges();
   }
@@ -81,8 +81,13 @@ describe('FlockCreatePage', () => {
     expect(fixture.componentInstance.houses().map((available) => available.id)).toEqual([22]);
   });
 
-  it('shows the three approved steps and creates a flock with the published plan', async () => {
+  it.each([
+    [false, '/administracion/lotes/lotes'],
+    [true, '/administracion/acceso-rapido'],
+  ])('creates a flock with the published plan and returns to the origin (quick access: %s)', async (fromQuickAccess, returnPath) => {
+    TestBed.inject(ActivatedRoute).snapshot.data['fromQuickAccess'] = fromQuickAccess;
     await render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.back-link')?.getAttribute('href')).toBe(returnPath);
     completeFirstStep();
     expect(fixture.componentInstance.step()).toBe(2);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Aves y procedencia');
@@ -100,7 +105,23 @@ describe('FlockCreatePage', () => {
       code: 'PONEDORAS-A24', poultry_house_id: 22, breed_id: 4,
       supplier_id: 9, plan_template_id: template.id, plan_template_version: 3,
     }), expect.any(String));
-    expect(navigateByUrl).toHaveBeenCalledWith('/administracion/lotes/lotes');
+    expect(navigateByUrl).toHaveBeenCalledWith(returnPath);
+  });
+
+  it('creates a flock of 600 birds in a house with a capacity of 120 without blocking the form', async () => {
+    const poultryHouses = TestBed.inject(ProductionUnitsService).poultryHouses as ReturnType<typeof vi.fn>;
+    poultryHouses.mockReturnValue(of([{ ...house, bird_capacity: 120 }]));
+    await render();
+    completeFirstStep('600');
+    const page = fixture.componentInstance;
+    expect(page.step()).toBe(2);
+    expect(page.errors().initialQuantity).toBeUndefined();
+    page.selectBreed('4');
+    page.selectSupplier('9');
+    page.next();
+    page.update('templateId', template.id);
+    page.next();
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ poultry_house_id: 22, initial_quantity: 600 }), expect.any(String));
   });
 
   it('allows a written origin and preserves fields when returning to an earlier step', async () => {

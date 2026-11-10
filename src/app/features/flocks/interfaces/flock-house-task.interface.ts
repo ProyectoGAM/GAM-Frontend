@@ -1,7 +1,7 @@
 import { FlockHouseOrigin } from './flock-detail.interface';
 
 export interface FlockHouseTaskAction {
-  kind: 'mortality' | 'feeding';
+  kind: 'collection' | 'mortality' | 'feeding' | 'health' | 'beak-trimming';
   flockId: string;
   trigger: HTMLElement | null;
 }

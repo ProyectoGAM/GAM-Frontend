@@ -1,0 +1,58 @@
+<div class="summary-page">
+  <header class="page-heading">
+    <div>
+      <p class="breadcrumb">Inicio / Resumen</p>
+      <h1>Resumen</h1>
+      <p>Indicadores operativos por período.</p>
+    </div>
+    <div class="filters">
+      @if (!pin()) {
+        <label class="filter unit-filter" for="summary-unit">
+          <span class="filter-label">Alcance</span>
+          <select id="summary-unit" #unitSelector [disabled]="context.state() !== 'ready'"
+            [value]="selectedUnit() ?? ''" (change)="updateUnit(unitSelector.value)">
+            @if (canSelectGlobal()) {
+              <option value="" [selected]="selectedUnit() === null">Global</option>
+            } @else if (selectedUnit() === null) {
+              <option value="" disabled selected>Seleccioná una unidad</option>
+            }
+            @for (unit of context.units(); track unit.id) {
+              <option [value]="unit.id" [selected]="selectedUnit() === unit.id">{{ unit.name }}</option>
+            }
+          </select>
+          <ion-icon class="chevron" [icon]="chevronIcon" aria-hidden="true" />
+        </label>
+      }
+      <div class="filter period-filter">
+        <ion-icon class="calendar" [icon]="calendarIcon" aria-hidden="true" />
+        <select id="summary-period" aria-label="Período" #duration [value]="days()" (change)="updateDays(duration.value)">
+          @for (option of durations; track option) { <option [value]="option" [selected]="days() === option">Últimos {{ option }} días</option> }
+        </select>
+        <ion-icon class="chevron" [icon]="chevronIcon" aria-hidden="true" />
+      </div>
+    </div>
+  </header>
+
+  @if (!pin()) {
+    @switch (context.state()) {
+      @case ('loading') { <p role="status">Cargando unidades…</p> }
+      @case ('error') {
+        <div><p role="alert">No se pudieron cargar las unidades.</p>
+          <button type="button" (click)="context.load()">Reintentar</button>
+        </div>
+      }
+    }
+  }
+
+  @if (global() || effectiveUnit() !== null) {
+    <section aria-labelledby="summary-scope-title">
+      <h2 id="summary-scope-title">{{ title() }}</h2>
+      <app-summary-scope [period]="period()" [unit]="effectiveUnit()" [company]="global()" [unitName]="unitName()" />
+      @if (effectiveUnit(); as id) {
+        <app-summary-unit-operations [unit]="id" />
+      }
+    </section>
+  } @else if (context.state() === 'ready') {
+    <p>No hay una unidad productiva seleccionada.</p>
+  }
+</div>

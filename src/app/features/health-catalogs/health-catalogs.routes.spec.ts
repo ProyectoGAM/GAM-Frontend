@@ -12,11 +12,18 @@ describe('Health catalog routes', () => {
     expect(medicationRoutes.map((route) => route.path)).toEqual(['', 'nuevo']);
     expect(vaccinationRoutes[1].canDeactivate).toHaveLength(1);
   });
-  it('requires administrator access even when the user has management-plan grants', () => {
+  it('allows plan managers to read the catalog and reserves creation for administrators', () => {
     let admin = false;
-    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: AuthStore, useValue: { isAdmin: () => admin } }] });
+    let permissions = ['can_view_management_plans'];
+    TestBed.configureTestingModule({ providers: [
+      provideRouter([]),
+      { provide: AuthStore, useValue: { isAdmin: () => admin, user: () => ({ roles: ['employee'], permissions }) } },
+    ] });
     const evaluate = (index: number) => TestBed.runInInjectionContext(() => (vaccinationRoutes[index].canActivate![0] as CanActivateFn)({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot));
     expect(TestBed.inject(Router).serializeUrl(evaluate(0) as UrlTree)).toBe('/acceso-denegado');
+    permissions = ['can_manage_management_plans'];
+    expect(evaluate(0)).toBe(true);
+    expect(evaluate(2)).toBe(true);
     expect(TestBed.inject(Router).serializeUrl(evaluate(1) as UrlTree)).toBe('/acceso-denegado');
     admin = true; expect(evaluate(0)).toBe(true); expect(evaluate(1)).toBe(true); expect(evaluate(2)).toBe(true);
   });

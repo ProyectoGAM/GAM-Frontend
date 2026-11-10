@@ -1,0 +1,72 @@
+<main class="maintenance-directory" aria-labelledby="maintenance-directory-title">
+  <header><p class="breadcrumb">Administración / Instalaciones</p><h1 id="maintenance-directory-title">Mantenimiento</h1><p>Elegí una instalación para consultar sus trabajos, costos y responsables.</p></header>
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status"><ion-spinner name="crescent" aria-hidden="true" />Cargando instalaciones…</div>
+  } @else if (state() === 'error') {
+    <div class="state-panel error" role="alert"><p>{{ error() }}</p><ion-button fill="outline" (click)="load()">Reintentar</ion-button></div>
+  } @else {
+    <div class="filter-toolbar">
+      <label class="filter-search">
+        <ion-icon name="search-outline" aria-hidden="true" />
+        <input type="search" aria-label="Buscar instalación" placeholder="Buscar instalación"
+          [value]="query()" (input)="search($event)" />
+      </label>
+      <button #filterTrigger class="filter-trigger" type="button" aria-haspopup="dialog"
+        [attr.aria-label]="activeFilterCount() ? 'Filtros, ' + activeFilterCount() + (activeFilterCount() === 1 ? ' aplicado' : ' aplicados') : 'Filtros'"
+        (click)="openFilters(filterTrigger)">
+        <ion-icon name="funnel-outline" aria-hidden="true" />
+        <span>Filtros</span>
+        @if (activeFilterCount()) { <span class="filter-count" aria-hidden="true">{{ activeFilterCount() }}</span> }
+      </button>
+    </div>
+    @if (selectedUnitName(); as unitName) { <p class="scope">UP: {{ unitName }}</p> }
+    <p class="count" aria-live="polite">{{ visibleInstallations().length }} instalaciones</p>
+    @if (!visibleInstallations().length) {
+      <div class="state-panel"><h2>Sin instalaciones para mostrar</h2><p>No hay instalaciones que coincidan con la unidad productiva y los filtros seleccionados.</p></div>
+    } @else {
+      <div class="installation-list">
+        @for (house of visibleInstallations(); track house.id) {
+          <a class="installation-card" [routerLink]="['/administracion/ubicaciones/mantenimiento', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver mantenimientos de ' + house.name">
+            <ion-icon class="symbol" name="build-outline" aria-hidden="true" /><div class="copy"><span class="type">{{ house.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</span><h2>{{ house.name }}</h2><p>{{ house.productionUnit.name }}</p><span class="card-action">Ver mantenimientos</span></div><ion-icon name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        }
+      </div>
+    }
+  }
+
+  <app-filter-dialog titleId="maintenance-filters-title" (clearRequested)="clearFilters()" (applyRequested)="applyFilters()">
+    <div class="filter-fields">
+      <div class="filter-section">
+        <label for="maintenance-filter-unit">Unidad productiva</label>
+        <select id="maintenance-filter-unit" (change)="changeUnit($event)"
+          [disabled]="unitContext.state() !== 'ready' || !unitContext.units().length">
+          @if (unitContext.state() === 'loading') {
+            <option>Cargando unidades…</option>
+          } @else if (unitContext.state() === 'error') {
+            <option>No se pudieron cargar las unidades</option>
+          } @else {
+            @if (isAdmin()) {
+              <option value="" [selected]="selectedDraftUnitId() === null">Todas las UP</option>
+            } @else if (!unitContext.units().length) {
+              <option>Sin unidades disponibles</option>
+            }
+            @for (unit of unitContext.units(); track unit.id) {
+              <option [value]="unit.id" [selected]="selectedDraftUnitId() === unit.id">{{ unit.name }}</option>
+            }
+          }
+        </select>
+        @if (unitContext.state() === 'error') {
+          <ion-button fill="outline" (click)="unitContext.load()">Reintentar carga de UP</ion-button>
+        }
+      </div>
+      <div class="filter-section">
+        <label for="maintenance-filter-type">Tipo de instalación</label>
+        <select id="maintenance-filter-type" [value]="draftType()" (change)="changeType($event)">
+          <option value="all">Galpones y plantas</option>
+          <option value="poultry">Galpones avícolas</option>
+          <option value="feed">Plantas de ración</option>
+        </select>
+      </div>
+    </div>
+  </app-filter-dialog>
+</main>

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, concatMap, from, map, of, toArray } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
-import { CollectionOperation, CollectionPage, CollectionSummary, RecordCollectionRequest } from '../interfaces/flock-collection.interface';
+import { CancelCollectionRequest, CollectionOperation, CollectionPage, CollectionSummary, CorrectCollectionRequest, FlockCollection, RecordCollectionRequest } from '../interfaces/flock-collection.interface';
 import { EggMetricDay, EggMetrics } from '../interfaces/flock-detail.interface';
 import { collectionSummary } from './collection-summary';
 import { splitMetricsPeriods } from './flock-detail.service';
@@ -9,6 +9,20 @@ import { splitMetricsPeriods } from './flock-detail.service';
 @Injectable({ providedIn: 'root' })
 export class FlockCollectionsService {
   private readonly api = inject(ApiClient);
+
+  collection(id: string): Observable<FlockCollection> {
+    return this.api.get<{ data: FlockCollection }>(`collections/${encodeURIComponent(id)}`).pipe(map((response) => response.data));
+  }
+
+  correct(id: string, request: CorrectCollectionRequest, key: string): Observable<CollectionOperation> {
+    return this.api.patch<{ data: CollectionOperation }>(`collections/${encodeURIComponent(id)}`, request,
+      { headers: { 'Idempotency-Key': key } }).pipe(map((response) => response.data));
+  }
+
+  cancel(id: string, request: CancelCollectionRequest, key: string): Observable<CollectionOperation> {
+    return this.api.post<{ data: CollectionOperation }>(`collections/${encodeURIComponent(id)}/cancellation`, request,
+      { headers: { 'Idempotency-Key': key } }).pipe(map((response) => response.data));
+  }
 
   history(flockId: string, page = 1): Observable<CollectionPage> {
     return this.api.get<CollectionPage>(`flocks/${encodeURIComponent(flockId)}/collections`, { params: { page, per_page: 20 } });

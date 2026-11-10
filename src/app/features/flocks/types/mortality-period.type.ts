@@ -1,1 +1,1 @@
-export type MortalityPeriod = 'day' | 'week' | 'month';
+export type MortalityPeriod = 'week' | 'month' | 'historical';

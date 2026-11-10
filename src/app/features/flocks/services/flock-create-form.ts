@@ -22,7 +22,6 @@ export interface FlockCreateDraft {
 export interface FlockCreateChoices {
   unitId: number | null;
   houseIds: readonly number[];
-  houseCapacity: number | null;
   breedIds: readonly number[];
   supplierIds: readonly number[];
   templates: readonly FlockPlanTemplateOption[];
@@ -50,8 +49,6 @@ export function validateFlockCreateStep(
     if (!/^[1-9]\d*$/.test(draft.initialQuantity)
       || Number(draft.initialQuantity) > 2147483647) {
       errors.initialQuantity = 'Ingresá una cantidad entera mayor que cero.';
-    } else if (choices.houseCapacity !== null && Number(draft.initialQuantity) > choices.houseCapacity) {
-      errors.initialQuantity = `La cantidad supera la capacidad del galpón (${choices.houseCapacity} aves).`;
     }
   }
 

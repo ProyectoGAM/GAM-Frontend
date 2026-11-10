@@ -27,16 +27,24 @@ import { adminRoutes } from './admin.routes';
 import { AdminSidebarComponent } from './components/admin-sidebar.component';
 
 describe('admin navigation visibility', () => {
-  it('shows all thirteen groups to ADMIN and none to a role without grants', () => {
-    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(13);
-    expect(visibleAdminNavigation({ roles: ['employee'] })).toHaveLength(0);
+  it('shows all fifteen groups to ADMIN and only quick access without other grants', () => {
+    expect(visibleAdminNavigation({ roles: ['admin'] })).toHaveLength(15);
+    expect(visibleAdminNavigation({ roles: ['employee'] }).map((group) => group.id)).toEqual(['acceso-rapido']);
     expect(visibleAdminNavigation(null)).toHaveLength(0);
+  });
+
+  it('hides the entire global section when the account has an assigned UP', () => {
+    const admin = { roles: ['admin'], up_id: 7 };
+    expect(visibleAdminNavigation(admin)).toEqual(
+      visibleAdminNavigation({ ...admin, up_id: null }).filter((group) => group.section === 'unit'),
+    );
   });
 
   it('keeps UP modules before global modules in the requested order and includes the suppliers catalogs', () => {
     const navigation = visibleAdminNavigation({ roles: ['admin'] });
 
     expect(navigation.map((group) => group.label)).toEqual([
+      'Acceso rápido',
       'Resumen',
       'Instalaciones',
       'Lotes',
@@ -48,6 +56,7 @@ describe('admin navigation visibility', () => {
       'Unidades productivas',
       'Manejo de Lotes',
       'Repartos',
+      'Vehículos',
       'Alertas y notificaciones',
       'Reportes',
     ]);
@@ -58,6 +67,8 @@ describe('admin navigation visibility', () => {
       'unit',
       'unit',
       'unit',
+      'unit',
+      'global',
       'global',
       'global',
       'global',
@@ -75,6 +86,7 @@ describe('admin navigation visibility', () => {
     ).toEqual([
       'galpones',
       'plantas-de-racion',
+      'mantenimiento',
       'nuevo-galpon',
     ]);
 
@@ -96,7 +108,7 @@ describe('admin navigation visibility', () => {
         (count, group) => count + group.items.length,
         0,
       ),
-    ).toBe(25);
+    ).toBe(30);
 
     expect(navigation.find((group) => group.id === 'usuarios')?.items).toEqual([{ label: 'Usuarios', slug: '' }]);
 
@@ -122,17 +134,37 @@ describe('admin navigation visibility', () => {
 
   it('shows Planes by permission without exposing unrelated Manejo de Lotes entries', () => {
     const navigation = visibleAdminNavigation({ roles: ['employee'], permissions: ['management-plans.view'] });
-    expect(navigation.map((group) => group.id)).toEqual(['manejo-lotes']);
-    expect(navigation[0]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
+    expect(navigation.map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
+    expect(navigation[1]?.items).toEqual([{ label: 'Planes', slug: 'planes' }]);
     expect(firstVisibleAdminPath({ roles: ['employee'], permissions: ['management-plans.view'] }))
-      .toBe('/administracion/manejo-lotes/planes');
+      .toBe('/administracion/acceso-rapido');
   });
 
   it('shows only Recetas to a user with the recipe catalogue grant', () => {
     const reader = { roles: ['employee'], permissions: ['feed-recipes.view'] };
-    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['manejo-lotes']);
-    expect(visibleAdminNavigation(reader)[0]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
-    expect(firstVisibleAdminPath(reader)).toBe('/administracion/manejo-lotes/Recetas');
+    expect(visibleAdminNavigation(reader).map((group) => group.id)).toEqual(['acceso-rapido', 'manejo-lotes']);
+    expect(visibleAdminNavigation(reader)[1]?.items).toEqual([{ label: 'Recetas', slug: 'Recetas' }]);
+    expect(firstVisibleAdminPath(reader)).toBe('/administracion/acceso-rapido');
+  });
+
+  it('shows Razas under Manejo de Lotes with the breed catalogue grant', () => {
+    const reader = { roles: ['employee'], permissions: ['can_view_breeds'] };
+    const group = visibleAdminNavigation(reader).find(({ id }) => id === 'manejo-lotes');
+    expect(group?.items).toEqual([{ label: 'Razas', slug: 'razas' }]);
+  });
+
+  it('shows the farmer’s contracted modules and limits their items to permitted entries', () => {
+    const navigation = visibleAdminNavigation({ roles: ['employee'], permissions: [
+      'can_view_flocks', 'can_manage_flocks', 'can_view_production_units',
+      'can_view_poultry_houses', 'can_view_management_plans', 'can_execute_management_plans',
+    ] });
+    expect(navigation.map((group) => [group.id, group.items.map((item) => item.slug)])).toEqual([
+      ['acceso-rapido', ['']],
+      ['ubicaciones', ['galpones', 'plantas-de-racion', 'mantenimiento']],
+      ['lotes', ['lotes']],
+      ['unidades-productivas', ['']],
+      ['manejo-lotes', ['planes']],
+    ]);
   });
 
   it('uses the existing nested stock-location and product-create routes without duplicate routes', async () => {
@@ -190,16 +222,44 @@ describe('admin navigation visibility', () => {
     ).toBe(false);
   });
 
+  it.each([
+    { group: 'historial', paths: [''], routes: async () => (await import('../audit/audit.routes')).auditRoutes },
+    { group: 'vehiculos', paths: ['', ':id'], routes: async () => (await import('../vehicles/vehicles.routes')).vehiclesRoutes },
+  ])('loads the $group feature at its navigation entry', async ({ group, paths, routes }) => {
+    const featureGroup = (adminRoutes[0]?.children ?? []).find((route) => route.path === group);
+    const loader = featureGroup?.children?.[0]?.loadChildren as (() => Promise<Routes>) | undefined;
+    const featureRoutes = await loader?.();
+
+    expect(featureRoutes).toBe(await routes());
+    expect(featureRoutes?.map((route) => route.path)).toEqual(paths);
+    expect(featureRoutes?.find((route) => route.path === '')?.loadComponent).toBeTypeOf('function');
+  });
+
   it('loads the flock list from the existing Lotes navigation entry', async () => {
     const lotsGroup = (adminRoutes[0]?.children ?? []).find((route) => route.path === 'lotes');
     const lotsRoute = lotsGroup?.children?.find((route) => route.path === 'lotes');
     const loader = lotsRoute?.loadChildren as (() => Promise<Routes>) | undefined;
     const flocksRoutes = await loader?.();
 
-    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id', '']);
+    expect(flocksRoutes?.map((route) => route.path)).toEqual(['nuevo', ':id/recoleccion', ':id/pesajes/:weighingId', ':id/pesajes', ':id/mortalidad', ':id/alimentacion', ':id/sanidad', ':id/despiques', ':id/fraccionar', ':id', '']);
     expect(flocksRoutes?.[0]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.[1]?.loadComponent).toBeTypeOf('function');
     expect(flocksRoutes?.find((route) => route.path === ':id/alimentacion')?.loadComponent).toBeTypeOf('function');
+    expect(flocksRoutes?.find((route) => route.path === ':id/sanidad')?.loadComponent).toBeTypeOf('function');
+    const beakTrimmings = flocksRoutes?.find((route) => route.path === ':id/despiques');
+    expect(beakTrimmings?.loadComponent).toBeTypeOf('function');
+    expect(beakTrimmings?.canDeactivate).toHaveLength(1);
+  });
+
+  it('opens the maintenance directory and its guarded installation history from Instalaciones', async () => {
+    const installations = (adminRoutes[0]?.children ?? []).find((route) => route.path === 'ubicaciones');
+    const loader = installations?.children?.find((route) => route.path === 'mantenimiento')?.loadChildren as (() => Promise<Routes>);
+    const routes = await loader();
+    expect(routes.map((route) => route.path)).toEqual([':id/galpon/:houseId', '']);
+    expect(routes.find((route) => route.path === '')?.loadComponent).toBeTypeOf('function');
+    expect(routes[0].data?.['maintenanceHub']).toBe(true);
+    expect(routes[0].canDeactivate).toHaveLength(1);
+    expect(activeAdminGroup('/administracion/ubicaciones/mantenimiento/7/galpon/22')).toBe('ubicaciones');
   });
 
   it('renders existing menu URLs and keeps Registrar movimiento active with product context', async () => {
@@ -211,6 +271,9 @@ describe('admin navigation visibility', () => {
         provideRouter([
           { path: 'administracion/inventario/ajustes-y-perdidas', children: [] },
           { path: 'administracion/inventario/existencias', children: [] },
+          { path: 'administracion/ubicaciones/mantenimiento', children: [
+            { path: ':id/galpon/:houseId', children: [] }, { path: '', children: [] },
+          ] },
         ]),
         {
           provide: AdminUnitContextService,
@@ -274,6 +337,14 @@ describe('admin navigation visibility', () => {
     fixture.detectChanges();
     expect(movementLink.classList.contains('active')).toBe(false);
     expect(movementLink.hasAttribute('aria-current')).toBe(false);
+    const maintenanceLink = links.find((link) => link.textContent?.trim() === 'Mantenimiento')!;
+    expect(maintenanceLink.getAttribute('href')).toBe('/administracion/ubicaciones/mantenimiento');
+    for (const path of ['/administracion/ubicaciones/mantenimiento', '/administracion/ubicaciones/mantenimiento/7/galpon/22']) {
+      await router.navigateByUrl(path); await fixture.whenStable(); fixture.detectChanges();
+      expect(maintenanceLink.classList.contains('active')).toBe(true);
+      expect(maintenanceLink.getAttribute('aria-current')).toBe('page');
+      expect(fixture.componentInstance.expandedGroup()).toBe('ubicaciones');
+    }
     fixture.destroy();
   });
 
@@ -357,11 +428,11 @@ describe('admin navigation visibility', () => {
   it('routes the panel entry to the first group and item the user can see', () => {
     expect(
       firstVisibleAdminPath({ roles: ['admin'] }),
-    ).toBe('/administracion/resumen');
+    ).toBe('/administracion/acceso-rapido');
 
     expect(
       firstVisibleAdminPath({ roles: ['employee'] }),
-    ).toBeNull();
+    ).toBe('/administracion/acceso-rapido');
   });
 
   it('finds the group for a direct route after reload, including query parameters', () => {
@@ -430,7 +501,7 @@ describe('admin navigation visibility', () => {
       TestBed.inject(Router).serializeUrl(
         result as ReturnType<Router['parseUrl']>,
       ),
-    ).toBe('/administracion/resumen');
+    ).toBe('/administracion/acceso-rapido');
   });
 });
 

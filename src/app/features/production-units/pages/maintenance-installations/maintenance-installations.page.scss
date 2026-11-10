@@ -1,0 +1,30 @@
+@use '../../../../shared/ui/filter-dialog/filter-controls';
+
+:host { display: block; color: var(--gam-color-text); }
+.maintenance-directory {
+  max-width: 960px;
+  margin-inline: auto;
+  @include filter-controls.controls($choices: false);
+}
+header { margin-bottom: 24px; }
+h1, h2 { color: var(--gam-color-heading); }
+h1 { margin: 8px 0; font-size: clamp(1.5rem, 5vw, 2rem); }
+header p { color: var(--gam-color-text-muted); line-height: 1.5; }
+.breadcrumb, .count, .scope { font-size: .8125rem; }
+.scope { margin: 0; color: var(--gam-color-primary); overflow-wrap: anywhere; }
+.count { margin: 18px 0; color: var(--gam-color-text-muted); }
+.installation-list { display: grid; gap: 14px; }
+.installation-card { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--gam-color-border); border-radius: 12px; background: var(--gam-color-surface); color: var(--gam-color-primary); text-decoration: none; }
+.installation-card:hover { border-color: var(--gam-color-control-border); }
+.symbol { flex: 0 0 28px; font-size: 28px; }
+.copy { flex: 1; min-width: 0; }
+.type { color: var(--gam-color-text-muted); font-size: .75rem; }
+h2 { margin: 6px 0; font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.copy p { margin: 4px 0 12px; color: var(--gam-color-text-muted); font-size: .875rem; }
+.card-action { font-size: .875rem; font-weight: 600; }
+.state-panel { display: grid; justify-items: center; gap: 12px; padding: 30px 18px; text-align: center; }
+.state-panel p { line-height: 1.5; }
+.error { color: var(--gam-color-danger); }
+ion-button { min-height: 44px; --color: var(--gam-color-primary); --background: var(--gam-color-surface); --border-color: var(--gam-color-control-border); }
+a:focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 3px; }
+@media (min-width: 600px) { .installation-list { grid-template-columns: 1fr 1fr; } }

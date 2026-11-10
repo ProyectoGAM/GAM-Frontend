@@ -7,6 +7,15 @@ import { ApiClient } from '../../../core/api/api-client';
 import { FlockDetailService, splitMetricsPeriods, todayInLotsTimezone } from './flock-detail.service';
 
 describe('FlockDetailService', () => {
+  it('patches basic lot data with its version and idempotency key', async () => {
+    const flock = { id: 'lot', code: 'L-025', notes: null, version: 3 };
+    const patch = vi.fn(() => of({ data: { flock } }));
+    TestBed.configureTestingModule({ providers: [{ provide: ApiClient, useValue: { patch } }] });
+    const body = { version: 2, code: 'L-025', notes: null };
+    const saved = await firstValueFrom(TestBed.inject(FlockDetailService).update('lot/id', body, 'update-key'));
+    expect(patch).toHaveBeenCalledExactlyOnceWith('flocks/lot%2Fid', body, { headers: { 'Idempotency-Key': 'update-key' } });
+    expect(saved).toEqual(flock);
+  });
   it('loads mortality progressively with bounded concurrency, deduplicating lots and isolating errors', () => {
     TestBed.configureTestingModule({ providers: [{ provide: ApiClient, useValue: {} }] });
     const service = TestBed.inject(FlockDetailService);

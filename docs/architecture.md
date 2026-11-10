@@ -52,6 +52,8 @@ appId:   dev.huevossanjose.gam
 appName: GAM
 ```
 
+La bandeja de notificaciones usa Laravel Echo y pusher-js para recibir señales por WebSocket desde Reverb. Usa ApiClient para autorizar el canal y consultar la bandeja, y vuelve a sincronizarse al reconectar o al regresar al primer plano.
+
 ## 3. Top-level structure
 
 ```text

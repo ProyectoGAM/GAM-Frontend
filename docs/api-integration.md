@@ -1,8 +1,40 @@
 # API Integration
 
-La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de UP, roles/permisos y exigencia de contraseña reciente en servidor.
+La gestión de cuentas y dispositivos usa `features/users/services/users.service.ts` y las rutas existentes de autenticación para confirmar contraseña. La vinculación envía `name` y `up_id`, muestra la UP del equipo y conserva el canje web/nativo y selector con PIN. Ver [Gestión de usuarios](user-management.md) para contratos, paginación y pendientes de integración de las pantallas de cuentas/roles.
 
 ## 1. Contract-first
+
+El [editor de roles y permisos](roles-and-permissions.md) consume `roles` y
+`permisos`, guarda la selección completa con `version`, revisa dependencias y
+permite agregar todos los permisos asignables de un módulo al borrador. La
+asignación de cuentas usa un único `rol_id` del catálogo. Nombre/descripción y
+permisos se guardan por separado; los conflictos conservan el borrador y exigen
+comparación explícita antes de volver a guardar.
+
+El [mantenimiento de instalaciones](installation-maintenance.md) consume el
+historial, registro, corrección y anulación de `maintenance.yaml`, y el cambio
+independiente de estado de instalaciones. Documenta el costo cero y la limitación
+de permisos del directorio de responsables.
+
+El [Historial del sistema](audit-history.md) consume resúmenes de `audit/entries`,
+detalle bajo demanda de `auditoria/entradas/{id}`, responsables paginados de
+`auditoria/responsables` y etiquetas de `reference/options`. El
+[contrato integrado de auditoría](audit-api-contract.md) define nombres históricos,
+hechos/cambios legibles y disponibilidad actual de correcciones. La UI reutiliza
+las confirmaciones de inventario, alimentación y mortandad sin interpretar JSON técnico.
+
+El inicio [Acceso rápido por galpón y planta](quick-access.md) reutiliza los contratos de
+instalaciones, lotes, colecciones, mortandad, alimentación, sanidad y elaboración. Postura
+registra huevos; los pesos de aves conservan la denominación Pesaje y sus rutas.
+
+El [detalle de postura](flock-collections.md) permite corregir o cancelar una
+recolección desde sus endpoints existentes. El [detalle de pesaje diario](flock-weighings-backend-needed.md)
+permite borrar ingresos con motivo, versión e idempotencia. No ofrece edición
+de ingresos ni borrado de la jornada completa.
+
+La aplicación sanitaria desde el detalle del lote consume `management-plans.yaml`
+sin cantidad ni stock. Ver [Sanidad del lote](flock-health.md) para historial,
+coincidencia con el calendario del plan, motivo condicional e idempotencia.
 
 Laravel API contracts are authoritative.
 
@@ -28,8 +60,16 @@ La pantalla de alimentación de lotes consume `flock-feeding.yaml` y
 selección de recetas por UP y el nombre del responsable pendiente del backend.
 
 Las cards de lotes comparten el resumen de ingreso, estado, agrupación y aves.
+El fraccionamiento usa el lote original para limitar los destinos a su UP,
+sin filtrar por capacidad; ver [fraccionamiento de lotes](flock-fractionation.md)
+para ocupación, versiones, idempotencia y el cambio de capacidad pendiente en backend.
 La mortalidad vigente se consulta de forma independiente y paginada; ver
 [`flock-cards.md`](flock-cards.md) para carga progresiva y permisos.
+
+El alta de lotes no compara la cantidad inicial de aves con `bird_capacity`:
+superar la capacidad del galpón no bloquea la creación, igual que en el backend.
+Se mantiene el entero positivo hasta 2147483647 y la selección de un galpón
+operativo y vacío de la UP elegida.
 
 El detalle del plan de manejo resalta todas las actividades previstas que
 coinciden con el día o semana actuales. Ver

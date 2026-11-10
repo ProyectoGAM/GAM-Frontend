@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { forkJoin, switchMap } from 'rxjs';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
@@ -8,6 +8,7 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline,
   businessOutline,
+  buildOutline,
   informationCircleOutline,
   pencilOutline,
   trashOutline,
@@ -29,10 +30,14 @@ import {
   PoultryHouseDetail as PoultryHouseDetailData,
 } from '../../interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../services/production-units.service';
+import { poultryHouseCapacityWarning } from '../../services/poultry-house-capacity';
 import { FlockDetailService } from '../../../flocks/services/flock-detail.service';
 import { DetailMetric } from '../../../flocks/interfaces/flock-detail.interface';
 import { FlockHouseTaskDialogComponent } from '../../../flocks/components/flock-house-task-dialog/flock-house-task-dialog.component';
+import { FlockHouseHealthDialogComponent } from '../../../flocks/components/flock-house-health-dialog/flock-house-health-dialog.component';
 import { FlockHouseTaskAction, FlockHouseTaskRequest } from '../../../flocks/interfaces/flock-house-task.interface';
+import { AuthStore } from '../../../../core/auth/auth.store';
+import { canChangeBeakTrimmings } from '../../../flocks/services/flock-beak-trimming';
 
 type DetailState = 'loading' | 'success' | 'offline' | 'forbidden' | 'notFound' | 'error';
 type RelatedState = 'loading' | 'success' | 'error';
@@ -53,10 +58,12 @@ const quantityFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits
     FeedStockDetailComponent,
     PoultryHouseDetailContentComponent,
     FlockHouseTaskDialogComponent,
+    FlockHouseHealthDialogComponent,
   ],
 })
 export class PoultryHouseDetailPage implements OnInit {
   private readonly service = inject(ProductionUnitsService);
+  private readonly auth = inject(AuthStore);
   private readonly flockDetail = inject(FlockDetailService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -67,6 +74,7 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly unitId = Number(this.route.snapshot.paramMap.get('id'));
   readonly state = signal<DetailState>('loading');
   readonly house = signal<PoultryHouseDetailData | null>(null);
+  readonly capacityWarning = computed(() => poultryHouseCapacityWarning(this.house()));
   readonly flocks = signal<HouseFlock[]>([]);
   readonly flocksState = signal<RelatedState>('loading');
   readonly feedStock = signal<FeedStock | null>(null);
@@ -74,11 +82,13 @@ export class PoultryHouseDetailPage implements OnInit {
   readonly isInfoOpen = signal(false);
   readonly isDeleting = signal(false);
   readonly deleteError = signal<string | null>(null);
-  readonly isChangingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
   private readonly navigationFeedback: unknown = this.router.currentNavigation()?.extras.state?.['flockTaskMessage'];
   readonly taskMessage = signal(typeof this.navigationFeedback === 'string' ? this.navigationFeedback : null);
   readonly flockTask = signal<FlockHouseTaskRequest | null>(null);
+  private readonly healthDialog = viewChild(FlockHouseHealthDialogComponent);
+  private readonly taskDialog = viewChild(FlockHouseTaskDialogComponent);
+  readonly canRecordBeakTrimming = computed(() => canChangeBeakTrimmings(this.auth.user(), 'record'));
   readonly ingredientFormOpen = signal(false);
   readonly inventoryIngredients = signal<InventoryIngredient[]>([]);
   readonly catalogState = signal<CatalogState>('idle');
@@ -104,8 +114,10 @@ export class PoultryHouseDetailPage implements OnInit {
   });
   readonly occupancyPercent = computed(() => {
     const house = this.house();
-    if (!house || house.type !== 'poultry' || !house.bird_capacity || typeof house.current_occupancy !== 'number') return null;
-    return Math.min(100, Math.max(0, (house.current_occupancy / house.bird_capacity) * 100));
+    if (!house || house.type !== 'poultry' || typeof house.bird_capacity !== 'number'
+      || !Number.isFinite(house.bird_capacity) || house.bird_capacity <= 0
+      || typeof house.current_occupancy !== 'number' || !Number.isFinite(house.current_occupancy)) return null;
+    return Math.max(0, (house.current_occupancy / house.bird_capacity) * 100);
   });
   readonly currentFlocks = computed(() => this.flocks().filter(
     (flock) => flock.status === 'active' || flock.status === 'quarantined',
@@ -160,7 +172,7 @@ export class PoultryHouseDetailPage implements OnInit {
   });
 
   constructor() {
-    addIcons({ arrowBackOutline, businessOutline, informationCircleOutline, pencilOutline, trashOutline });
+    addIcons({ arrowBackOutline, buildOutline, businessOutline, informationCircleOutline, pencilOutline, trashOutline });
     this.ingredientForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.ingredientIdempotencyKey.set(null));
   }
@@ -186,11 +198,14 @@ export class PoultryHouseDetailPage implements OnInit {
     else this.loadFeedStock(house.id);
   }
 
+  canLeave(): boolean { return (this.healthDialog()?.canLeave() ?? true) && (this.taskDialog()?.canLeave() ?? true); }
+
   openFlockTask(action: FlockHouseTaskAction): void {
     const house = this.house();
     const flocks = this.currentFlocks();
     if (this.flockTask() || !house || house.type !== 'poultry' || this.flocksState() !== 'success'
-      || flocks.length !== 1 || flocks[0].id !== action.flockId) return;
+      || flocks.length !== 1 || flocks[0].id !== action.flockId
+      || (action.kind === 'beak-trimming' && !this.canRecordBeakTrimming())) return;
     this.taskMessage.set(null);
     this.flockTask.set({ ...action, origin: { unitId: house.production_unit_id, houseId: house.id },
       houseName: house.name, unitName: house.production_unit.name });
@@ -234,46 +249,6 @@ export class PoultryHouseDetailPage implements OnInit {
     if (!house || !this.canAddLot() || this.flocksState() !== 'success' || this.currentFlocks().length) return;
     void this.router.navigate(['/administracion/lotes/lotes/nuevo'], {
       queryParams: { unitId: house.production_unit_id, houseId: house.id },
-    });
-  }
-
-  async changeStatus(): Promise<void> {
-    const house = this.house();
-    if (!house || this.isChangingStatus()) return;
-    const options: PoultryHouse['status'][] = house.status === 'inactive'
-      ? ['operational']
-      : (['operational', 'maintenance', 'out_of_service'] as PoultryHouse['status'][])
-        .filter((status) => status !== house.status);
-    const alert = await this.alertController.create({
-      header: house.status === 'inactive' ? 'Reactivar instalación' : 'Cambiar estado',
-      message: house.status === 'inactive'
-        ? 'La instalación volverá a estar operativa si su unidad productiva está activa.'
-        : 'Seleccioná el nuevo estado de la instalación.',
-      inputs: options.map((status) => ({ type: 'radio' as const, label: this.houseStatus(status), value: status })),
-      buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Confirmar', role: 'confirm' }],
-    });
-    await alert.present();
-    const result = await alert.onDidDismiss();
-    const selected: unknown = result.data?.values;
-    if (result.role !== 'confirm' || !options.some((status) => status === selected)) return;
-    const status = selected as PoultryHouse['status'];
-    this.isChangingStatus.set(true);
-    this.statusError.set(null);
-    this.service.updatePoultryHouseStatus(house.id, status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.isChangingStatus.set(false); this.load(); },
-      error: (error: unknown) => {
-        this.isChangingStatus.set(false);
-        if (error instanceof HttpErrorResponse && error.status === 409) {
-          this.statusError.set(this.problemMessage(error.error) ?? 'El estado o la unidad productiva cambió. Revisá los datos actuales.');
-          this.load();
-        } else if (error instanceof HttpErrorResponse && error.status === 404) {
-          this.load();
-        } else if (error instanceof HttpErrorResponse && error.status === 403) {
-          this.statusError.set('No tenés permiso para cambiar el estado de esta instalación.');
-        } else {
-          this.statusError.set('No se pudo cambiar el estado. Intentá nuevamente.');
-        }
-      },
     });
   }
 

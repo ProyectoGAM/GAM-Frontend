@@ -14,7 +14,6 @@ nav { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; pa
 .group-toggle:hover, .group-toggle[aria-expanded="true"], .group-link:hover, .group-link.active { color: inherit; background: var(--gam-color-nav-hover); }
 .group-link.active { background: var(--gam-color-nav-active); }
 .group-toggle > span, .group-link > span { flex: 1; font-size: 13px; font-weight: 600; }
-.group-link small { color: var(--gam-color-nav-muted); font-size: 10px; }
 .group-icon { width: 19px; height: 19px; flex: 0 0 19px; color: var(--gam-color-nav-muted); }
 .chevron { width: 15px; height: 15px; color: var(--gam-color-nav-muted); transition: transform .16s ease; }
 .group-toggle[aria-expanded="true"] .chevron { transform: rotate(180deg); }

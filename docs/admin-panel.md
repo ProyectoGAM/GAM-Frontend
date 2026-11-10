@@ -2,27 +2,39 @@
 
 ## Navegación y rutas
 
-`src/app/features/admin/admin-navigation.ts` es el catálogo de presentación: mantiene en orden los diez grupos y sus 25 entradas. Cada entrada declara un `slug` estable de URL frontend y su etiqueta. Las rutas principales tienen la forma `/administracion/<id-grupo>/<slug>`. Esos slugs no son endpoints de API y no dependen del contrato backend. El shell usa el mismo catálogo para construir enlaces y `visibleAdminNavigation()` para ocultar grupos sin permiso. La ruta raíz y el enlace de marca usan `firstVisibleAdminPath()` para entrar a la primera entrada autorizada; si no hay grupos visibles se muestra acceso denegado. La prueba de navegación valida orden, visibilidad, cantidad y destino inicial.
+`src/app/features/admin/admin-navigation.ts` define el orden, la etiqueta y el slug de cada entrada. Las rutas principales tienen la forma `/administracion/<id-grupo>/<slug>`. El shell filtra las entradas por permiso y muestra los grupos que tienen al menos una entrada visible. La ruta raíz y el enlace de marca usan `firstVisibleAdminPath()` para abrir la primera entrada autorizada.
 
-Los IDs de grupo, la normalización del rol y el mapa de permisos viven en `src/app/core/auth/access-policy.ts`. ADMIN siempre accede a los diez grupos. Los slugs son decisiones de navegación del frontend; se mantienen estables para enlaces guardados y documentación.
+Los IDs de grupo y las reglas por entrada viven en `src/app/core/auth/access-policy.ts`. Admin puede abrir todos los grupos. Acceso rápido está disponible para toda sesión autenticada y cada operación valida sus permisos específicos.
 
 ## Roles del backend y seguridad
 
-El contrato frontend declara `AuthUser.roles: string[]` en `src/app/core/auth/auth.types.ts`. El backend entrega el usuario en `user` durante login personal/PIN y en `data` para `GET /api/v1/me` (cliente: `AuthApi.me()`; endpoint relativo `me`). Los campos de identidad son `name` y `email`; `roles` conserva los nombres literales devueltos por backend.
+El backend entrega el usuario en `user` durante el ingreso personal o por PIN y en `data` al consultar `GET /api/v1/me`. El frontend toma el rol de `rol.clave` y las autorizaciones de `permissions`.
 
-La política actualmente recorta espacios y convierte a minúsculas los strings de roles para reconocer `admin` (el rol existente). ADMIN tiene acceso a todos los grupos. `GROUP_ROLE_GRANTS` contiene una entrada vacía para cada ID de grupo: roles distintos de ADMIN no reciben acceso por inferencia. Cuando backend acuerde los roles por grupo, se incorporan sus nombres literales en esa tabla y pruebas de política. El backend sigue siendo la autoridad final para proteger datos y operaciones.
+Las reglas del menú usan las claves `can_*` del catálogo del backend. `permission-keys.ts` conserva la equivalencia con los nombres anteriores durante la transición de los controles que todavía los usan. Cada equivalencia corresponde al mismo permiso antes y después del renombrado.
 
-La navegación solo expresa visibilidad. `adminPanelGuard`, `adminGroupGuard` y `adminGuard` protegen las rutas; una sesión guest va a `/auth`, una sesión autenticada sin rol recibe la pantalla `/acceso-denegado`. Los endpoints backend siguen validando usuario, sesión, permisos y operación en cada petición. Ocultar enlaces nunca sustituye la autorización del servidor.
+Los guards del panel, del grupo y de sus rutas hijas aplican las mismas reglas de acceso. Una sesión anónima va a `/auth` y un acceso sin permiso va a `/acceso-denegado`. El servidor valida usuario, sesión y permisos en cada operación.
 
 ## Convertir un placeholder en un módulo
 
-De las 25 entradas, `ubicaciones/unidades-productivas` y `ubicaciones/nueva-unidad-productiva` cargan de forma lazy el feature `production-units` desde `src/app/features/production-units/`; las otras 23 cargan `AdminPlaceholderPage`, que muestra literalmente “Módulo pendiente de implementación”. Para implementar una de las entradas pendientes:
+Las entradas pendientes usan `AdminPlaceholderPage`. Para conectar una de esas entradas:
 
-1. Crear el feature dueño bajo `src/app/features/<feature>/` con su `<feature>.routes.ts`, páginas y servicios; mantener lazy loading. Inventario ya reemplaza las pantallas `existencias`, `movimientos` y `ajustes-y-perdidas`; `donaciones` permanece como placeholder por falta de contrato backend.
-2. `admin.routes.ts` usa `map` para generar una ruta padre por grupo y una lista de rutas hijas por entrada. Para convertir `usuarios/usuarios`, cambia únicamente el item con slug `usuarios` dentro de `group.items.map(...)` para emitir `{ path: item.slug, loadChildren: () => import('../users/users.routes').then((m) => m.userRoutes) }`; los demás hijos del mismo padre continúan usando `AdminPlaceholderPage`. Otra opción es declarar una ruta hija específica antes de las rutas placeholder de ese padre. El feature sigue cargándose lazy.
-3. Conserva `canActivate: [authGuard, adminGroupGuard]` y `data.group` en el padre, junto con `data.title` y `data.groupLabel` en cada hija. Así, el módulo nuevo conserva autorización de grupo y contexto visual.
-4. Mantén alineados el ID/slug y el item en `admin-navigation.ts`. Si el backend entrega roles por grupo, agrega únicamente los nombres confirmados a `GROUP_ROLE_GRANTS` y cubre ADMIN, el rol autorizado y un rol no autorizado.
-5. El feature consume `ApiClient` a través de su servicio y declara estados de carga, error, vacío y éxito. No agregues otra entrada sin actualizar la lista acordada de 25 módulos.
+1. Conecta las rutas del feature mediante carga diferida en `admin.routes.ts`.
+2. Conserva `data.group` y los guards de grupo y rutas hijas.
+3. Mantén el slug y agrega a la política los permisos confirmados por el backend. Verifica el acceso con Admin, una cuenta con permiso y una cuenta sin permiso.
+
+## Resumen operativo
+
+`/administracion/resumen` toma la UP seleccionada en la barra lateral. Ambos selectores comparten la selección, incluida la vista Global para administradores. Las sesiones con PIN consultan el alcance de su unidad. Los indicadores históricos comparten un período inclusivo en America/Montevideo. Las aves vivas, las alertas abiertas y el stock de raciones reflejan el momento de consulta.
+
+En Global, el bloque financiero muestra como ingresos por ventas el valor de mercadería entregada, junto a los gastos por moneda. Al filtrar por UP se muestran solo sus gastos. Las aves vivas y la mortalidad comparten otro bloque.
+
+El panel de alertas conserva el total y el desglose por urgencia. **Gestionar alertas** abre la vista operativa de la bandeja con el mismo alcance del Resumen; los avisos personales permanecen en su propia vista. Para una UP concreta, **Ver lotes** abre el listado existente con el filtro de esa unidad. El stock de raciones se mantiene en la vista por UP.
+
+## Configuración de alertas
+
+La ruta `/administracion/alertas-notificaciones/configuracion-de-alertas` permite a Admin y a las cuentas con `can_manage_alert_thresholds` configurar las alertas de Lotes y Planes de manejo. El selector de la pantalla comparte la unidad activa del panel. Las cuentas con un rol personalizado necesitan además permiso para consultar unidades productivas. Cada regla se guarda por separado y el servidor aplica los cambios en su próxima evaluación.
+
+Vehículos tiene alcance general y aparece aun sin seleccionar una UP. Sus tres alertas permiten editar la anticipación de intervenciones, planes preventivos y documentos, incluidos los kilómetros de los planes. Instalaciones usa la UP seleccionada y permite ajustar el aviso por exceso de capacidad antes de la adultez y el exceso mínimo de aves. Ambos módulos consumen el catálogo `configuracion-alertas`, permiten habilitar cada aviso y elegir urgencia automática o fija, y envían por PATCH únicamente los campos modificados.
 
 ## Gestión heredada y autenticación
 

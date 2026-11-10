@@ -20,6 +20,7 @@ describe('FlockCardComponent', () => {
     expect(card.textContent).toContain('Ingreso: 07-10-2026');
     expect(card.textContent).toContain('Galpón Norte');
     expect(card.textContent).toContain('Activo');
+    expect(card.textContent).toContain('Mortandad');
     expect(card.querySelectorAll('dd')[0].textContent).toBe('12');
     expect(card.querySelectorAll('dd')[1].textContent).toBe('950');
     expect(card.querySelector('a')?.getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1');
@@ -49,13 +50,18 @@ describe('FlockCardComponent', () => {
     expect(card.querySelector('.flock-tasks')).toBeNull();
     fixture.componentRef.setInput('showTasks', true); fixture.detectChanges();
     const links = [...card.querySelectorAll<HTMLElement>('.task-link')];
+    expect(links[0].textContent).toContain('Registrar pesaje');
+    expect(links[1].textContent).toContain('Registrar mortandad');
     expect(links[0].getAttribute('href')).toBe('/administracion/lotes/lotes/lot-1/pesajes?lotFrom=house&unitId=7&houseId=22&task=entry');
     expect(links.slice(1).every((link) => link.tagName === 'BUTTON' && link.getAttribute('aria-haspopup') === 'dialog')).toBe(true);
     const tasks = vi.fn(); fixture.componentInstance.taskRequested.subscribe(tasks);
-    links[1].click(); links[2].click();
+    expect(links[3].textContent).toContain('Sanidad');
+    expect(links[3].textContent).toContain('Aplicar vacuna o medicamento');
+    links[1].click(); links[2].click(); links[3].click();
     expect(tasks.mock.calls.map(([action]) => action)).toEqual([
       { kind: 'mortality', flockId: flock.id, trigger: links[1] },
       { kind: 'feeding', flockId: flock.id, trigger: links[2] },
+      { kind: 'health', flockId: flock.id, trigger: links[3] },
     ]);
     expect(card.querySelector('.flock-card-button .task-link')).toBeNull();
     expect((links[2].querySelector('ion-icon') as HTMLElement & { name: string }).name).toBe('leaf-outline');

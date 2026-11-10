@@ -1,0 +1,51 @@
+.vehicle-documents { min-width: 0; padding: clamp(14px, 3vw, 22px); }
+.documents-privacy { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: .9rem; }
+.documents-privacy ion-icon { flex: none; margin-top: 2px; }
+.documents-list { margin: 0; padding: 0; list-style: none; }
+.documents-list > li { padding-block: 14px; border-top: 1px solid var(--gam-color-border); }
+.documents-list > li:last-child { padding-bottom: 0; }
+.document-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 10px 16px; overflow-wrap: anywhere; }
+.document-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.document-identity ion-icon {
+  flex: none;
+  box-sizing: content-box;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--gam-color-primary-soft);
+  color: var(--gam-color-primary);
+  font-size: 1.25rem;
+}
+.document-identity h3 { margin: 0 0 4px; color: var(--gam-color-heading); font-size: 1.05rem; font-weight: 750; }
+.document-expiry { display: grid; gap: 5px; font-size: .9rem; }
+.document-expiry p { margin: 0; }
+.document-badge {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--gam-color-success-soft);
+  color: var(--gam-color-success);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.document-badge.expired { background: var(--gam-color-danger-soft); color: var(--gam-color-danger); }
+.button.document-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border-color: var(--gam-color-control-border);
+  color: var(--gam-color-primary);
+}
+.button.document-action.primary { border-color: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+.document-action ion-icon { flex: none; }
+.document-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.document-fields input:not([type='file']) { min-width: 0; min-height: 44px; box-sizing: border-box; font-size: 1rem; font-weight: 400; }
+.document-fields input.ng-invalid.ng-touched { border-color: var(--gam-color-danger); }
+.document-fields .vehicle-attachment > .button { width: 100%; }
+.document-dialog-actions .dialog-button { flex: 1 1 auto; }
+
+@media (min-width: 630px) {
+  .document-row { grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) auto; }
+  .document-expiry { padding-inline-start: 14px; border-inline-start: 1px solid var(--gam-color-border); }
+}

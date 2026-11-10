@@ -5,6 +5,34 @@ import { vi } from 'vitest';
 
 import { SearchableSelectComponent, type SearchableSelectOption } from './searchable-select.component';
 
+describe('SearchableSelectComponent remote search', () => {
+  it('keeps typing available while loading, delegates matching and blocks selection of stale options', () => {
+    TestBed.configureTestingModule({ imports: [SearchableSelectComponent] });
+    const fixture = TestBed.createComponent(SearchableSelectComponent);
+    fixture.componentRef.setInput('remoteSearch', true);
+    fixture.componentRef.setInput('selectedLabel', 'Ana histórica');
+    fixture.componentRef.setInput('options', [{ value: 'person-1', label: 'Ana histórica' }]);
+    const search = vi.fn(); const selected = vi.fn();
+    fixture.componentInstance.searchChanged.subscribe(search);
+    fixture.componentInstance.registerOnChange(selected);
+    fixture.componentInstance.writeValue('person-1');
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    expect(input.value).toBe('Ana histórica');
+    fixture.componentInstance.open(); fixture.componentInstance.onInput('Beatriz');
+    fixture.componentRef.setInput('loading', true); fixture.detectChanges();
+    expect(input.disabled).toBe(false); expect(search).toHaveBeenLastCalledWith('Beatriz');
+    fixture.componentInstance.select({ value: 'person-1', label: 'Ana histórica' });
+    expect(selected).not.toHaveBeenCalled();
+    fixture.componentRef.setInput('options', [{ value: 'person-2', label: 'Nombre devuelto por el servidor' }]);
+    fixture.componentRef.setInput('loading', false); fixture.detectChanges();
+    expect(fixture.componentInstance.filteredOptions()).toHaveLength(1);
+    fixture.componentInstance.close(); fixture.detectChanges();
+    expect(input.value).toBe('Ana histórica');
+    fixture.destroy();
+  });
+});
+
 @Component({
   imports: [ReactiveFormsModule, SearchableSelectComponent],
   template: `

@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
+import { hasManagementPlansPermission } from '../../../../core/auth/access-policy';
 import { CatalogRecord } from '../../interfaces/health-catalog';
 import { HealthLoadState } from '../../types/health-catalog.type';
 import { HealthCatalogsApi } from '../../services/health-catalogs.api';
@@ -18,7 +19,7 @@ export class VaccineDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   readonly id = signal(this.route.snapshot.paramMap.get('id') ?? '');
-  readonly allowed = computed(() => this.auth.isAdmin());
+  readonly allowed = computed(() => this.auth.isAdmin() || hasManagementPlansPermission(this.auth.user(), 'manage'));
   readonly record = signal<CatalogRecord | null>(null);
   readonly unit = computed(() => this.record()?.vaccine ? unitLabel(this.record()!.vaccine!.unit) : '');
   readonly state = signal<HealthLoadState>('idle');

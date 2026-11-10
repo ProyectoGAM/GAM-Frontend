@@ -2,8 +2,8 @@ import { PlanActivity } from '../interfaces/management-plan';
 
 const TYPES: Record<string, string> = {
   vaccination: 'Vacunación', medication: 'Medicación', ration_change: 'Ración',
-  weighing: 'Pesaje', manual_practice: 'Práctica manual', flock_movement: 'Movimiento',
-  egg_collection: 'Recolección', mortality: 'Mortalidad',
+  weighing: 'Postura', manual_practice: 'Práctica manual', flock_movement: 'Movimiento',
+  egg_collection: 'Recolección', mortality: 'Mortandad',
 };
 
 export function activityTypeLabel(type: string): string { return TYPES[type] ?? type; }

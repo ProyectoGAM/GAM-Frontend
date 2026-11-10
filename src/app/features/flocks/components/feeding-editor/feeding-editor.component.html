@@ -53,6 +53,9 @@
           </fieldset>
         }
         @if (validation() || error()) { <p class="error" role="alert">{{ validation() || error() }}</p> }
+        <div class="form-actions">
+          <ion-button type="submit" expand="block" [disabled]="saving() || submitBlocked() || unchangedAutomatic()">{{ saving() ? 'Guardando…' : correction() ? 'Guardar edición' : 'Aplicar cambio' }}</ion-button>
+        </div>
       </form>
       <dialog #confirmationDialog class="manual-confirmation" aria-labelledby="feeding-confirmation-title" aria-describedby="feeding-confirmation-description" (cancel)="cancelConfirmation($event)">
         <h2 id="feeding-confirmation-title"><ion-icon name="warning-outline" aria-hidden="true" />¿Activar el modo manual?</h2>
@@ -61,8 +64,5 @@
         <div class="confirmation-actions"><button autofocus type="button" (click)="cancelConfirmation()">Seguir en automático</button><button class="primary" type="button" (click)="confirmManual()">Confirmar modo manual</button></div>
       </dialog>
     </ion-content>
-    <ion-footer><ion-toolbar>
-      <ion-button expand="block" [disabled]="saving() || unchangedAutomatic()" (click)="submit(confirmationDialog)">{{ saving() ? 'Guardando…' : correction() ? 'Guardar edición' : 'Aplicar cambio' }}</ion-button>
-    </ion-toolbar></ion-footer>
   </ng-template>
 </ion-modal>

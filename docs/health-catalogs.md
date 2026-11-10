@@ -9,9 +9,10 @@ consulta de vacunas. Las rutas existentes del sidebar se conservan:
 - `/administracion/manejo-lotes/medicacion`: listado de medicamentos.
 - `/administracion/manejo-lotes/medicacion/nuevo`: alta de medicamento.
 
-Las páginas se cargan lazy y se protegen con el rol de administrador. El API
-mantiene la validación autoritativa del usuario activo y sus permisos. Cambiar de
-identidad o perder el rol descarta datos, borradores y respuestas pendientes.
+Las páginas se cargan bajo demanda. Admin y las cuentas con
+`can_manage_management_plans` pueden consultar los catálogos. El alta requiere
+el rol Admin. La API valida al usuario activo y sus permisos. Cambiar de identidad
+o perder el permiso descarta datos, borradores y respuestas pendientes.
 La UP del filtro global no afecta a estos catálogos.
 
 ## Contratos
@@ -46,6 +47,15 @@ ofrecen ingresar stock en Sanidad, consultar stock físico o preparar vínculos,
 tampoco para fichas históricas que conserven un ID de producto. La aplicación al
 lote continúa por separado. Nuevo producto ofrece enlaces de página completa
 a Nueva vacuna y Nuevo medicamento sólo para administradores.
+Esos accesos envían el origen reconocido `from=products`. Al entrar desde Nuevo
+producto, el enlace superior y la confirmación de creación permiten volver a ese
+formulario y conservan su parámetro `returnTo`. La confirmación mantiene también
+el acceso al listado y, para vacunas, a la ficha. Al entrar desde los listados
+sanitarios, se conserva el regreso al listado con sus filtros. No se acepta un
+destino arbitrario para este regreso: el formulario de producto es una ruta fija.
+Las pruebas de navegación recorren ambos catálogos, regresan después de crear o
+cancelar y comprueban que luego se puede crear un producto. Las entradas directas
+mantienen el listado sanitario como destino, con sus filtros.
 Ver [alcance del almacenamiento](inventory-storage-rules.md).
 
 Actualización de alcance global (28/10/2026): lint, las 963 pruebas en 126

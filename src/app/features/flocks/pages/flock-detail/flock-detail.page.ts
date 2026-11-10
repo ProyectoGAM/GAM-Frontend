@@ -1,26 +1,35 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, WritableSignal, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, WritableSignal, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
-  arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
-  eggOutline, notificationsOutline, scaleOutline,
+  arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
+  eggOutline, gitBranchOutline, informationCircleOutline, scaleOutline, medicalOutline,
 } from 'ionicons/icons';
 import { Observable } from 'rxjs';
+
+import { AuthStore } from '../../../../core/auth/auth.store';
+import { isAdminUser } from '../../../../core/auth/access-policy';
 
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { CollectionSummaryComponent } from '../../components/collection-summary/collection-summary.component';
+import { FlockDataEditorDialogComponent } from '../../components/flock-data-editor-dialog/flock-data-editor-dialog.component';
 import { CollectionSummary } from '../../interfaces/flock-collection.interface';
 import { DetailMetric, FlockHouseOrigin, FlockLatestWeighing } from '../../interfaces/flock-detail.interface';
 import { FlockFeedingOverview } from '../../interfaces/flock-feeding.interface';
-import { Flock } from '../../interfaces/flock.interface';
+import { Flock, UpdateFlockRequest } from '../../interfaces/flock.interface';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { feedingDate } from '../../services/feeding-summary';
 import { FlockFeedingService } from '../../services/flock-feeding.service';
+import { FlockStatusService } from '../../services/flock-status.service';
+import { canViewBeakTrimmings } from '../../services/flock-beak-trimming';
+import { FlockStatusDialogComponent } from '../../components/flock-status-dialog/flock-status-dialog.component';
+import { FlockFinalizationRequest, FlockStatusRequest } from '../../interfaces/flock-status.interface';
 
 type PageState = 'loading' | 'ready' | 'offline' | 'forbidden' | 'not-found' | 'error';
 
@@ -30,7 +39,7 @@ const loadingMetric = <T>(): DetailMetric<T> => ({ state: 'loading', value: null
   selector: 'app-flock-detail-page',
   templateUrl: './flock-detail.page.html',
   styleUrl: './flock-detail.page.scss',
-  imports: [IonIcon, IonSpinner, RouterLink, CollectionSummaryComponent],
+  imports: [IonIcon, IonSpinner, RouterLink, CollectionSummaryComponent, FlockStatusDialogComponent, FlockDataEditorDialogComponent],
 })
 export class FlockDetailPage {
   private readonly route = inject(ActivatedRoute);
@@ -40,6 +49,35 @@ export class FlockDetailPage {
   private readonly productionUnits = inject(ProductionUnitsService);
   private readonly unitContext = inject(AdminUnitContextService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(AuthStore);
+  private readonly statuses = inject(FlockStatusService);
+  private readonly statusDialog = viewChild<FlockStatusDialogComponent>('statusDialog');
+  private readonly dataEditor = viewChild(FlockDataEditorDialogComponent);
+  private dataAttempt: { id: string; body: UpdateFlockRequest; key: string } | null = null;
+  private statusAttempt: ({ kind: 'status'; body: FlockStatusRequest } | { kind: 'finalization'; body: FlockFinalizationRequest }) & { id: string; key: string } | null = null;
+  private statusGeneration = 0;
+  readonly canManageStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.manage') === true);
+  readonly canFinalizeStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.finalize') === true);
+  readonly canEditStatus = computed(() => this.canManageStatus() || this.canFinalizeStatus());
+  readonly canViewHealth = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('management-plans.view') === true);
+  readonly canViewBeakTrimmings = computed(() => canViewBeakTrimmings(this.auth.user()));
+  readonly statusSaving = signal(false);
+  readonly statusUncertain = signal(false);
+  readonly statusConflict = signal(false);
+  readonly statusError = signal<string | null>(null);
+  readonly statusSuccess = signal<string | null>(null);
+  readonly statusLocked = computed(() => this.statusSaving() || this.statusUncertain());
+  readonly dataEditState = signal<'idle' | 'saving' | 'uncertain' | 'conflict'>('idle');
+  readonly dataEditError = signal<string | null>(null);
+  readonly dataEditSuccess = signal<string | null>(null);
+  private readonly dataEditLocked = computed(() => this.dataEditState() === 'saving' || this.dataEditState() === 'uncertain');
+  readonly statusForm = new FormGroup({
+    status: new FormControl<Flock['status']>('active', { nonNullable: true }),
+    reason: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(500),
+      (control) => String(control.value).trim() ? null : { required: true }] }),
+    confirmFinalization: new FormControl(false, { nonNullable: true }),
+  });
+  readonly statusDraft = toSignal(this.statusForm.controls.status.valueChanges, { initialValue: this.statusForm.controls.status.value });
   private loadVersion = 0;
   private readonly queryParams = toSignal(this.route.queryParamMap);
   readonly returnHouse = computed<FlockHouseOrigin | null>(() => {
@@ -62,6 +100,7 @@ export class FlockDetailPage {
 
   readonly state = signal<PageState>('loading');
   readonly flock = signal<Flock | null>(null);
+  readonly canFractionate = computed(() => this.flock()?.status !== 'finished' && (this.flock()?.current_quantity ?? 0) > 0);
   readonly houseName = signal<string | null>(null);
   readonly mortality = signal<DetailMetric<number>>(loadingMetric());
   readonly weighing = signal<DetailMetric<FlockLatestWeighing>>(loadingMetric());
@@ -91,17 +130,31 @@ export class FlockDetailPage {
   readonly weighingDateText = computed(() => this.weighing().value ? this.shortDate(this.weighing().value!.date) : '');
 
   constructor() {
+    effect(() => {
+      this.auth.user();
+      this.auth.session();
+      untracked(() => { this.resetStatusEditor(); this.resetDataEditor(); });
+    });
+    this.destroyRef.onDestroy(() => {
+      const dialog = this.statusDialog()?.element().nativeElement;
+      if (dialog?.open) dialog.close();
+    });
     addIcons({
-      arrowBackOutline, calendarOutline, chevronForwardOutline, documentTextOutline,
-      eggOutline, notificationsOutline, scaleOutline,
+      arrowBackOutline, calendarOutline, chevronForwardOutline, cutOutline, documentTextOutline,
+      eggOutline, gitBranchOutline, informationCircleOutline, scaleOutline, medicalOutline,
     });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.resetStatusEditor();
+      this.resetDataEditor();
       this.flockId.set(params.get('id') ?? '');
       this.load();
     });
   }
 
   load(): void {
+    if (this.statusLocked() || this.dataEditLocked()) return;
+    this.resetStatusEditor();
+    this.resetDataEditor();
     const version = ++this.loadVersion;
     const id = this.flockId();
     this.state.set('loading');
@@ -128,6 +181,160 @@ export class FlockDetailPage {
         if (version === this.loadVersion) this.state.set(this.errorState(error));
       },
     });
+  }
+
+  openDataEditor(trigger: HTMLElement): void {
+    const flock = this.flock();
+    if (!flock || flock.status === 'finished' || !this.canManageStatus() || this.statusLocked() || this.dataEditLocked()) return;
+    this.dataEditState.set('idle');
+    this.dataEditError.set(null);
+    this.dataEditSuccess.set(null);
+    this.dataEditor()?.open(flock, trigger);
+  }
+
+  saveData(body: UpdateFlockRequest): void {
+    const flock = this.flock();
+    if (!flock || flock.status === 'finished' || !this.canManageStatus() || this.dataEditState() === 'saving') return;
+    const attempt = this.dataEditState() === 'uncertain' ? this.dataAttempt : { id: flock.id, body, key: crypto.randomUUID() };
+    if (!attempt || attempt.id !== flock.id) return;
+    this.dataAttempt = attempt;
+    this.dataEditState.set('saving');
+    this.dataEditError.set(null);
+    this.detail.update(attempt.id, attempt.body, attempt.key).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (saved) => {
+        if (this.dataAttempt !== attempt) return;
+        this.resetDataEditor();
+        this.flock.update((current) => current?.id === attempt.id ? { ...current, ...saved } : current);
+        this.dataEditSuccess.set('Datos del lote actualizados.');
+      },
+      error: (error: unknown) => {
+        if (this.dataAttempt !== attempt) return;
+        const status = error instanceof HttpErrorResponse ? error.status : 0;
+        if (status === 0 || status >= 500 || (status >= 200 && status < 300)) {
+          this.dataEditState.set('uncertain');
+          this.dataEditError.set('No pudimos confirmar el guardado. Reintentá con los mismos datos.');
+          return;
+        }
+        this.dataAttempt = null;
+        this.dataEditState.set(status === 409 ? 'conflict' : 'idle');
+        const problem: unknown = error instanceof HttpErrorResponse ? error.error : null;
+        const detail = problem && typeof problem === 'object' && 'detail' in problem && typeof problem.detail === 'string' ? problem.detail : null;
+        this.dataEditError.set(status === 401 || status === 403 ? 'No tenés permiso para editar este lote.'
+          : detail ?? (status === 409 ? 'El lote cambió. Actualizá el detalle y revisá los datos.' : 'No se pudieron guardar los datos del lote. Revisalos e intentá de nuevo.'));
+      },
+    });
+  }
+
+  private resetDataEditor(): void {
+    this.dataAttempt = null;
+    this.dataEditState.set('idle');
+    this.dataEditError.set(null);
+    this.dataEditSuccess.set(null);
+    this.dataEditor()?.close();
+  }
+
+  openStatusEditor(): void {
+    const flock = this.flock();
+    if (!flock || !this.canEditStatus() || this.statusLocked() || this.dataEditLocked()) return;
+    this.statusSuccess.set(null);
+    this.statusError.set(null);
+    this.statusConflict.set(false);
+    this.statusAttempt = null;
+    this.statusForm.reset({ status: flock.status, reason: '', confirmFinalization: false });
+    this.statusDialog()?.element().nativeElement.showModal();
+  }
+
+  closeStatusEditor(event?: Event): void {
+    if (this.statusLocked()) { event?.preventDefault(); return; }
+    this.statusDialog()?.element().nativeElement.close();
+  }
+
+  backToStatusChoices(): void {
+    if (this.statusLocked()) return;
+    this.statusForm.controls.confirmFinalization.reset(false);
+    this.statusForm.controls.status.setValue(this.flock()?.status ?? 'active');
+    if (!this.statusConflict()) this.statusError.set(null);
+  }
+
+  openFinalization(): void {
+    const flock = this.flock();
+    if (!flock || flock.status === 'finished' || !this.canFinalizeStatus() || this.statusLocked() || this.statusConflict()) return;
+    this.statusForm.controls.confirmFinalization.reset(false);
+    this.statusForm.controls.status.setValue('finished');
+    this.statusError.set(null);
+  }
+
+  saveStatus(): void {
+    const flock = this.flock();
+    if (!flock || !this.canEditStatus() || flock.status === 'finished' || this.statusSaving() || this.statusConflict()) return;
+    if (!this.statusUncertain() && this.statusForm.controls.status.value === flock.status) return;
+    this.statusForm.markAllAsTouched();
+    if (!this.statusUncertain()) {
+      const values = this.statusForm.getRawValue();
+      const finalizing = values.status === 'finished';
+      if (finalizing ? !this.canFinalizeStatus() : !this.canManageStatus()) return;
+      if (this.statusForm.invalid) {
+        this.statusDialog()?.element().nativeElement.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+        return;
+      }
+      if (finalizing && !values.confirmFinalization) {
+        this.statusDialog()?.element().nativeElement.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+        return;
+      }
+      if (values.status === flock.status) return;
+      const common = { id: flock.id, key: crypto.randomUUID() };
+      const body = { version: flock.version, reason: values.reason.trim() };
+      this.statusAttempt = values.status === 'finished'
+        ? { ...common, kind: 'finalization', body }
+        : { ...common, kind: 'status', body: { ...body, status: values.status } };
+    }
+    const attempt = this.statusAttempt;
+    if (!attempt) return;
+    const generation = this.statusGeneration;
+    this.statusSaving.set(true); this.statusError.set(null);
+    const request = attempt.kind === 'finalization' ? this.statuses.finalize(attempt.id, attempt.body, attempt.key)
+      : this.statuses.change(attempt.id, attempt.body, attempt.key);
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => {
+        if (generation !== this.statusGeneration) return;
+        this.statusSaving.set(false); this.statusUncertain.set(false); this.statusAttempt = null;
+        this.flock.update((current) => current?.id === attempt.id ? { ...current, ...result.flock } : current);
+        this.statusSuccess.set(attempt.kind === 'finalization' ? 'Lote finalizado. Se registró el egreso de las aves remanentes.' : 'Estado del lote actualizado.');
+        this.statusDialog()?.element().nativeElement.close();
+        const updated = this.flock();
+        if (attempt.kind === 'finalization' && updated) {
+          const version = ++this.loadVersion;
+          this.loadHouse(updated, version);
+          this.loadMetrics(updated, version);
+        }
+      },
+      error: (error: unknown) => {
+        if (generation !== this.statusGeneration) return;
+        this.statusSaving.set(false);
+        const uncertain = !(error instanceof HttpErrorResponse) || error.status === 0 || error.status >= 500 || (error.status >= 200 && error.status < 300);
+        this.statusUncertain.set(uncertain);
+        if (uncertain) {
+          this.statusError.set('No pudimos confirmar el cambio. Reintentá con los mismos datos para confirmar el resultado.');
+          return;
+        }
+        this.statusAttempt = null;
+        this.statusConflict.set(error.status === 409);
+        this.statusError.set(error.status === 409 ? 'El lote cambió. Actualizá el detalle y revisá su estado antes de volver a confirmar.'
+          : [401, 403].includes(error.status) ? 'No tenés permiso para cambiar el estado de este lote.'
+          : error.status === 422 ? 'No se pudo cambiar el estado. Revisá la opción y el motivo (hasta 500 caracteres).'
+          : 'No se pudo cambiar el estado. Intentá nuevamente.');
+      },
+    });
+  }
+
+  private resetStatusEditor(): void {
+    this.statusGeneration++;
+    const dialog = this.statusDialog()?.element().nativeElement;
+    if (dialog?.open) dialog.close();
+    this.statusAttempt = null;
+    this.statusSaving.set(false); this.statusUncertain.set(false); this.statusConflict.set(false);
+    this.statusError.set(null); this.statusSuccess.set(null);
+    this.statusForm.reset({ status: 'active', reason: '', confirmFinalization: false });
   }
 
   private statusLabel(status: Flock['status']): string {

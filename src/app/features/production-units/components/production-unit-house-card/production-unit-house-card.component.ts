@@ -4,6 +4,8 @@ import { eggOutline, leafOutline, locationOutline } from 'ionicons/icons';
 import { IonCard, IonCardContent, IonIcon } from '@ionic/angular';
 
 import { ProductionUnit, PoultryHouse } from '../../interfaces/production-unit.interface';
+import { InfoHelpComponent } from '../../../../shared/components/info-help.component';
+import { poultryHouseCapacityWarning } from '../../services/poultry-house-capacity';
 
 interface HouseCardPresentation {
   iconName: 'egg-outline' | 'leaf-outline';
@@ -21,11 +23,12 @@ const birdCountFormatter = new Intl.NumberFormat('es-UY');
   selector: 'app-production-unit-house-card',
   templateUrl: './production-unit-house-card.component.html',
   styleUrl: './production-unit-house-card.component.scss',
-  imports: [IonCard, IonCardContent, IonIcon],
+  imports: [IonCard, IonCardContent, IonIcon, InfoHelpComponent],
 })
 export class ProductionUnitHouseCardComponent {
   readonly house = input.required<PoultryHouse>();
   readonly productionUnit = input<ProductionUnit | null>(null);
+  readonly capacityWarning = computed(() => poultryHouseCapacityWarning(this.house()));
   readonly presentation = computed<HouseCardPresentation>(() => {
     const house = this.house();
     const productionUnit = this.productionUnit();

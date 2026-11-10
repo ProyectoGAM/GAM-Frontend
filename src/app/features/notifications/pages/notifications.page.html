@@ -1,0 +1,169 @@
+@if (embedded()) {
+  <ng-container *ngTemplateOutlet="inboxContent" />
+} @else {
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start"><ion-back-button [defaultHref]="returnPath()" text="Volver" /></ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content>
+    <div class="standalone"><ng-container *ngTemplateOutlet="inboxContent" /></div>
+  </ion-content>
+}
+
+@if (review(); as current) {
+  <app-alert-editor-dialog title="Confirmar ración vigente" [saving]="current.state === 'saving'" (dismissRequested)="closeReview()">
+    <div class="ration-review">
+      <p>{{ current.notification.mensaje }}</p>
+      @if (current.state === 'loading') {
+        <p role="status">Consultando la ración vigente…</p>
+      }
+      @if (current.ration; as ration) {
+        <dl>
+          <div><dt>Receta</dt><dd>{{ ration.recipe }}</dd></div>
+          <div><dt>Cantidad diaria</dt><dd>{{ ration.quantity }} kg/día</dd></div>
+          <div><dt>Último cambio o confirmación</dt><dd>{{ ration.since }}</dd></div>
+        </dl>
+        <p>Al confirmar, se registra la revisión, se cierra esta alerta y vuelve a correr el plazo de revisión. La receta y la cantidad se conservan.</p>
+      }
+      @if (current.error) { <p class="review-error" role="alert">{{ current.error }}</p> }
+      <div class="actions review-actions">
+        <ion-button type="button" fill="outline" [disabled]="current.state === 'saving'" (click)="closeReview()">Cancelar</ion-button>
+        @if (current.state === 'retry') {
+          <ion-button type="button" (click)="retryReview()">Volver a consultar</ion-button>
+        }
+        @if (current.ration) {
+          <ion-button type="button" [disabled]="current.state === 'saving'" (click)="confirmReview()">
+            {{ current.state === 'saving' ? 'Confirmando…' : 'Confirmar ración' }}
+          </ion-button>
+        }
+      </div>
+    </div>
+  </app-alert-editor-dialog>
+}
+
+<ng-template #inboxContent>
+  <section class="inbox" aria-label="Notificaciones y alertas">
+    <h1 tabindex="-1">Notificaciones y alertas</h1>
+    @if (!allowed()) {
+      <p>Tu cuenta no tiene acceso a las notificaciones.</p>
+    } @else {
+      <div class="views" role="group" aria-label="Tipo de aviso">
+        <a [routerLink]="[]" [attr.aria-current]="!operational() ? 'page' : null">Avisos personales</a>
+        <a [routerLink]="[]" [queryParams]="{ vista: 'operativas', up_id: unit() }"
+          [attr.aria-current]="operational() ? 'page' : null">Alertas operativas</a>
+      </div>
+      @if (operational()) {
+        <div class="scope-label">
+          <p>Alcance: <strong>{{ unitName() }}</strong></p>
+          @if (unit() !== null && canClearUnit()) {
+            <a class="origin-link" [routerLink]="[]" [queryParams]="{ vista: 'operativas' }">Ver todas las UP</a>
+          }
+        </div>
+      }
+      <div class="filters">
+        @if (!operational()) { <label class="order">
+          Ordenar por
+          <select #orderSelect [value]="order()" (change)="setOrder(orderSelect.value)">
+            <option value="urgencia">Urgencia</option>
+            <option value="fecha">Más recientes</option>
+          </select>
+        </label> }
+        <div class="urgency-filter">
+          <span id="notification-urgency-label">Filtrar por urgencia</span>
+          <div class="urgencies" role="group" aria-labelledby="notification-urgency-label">
+            @for (option of urgencyOptions; track option.label) {
+              <button type="button" [attr.aria-pressed]="urgency() === option.value"
+                (click)="setUrgency(option.value)">{{ option.label }}</button>
+            }
+          </div>
+        </div>
+      </div>
+      @if (operational()) {
+        @if (operationalState().result; as result) {
+          <div class="results">
+            @for (alert of result.data; track alert.id) {
+              <article class="operational-row">
+                <app-notification-heading [notification]="{
+                  titulo: alert.titulo, modulo: alert.modulo, fecha: alert.ocurrida_en, urgencia: alert.urgencia
+                }" />
+                @if (alertOrigin(alert.entidad); as origin) {
+                  <a class="origin-link" [routerLink]="origin">Abrir registro</a>
+                }
+              </article>
+            } @empty {
+              <p class="state" role="status">No hay alertas operativas pendientes para este filtro.</p>
+            }
+          </div>
+          <ng-container *ngTemplateOutlet="pagination; context: { $implicit: result.meta.last_page }" />
+        } @else if (operationalState().failed) {
+          <p role="alert">No se pudieron cargar las alertas operativas.</p>
+          <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
+        } @else {
+          <p role="status">Cargando alertas operativas…</p>
+        }
+      } @else {
+      <div class="views" role="group" aria-label="Vista de notificaciones">
+        @for (option of views; track option.value) {
+          <button type="button" [attr.aria-pressed]="view() === option.value"
+            (click)="setView(option.value)">{{ option.label }}</button>
+        }
+      </div>
+      @if (error()) { <p role="alert">{{ error() }}</p> }
+      @if (reviewMessage(); as message) { <p class="review-success" role="status">{{ message }}</p> }
+      @if (state().result; as result) {
+        <div class="results">
+          @for (notification of result.data; track notification.id) {
+            <details>
+              <summary>
+                <span class="indicator" [class.unread]="!notification.leida_en && view() !== 'resolved'">
+                  @if (!notification.leida_en && view() !== 'resolved') {
+                    <span class="visually-hidden">Sin leer</span>
+                  }
+                </span>
+                <app-notification-heading [notification]="notification" />
+              </summary>
+              <div class="detail">
+                <p>{{ notification.mensaje }}</p>
+                <div class="actions">
+                  @if (canReview(notification)) {
+                    <button #reviewButton class="review-trigger" type="button" aria-haspopup="dialog"
+                      (click)="openReview(notification, reviewButton)">Revisar ración</button>
+                  }
+                  @if (notification.entidad?.ruta; as route) {
+                    <a [routerLink]="route">Abrir registro</a>
+                  }
+                  @if (!notification.leida_en) {
+                    <ion-button size="small" fill="outline" [disabled]="saving() !== null"
+                      (click)="markRead(notification.id)">Marcar como leída</ion-button>
+                  }
+                </div>
+              </div>
+            </details>
+          } @empty {
+            <p class="state" role="status">{{ emptyMessage() }}</p>
+          }
+        </div>
+        <ng-container *ngTemplateOutlet="pagination; context: { $implicit: result.meta.last_page }" />
+      } @else if (state().failed) {
+        <p role="alert">No se pudo cargar la bandeja.</p>
+        <ion-button fill="outline" (click)="reload()">Reintentar</ion-button>
+      } @else {
+        <p role="status">Cargando notificaciones…</p>
+      }
+      }
+    }
+  </section>
+</ng-template>
+
+<ng-template #pagination let-lastPage>
+  @if (lastPage > 1 || page() > 1) {
+    <nav aria-label="Páginas de la bandeja">
+      <ion-button size="small" fill="outline" [disabled]="page() === 1"
+        (click)="page.set(page() - 1)">Anterior</ion-button>
+      <span>Página {{ page() }}</span>
+      <ion-button size="small" fill="outline" [disabled]="page() >= lastPage"
+        (click)="page.set(page() + 1)">Siguiente</ion-button>
+    </nav>
+  }
+</ng-template>

@@ -1,0 +1,73 @@
+<section class="vehicles-page" aria-labelledby="vehicles-title">
+  <header class="page-heading">
+    <div>
+      <h1 id="vehicles-title"><ion-icon name="car-outline" aria-hidden="true" />Vehículos</h1>
+      <p class="muted">Flota</p>
+    </div>
+    @if (canManage()) {
+      <button class="button primary" type="button" aria-haspopup="dialog" [disabled]="saving()" (click)="openCreate()">
+        <ion-icon name="add-outline" aria-hidden="true" />Nuevo vehículo
+      </button>
+    }
+  </header>
+
+  <form class="filter-toolbar" (submit)="$event.preventDefault(); searchFleet()">
+    <div class="filter-search">
+      <ion-icon name="search-outline" aria-hidden="true" />
+      <input #searchInput type="search" aria-label="Buscar vehículo" placeholder="Matrícula, marca o modelo" [value]="search()" (input)="search.set(searchInput.value)">
+      <button class="search-submit" type="submit" aria-label="Buscar" [disabled]="loading()">
+        <ion-icon name="arrow-forward-outline" aria-hidden="true" />
+      </button>
+    </div>
+    <button #filterButton class="filter-trigger" type="button" aria-haspopup="dialog" (click)="openFilters(filterButton)">
+      <ion-icon name="funnel-outline" aria-hidden="true" />Filtros
+      @if (filterCount()) { <span class="filter-count">{{ filterCount() }}</span> }
+    </button>
+  </form>
+
+  @if (error(); as message) {
+    <div class="feedback error" role="alert">{{ message }} <button class="button" type="button" (click)="load()">Reintentar</button></div>
+  } @else if (loading()) {
+    <p class="empty card" role="status">Cargando vehículos…</p>
+  } @else {
+    <p class="result-count" role="status">{{ total() }} {{ total() === 1 ? 'vehículo' : 'vehículos' }}</p>
+    <ul class="vehicle-list" aria-label="Vehículos registrados">
+      @for (vehicle of vehicles(); track vehicle.id) {
+        <li class="vehicle-card card">
+          <app-vehicle-summary [vehicle]="vehicle" />
+          @if (vehicle.maintenance_warnings.length) {
+            <ul class="warnings" aria-label="Advertencias de mantenimiento">
+              @for (warning of vehicle.maintenance_warnings; track warning) { <li>{{ warning }}</li> }
+            </ul>
+          }
+          @if (vehicle.availability_reason) { <p class="muted reason">{{ vehicle.availability_reason }}</p> }
+          <a class="detail-link" [routerLink]="[vehicle.id]" [attr.aria-label]="'Ver ficha y cronología de ' + vehicle.plate">
+            Ver ficha y cronología <ion-icon name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        </li>
+      } @empty {
+        <li class="empty card"><strong>No hay vehículos para estos filtros.</strong><p>Probá cambiar la búsqueda o registrá el primer vehículo.</p></li>
+      }
+    </ul>
+  }
+
+  <app-filter-dialog titleId="vehicle-filters-title" (clearRequested)="clearFilters()" (applyRequested)="applyFilters()">
+    <div class="filter-fields">
+      <div class="filter-section">
+        <label for="vehicle-status-filter">Estado</label>
+        <select #status id="vehicle-status-filter" [value]="draftStatus()" (change)="draftStatus.set(status.value)">
+          <option value="">Todos</option><option value="active">Activos</option><option value="out_of_service">Fuera de servicio</option><option value="retired">Retirados</option>
+        </select>
+      </div>
+      <div class="filter-section">
+        <label for="vehicle-availability-filter">Disponibilidad</label>
+        <select #availability id="vehicle-availability-filter" [value]="draftAvailability()" (change)="draftAvailability.set(availability.value)">
+          <option value="">Todas</option><option value="available">Disponibles</option><option value="in_use">En uso</option><option value="not_available">No disponibles</option>
+        </select>
+      </div>
+    </div>
+  </app-filter-dialog>
+  @if (canManage()) {
+    <app-vehicle-editor-dialog [drivers]="drivers()" [driverError]="driverError()" [saving]="saving()" [error]="editorError()" (saved)="create($event)" />
+  }
+</section>

@@ -1,0 +1,168 @@
+@if (!hasIndicators()) { <p class="hint">No tenés permisos para consultar indicadores en este alcance.</p> }
+<div class="metrics" role="group" aria-label="Indicadores principales">
+  @if (eggs.state(); as card) {
+    @if (card.status !== 'hidden') {
+      <app-summary-card class="metric-section" label="Huevos recolectados" symbol="eggs" [status]="card.status" (retry)="eggs.reload()">
+        <strong summaryValue class="value">{{ card.data ? number(card.data.total_eggs) : '' }}</strong>
+        @if (card.data; as eggsData) {
+          @let variation = eggsData.comparacion.variacion_porcentual;
+          <p class="hint trend" [class.positive]="variation !== null && variation > 0" [class.negative]="variation !== null && variation < 0">
+            <strong>@if (variation !== null && variation !== 0) { <span aria-hidden="true">{{ variation > 0 ? '↑' : '↓' }}</span> } {{ change(variation) }}</strong>
+            @if (variation !== null) { <span> · período anterior</span> }
+          </p>
+          @if (eggEquivalence(); as equivalent) {
+            <div class="egg-equivalence">
+              <span class="hint">Equivalencia según catálogo</span>
+              @if (presentations().length > 1) {
+                <button class="equivalence-toggle" type="button"
+                  [attr.aria-label]="equivalent + '. Cambiar presentación.'"
+                  (click)="nextEggPresentation()">
+                  <span aria-live="polite">{{ equivalent }}</span>
+                  <ion-icon [icon]="cycleIcon" aria-hidden="true" />
+                </button>
+              } @else {
+                <strong class="hint">{{ equivalent }}</strong>
+              }
+            </div>
+          } @else {
+            @switch (eggCatalog.state().status) {
+              @case ('loading') { <p class="hint" role="status">Cargando presentaciones…</p> }
+              @case ('ready') { <p class="hint">Sin presentaciones en el catálogo.</p> }
+              @case ('error') {
+                <p class="hint" role="alert">No se pudo cargar el catálogo.</p>
+                <button class="equivalence-toggle" type="button" (click)="eggCatalog.reload()">Reintentar catálogo</button>
+              }
+            }
+          }
+        }
+      </app-summary-card>
+    }
+  }
+  @if (showBirdHealth()) {
+    <div class="metric-section metric-group" role="group" aria-label="Aves vivas y mortandad">
+      @if (birds.state(); as card) {
+        @if (card.status !== 'hidden') {
+          <app-summary-card label="Aves vivas" symbol="birds" [status]="card.status" (retry)="birds.reload()">
+            <strong summaryValue class="value">{{ card.data ? number(card.data.aves_vivas) : '' }}</strong>
+            @if (card.data; as birdsData) {
+              <p class="hint">Al {{ instant(birdsData.consultado_en) }}</p>
+            }
+          </app-summary-card>
+        }
+      }
+      @if (mortality.state(); as card) {
+        @if (card.status !== 'hidden') {
+          @let percentage = card.data?.tasa_porcentual ?? null;
+          <app-summary-card label="Mortandad" symbol="mortality" [status]="card.status" (retry)="mortality.reload()">
+            <strong summaryValue class="value">{{ percentage === null ? '—' : number(percentage) + ' %' }}</strong>
+            @if (card.data; as rate) {
+              @switch (rate.estado_tasa) {
+                @case ('sin_poblacion') { <p class="hint">Sin población de referencia</p> }
+                @case ('historial_indeterminado') { <p class="hint">Historial insuficiente para calcular la tasa</p> }
+                @case ('bajas_superan_poblacion') { <p class="hint negative">Las bajas superan la población de referencia.</p> }
+              }
+              <p class="hint">{{ number(rate.bajas_registradas) }} bajas
+                @if (rate.poblacion_referencia !== null) { · {{ number(rate.poblacion_referencia) }} aves de referencia }
+              </p>
+            }
+          </app-summary-card>
+        }
+      }
+    </div>
+  }
+  @if (showFinances()) {
+    <div class="metric-section metric-group" role="group" aria-label="Resumen financiero">
+      @let sales = delivered.state();
+      @if (sales.status !== 'hidden') {
+        <app-summary-card label="Ingresos por ventas" symbol="delivered"
+          [status]="sales.status" (retry)="delivered.reload()">
+          @let amount = sales.data?.amount ?? null;
+          <strong summaryValue class="value" [class.value-text]="amount === null">
+            {{ amount === null ? 'Importe desconocido' : deliveredMoney(amount) }}
+          </strong>
+          @if (sales.data; as value) {
+            <p class="hint">Valor de mercadería entregada · UYU</p>
+            <p class="hint">{{ number(value.deliveries) }} entregas
+              @if (value.unpriced > 0) { · {{ number(value.unpriced) }} sin importe }
+            </p>
+            @if (value.unpriced > 0 && value.amount !== null) { <p class="hint">Subtotal parcial</p> }
+          }
+        </app-summary-card>
+      }
+      @let expenseCard = expenses.state();
+      @if (expenseCard.status !== 'hidden') {
+        <app-summary-card label="Gastos registrados" symbol="expenses" [status]="expenseCard.status" (retry)="expenses.reload()">
+          <div summaryValue class="expense-values">
+            @for (total of expenseCard.data?.totales ?? []; track total.moneda) {
+              <strong class="value">{{ money(total.importe, total.moneda) }}</strong>
+            } @empty { <strong class="value value-text">Sin gastos</strong> }
+          </div>
+          @if (expenseCard.data?.fuentes_sin_permiso?.length) { <p class="hint">Total parcial por permisos.</p> }
+        </app-summary-card>
+      }
+    </div>
+  }
+</div>
+
+<div class="overview">
+  @if (eggs.state(); as chart) {
+    @if (chart.status !== 'hidden') {
+      <section class="panel chart-panel" aria-labelledby="summary-posture-title">
+        <header>
+          <div class="panel-heading">
+            <ion-icon [icon]="chartIcon" aria-hidden="true" />
+            <h3 id="summary-posture-title">Postura</h3>
+          </div>
+        </header>
+        @if (chart.data; as production) {
+          @if (production.by_day.length) {
+            <app-summary-production-chart [period]="period()" [metrics]="production" />
+          } @else { <p class="panel-state">Sin registros de recolección en este período.</p> }
+          <dl class="chart-totals">
+            <div><dt>Total</dt><dd>{{ number(production.total_eggs) }}</dd></div>
+            <div><dt>Promedio diario</dt><dd>{{ number(production.daily_average) }}</dd></div>
+            <div><dt>Variación</dt><dd [class.positive]="(production.comparacion.variacion_porcentual ?? 0) > 0"
+              [class.negative]="(production.comparacion.variacion_porcentual ?? 0) < 0">{{ change(production.comparacion.variacion_porcentual) }}</dd></div>
+          </dl>
+        } @else {
+          <p class="panel-state">{{ chart.status === 'loading' ? 'Cargando producción…' : 'Producción no disponible.' }}</p>
+        }
+      </section>
+    }
+  }
+  @if (alerts.state(); as inbox) {
+    @if (inbox.status !== 'hidden') {
+      <section class="panel alert-panel" aria-label="Alertas por urgencia">
+        <header>
+          <div class="panel-heading">
+            <ion-icon [icon]="alertsIcon" aria-hidden="true" />
+            <div>
+              <h3>Alertas pendientes</h3>
+              <p class="hint">Por urgencia · {{ company() ? 'Todas las UP' : (unitName() ?? 'Unidad productiva') }}</p>
+            </div>
+          </div>
+          @if (inbox.data; as pending) { <strong class="count">{{ number(pending.total) }}</strong> }
+        </header>
+        @if (inbox.data; as pending) {
+          <ul class="alert-rows">
+            @for (level of urgencies; track level.key) {
+              <li [class]="level.key">
+                <strong>{{ level.label }}</strong><span class="severity-count">{{ number(pending.por_urgencia[level.key]) }}</span>
+              </li>
+            }
+          </ul>
+
+          @if (pending.total === 0) { <p class="hint">Sin alertas pendientes.</p> }
+        } @else {
+          <p class="panel-state">{{ inbox.status === 'loading' ? 'Cargando alertas…' : 'Alertas no disponibles.' }}</p>
+          @if (inbox.status === 'error') {
+            <button class="inline-action" type="button" (click)="alerts.reload()">Reintentar</button>
+          }
+        }
+        @if (inbox.status !== 'forbidden') {
+          <a class="panel-link" routerLink="/administracion/notificaciones" [queryParams]="alertQuery()">Gestionar alertas</a>
+        }
+      </section>
+    }
+  }
+</div>

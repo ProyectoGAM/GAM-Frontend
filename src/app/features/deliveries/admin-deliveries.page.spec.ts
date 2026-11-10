@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
+import { AuthStore } from '../../core/auth/auth.store';
 import { AdminUnitContextService } from '../admin/services/admin-unit-context.service';
 import { Delivery } from './delivery.models';
 import { DeliveriesApi } from './deliveries.api';
@@ -33,15 +35,20 @@ vi.mock('mapbox-gl/esm', () => {
   class MockMarker {
     constructor(_options: unknown) {}
     setLngLat(coordinates: [number, number]): this { mapState.markerCoordinates.push(coordinates); return this; }
+    setPopup(): this { return this; }
     addTo(): this { return this; }
     remove(): void { mapState.markerRemoved(); }
+  }
+  class MockPopup {
+    constructor(_options: unknown) {}
+    setDOMContent(): this { return this; }
   }
   class MockBounds {
     coordinates: Array<[number, number]> = [];
     extend(coordinates: [number, number]): this { this.coordinates.push(coordinates); return this; }
   }
   class MockNavigationControl {}
-  return { default: { Map: MockMap, Marker: MockMarker, LngLatBounds: MockBounds, NavigationControl: MockNavigationControl, accessToken: '' } };
+  return { default: { Map: MockMap, Marker: MockMarker, Popup: MockPopup, LngLatBounds: MockBounds, NavigationControl: MockNavigationControl, accessToken: '' } };
 });
 
 describe('AdminDeliveriesPage', () => {
@@ -86,6 +93,7 @@ describe('AdminDeliveriesPage', () => {
     TestBed.configureTestingModule({
       imports: [AdminDeliveriesPage],
       providers: [
+        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => null } },
         { provide: AdminUnitContextService, useValue: { selectedId, selectedUnit: () => ({ id: 7, name: 'Granja Norte' }) } },
         { provide: DeliveriesApi, useValue: { current, list, detail } },
         { provide: MAPBOX_ACCESS_TOKEN, useValue: 'configured-for-unit-test' },
@@ -100,6 +108,19 @@ describe('AdminDeliveriesPage', () => {
     fixture.detectChanges();
     return fixture.componentInstance;
   }
+
+  it('loads history without requesting live locations for a history reader', async () => {
+    TestBed.overrideProvider(AuthStore, { useValue: {
+      isAdmin: () => false,
+      user: () => ({ permissions: ['can_view_delivery_history'] }),
+    } });
+    const page = await render();
+
+    expect(current).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledWith({ per_page: 50, production_unit_id: 7 });
+    expect(page.history()).toEqual([completedDelivery]);
+    expect(fixture.nativeElement.textContent).not.toContain('Repartos actuales');
+  });
 
   it('filters both API loads, syncs persisted stops and latest location, and destroys Mapbox on navigation away', async () => {
     const page = await render();
@@ -189,4 +210,16 @@ describe('AdminDeliveriesPage', () => {
     expect(mapState.markerCoordinates).toEqual([]);
     fixture.destroy();
   });
+  it('loads a customer-linked origin even when it is beyond the first history page', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ reparto: 'older-origin' }) } } }] });
+    const page = await render();
+    expect(detail).toHaveBeenCalledWith('older-origin'); expect(page.selected()?.id).toBe('older-origin');
+    page.select(activeDelivery);
+    page.load();
+    await fixture.whenStable();
+    expect(detail).toHaveBeenLastCalledWith(activeDelivery.id);
+    expect(page.selected()?.id).toBe(activeDelivery.id);
+    fixture.destroy();
+  });
+
 });

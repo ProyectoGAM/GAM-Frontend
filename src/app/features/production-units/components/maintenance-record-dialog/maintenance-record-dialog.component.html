@@ -1,0 +1,73 @@
+<dialog #dialog class="maintenance-dialog" aria-labelledby="maintenance-dialog-title" (cancel)="close($event)">
+  <header><div><h2 #heading id="maintenance-dialog-title" tabindex="-1">{{ title() }}</h2><p class="subtitle">{{ house().name }}</p></div><button class="icon-button" type="button" aria-label="Cerrar mantenimiento" [disabled]="saving()" (click)="close()">×</button></header>
+  @if (mode() === 'detail') {
+    @if (recordView(); as item) {
+      <span class="badge" [class.cancelled]="item.status === 'cancelled'">{{ item.status === 'completed' ? 'Realizado' : 'Anulado' }}</span>
+      <dl>
+        <div><dt>Registro</dt><dd>#{{ item.id }}</dd></div>
+        <div><dt>Instalación</dt><dd>{{ house().name }} · {{ house().type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</dd></div>
+        <div><dt>Unidad productiva</dt><dd>{{ house().production_unit.name }}</dd></div>
+        <div><dt>Fecha de realización</dt><dd>{{ item.dateLabel }}</dd></div>
+        <div class="full-width"><dt>Descripción del trabajo</dt><dd class="description">{{ item.description }}</dd></div>
+        <div><dt>Responsable</dt><dd>{{ item.responsible.name }}</dd></div>
+        <div><dt>Costo total</dt><dd><strong>{{ item.costLabel }}</strong></dd></div>
+        <div><dt>Registrado el (Uruguay)</dt><dd>{{ item.createdLabel }}</dd></div>
+        <div><dt>Última actualización (Uruguay)</dt><dd>{{ item.updatedLabel }}</dd></div>
+        @if (item.status === 'cancelled') {
+          <div><dt>Anulado el (Uruguay)</dt><dd>{{ item.cancelledLabel }}</dd></div>
+          <div class="full-width"><dt>Motivo de anulación</dt><dd class="description">{{ item.cancellation_reason || 'Sin motivo disponible' }}</dd></div>
+        }
+      </dl>
+      @if (loading()) { <p role="status">Actualizando mantenimiento…</p> }
+      @if (loadFailed()) { <p class="error" role="alert">No se pudo actualizar el registro. <button type="button" (click)="reloadRecord()">Reintentar consulta</button></p> }
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <footer>
+        <button type="button" (click)="close()">Cerrar</button>
+        @if (canManage() && item.status === 'completed') {
+          <button type="button" [disabled]="!canEdit()" (click)="start('edit')">Corregir</button>
+          <button class="danger" type="button" [disabled]="!canEdit()" (click)="start('cancel')">Anular registro</button>
+        }
+      </footer>
+    }
+  } @else {
+    <p class="notice">{{ mode() === 'create' ? 'Registrá un trabajo ya realizado.' : mode() === 'cancel' ? 'Se anulará el registro y se conservará en el historial. El estado de la instalación no cambia.' : 'Corregí los datos del trabajo e indicá el motivo. El historial original se conserva en la auditoría.' }}</p>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <fieldset [disabled]="saving() || blocked()">
+        @if (mode() !== 'cancel') {
+          <label for="maintenance-date">Fecha de realización <span aria-hidden="true">*</span></label>
+          <input id="maintenance-date" type="date" formControlName="date" required [max]="maximumDate()" aria-describedby="maintenance-date-hint maintenance-date-error" [attr.aria-invalid]="form.controls.date.touched && form.controls.date.invalid || !!fieldErrors()['maintenance_date']" />
+          <small id="maintenance-date-hint">Hoy o una fecha anterior.</small>
+          <small id="maintenance-date-error" class="field-error">{{ fieldErrors()['maintenance_date'] || (form.controls.date.touched && form.controls.date.invalid ? 'Indicá una fecha válida, no futura.' : '') }}</small>
+          <label for="maintenance-description">Descripción del trabajo <span aria-hidden="true">*</span></label>
+          <textarea id="maintenance-description" formControlName="description" required maxlength="5000" rows="4" aria-describedby="maintenance-description-error" [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid || !!fieldErrors()['description']"></textarea>
+          <small id="maintenance-description-error" class="field-error">{{ fieldErrors()['description'] || (form.controls.description.touched && form.controls.description.invalid ? 'Describí el trabajo realizado, hasta 5000 caracteres.' : '') }}</small>
+          <label for="maintenance-responsible">Responsable <span aria-hidden="true">*</span></label>
+          <select id="maintenance-responsible" formControlName="responsible" required aria-describedby="maintenance-responsible-hint maintenance-responsible-error" [attr.aria-invalid]="form.controls.responsible.touched && form.controls.responsible.invalid || !!fieldErrors()['responsible_user_id']">
+            <option [ngValue]="null" disabled>Seleccioná un responsable</option>
+            @for (user of responsibles(); track user.id) { <option [ngValue]="user.id">{{ user.name }}{{ user.id === currentUserId() ? ' (eres tú)' : '' }}</option> }
+            @if (archivedResponsible(); as previous) { <option [ngValue]="previous.id" disabled>{{ previous.name }} (responsable original)</option> }
+          </select>
+          <small id="maintenance-responsible-hint">{{ mode() === 'create' ? 'Tu usuario está seleccionado por defecto.' : 'Se conserva el responsable original salvo que elijas otro.' }}</small>
+          <small id="maintenance-responsible-error" class="field-error">{{ fieldErrors()['responsible_user_id'] || (form.controls.responsible.touched && form.controls.responsible.invalid ? 'Seleccioná un responsable.' : '') }}</small>
+          @if (directoryLoading()) { <small role="status">Cargando responsables…</small> }
+          @if (directoryMessage()) { <div class="directory-notice"><small role="status">{{ directoryMessage() }}</small><button type="button" [disabled]="directoryLoading()" (click)="loadResponsibles()">Reintentar directorio</button></div> }
+          <label for="maintenance-cost">Costo total <span aria-hidden="true">*</span></label>
+          <div class="cost-control"><input id="maintenance-cost" type="text" inputmode="decimal" formControlName="cost" required aria-describedby="maintenance-cost-hint maintenance-cost-error" [attr.aria-invalid]="form.controls.cost.touched && form.controls.cost.invalid || !!fieldErrors()['cost_amount'] || !!fieldErrors()['cost_currency']" /><span>UYU</span></div>
+          <small id="maintenance-cost-hint">Pesos uruguayos. El costo puede ser 0. Hasta dos decimales, sin separador de miles.</small>
+          <small id="maintenance-cost-error" class="field-error">{{ fieldErrors()['cost_amount'] || fieldErrors()['cost_currency'] || (form.controls.cost.touched && form.controls.cost.invalid ? 'Ingresá 0 o un importe positivo con hasta dos decimales.' : '') }}</small>
+        }
+        @if (mode() !== 'create') {
+          <label for="maintenance-reason">{{ mode() === 'cancel' ? 'Motivo de anulación' : 'Motivo de corrección' }} <span aria-hidden="true">*</span></label>
+          <textarea id="maintenance-reason" formControlName="reason" required maxlength="1000" rows="3" aria-describedby="maintenance-reason-error" [attr.aria-invalid]="!!fieldErrors()['reason']"></textarea>
+          <small id="maintenance-reason-error" class="field-error">{{ fieldErrors()['reason'] }}</small>
+        }
+      </fieldset>
+      @if (mode() !== 'cancel') { <p class="notice">Guardar el trabajo no cambia el estado de la instalación.</p> }
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <footer class="form-actions">
+        <button type="submit" [class.danger]="mode() === 'cancel'" [class.primary]="mode() !== 'cancel'" [disabled]="saving() || blocked() || !canManage()">{{ saving() ? 'Guardando…' : mode() === 'create' ? 'Guardar mantenimiento' : mode() === 'edit' ? 'Guardar corrección' : 'Confirmar anulación' }}</button>
+        <button type="button" [disabled]="saving()" (click)="mode() === 'create' ? close() : back()">{{ mode() === 'create' ? 'Cancelar' : 'Volver al detalle' }}</button>
+      </footer>
+    </form>
+  }
+</dialog>

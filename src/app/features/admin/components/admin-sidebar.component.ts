@@ -5,8 +5,9 @@ import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   barChartOutline, businessOutline, carOutline, chevronDownOutline, clipboardOutline,
-  cubeOutline, eggOutline, locationOutline, notificationsOutline, peopleOutline, personOutline,
-  closeOutline, menuOutline, gridOutline, timeOutline, logOutOutline,
+  cubeOutline, eggOutline, locationOutline, mapOutline, notificationsOutline, peopleOutline, personOutline,
+  storefrontOutline,
+  closeOutline, menuOutline, gridOutline, timeOutline, logOutOutline, flashOutline,
 } from 'ionicons/icons';
 import { filter } from 'rxjs';
 
@@ -39,11 +40,14 @@ export class AdminSidebarComponent {
       'clipboard-outline': clipboardOutline,
       'cube-outline': cubeOutline,
       'egg-outline': eggOutline,
+      'flash-outline': flashOutline,
       'location-outline': locationOutline,
+      'map-outline': mapOutline,
       'menu-outline': menuOutline,
       'notifications-outline': notificationsOutline,
       'people-outline': peopleOutline,
       'person-outline': personOutline,
+      'storefront-outline': storefrontOutline,
       'close-outline': closeOutline,
       'grid-outline': gridOutline,
       'time-outline': timeOutline,

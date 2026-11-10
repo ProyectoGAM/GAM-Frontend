@@ -1,0 +1,62 @@
+<dialog #dialog class="breed-dialog" aria-labelledby="breed-dialog-title" (cancel)="cancel($event)">
+  <header class="dialog-heading">
+    <div>
+      <h2 #heading id="breed-dialog-title" tabindex="-1" autofocus>{{ breed() ? 'Editar raza' : 'Nueva raza' }}</h2>
+      <p>Definí el rango de peso por etapa.</p>
+    </div>
+    <button class="close" type="button" aria-label="Cerrar formulario" [disabled]="saving()" (click)="cancel()">
+      <ion-icon name="close-outline" aria-hidden="true" />
+    </button>
+  </header>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <fieldset class="editor" [disabled]="saving() || retryOnly()">
+      <div class="identity">
+        <label for="breed-name">Nombre de la raza
+          <input id="breed-name" formControlName="name" maxlength="120" required placeholder="Ej. Lohmann Brown" autocomplete="off" />
+        </label>
+        <label for="breed-status">Estado
+          <select id="breed-status" formControlName="status"><option value="active">Activa</option><option value="inactive">Inactiva</option></select>
+        </label>
+      </div>
+      <div class="stages">
+        @for (stage of stages; track stage.key) {
+          <fieldset class="stage" [formGroupName]="stage.key">
+            <legend>{{ stage.label }}</legend>
+            <p class="muted">
+              Gramos por ave
+              @if (references().adultWeek; as week) {
+                @if (stage.key === 'adult') { · Desde la semana {{ week }} }
+                @else if (week > 1) { · Hasta la semana {{ week - 1 }} }
+              }
+            </p>
+            <label class="choice">
+              <input type="radio" [name]="stage.key" [formControl]="form.controls[stage.key].controls.custom" [value]="false" />
+              <span>Usar rango global <small>{{ references()[stage.key] ?? 'Referencia general de pesajes' }}</small></span>
+            </label>
+            <label class="choice">
+              <input type="radio" [name]="stage.key" [formControl]="form.controls[stage.key].controls.custom" [value]="true" />
+              <span>Definir rango propio</span>
+            </label>
+            @if (form.controls[stage.key].controls.custom.value) {
+              <div class="weights">
+                <label>Mínimo (g)
+                  <input [id]="'breed-' + stage.key + '-min'" formControlName="min" inputmode="decimal" maxlength="15" />
+                </label>
+                <label>Máximo (g)
+                  <input [id]="'breed-' + stage.key + '-max'" formControlName="max" inputmode="decimal" maxlength="15" />
+                </label>
+              </div>
+            }
+          </fieldset>
+        }
+      </div>
+    </fieldset>
+    @if (error() || serverError(); as message) { <p class="error" role="alert">{{ message }}</p> }
+    <div class="dialog-actions">
+      <button type="button" [disabled]="saving()" (click)="cancel()">Cancelar</button>
+      <button class="primary" type="submit" [disabled]="saving() || conflict()">
+        {{ saving() ? 'Guardando…' : retryOnly() ? 'Reintentar guardado' : 'Guardar raza' }}
+      </button>
+    </div>
+  </form>
+</dialog>

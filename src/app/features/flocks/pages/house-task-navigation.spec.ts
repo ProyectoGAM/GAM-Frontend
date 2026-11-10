@@ -80,7 +80,7 @@ describe('tasks opened from a house', () => {
     section.form.setValue({ date: todayInLotsTimezone(), quantity: 1, reason: 'Motivo de prueba' }); section.submitForm();
     await harness.fixture.whenStable();
     expect(record).toHaveBeenCalledOnce(); expect(TestBed.inject(Router).url).toBe(houseUrl);
-    expect(TestBed.inject(Router).lastSuccessfulNavigation()?.extras.state?.['flockTaskMessage']).toBe('Mortalidad registrada.');
+    expect(TestBed.inject(Router).lastSuccessfulNavigation()?.extras.state?.['flockTaskMessage']).toBe('Mortandad registrada.');
   });
 
   it('returns to the house on mortality cancellation', async () => {

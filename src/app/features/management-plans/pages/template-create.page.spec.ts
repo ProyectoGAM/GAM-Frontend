@@ -116,12 +116,12 @@ describe('Template create page', () => {
     const component = fixture.componentInstance;
     component.name.set('Mi plan');
     component.activities.set([1, 2].map((id) => ({ ...emptyActivity(id), type: 'weighing',
-      title: `Pesaje ${id}`, timingKind: 'day', startDay: String(id) })));
+      title: `Postura ${id}`, timingKind: 'day', startDay: String(id) })));
     fixture.detectChanges();
     await component.submit(); fixture.detectChanges(); await fixture.whenStable();
     const page = fixture.nativeElement as HTMLElement;
     expect(component.name()).toBe('Mi plan');
-    expect(component.activities()[1].title).toBe('Pesaje 2');
+    expect(component.activities()[1].title).toBe('Postura 2');
     expect(component.expandedId()).toBe(2);
     expect(page.querySelector('.has-errors')?.textContent).toContain('Este título ya está en uso.');
     expect(document.activeElement).toBe(page.querySelector('.error-summary'));
@@ -143,7 +143,7 @@ describe('Template create page', () => {
     ] });
     const fixture = TestBed.createComponent(TemplateCreatePage);
     fixture.componentInstance.name.set('Mi plan');
-    fixture.componentInstance.activities.set([{ ...emptyActivity(1), type: 'weighing', title: 'Pesaje', timingKind: 'day', startDay: '1' }]);
+    fixture.componentInstance.activities.set([{ ...emptyActivity(1), type: 'weighing', title: 'Postura', timingKind: 'day', startDay: '1' }]);
     fixture.detectChanges();
     await fixture.componentInstance.submit(); fixture.detectChanges(); await fixture.whenStable();
     const page = fixture.nativeElement as HTMLElement;
@@ -173,12 +173,12 @@ describe('Template create page', () => {
     const old: PlanTemplate = {
       id: 'template-id', name: 'Plan', description: null, status: 'active', current_version: 1,
       published_version: null, version_status: 'draft', activities: [{
-        id: 'activity-id', type: 'weighing', title: 'Pesaje inicial', timing_kind: 'day',
+        id: 'activity-id', type: 'weighing', title: 'Postura inicial', timing_kind: 'day',
         start_day: 1, end_day: null, start_week: null, end_week: null, interval_days: null,
         conditional: false, condition: null, notes: null, catalog_type: null, catalog_snapshot: null,
       }],
     };
-    const latest: PlanTemplate = { ...old, current_version: 2, activities: [{ ...old.activities[0], title: 'Pesaje ajeno' }] };
+    const latest: PlanTemplate = { ...old, current_version: 2, activities: [{ ...old.activities[0], title: 'Postura ajeno' }] };
     let changed = false;
     const template = vi.fn().mockImplementation(() => of({ data: changed ? latest : old }));
     const reviseTemplate = vi.fn().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
@@ -203,7 +203,7 @@ describe('Template create page', () => {
     expect(reviseTemplate).toHaveBeenCalledWith('template-id', expect.objectContaining({ expected_version: 1 }), expect.any(String));
     expect(fixture.componentInstance.activities()[0].title).toBe('Mi cambio local');
     expect(fixture.componentInstance.latestTemplate()?.current_version).toBe(2);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Cambió la actividad 1: Pesaje ajeno.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Cambió la actividad 1: Postura ajeno.');
     expect((fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
     expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('.error-summary'));
   });

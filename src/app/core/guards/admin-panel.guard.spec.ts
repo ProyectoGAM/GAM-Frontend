@@ -13,12 +13,12 @@ describe('adminPanelGuard', () => {
     expect(TestBed.inject(Router).serializeUrl(result as ReturnType<Router['parseUrl']>)).toBe('/auth');
   });
 
-  it('denies an authenticated user whose roles have no group grants', async () => {
+  it('lets authenticated employees enter the shell for quick access', async () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), { provide: AuthStore, useValue: { whenReady: async () => undefined, isAuthenticated: () => true, user: () => ({ roles: ['employee'] }) } }],
     });
     const result = await TestBed.runInInjectionContext(() => adminPanelGuard({} as never, {} as never));
-    expect(TestBed.inject(Router).serializeUrl(result as ReturnType<Router['parseUrl']>)).toBe('/acceso-denegado');
+    expect(result).toBe(true);
   });
 
   it('keeps ADMIN access to the panel', async () => {

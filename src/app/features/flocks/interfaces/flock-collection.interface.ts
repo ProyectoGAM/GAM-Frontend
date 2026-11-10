@@ -22,6 +22,17 @@ export interface RecordCollectionRequest {
   notes?: string | null;
 }
 
+export interface CancelCollectionRequest {
+  version: number;
+  correction_reason: string;
+}
+
+export interface CorrectCollectionRequest extends CancelCollectionRequest {
+  quantity?: number;
+  occurred_at?: string;
+  notes?: string | null;
+}
+
 export interface CollectionOperation {
   operation_id: string;
   collection: FlockCollection;

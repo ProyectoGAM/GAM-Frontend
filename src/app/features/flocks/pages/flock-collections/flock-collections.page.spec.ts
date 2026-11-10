@@ -20,6 +20,7 @@ import { FlockCollectionsService } from '../../services/flock-collections.servic
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { dateBefore, FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockDetailPage } from '../flock-detail/flock-detail.page';
+import { FlockStatusService } from '../../services/flock-status.service';
 import { FlockCollectionsPage } from './flock-collections.page';
 
 const today = todayInLotsTimezone();
@@ -38,6 +39,7 @@ describe('Flock collection behavior', () => {
   const history = vi.fn<FlockCollectionsService['history']>();
   const days = vi.fn<FlockCollectionsService['days']>();
   const save = vi.fn<FlockCollectionsService['record']>();
+  const collection = vi.fn<FlockCollectionsService['collection']>();
   const getFlock = vi.fn<FlockDetailService['flock']>();
   const user = signal({ roles: ['admin'], permissions: [] as string[] });
 
@@ -45,14 +47,16 @@ describe('Flock collection behavior', () => {
     history.mockReset(); history.mockReturnValue(of(historyPage));
     days.mockReset(); days.mockReturnValue(of(metricDays));
     save.mockReset(); save.mockReturnValue(of(operation));
+    collection.mockReset(); collection.mockReturnValue(of(record));
     getFlock.mockReset(); getFlock.mockImplementation((flockId) => of({ ...flock, id: flockId }));
     user.set({ roles: ['admin'], permissions: [] });
     TestBed.configureTestingModule({ providers: [
+      { provide: FlockStatusService, useValue: {} },
       provideRouter([{ path: 'administracion/lotes/lotes', children: flocksRoutes }]),
-      { provide: AuthStore, useValue: { user, isAdmin: () => user().roles.includes('admin') } },
+      { provide: AuthStore, useValue: { user, session: signal(null), isAdmin: () => user().roles.includes('admin') } },
       { provide: FlockDetailService, useValue: { flock: getFlock, mortalityTotal: () => of(0), latestWeighing: () => of(null) } },
       { provide: FlockFeedingService, useValue: { overview: () => of(null) } },
-      { provide: FlockCollectionsService, useValue: { history, days, record: save, summary: () => of(collectionSummary(metricDays, flock.entry_date, today)) } },
+      { provide: FlockCollectionsService, useValue: { history, days, record: save, collection, summary: () => of(collectionSummary(metricDays, flock.entry_date, today)) } },
       { provide: ProductionUnitsService, useValue: { getPoultryHouseById: () => of({ data: { name: 'Galpón 3' } }) } },
       { provide: AdminUnitContextService, useValue: { units: signal([{ id: 1, name: 'Unidad San José' }]) } },
     ] });
@@ -72,9 +76,9 @@ describe('Flock collection behavior', () => {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl(`${prefix}/${id}`, FlockDetailPage);
     const link = harness.routeNativeElement!.querySelector<HTMLAnchorElement>(`a[href$='/recoleccion']`)!;
-    expect(link.textContent).toContain('Ir a recolección');
+    expect(link.textContent).toContain('Ir a postura');
     expect(harness.routeNativeElement!.querySelector('app-collection-chart')).toBeNull();
-    expect(harness.routeNativeElement!.textContent).not.toContain('Registrar recolección');
+    expect(harness.routeNativeElement!.textContent).not.toContain('Registrar postura');
     await harness.navigateByUrl(link.getAttribute('href')!, FlockCollectionsPage);
     expect(harness.routeNativeElement!.querySelector<HTMLAnchorElement>('.back-link')!.getAttribute('href')).toBe(`${prefix}/${id}`);
   });

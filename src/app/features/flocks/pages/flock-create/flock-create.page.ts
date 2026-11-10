@@ -54,7 +54,8 @@ export class FlockCreatePage {
   private readonly destroyRef = inject(DestroyRef);
   readonly unitContext = inject(AdminUnitContextService);
 
-  readonly listPath = LIST_PATH;
+  readonly fromQuickAccess = this.route.snapshot.data['fromQuickAccess'] === true;
+  readonly returnPath = this.fromQuickAccess ? '/administracion/acceso-rapido' : LIST_PATH;
   readonly todayIso = localTodayIso();
   readonly step = signal<FlockCreateStep>(1);
   readonly catalogState = signal<LoadState>('loading');
@@ -198,7 +199,6 @@ export class FlockCreatePage {
     const errors = validateFlockCreateStep(step, this.draft(), {
       unitId: this.unitContext.selectedUnit()?.status === 'active' ? this.unitContext.selectedId() : null,
       houseIds: this.houses().map((house) => house.id),
-      houseCapacity: this.selectedHouse()?.bird_capacity ?? null,
       breedIds: this.breeds().map((breed) => breed.id),
       supplierIds: this.suppliers().map((supplier) => supplier.id),
       templates: this.templates(),
@@ -230,7 +230,7 @@ export class FlockCreatePage {
     }
     this.saving.set(true);
     this.api.create(request, this.requestKey!).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.saving.set(false); void this.router.navigateByUrl(LIST_PATH); },
+      next: () => { this.saving.set(false); void this.router.navigateByUrl(this.returnPath); },
       error: (error: unknown) => this.handleSaveError(error),
     });
   }

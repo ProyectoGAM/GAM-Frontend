@@ -5,7 +5,12 @@
       <div class="heading-details">
         <div class="title-row">
           <span class="house-name" role="heading" [attr.aria-level]="productionUnit() ? 3 : 4">{{ house().name }}</span>
-          <span class="house-status" [attr.data-status]="house().status">{{ presentation().statusLabel }}</span>
+          <span class="house-status-group">
+            <span class="house-status" [attr.data-status]="house().status">{{ presentation().statusLabel }}</span>
+            @if (capacityWarning(); as warning) {
+              <app-info-help tone="warning" label="Capacidad excedida" [text]="warning" />
+            }
+          </span>
         </div>
         <p class="context-label">{{ productionUnit()?.name ?? presentation().typeLabel }}</p>
       </div>
@@ -15,7 +20,7 @@
       <div class="house-metrics">
         <p class="capacity">{{ presentation().metricLabel }}</p>
         @if (presentation().occupancyPercent !== null && presentation().occupancyLabel) {
-          <div class="occupancy-bar" role="progressbar" [attr.aria-label]="presentation().occupancyLabel" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="presentation().occupancyPercent" [attr.data-status]="house().status">
+          <div class="occupancy-bar" [class.capacity-exceeded]="capacityWarning()" role="progressbar" [attr.aria-label]="presentation().occupancyLabel" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="presentation().occupancyPercent" [attr.data-status]="house().status">
             <span [style.width.%]="presentation().occupancyPercent"></span>
           </div>
         }

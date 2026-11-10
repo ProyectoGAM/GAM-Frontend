@@ -1,0 +1,62 @@
+<section class="despiques" aria-labelledby="beak-trimmings-title">
+  <a class="back" [routerLink]="backLink()" [queryParams]="backQuery()">
+    <ion-icon name="arrow-back-outline" aria-hidden="true" /> Volver al lote
+  </a>
+  <header class="heading">
+    <div>
+      <h1 #heading id="beak-trimmings-title" tabindex="-1">Despiques</h1>
+      @if (state()?.result?.flock; as flock) { <p>Lote {{ flock.code }}</p> }
+    </div>
+    @if (canRecord()) {
+      <button class="primary" type="button" (click)="editor.openRecord()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar despique</button>
+    }
+  </header>
+
+  @if (success()) { <p class="feedback success" role="status">{{ success() }}</p> }
+  @if (state()?.result; as result) {
+    <section aria-labelledby="beak-history-title">
+      <h2 id="beak-history-title">Historial</h2>
+      @if (result.rows.length) {
+        <ul class="history">
+          @for (row of result.rows.slice(0, visible()); track row.id) {
+            <li class="record">
+              <div class="record-main">
+                <div>
+                  <strong><time [attr.datetime]="row.occurredAt">{{ row.date }}</time></strong>
+                  <p>{{ row.responsible }} · {{ row.planTitle ?? 'Sin actividad vinculada' }}</p>
+                </div>
+                <span class="badge" [class.reverted]="row.reversal">{{ row.reversal ? 'Revertido' : 'Registrado' }}</span>
+              </div>
+              @if (row.antecedent) { <p class="muted">Antecedente de otro lote</p> }
+              @if (row.notes) { <p class="notes">{{ row.notes }}</p> }
+              @if (row.reversal; as reversal) {
+                <div class="reversal">
+                  <p><strong>Reversión</strong> · {{ reversal.date }} · {{ reversal.responsible }}</p>
+                  @if (reversal.reason) { <p>{{ reversal.reason }}</p> }
+                </div>
+              } @else if (canReverse() && !row.antecedent) {
+                <button type="button" class="reverse-action" (click)="editor.openReverse(row)"
+                  [attr.aria-label]="'Revertir registro del ' + row.date">Revertir registro</button>
+              }
+            </li>
+          }
+        </ul>
+        @if (visible() < result.rows.length) {
+          <button type="button" (click)="visible.set(visible() + 20)">Ver más registros</button>
+        }
+      } @else {
+        <p class="feedback">Todavía no hay despiques registrados para este lote.</p>
+      }
+    </section>
+  } @else if (state()?.error; as message) {
+    <div class="feedback error">
+      <p role="alert">{{ message }}</p>
+      <button type="button" (click)="reload()">Reintentar</button>
+    </div>
+  } @else {
+    <p class="feedback" role="status">Cargando despiques…</p>
+  }
+
+  <app-beak-trimming-dialog #editor [flockId]="flockId()" [flock]="state()?.result?.flock ?? null"
+    [rows]="state()?.result?.rows ?? []" (saved)="onSaved($event)" (conflict)="reload()" />
+</section>

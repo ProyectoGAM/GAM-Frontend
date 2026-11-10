@@ -1,0 +1,44 @@
+.flock-editor-dialog {
+  box-sizing: border-box;
+  inline-size: min(calc(100% - 24px), 34rem);
+  max-block-size: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  margin: auto;
+  padding: clamp(14px, 4vw, 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--gam-color-border);
+  border-radius: 12px;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-text);
+}
+.flock-editor-dialog::backdrop { background: color-mix(in srgb, var(--gam-color-nav) 62%, transparent); }
+.dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+h2 { margin: 0; color: var(--gam-color-heading); font-size: clamp(1.25rem, 5vw, 1.55rem); }
+.dialog-heading p { margin: 6px 0 0; }
+.dialog-heading p, label span, small { color: var(--gam-color-text-muted); }
+fieldset { display: grid; gap: 16px; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.field { display: grid; gap: 6px; }
+label { color: var(--gam-color-heading); font-size: .9375rem; font-weight: 700; }
+label span { font-weight: 400; }
+input, textarea {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--gam-color-control-border);
+  border-radius: 8px;
+  background: var(--gam-color-surface);
+  color: var(--gam-color-text);
+  font: inherit;
+}
+textarea { resize: vertical; }
+small { line-height: 1.4; }
+.invalid { color: var(--gam-color-danger); }
+[aria-invalid='true'] { border-color: var(--gam-color-danger); }
+.error { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--gam-color-danger-soft); color: var(--gam-color-danger); overflow-wrap: anywhere; }
+button { min-block-size: 44px; padding: 8px 12px; border: 1px solid var(--gam-color-control-border); border-radius: 8px; background: var(--gam-color-surface); color: var(--gam-color-primary); font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+.close { display: grid; flex: 0 0 44px; place-items: center; padding: 0; border: 0; background: var(--gam-color-surface-alt); font-size: 1.4rem; }
+.primary { border-color: var(--gam-color-primary); background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+:is(button, input, textarea):focus-visible { outline: 2px solid var(--gam-color-focus); outline-offset: 2px; }

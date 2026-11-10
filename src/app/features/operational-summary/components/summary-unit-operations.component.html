@@ -1,0 +1,60 @@
+<div class="unit-operations">
+  @if (flocks.state(); as current) {
+    @if (current.status !== 'hidden') {
+      <section class="panel" aria-label="Lotes por galpón">
+        <header>
+          <h3><ion-icon [icon]="flocksIcon" aria-hidden="true" /> Lotes por galpón</h3>
+          @if (current.status !== 'forbidden') {
+            <a class="panel-link" routerLink="/administracion/lotes/lotes" [queryParams]="flockQuery()">Ver lotes</a>
+          }
+        </header>
+        @switch (current.status) {
+          @case ('loading') { <p role="status">Cargando lotes…</p> }
+          @case ('forbidden') { <p>Sin permiso para consultar los lotes.</p> }
+          @case ('error') { <p role="alert">No se pudieron cargar los lotes.</p><button type="button" (click)="flocks.reload()">Reintentar</button> }
+        }
+        @if (houses.state().status === 'error') {
+          <p role="alert">No se pudieron consultar los nombres de los galpones.</p>
+          <button type="button" (click)="houses.reload()">Reintentar galpones</button>
+        }
+        @if (current.data; as list) {
+          @if (list.data.length) {
+            <table>
+              <thead><tr><th scope="col">Lote</th><th scope="col">Galpón</th><th scope="col">Aves vivas</th></tr></thead>
+              <tbody>
+                @for (flock of list.data.slice(0, 4); track flock.id) {
+                  <tr>
+                    <td><strong>{{ flock.code }}</strong></td>
+                    <td>{{ names().get(flock.poultry_house_id) ?? '—' }}</td>
+                    <td>{{ number(flock.current_quantity > 0 ? flock.current_quantity : 0) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            @if (list.meta.total > 4) { <p>4 de {{ number(list.meta.total) }} lotes.</p> }
+          } @else { <p>Sin lotes para esta unidad.</p> }
+        }
+      </section>
+    }
+  }
+  <section class="panel" aria-label="Stock de raciones">
+    <h3><ion-icon [icon]="stockIcon" aria-hidden="true" /> Stock de raciones</h3>
+    @if (stock.state(); as current) {
+      @switch (current.status) {
+        @case ('loading') { <p role="status">Cargando stock…</p> }
+        @case ('forbidden') { <p>Sin permiso para consultar el stock.</p> }
+        @case ('error') { <p role="alert">No se pudo cargar el stock.</p><button type="button" (click)="stock.reload()">Reintentar</button> }
+      }
+      @if (current.data; as list) {
+        <ul class="entries">
+          @for (recipe of list.data.slice(0, 4); track recipe.receta_id) {
+            <li><strong>{{ recipe.nombre_receta }}</strong><span>{{ kg(recipe.saldo_g) }} kg</span>
+              @if (recipe.requiere_atencion) { <small class="warning">Requiere atención</small> }
+            </li>
+          } @empty { <li>Sin saldos de ración para esta unidad.</li> }
+        </ul>
+        @if (list.meta.total > 4) { <p>4 de {{ number(list.meta.total) }} raciones.</p> }
+      }
+    }
+  </section>
+</div>

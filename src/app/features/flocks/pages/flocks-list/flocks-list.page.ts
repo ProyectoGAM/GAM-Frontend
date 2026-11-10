@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addOutline, chevronForwardOutline, closeOutline, funnelOutline, searchOutline } from 'ionicons/icons';
@@ -49,6 +49,15 @@ export class FlocksListPage {
   readonly auth = inject(AuthStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadCount = signal(0);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly queryParams = toSignal(this.route.queryParamMap, { requireSync: true });
+  private readonly linkedUnit = computed(() => {
+    const id = Number(this.queryParams().get('up_id'));
+    return this.unitContext.units().find((unit) => unit.id === id) ?? null;
+  });
+  private readonly unitId = computed(() => this.linkedUnit()?.id ?? this.unitContext.selectedId());
+  protected readonly activeUnit = computed(() => this.linkedUnit() ?? this.unitContext.selectedUnit());
   private readonly poultryHouses$ = this.productionUnits.listAllPoultryHouses().pipe(
     shareReplay({ bufferSize: 1, refCount: false }),
   );
@@ -60,10 +69,10 @@ export class FlocksListPage {
   ), { initialValue: new Map<string, DetailMetric<number>>() });
   readonly searchQuery = signal('');
   readonly draftUnitId = signal<number | null>(null);
-  readonly activeFilterCount = computed(() => this.unitContext.selectedId() === null ? 0 : 1);
+  readonly activeFilterCount = computed(() => this.unitId() === null ? 0 : 1);
   readonly draftResultCount = computed(() => {
     const draft = this.draftUnitId();
-    const selected = this.unitContext.selectedId();
+    const selected = this.unitId();
     if (draft === selected) return this.flocks().length;
     if (selected === null) return this.flocks().filter((flock) => flock.production_unit_id === draft).length;
     return null;
@@ -80,7 +89,7 @@ export class FlocksListPage {
 
     combineLatest({
       contextState: toObservable(this.unitContext.state),
-      unitId: toObservable(this.unitContext.selectedId),
+      unitId: toObservable(this.unitId),
       search: search$,
       reload: toObservable(this.reloadCount),
     }).pipe(
@@ -122,7 +131,7 @@ export class FlocksListPage {
   }
 
   openFilters(trigger: HTMLElement): void {
-    this.draftUnitId.set(this.unitContext.selectedId());
+    this.draftUnitId.set(this.unitId());
     this.filtersDialog.open(trigger);
   }
 
@@ -135,12 +144,21 @@ export class FlocksListPage {
   }
 
   applyFilters(): void {
-    this.unitContext.select(this.draftUnitId());
+    this.changeUnitFilter(this.draftUnitId());
     this.closeFilters();
   }
 
   clearUnitFilter(): void {
-    if (this.auth.isAdmin()) this.unitContext.select(null);
+    if (this.auth.isAdmin()) this.changeUnitFilter(null);
+  }
+
+  private changeUnitFilter(id: number | null): void {
+    this.unitContext.select(id);
+    if (this.queryParams().has('up_id')) {
+      void this.router.navigate([], {
+        relativeTo: this.route, queryParams: { up_id: null }, queryParamsHandling: 'merge', replaceUrl: true,
+      });
+    }
   }
 
   private toListItems(flocks: Flock[], houses: readonly PoultryHouseListItem[]): FlockListItem[] {

@@ -1,15 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 
 import { CredentialStorage } from '../native/credential-storage.service';
+import { AppResumeService } from '../native/app-resume.service';
 import { AuthApi } from './auth.api';
 import { isAdminUser } from './access-policy';
+import { authUser } from './auth-user';
 import {
   ApiProblem,
   AuthSession,
   AuthStatus,
   AuthUser,
+  AuthUserResponse,
   DeviceMode,
   SharedDevice,
   SharedUser,
@@ -30,9 +34,12 @@ export class AuthStore {
   private readonly sessionState = signal<AuthSession | null>(null);
   private readonly deviceState = signal<SharedDevice | null>(null);
   private readonly sharedUsersState = signal<SharedUser[]>([]);
+  private readonly sharedUsersLoadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private personalToken: string | null = null;
   private deviceToken: string | null = null;
+  private sharedIdentityVersion = 0;
+  private sharedUsersRequest = 0;
 
   readonly status = this.statusState.asReadonly();
   readonly mode = this.modeState.asReadonly();
@@ -40,6 +47,7 @@ export class AuthStore {
   readonly session = this.sessionState.asReadonly();
   readonly device = this.deviceState.asReadonly();
   readonly sharedUsers = this.sharedUsersState.asReadonly();
+  readonly sharedUsersLoading = this.sharedUsersLoadingState.asReadonly();
   readonly errorMessage = this.errorState.asReadonly();
   readonly isAuthenticated = computed(() =>
     this.statusState() === 'personal_authenticated'
@@ -47,6 +55,12 @@ export class AuthStore {
   );
   readonly isShared = computed(() => this.modeState() === 'shared');
   readonly isAdmin = computed(() => isAdminUser(this.userState()));
+
+  constructor() {
+    inject(AppResumeService).resumed.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (this.isShared() && this.statusState() !== 'shared_verifying') void this.finishSharedSession();
+    });
+  }
 
   isAdminUser(user: AuthUser | null): boolean {
     return isAdminUser(user);
@@ -60,6 +74,22 @@ export class AuthStore {
 
   async whenReady(): Promise<void> {
     await this.bootstrap();
+  }
+
+  async retrySharedDevice(): Promise<void> {
+    if (this.isShared() && this.statusState() === 'connection_error') await this.verifySharedDevice();
+  }
+
+  async refreshIdentity(): Promise<void> {
+    const user = this.userState(); const session = this.sessionState();
+    if (!user) return;
+    try {
+      const response = await firstValueFrom(this.api.me());
+      if (this.userState() !== user || this.sessionState() !== session) return;
+      this.userState.set(authUser(response.data)); this.sessionState.set(response.session);
+    } catch (error) {
+      if (this.userState() === user && this.sessionState() === session && error instanceof HttpErrorResponse) this.handleHttpError(error, 'me');
+    }
   }
 
   async login(email: string, password: string): Promise<boolean> {
@@ -121,6 +151,37 @@ export class AuthStore {
     }
   }
 
+  async changeCredential(kind: 'password' | 'pin', current: string, next: string, confirmation: string): Promise<string | null> {
+    const userId = this.userState()?.id;
+    const sessionId = this.sessionState()?.id;
+    const isCurrent = () => userId !== undefined && this.isAuthenticated()
+      && this.userState()?.id === userId && this.sessionState()?.id === sessionId;
+    const fallback = 'No se pudo cambiar la credencial. Inténtalo de nuevo.';
+    try {
+      if (!this.storage.isNative()) await this.api.csrf();
+      if (!isCurrent()) return fallback;
+      await firstValueFrom(this.api.changeCredential(kind, current, next, confirmation));
+      if (!isCurrent()) return fallback;
+      if (this.isShared()) {
+        this.clearSharedIdentity();
+        await this.verifySharedDevice();
+      } else {
+        // El servidor ya revocó la sesión, incluso si falla el borrado en el dispositivo.
+        await this.clearPersonal().catch(() => undefined);
+        this.statusState.set('personal_guest');
+      }
+      return null;
+    } catch (error) {
+      if (error instanceof HttpErrorResponse) {
+        const { code } = this.problem(error);
+        if (code === 'INVALID_PIN') return 'El PIN actual no es correcto.';
+        if (code === 'INVALID_CREDENTIALS') return 'La contraseña actual no es correcta.';
+        if (error.status === 419) return 'No se pudo verificar la solicitud. Inténtalo de nuevo.';
+      }
+      return this.messageFor(error, fallback);
+    }
+  }
+
   async pair(code: string, deviceName: string): Promise<boolean> {
     this.errorState.set(null);
 
@@ -153,45 +214,63 @@ export class AuthStore {
   }
 
   async loadSharedUsers(): Promise<SharedUser[]> {
+    if (this.sharedUsersLoadingState() && this.statusState() !== 'shared_verifying') return this.sharedUsersState();
+    const request = ++this.sharedUsersRequest;
+    const version = this.sharedIdentityVersion;
+    const device = this.deviceState();
+    this.sharedUsersLoadingState.set(true);
+    this.errorState.set(null);
     try {
-      const response = await firstValueFrom(
-        this.api.sharedUsers(!this.storage.isNative()),
-      );
-      this.sharedUsersState.set(response.data);
+      const users: SharedUser[] = [];
+      for (let page = 1; ; page++) {
+        const response = await firstValueFrom(this.api.sharedUsers(!this.storage.isNative(), page));
+        if (request !== this.sharedUsersRequest || version !== this.sharedIdentityVersion || this.deviceState() !== device || !this.isShared() || this.isAuthenticated()) return [];
+        users.push(...response.data);
+        if (page >= (response.meta?.last_page ?? 1)) break;
+      }
+      this.sharedUsersState.set(users);
       this.statusState.set('shared_selector');
-      return response.data;
+      return users;
     } catch (error) {
-      this.errorState.set(this.messageFor(error, 'No se pudo cargar la lista de empleados.'));
+      if (request === this.sharedUsersRequest && version === this.sharedIdentityVersion && this.deviceState() === device && this.isShared() && !this.isAuthenticated()) {
+        this.sharedUsersState.set([]);
+        this.errorState.set(this.messageFor(error, 'No se pudo cargar la lista de personas.'));
+        this.statusState.set('shared_selector');
+      }
       return [];
-    }
+    } finally { if (request === this.sharedUsersRequest) this.sharedUsersLoadingState.set(false); }
   }
 
   async loginWithPin(userId: number, pin: string): Promise<boolean> {
+    if (this.statusState() !== 'shared_selector') return false;
+    const version = this.sharedIdentityVersion;
     this.errorState.set(null);
 
     try {
       const response = await firstValueFrom(
         this.api.pinLogin(userId, pin, !this.storage.isNative()),
       );
+      if (version !== this.sharedIdentityVersion || this.statusState() !== 'shared_selector') return false;
 
       if (this.storage.isNative() && response.access_token) {
         this.personalToken = response.access_token;
       }
 
-      this.userState.set(response.user);
+      this.userState.set(authUser(response.user));
       this.sessionState.set(response.session);
       this.statusState.set('shared_authenticated');
       this.lastActivityAt = Date.now();
       this.startActivity();
       return true;
     } catch (error) {
-      this.errorState.set(this.messageFor(error, 'El PIN no es válido.'));
+      if (version === this.sharedIdentityVersion) this.errorState.set(this.messageFor(error, 'El PIN no es válido.'));
       return false;
     }
   }
 
   async finishSharedSession(): Promise<void> {
     const session = this.sessionState();
+    this.clearSharedIdentity();
 
     try {
       if (session) {
@@ -226,8 +305,10 @@ export class AuthStore {
 
     const problem = this.problem(error);
     const path = requestUrl.split(/[?#]/)[0];
-    if (problem.code === 'INVALID_CREDENTIALS'
-      && /(?:^|\/)auth\/(?:web\/)?confirm-password\/?$/.test(path)) {
+    if ((problem.code === 'INVALID_CREDENTIALS'
+      && /(?:^|\/)auth\/(?:(?:web\/)?confirm-password|contrasena)\/?$/.test(path))
+      || (problem.code === 'INVALID_PIN'
+        && /(?:^|\/)(?:auth\/pin|shared-device\/(?:web\/)?login-pin)\/?$/.test(path))) {
       return;
     }
     if (problem.code === 'SHARED_DEVICE_UNAUTHORIZED') {
@@ -301,6 +382,7 @@ export class AuthStore {
   }
 
   private async verifySharedDevice(): Promise<void> {
+    this.sharedIdentityVersion++;
     this.statusState.set('shared_verifying');
 
     try {
@@ -335,9 +417,9 @@ export class AuthStore {
     }
   }
 
-  private setPersonal(user: AuthUser, session: AuthSession | null): void {
+  private setPersonal(user: AuthUserResponse, session: AuthSession | null): void {
     this.modeState.set('personal');
-    this.userState.set(user);
+    this.userState.set(authUser(user));
     this.sessionState.set(session);
     this.deviceState.set(null);
     this.statusState.set('personal_authenticated');
@@ -352,7 +434,19 @@ export class AuthStore {
     await this.storage.removePersonalToken();
   }
 
+  private clearSharedIdentity(): void {
+    this.sharedIdentityVersion++;
+    this.stopActivity();
+    this.userState.set(null);
+    this.sessionState.set(null);
+    this.personalToken = null;
+    this.sharedUsersState.set([]);
+    this.errorState.set(null);
+    this.statusState.set('shared_verifying');
+  }
+
   private async clearShared(resetMode: boolean): Promise<void> {
+    this.sharedIdentityVersion++;
     this.stopActivity();
     this.deviceToken = null;
     this.deviceState.set(null);
@@ -404,11 +498,27 @@ export class AuthStore {
         return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.';
       }
       if (error.status === 0) {
-        return 'No hay conexión con el servidor.';
+        return 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.';
       }
-      return problem.message ?? problem.detail ?? fallback;
+      if (error.status === 401 && problem.code === 'INVALID_CREDENTIALS') {
+        return 'Los datos ingresados no son correctos. Revísalos e inténtalo de nuevo.';
+      }
+      if (error.status === 401) {
+        return fallback;
+      }
+      if (error.status === 403) {
+        return 'No tienes permiso para realizar esta acción.';
+      }
+      if (error.status >= 500) {
+        return 'El servidor tuvo un problema. Inténtalo de nuevo más tarde.';
+      }
+      if (error.status >= 200 && error.status < 300) {
+        return 'No pudimos completar la solicitud. Inténtalo de nuevo.';
+      }
+      const validationMessages = Object.values(problem.errors ?? {}).flat();
+      return validationMessages[0] ?? problem.message ?? fallback;
     }
 
-    return error instanceof Error ? error.message : fallback;
+    return fallback;
   }
 }
