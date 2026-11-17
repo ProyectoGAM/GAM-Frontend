@@ -65,6 +65,11 @@ export class SummaryScopeComponent {
   protected readonly showBirdHealth = computed(() => this.birds.state().status !== 'hidden'
     || this.mortality.state().status !== 'hidden');
   protected readonly alertQuery = computed(() => ({ vista: 'operativas', up_id: this.unit() }));
+  protected readonly expenseQuery = computed(() => ({ up_id: this.unit() }));
+  protected readonly canOpenExpenses = computed(() => {
+    const installations = this.allowed('can_view_production_units') && this.allowed('can_view_poultry_houses');
+    return installations || (this.unit() === null && this.allowed('can_view_vehicle_fuel', 'can_view_vehicle_maintenance'));
+  });
 
   protected readonly hasIndicators = computed(() => [this.eggs, this.mortality, this.birds, this.delivered, this.expenses, this.alerts]
     .some((card) => card.state().status !== 'hidden'));

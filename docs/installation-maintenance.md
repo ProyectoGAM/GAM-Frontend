@@ -30,6 +30,11 @@ El sidebar ofrece **Instalaciones → Mantenimiento**, bajo
 `ubicaciones/mantenimiento`. Junto a la búsqueda, el botón **Filtros** abre el
 diálogo de tipo y unidad productiva. **Ver resultados** aplica los cambios y
 sincroniza la UP con el panel. Admin puede elegir «Todas las UP».
+Cada tarjeta muestra el costo histórico de sus mantenimientos realizados antes
+de abrir el historial. El orden inicial es por nombre. **Filtros → Ordenar por**
+permite comparar el costo acumulado en UYU de mayor a menor o de menor a mayor.
+Los totales en otras monedas se muestran por separado y las instalaciones sin
+un importe comparable quedan al final al ordenar por costo.
 Incluye instalaciones inactivas para
 consultar sus trabajos históricos. El historial abre bajo ese mismo apartado,
 con el menú activo, acceso de regreso al selector y enlace al detalle de la
@@ -46,8 +51,9 @@ ni otros detalles técnicos del API.
 La pantalla de mantenimientos es una ruta lazy bajo
 `unidades-productivas/:id/galpon/:houseId/mantenimientos`. Verifica la instalación
 y su UP antes de consultar el historial, permite filtrar por estado y fechas,
-y pagina de a 20 registros. Muestra fecha, descripción, costo en la moneda
-histórica y nombre del responsable conservado por la API.
+y pagina de a 20 registros. La tabla presenta fecha, descripción, responsable,
+costo, estado y acceso al detalle. En pantallas angostas cada fila se apila
+dentro de la misma lista para conservar la lectura sin scroll horizontal.
 
 **Poner en mantenimiento / Marcar como operativo** y **Registrar mantenimiento**
 se ubican juntos en el encabezado superior, a la derecha en escritorio y apilados
@@ -67,8 +73,21 @@ del frontend consulta todas las páginas con `status=completed` y `per_page=100`
 solo publica el total cuando termina. La carga tiene error y reintento propios,
 sin bloquear el historial ni mostrar una suma parcial. Cambiar filtros o página
 no repite este cálculo. Un cambio de instalación cancela las consultas anteriores.
+El selector reutiliza este cálculo con hasta cuatro instalaciones en paralelo.
+Si falla un total, el historial de esa instalación sigue disponible y se puede
+reintentar la carga de los costos pendientes.
 
 ## Contrato y operaciones
+
+El listado de [Gastos](/administracion/gastos) reúne los mantenimientos realizados
+de instalaciones con combustible y mantenimiento vehicular finalizado. La ruta
+está enlazada desde **Gastos registrados** en Resumen y conserva el alcance
+global o la UP seleccionada. Una UP concreta
+incluye sus instalaciones. **Solo gastos globales** muestra los gastos de
+vehículos. El total abarca todos los registros del alcance y se muestra por moneda.
+Cambiar el filtro reutiliza los registros cargados durante la visita a la página.
+El frontend consulta los historiales paginados de las fuentes autorizadas porque
+`gastos/resumen` devuelve agregados y no devuelve registros individuales.
 
 Fuente: `GAM-Backend/contracts/openapi/maintenance.yaml` y las acciones/requests
 de FarmStructure. Ambos tipos de instalación usan los mismos endpoints:

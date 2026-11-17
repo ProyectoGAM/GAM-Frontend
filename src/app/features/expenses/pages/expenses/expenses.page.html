@@ -1,0 +1,71 @@
+<main class="expenses-page" aria-labelledby="expenses-title">
+  <header>
+    <h1 id="expenses-title">Gastos</h1>
+    <p>Consultá los gastos registrados de instalaciones y vehículos.</p>
+  </header>
+
+  @if (result().status !== 'forbidden' && canFilter()) {
+    <label class="scope">Unidad productiva
+      <select (change)="changeScope($event)">
+        <option value="all" [selected]="scope() === 'all'">{{ canViewGlobal() ? 'Todas las UP y gastos globales' : 'Todas las UP disponibles' }}</option>
+        @if (canViewGlobal()) { <option value="global" [selected]="scope() === 'global'">Solo gastos globales</option> }
+        @for (unit of units(); track unit.id) {
+          <option [value]="unit.id" [selected]="scope() === unit.id">{{ unit.name }}</option>
+        }
+      </select>
+    </label>
+  }
+
+  @switch (result().status) {
+    @case ('loading') { <p class="state-panel" role="status">Cargando gastos…</p> }
+    @case ('forbidden') { <p class="state-panel" role="alert">No tenés permiso para consultar gastos.</p> }
+    @case ('unit-error') {
+      <div class="state-panel" role="alert"><p>No se pudieron cargar las unidades productivas.</p><button type="button" (click)="retry()">Reintentar</button></div>
+    }
+    @case ('error') {
+      <div class="state-panel" role="alert"><p>No se pudieron cargar los gastos.</p><button type="button" (click)="retry()">Reintentar</button></div>
+    }
+    @case ('ready') {
+      @if (count()) {
+        <section class="summary" aria-labelledby="expense-total-title">
+          <div><h2 id="expense-total-title">Total de gastos</h2><p>{{ count() }} {{ count() === 1 ? 'registro' : 'registros' }}</p></div>
+          <div class="totals">@for (total of totalLabels(); track total.currency) { <strong>{{ total.label }}</strong> }</div>
+        </section>
+        <section class="ledger" aria-labelledby="expense-history-title">
+          <h2 id="expense-history-title">Historial de gastos</h2>
+          <div class="record-list">
+            <table aria-labelledby="expense-history-title" role="table">
+              <thead role="rowgroup"><tr role="row">
+                <th scope="col" role="columnheader">Fecha</th>
+                <th scope="col" role="columnheader">Concepto</th>
+                <th scope="col" role="columnheader">Origen</th>
+                <th scope="col" role="columnheader">Unidad productiva</th>
+                <th scope="col" role="columnheader" class="cost">Importe</th>
+              </tr></thead>
+              <tbody role="rowgroup">
+                @for (row of rows(); track row.id) {
+                  <tr role="row">
+                    <td role="cell" class="date"><time [attr.datetime]="row.date">{{ row.dateLabel }}</time></td>
+                    <td role="cell" class="concept"><span class="category">{{ row.category }}</span>{{ row.description }}</td>
+                    <td role="cell" class="origin"><span class="mobile-label" aria-hidden="true">Origen</span><a [routerLink]="row.originLink">{{ row.origin }}</a></td>
+                    <td role="cell" class="unit"><span class="mobile-label" aria-hidden="true">Unidad productiva</span>{{ row.unit?.name ?? 'Global' }}</td>
+                    <td role="cell" class="cost"><span class="mobile-label" aria-hidden="true">Importe</span>{{ row.costLabel }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (lastPage() > 1) {
+            <nav class="pagination" aria-label="Páginas de gastos">
+              <button type="button" [disabled]="currentPage() === 1" (click)="goTo(-1)">Anterior</button>
+              <span aria-live="polite">Página {{ currentPage() }} de {{ lastPage() }}</span>
+              <button type="button" [disabled]="currentPage() === lastPage()" (click)="goTo(1)">Siguiente</button>
+            </nav>
+          }
+        </section>
+      } @else {
+        <p class="state-panel" role="status">No hay gastos registrados para esta selección.</p>
+      }
+    }
+  }
+</main>

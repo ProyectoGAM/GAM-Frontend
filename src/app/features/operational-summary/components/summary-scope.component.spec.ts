@@ -76,6 +76,7 @@ describe('Operational summary scopes', () => {
     expect(finance.textContent).toContain('Subtotal parcial');
     const toggle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.equivalence-toggle')!;
     expect(toggle.textContent).toContain('6 × Maple + 5 huevos sueltos');
+    expect(toggle.nextElementSibling?.textContent).toBe('Equivalencia según catálogo');
     toggle.click();
     await render();
     expect(toggle.textContent).toContain('15 × Docena + 5 huevos sueltos');
@@ -158,7 +159,9 @@ describe('Operational summary scopes', () => {
     expect(birds).not.toHaveBeenCalledWith(null);
     expect(alertCounts).toHaveBeenLastCalledWith(12);
     expect(host.querySelector('app-summary-unit-operations')).not.toBeNull();
+    expect(host.querySelector('a[href="/administracion/gastos?up_id=12"]')?.textContent).toContain('Ver historial de gastos');
     expect(Array.from(host.querySelectorAll('a'), (link) => link.getAttribute('href'))).toEqual([
+      '/administracion/gastos?up_id=12',
       '/administracion/notificaciones?vista=operativas&up_id=12',
       '/administracion/lotes/lotes?up_id=12',
     ]);
@@ -169,6 +172,7 @@ describe('Operational summary scopes', () => {
     expect(selector.selectedOptions[0].textContent).toBe('UP Santa Clara');
     expect(host.querySelector('.alert-panel')?.textContent).toContain('Por urgencia · UP Santa Clara');
     expect(birds).toHaveBeenLastCalledWith(19);
+    expect(host.querySelector('a[href="/administracion/gastos?up_id=19"]')).not.toBeNull();
 
     selector.value = '';
     selector.dispatchEvent(new Event('change'));
@@ -178,6 +182,7 @@ describe('Operational summary scopes', () => {
     expect(birds).toHaveBeenLastCalledWith(null);
     expect(alertCounts).toHaveBeenLastCalledWith(null);
     expect(host.querySelector('app-summary-unit-operations')).toBeNull();
-    expect(host.querySelector('a')?.getAttribute('href')).toBe('/administracion/notificaciones?vista=operativas');
+    expect(host.querySelector('a[href="/administracion/gastos"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/administracion/notificaciones?vista=operativas"]')).not.toBeNull();
   });
 });

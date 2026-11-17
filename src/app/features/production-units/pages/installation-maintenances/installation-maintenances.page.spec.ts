@@ -41,8 +41,16 @@ describe('InstallationMaintenancesPage', () => {
 
   it('shows real history data and navigates to the next page without loading stock or lots', () => {
     render(); expect(list).toHaveBeenCalledWith(22, {}, 1);
-    expect(fixture.nativeElement.textContent).toContain('Revisión de bebederos');
-    expect(fixture.nativeElement.textContent).toContain('Martín Pérez'); expect(fixture.nativeElement.textContent).toContain('UYU');
+    const table: HTMLTableElement = fixture.nativeElement.querySelector('.record-list table');
+    expect(Array.from(table.tHead!.rows[0].cells, (cell) => cell.textContent?.trim())).toEqual([
+      'Fecha', 'Descripción', 'Responsable', 'Costo', 'Estado', '',
+    ]);
+    const row = table.tBodies[0].rows[0];
+    expect(row.textContent).toContain('01/01/2026');
+    expect(row.textContent).toContain('Revisión de bebederos');
+    expect(row.textContent).toContain('Martín Pérez');
+    expect(row.textContent).toContain('$0,00 UYU');
+    expect(row.querySelector('button')?.textContent).toContain('Ver detalle');
     expect(fixture.nativeElement.querySelector('.page-heading ion-button.primary')?.textContent).toContain('Registrar mantenimiento');
     expect(fixture.nativeElement.querySelector('.history-heading ion-button')).toBeNull();
     expect(fixture.nativeElement.querySelector('.back-link').getAttribute('href')).toBe('/administracion/unidades-productivas/7/galpon/22');
@@ -73,14 +81,14 @@ describe('InstallationMaintenancesPage', () => {
 
   it('keeps the installation total independent of history filters and pages, refreshing after record changes', () => {
     render();
-    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$1.250,5 UYU');
+    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$1.250,50 UYU');
     fixture.componentInstance.goToPage(1);
     fixture.componentInstance.filtersForm.controls.status.setValue('cancelled'); fixture.componentInstance.applyFilters();
     expect(totalCost).toHaveBeenCalledExactlyOnceWith(22);
     totalCost.mockReturnValue(of([{ amount: '0.00', currency: 'UYU' }]));
     fixture.componentInstance.onChanged('Mantenimiento anulado.'); fixture.detectChanges();
     expect(totalCost).toHaveBeenCalledTimes(2);
-    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$0 UYU');
+    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$0,00 UYU');
   });
 
   it('does not show a partial or zero total when its request fails and allows retry', () => {
@@ -101,7 +109,7 @@ describe('InstallationMaintenancesPage', () => {
     params.next(convertToParamMap({ id: '7', houseId: '23' }));
     old.next([{ amount: '999.00', currency: 'UYU' }]); fixture.detectChanges();
     expect(totalCost).toHaveBeenLastCalledWith(23);
-    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$10 UYU');
+    expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).toContain('$10,00 UYU');
     expect(fixture.nativeElement.querySelector('.cost-summary')?.textContent).not.toContain('$999');
   });
 

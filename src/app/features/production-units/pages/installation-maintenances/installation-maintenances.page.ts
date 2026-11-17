@@ -5,10 +5,9 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonButton, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, arrowBackOutline, buildOutline, calendarOutline, personOutline } from 'ionicons/icons';
+import { addOutline, arrowBackOutline, buildOutline, calendarOutline } from 'ionicons/icons';
 import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { formatUyuMoney } from '../../../../shared/utils/uyu-money';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
 import { InstallationMaintenanceStatusComponent } from '../../components/installation-maintenance-status/installation-maintenance-status.component';
 import { MaintenanceRecordDialogComponent } from '../../components/maintenance-record-dialog/maintenance-record-dialog.component';
@@ -16,7 +15,7 @@ import { InstallationMaintenance, MaintenanceCostTotal, MaintenanceFilters } fro
 import { PoultryHouseDetail } from '../../interfaces/production-unit.interface';
 import { InstallationMaintenanceStatus } from '../../types/installation-maintenance.type';
 import { InstallationMaintenanceService } from '../../services/installation-maintenance.service';
-import { canManageMaintenance, maintenanceDateLabel, maintenanceError } from '../../services/maintenance-presentation';
+import { canManageMaintenance, formatMaintenanceCost, maintenanceDateLabel, maintenanceError } from '../../services/maintenance-presentation';
 import { ProductionUnitsService } from '../../services/production-units.service';
 
 @Component({
@@ -56,7 +55,7 @@ export class InstallationMaintenancesPage implements OnInit {
   readonly costLoading = signal(false);
   readonly costError = signal('');
   readonly costTotals = signal<MaintenanceCostTotal[]>([]);
-  readonly costLabels = computed(() => this.costTotals().map((total) => `${formatUyuMoney(total.amount)} ${total.currency}`));
+  readonly costLabels = computed(() => this.costTotals().map(formatMaintenanceCost));
   readonly statusLabel = computed(() => {
     const status = this.house()?.status;
     return status ? ({ operational: 'Operativo', maintenance: 'En mantenimiento', out_of_service: 'Fuera de servicio', inactive: 'Inactivo' })[status] : '';
@@ -66,7 +65,11 @@ export class InstallationMaintenancesPage implements OnInit {
   readonly installationLink = computed(() => ['/administracion/unidades-productivas', this.house()?.production_unit_id ?? this.unitId, 'galpon', this.house()?.id ?? this.houseId]);
   readonly backLink = computed(() => this.fromMaintenanceHub ? ['/administracion/ubicaciones/mantenimiento'] : this.installationLink());
   readonly backLabel = computed(() => this.fromMaintenanceHub ? 'Mantenimiento de instalaciones' : this.house()?.name ?? 'Volver a la instalación');
-  readonly rows = computed(() => this.records().map((record) => ({ record, dateLabel: maintenanceDateLabel(record.maintenance_date), costLabel: `${formatUyuMoney(record.cost.amount)} ${record.cost.currency}` })));
+  readonly rows = computed(() => this.records().map((record) => ({
+    record,
+    dateLabel: maintenanceDateLabel(record.maintenance_date, '2-digit'),
+    costLabel: formatMaintenanceCost(record.cost),
+  })));
   readonly filtersForm = new FormGroup({
     status: new FormControl<InstallationMaintenanceStatus | ''>('', { nonNullable: true }),
     from: new FormControl('', { nonNullable: true }),
@@ -78,7 +81,7 @@ export class InstallationMaintenancesPage implements OnInit {
   });
 
   constructor() {
-    addIcons({ addOutline, arrowBackOutline, buildOutline, calendarOutline, personOutline });
+    addIcons({ addOutline, arrowBackOutline, buildOutline, calendarOutline });
     this.totalRequests.pipe(switchMap(() => {
       this.costTotals.set([]); this.costError.set('');
       const house = this.house();
