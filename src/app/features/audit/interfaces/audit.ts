@@ -17,7 +17,7 @@ export interface AuditActorOption extends Omit<AuditActor, 'id'> {
 export interface AuditSummary {
   title: string;
   summary: string;
-  subject: { label: string | null; resource: string | null; id: string | number | null };
+  subject: { label: string | null; resource: string | null; id: string | number | null; section?: string; record_id?: string };
   production_unit: { id: number; name: string } | null;
 }
 
@@ -45,7 +45,7 @@ export interface AuditAction {
   reason: string | null;
   target: {
     resource: string; id: number | string; flock_id?: string; production_unit_id?: number;
-    version?: number; destination_version?: number; status?: string;
+    version?: number; destination_version?: number; status?: string; vehicle_id?: string; customer_id?: string;
   };
 }
 

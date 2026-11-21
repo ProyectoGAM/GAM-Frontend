@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -19,6 +19,16 @@ import { formatFuelLiters, formatFuelVolume, formatVehicleMeasure, vehicleDocume
 interface TimelineEvent { at: string; title: string; detail: string; type: string; }
 type UsageAction = 'start' | 'close' | 'reading';
 type VehicleCommand = 'start' | 'reading' | 'fuel' | 'maintenance';
+type VehicleTab = 'general' | 'usage' | 'fuel' | 'maintenance' | 'documents' | 'timeline';
+const SECTION_DESTINATIONS: Readonly<Record<string, { tab: VehicleTab; heading: string }>> = {
+  overview: { tab: 'general', heading: 'vehicle-data-title' },
+  usages: { tab: 'usage', heading: 'vehicle-usage-title' },
+  readings: { tab: 'usage', heading: 'vehicle-readings-title' },
+  fuel: { tab: 'fuel', heading: 'fuel-history-title' },
+  maintenance_plans: { tab: 'maintenance', heading: 'maintenance-plans-title' },
+  maintenance: { tab: 'maintenance', heading: 'maintenance-interventions-title' },
+  documents: { tab: 'documents', heading: 'vehicle-documents-title' },
+};
 type MaintenanceDialog = { kind: 'plan'; plan?: VehicleMaintenancePlan }
   | { kind: 'create' }
   | { kind: 'complete' | 'cancel' | 'receipt'; intervention: VehicleMaintenance };
@@ -33,6 +43,9 @@ export class VehicleDetailPage {
   private readonly api = inject(VehiclesApi);
   readonly auth = inject(AuthStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private initialSection = this.route.snapshot.queryParamMap?.get('seccion');
   private readonly editor = viewChild(VehicleEditorDialogComponent);
   private readonly statusDialog = viewChild<ElementRef<HTMLDialogElement>>('statusDialog');
   private readonly usageDialog = viewChild<ElementRef<HTMLDialogElement>>('usageDialog');
@@ -72,7 +85,7 @@ export class VehicleDetailPage {
   readonly canStartUsage = computed(() => this.canUseVehicle() && !this.activeUsage() && this.detail()?.availability.availability === 'available');
   readonly canCloseUsage = computed(() => this.canUseVehicle() && !!this.activeUsage() && !this.activeUsage()?.delivery_id);
   readonly measure = formatVehicleMeasure;
-  readonly tab = signal<'general' | 'usage' | 'fuel' | 'maintenance' | 'documents' | 'timeline'>('general');
+  readonly tab = signal<VehicleTab>('general');
   readonly documents = computed(() => {
     if (this.tab() !== 'documents') return [];
     const now = new Date();
@@ -175,8 +188,24 @@ export class VehicleDetailPage {
     try {
       const data = await firstValueFrom(this.api.detail(this.id));
       this.detail.set(data);
+      this.openInitialSection();
     } catch { this.error.set('No se pudo cargar la ficha del vehículo.'); }
     finally { this.loading.set(false); }
+  }
+
+  private openInitialSection(): void {
+    const section = this.initialSection;
+    this.initialSection = null;
+    if (!section || !Object.hasOwn(SECTION_DESTINATIONS, section)) return;
+    const { tab, heading } = SECTION_DESTINATIONS[section];
+    if ((tab === 'fuel' && !this.canReadFuel()) || (tab === 'maintenance' && !this.canReadMaintenance())
+      || (tab === 'documents' && !this.canReadDocuments())) return;
+    this.tab.set(tab);
+    afterNextRender(() => {
+      const target = this.host.nativeElement.querySelector<HTMLElement>('#' + heading);
+      target?.scrollIntoView?.({ block: 'start' });
+      target?.focus({ preventScroll: true });
+    }, { injector: this.injector });
   }
 
   openEditor(): void {

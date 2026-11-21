@@ -248,6 +248,10 @@ export const adminRoutes: Routes = [
       ),
     children: [
       {
+        path: 'gastos',
+        loadComponent: () => import('../expenses/pages/expenses/expenses.page').then((module) => module.ExpensesPage),
+      },
+      {
         path: 'notificaciones',
         data: { embedded: true },
         loadComponent: () => import('../notifications/pages/notifications.page').then((module) => module.NotificationsPage),

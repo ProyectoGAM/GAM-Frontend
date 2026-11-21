@@ -6,8 +6,8 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { barChartOutline, businessOutline, carOutline, chevronForwardOutline, clipboardOutline, closeOutline, cubeOutline, documentsOutline, eggOutline, funnelOutline, layersOutline, peopleOutline, refreshOutline, shieldCheckmarkOutline, timeOutline } from 'ionicons/icons';
-import { debounceTime, firstValueFrom, Subject } from 'rxjs';
+import { barChartOutline, businessOutline, carOutline, chevronForwardOutline, clipboardOutline, closeOutline, cubeOutline, documentsOutline, eggOutline, funnelOutline, layersOutline, peopleOutline, personOutline, refreshOutline, shieldCheckmarkOutline, speedometerOutline, timeOutline } from 'ionicons/icons';
+import { debounceTime, firstValueFrom, Observable, Subject } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { FilterDialogComponent } from '../../../../shared/ui/filter-dialog/filter-dialog.component';
@@ -20,10 +20,12 @@ import { MovementReversalDialogComponent } from '../../../inventory/components/m
 import { InventoryApi } from '../../../inventory/services/inventory.api';
 import { AuditAction, AuditActorOption, AuditDetail, AuditEntry, AuditFilters, AuditOptions, AuditPage } from '../../interfaces/audit';
 import { actorFilters, actorKey, actorLabel, AUDIT_MODULES, auditTitle, moduleLabel, sourceLabel, unitLabel } from '../../services/audit-presentation';
-import { auditFlockNavigation, auditUserLink, flockReversal, sameAction, supportedAction } from '../../services/audit-actions';
+import { auditFlockNavigation, auditSubjectLink, auditUserLink, businessCorrection, flockReversal, sameAction, supportedAction } from '../../services/audit-actions';
+import { AuditBusinessCorrectionsService } from '../../services/audit-business-corrections.service';
 import { AuditService } from '../../services/audit.service';
 
-type FlockReversalConfirmation = NonNullable<ReturnType<typeof flockReversal>> & { auditEntryId: number };
+type AuditConfirmation = (NonNullable<ReturnType<typeof flockReversal>> | NonNullable<ReturnType<typeof businessCorrection>>)
+  & { auditEntryId: number; label: string };
 
 @Component({
   selector: 'app-audit-history',
@@ -36,6 +38,7 @@ export class AuditHistoryPage {
   private readonly inventory = inject(InventoryApi);
   private readonly flockStatus = inject(FlockStatusService);
   private readonly fractionation = inject(FlockFractionationService);
+  private readonly businessCorrections = inject(AuditBusinessCorrectionsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
@@ -48,7 +51,7 @@ export class AuditHistoryPage {
   private detailVersion = 0;
   private actionVersion = 0;
   private detailTrigger: HTMLElement | null = null;
-  private reversalAttempt: { key: string; reason: string } | null = null;
+  private reversalAttempt: { key: string; reason: string; reading: string } | null = null;
   private previousContext: string | undefined;
   @ViewChild(FilterDialogComponent) private filterDialog!: FilterDialogComponent;
   @ViewChild(MovementReversalDialogComponent) private reversalDialog!: MovementReversalDialogComponent;
@@ -56,7 +59,7 @@ export class AuditHistoryPage {
   @ViewChild(MortalityUndoComponent) private mortalityUndo!: MortalityUndoComponent;
   @ViewChild('detailDialog', { static: true }) private detailDialog!: ElementRef<HTMLDialogElement>;
   @ViewChild('detailHeading', { static: true }) private detailHeading!: ElementRef<HTMLHeadingElement>;
-  @ViewChild('flockReversalDialog', { static: true }) private flockReversalDialog!: ElementRef<HTMLDialogElement>;
+  @ViewChild('auditConfirmationDialog', { static: true }) private auditConfirmationDialog!: ElementRef<HTMLDialogElement>;
   readonly modules = AUDIT_MODULES;
   readonly activeModule = computed(() => this.modules.find((module) => module.id === this.queryParams().get('modulo')) ?? this.modules[0]);
   readonly state = signal<'loading' | 'success' | 'empty' | 'error' | 'forbidden'>('loading');
@@ -84,11 +87,20 @@ export class AuditHistoryPage {
   readonly detailError = signal('');
   readonly actionLoading = signal(false);
   readonly actionError = signal('');
-  readonly flockReversal = signal<FlockReversalConfirmation | null>(null);
-  readonly flockReversalForm = new FormGroup({
-    reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
+  readonly auditConfirmation = signal<AuditConfirmation | null>(null);
+  readonly confirmationTitle = computed(() => {
+    const confirmation = this.auditConfirmation();
+    if (!confirmation || confirmation.kind === 'reverse_flock_status' || confirmation.kind === 'reverse_flock_redistribution') {
+      return 'Confirmar reversión';
+    }
+    return confirmation.label;
   });
-  readonly reversalReason = this.flockReversalForm.controls.reason;
+  readonly auditConfirmationForm = new FormGroup({
+    reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
+    reading: new FormControl('', { nonNullable: true }),
+  });
+  readonly reversalReason = this.auditConfirmationForm.controls.reason;
+  readonly correctionReading = this.auditConfirmationForm.controls.reading;
   readonly reversalSaving = signal(false);
   readonly reversalBlocked = signal(false);
   readonly reversalUncertain = signal(false);
@@ -98,6 +110,10 @@ export class AuditHistoryPage {
     const entry = this.detail();
     return entry ? auditFlockNavigation(entry) : null;
   });
+  readonly subjectNavigation = computed(() => {
+    const detail = this.detail();
+    return detail ? auditSubjectLink(detail.presentation.subject) : null;
+  });
   readonly referenceNames = computed(() => ({
     products: Object.fromEntries((this.options()?.products ?? []).map((option) => [Number(option.value), option.label])),
     locations: Object.fromEntries((this.options()?.stock_locations ?? []).map((option) => [Number(option.value), option.label])),
@@ -105,9 +121,10 @@ export class AuditHistoryPage {
   readonly applied = signal<AuditFilters>({});
   readonly filterCount = computed(() => ['from', 'to', 'event', 'source', 'actor_kind', 'up_id'].filter((key) => this.applied()[key as keyof AuditFilters] !== undefined).length);
   readonly rows = computed(() => this.entries().map((entry) => ({
-    entry, module: moduleLabel(entry.log_name), description: auditTitle(entry.presentation),
+    entry, module: moduleLabel(entry.log_name, entry.event), description: auditTitle(entry.presentation),
     summary: entry.presentation.summary, actor: actorLabel(entry.actor), actorLink: auditUserLink(entry.actor),
-    subject: entry.presentation.subject.label, source: sourceLabel(entry.source), unit: unitLabel(entry.presentation),
+    subject: entry.presentation.subject.label, subjectLink: auditSubjectLink(entry.presentation.subject),
+    source: sourceLabel(entry.source), unit: unitLabel(entry.presentation),
   })));
   readonly scopeLabel = computed(() => {
     const id = this.applied().up_id;
@@ -127,7 +144,7 @@ export class AuditHistoryPage {
   readonly dateError = signal(false);
 
   constructor() {
-    addIcons({ barChartOutline, businessOutline, carOutline, chevronForwardOutline, clipboardOutline, closeOutline, cubeOutline, documentsOutline, eggOutline, funnelOutline, layersOutline, peopleOutline, refreshOutline, shieldCheckmarkOutline, timeOutline });
+    addIcons({ barChartOutline, businessOutline, carOutline, chevronForwardOutline, clipboardOutline, closeOutline, cubeOutline, documentsOutline, eggOutline, funnelOutline, layersOutline, peopleOutline, personOutline, refreshOutline, shieldCheckmarkOutline, speedometerOutline, timeOutline });
     this.searches.pipe(debounceTime(250), takeUntilDestroyed()).subscribe(({ search, context }) => {
       if (context === this.previousContext && this.auth.user()) void this.loadResponsibles(search);
     });
@@ -216,7 +233,7 @@ export class AuditHistoryPage {
   resetFilters(): void { this.appliedActor = null; this.applied.set({}); void this.load(); }
   openDetail(entry: AuditEntry, trigger: HTMLElement): void {
     this.actionVersion++; this.actionLoading.set(false);
-    this.resetFlockReversal();
+    this.resetAuditConfirmation();
     this.reversalDialog.invalidate(); this.feedCorrection.invalidate(); this.mortalityUndo.invalidate();
     this.selectedEntry.set(entry); this.detailTrigger = trigger; this.actionError.set('');
     this.detailDialog.nativeElement.showModal(); this.detailDialog.nativeElement.scrollTop = 0;
@@ -238,7 +255,7 @@ export class AuditHistoryPage {
     }
   }
   async runAction(action: AuditAction, trigger: HTMLElement): Promise<void> {
-    if (this.actionLoading() || this.flockReversal() || !action.available || !supportedAction(action)) return;
+    if (this.actionLoading() || this.auditConfirmation() || !action.available || !supportedAction(action)) return;
     const version = ++this.actionVersion;
     this.actionLoading.set(true); this.actionError.set('');
     try {
@@ -248,14 +265,14 @@ export class AuditHistoryPage {
       if (!current?.available || !supportedAction(current)) {
         this.actionError.set(current?.reason || fresh.presentation.reversibility.reason); return;
       }
-      const reversal = flockReversal(current);
+      const reversal = flockReversal(current) ?? businessCorrection(current);
       if (reversal) {
         if (fresh.id !== this.selectedEntry()?.id || !Number.isSafeInteger(fresh.id) || fresh.id <= 0) {
           this.actionError.set('No se pudo verificar la entrada original. Volvé a abrir el detalle.');
           return;
         }
-        this.flockReversal.set({ ...reversal, auditEntryId: fresh.id });
-        const dialog = this.flockReversalDialog.nativeElement;
+        this.auditConfirmation.set({ ...reversal, auditEntryId: fresh.id, label: current.label });
+        const dialog = this.auditConfirmationDialog.nativeElement;
         dialog.showModal(); dialog.scrollTop = 0;
         dialog.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
       } else if (current.kind === 'undo_mortality' && typeof current.target.id === 'string') {
@@ -275,49 +292,59 @@ export class AuditHistoryPage {
       }
     } finally { if (version === this.actionVersion) this.actionLoading.set(false); }
   }
-  closeFlockReversal(event?: Event): void {
+  closeAuditConfirmation(event?: Event): void {
     event?.preventDefault();
     if (this.reversalSaving()) return;
-    this.resetFlockReversal();
+    this.resetAuditConfirmation();
     this.detailHeading.nativeElement.focus({ preventScroll: true });
   }
-  private resetFlockReversal(): void {
-    this.flockReversalDialog?.nativeElement.close();
-    this.flockReversal.set(null); this.reversalReason.reset(); this.reversalReason.enable();
+  private resetAuditConfirmation(): void {
+    this.auditConfirmationDialog?.nativeElement.close();
+    this.auditConfirmation.set(null); this.auditConfirmationForm.reset(); this.auditConfirmationForm.enable();
     this.reversalAttempt = null; this.reversalError.set(''); this.reversalSaving.set(false);
     this.reversalBlocked.set(false); this.reversalUncertain.set(false);
   }
-  async confirmFlockReversal(): Promise<void> {
-    const reversal = this.flockReversal();
+  async confirmAuditCorrection(): Promise<void> {
+    const reversal = this.auditConfirmation();
     const identity = this.identity();
     if (!reversal || identity !== this.previousContext || this.reversalSaving() || this.reversalBlocked()) return;
     const reason = this.reversalReason.value.trim();
     if (!reason || reason.length > 500) {
       this.reversalError.set('Ingresá un motivo de hasta 500 caracteres.'); return;
     }
-    const attempt = this.reversalAttempt ??= { key: crypto.randomUUID(), reason };
+    const reading = this.correctionReading.value.trim().replace(',', '.');
+    if (reversal.kind === 'correct_vehicle_reading' && (!/^\d{1,9}(?:\.\d)?$/.test(reading) || Number(reading) > 999_999_999)) {
+      this.reversalError.set('Ingresá el kilometraje corregido, con hasta un decimal.'); return;
+    }
+    const attempt = this.reversalAttempt ??= { key: crypto.randomUUID(), reason, reading };
     const version = this.actionVersion;
-    this.reversalSaving.set(true); this.reversalReason.disable(); this.reversalError.set('');
+    this.reversalSaving.set(true); this.auditConfirmationForm.disable(); this.reversalError.set('');
     try {
-      const request = reversal.kind === 'reverse_flock_status'
+      const request: Observable<unknown> = reversal.kind === 'reverse_flock_status'
         ? this.flockStatus.change(reversal.id, { ...reversal.body, audit_entry_id: reversal.auditEntryId, reason: attempt.reason }, attempt.key)
-        : this.fractionation.reverse(reversal.id, { ...reversal.body, reason: attempt.reason }, attempt.key);
+        : reversal.kind === 'reverse_flock_redistribution'
+          ? this.fractionation.reverse(reversal.id, { ...reversal.body, reason: attempt.reason }, attempt.key)
+          : this.businessCorrections.submit(reversal, attempt.reason, attempt.reading, attempt.key);
       await firstValueFrom(request.pipe(takeUntilDestroyed(this.destroyRef)));
       if (version !== this.actionVersion || identity !== this.identity()) return;
-      this.reversalSaving.set(false); this.closeFlockReversal(); this.onCorrected();
+      this.reversalSaving.set(false); this.closeAuditConfirmation(); this.onCorrected();
     } catch (error) {
       if (version !== this.actionVersion || identity !== this.identity()) return;
       const status = error instanceof HttpErrorResponse ? error.status : 0;
       const blocked = [401, 403, 404, 409].includes(status);
       const uncertain = status === 0 || status >= 500;
       const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
+      const fieldError = error instanceof HttpErrorResponse && status === 422
+        ? [error.error?.errors?.value?.[0], error.error?.errors?.corrects_reading_id?.[0], error.error?.errors?.reason?.[0]]
+          .find((message) => typeof message === 'string')
+        : undefined;
       this.reversalSaving.set(false); this.reversalBlocked.set(blocked); this.reversalUncertain.set(uncertain);
       if (!uncertain) this.reversalAttempt = null;
-      if (!blocked && !uncertain) this.reversalReason.enable();
+      if (!blocked && !uncertain) this.auditConfirmationForm.enable();
       this.reversalError.set(status === 409 && typeof detail === 'string' ? detail
         : blocked ? 'La reversión ya no está disponible. Volvé al detalle actualizado.'
           : uncertain ? 'No se pudo confirmar la reversión. Podés reintentar con los mismos datos.'
-            : 'Revisá el motivo y volvé a intentar.');
+            : fieldError ?? 'Revisá los datos y volvé a intentar.');
       this.onCommandFailed(status);
     }
   }
@@ -337,7 +364,7 @@ export class AuditHistoryPage {
   closeDetail(event?: Event): void {
     event?.preventDefault(); this.detailVersion++; this.actionVersion++; this.actionLoading.set(false);
     this.mortalityUndo?.invalidate();
-    this.resetFlockReversal();
+    this.resetAuditConfirmation();
     this.detailDialog?.nativeElement.close(); this.selectedEntry.set(null); this.detail.set(null); this.detailState.set('idle');
     if (this.detailTrigger?.isConnected) this.detailTrigger.focus({ preventScroll: true }); this.detailTrigger = null;
   }

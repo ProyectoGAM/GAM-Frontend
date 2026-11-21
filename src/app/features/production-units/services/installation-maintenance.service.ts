@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { defer, EMPTY, expand, map, reduce } from 'rxjs';
+import { catchError, defer, EMPTY, expand, from, map, mergeMap, of, reduce } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import { InstallationMaintenance, MaintenanceCorrection, MaintenanceCostTotal, MaintenanceFilters, MaintenanceInput, MaintenancePage } from '../interfaces/installation-maintenance.interface';
 import { parseUyuAmount, uyuDecimal } from '../../../shared/utils/uyu-money';
@@ -8,9 +8,9 @@ import { parseUyuAmount, uyuDecimal } from '../../../shared/utils/uyu-money';
 export class InstallationMaintenanceService {
   private readonly api = inject(ApiClient);
 
-  list(houseId: number, filters: MaintenanceFilters = {}, page = 1) {
+  list(houseId: number, filters: MaintenanceFilters = {}, page = 1, perPage = 20) {
     return this.api.get<MaintenancePage>(`poultry-houses/${houseId}/maintenances`, {
-      params: { ...filters, page, per_page: 20 },
+      params: { ...filters, page, per_page: perPage },
     });
   }
 
@@ -38,6 +38,15 @@ export class InstallationMaintenanceService {
           : [{ currency: 'UYU', amount: '0.000' }]),
       );
     });
+  }
+
+  totalCosts(houseIds: readonly number[]) {
+    return from(houseIds).pipe(
+      mergeMap((houseId) => this.totalCost(houseId).pipe(
+        map((totals) => ({ houseId, totals })),
+        catchError(() => of({ houseId, totals: null })),
+      ), 4),
+    );
   }
 
   detail(id: number) {

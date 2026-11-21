@@ -163,3 +163,15 @@ y teléfono de 360 px oscuro, sin desbordamiento ni mutaciones reales; capturas
 en `.tmp/qa/audit-mortality-inline-modal*.png`.
 Validación final del modal integrado: lint, 1270 pruebas en 154 archivos y build
 de producción aprobados. No se modificó el contrato ni el código del backend.
+
+## Vehículos, Clientes y Razas
+
+Historial incluye pestañas para **Vehículos** y **Clientes**. Los eventos de
+registro y actualización de razas aparecen en **Manejo y sanidad**, incluidos
+los registros históricos almacenados bajo Lotes. Los enlaces de la fila y
+del detalle usan la sección y el identificador de destino devueltos por la API.
+
+El detalle permite rectificar lecturas vigentes del odómetro, anular
+intervenciones vehiculares elegibles y compensar movimientos de cuenta
+corriente reversibles. Antes de abrir la confirmación se revalida la acción
+con la API. Se pide un motivo y, para el odómetro, el nuevo kilometraje.
