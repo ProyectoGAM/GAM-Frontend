@@ -325,3 +325,15 @@ La validación de esta corrección incluyó 490 pruebas en la suite completa y 3
 Tras separar las acciones y añadir las duraciones, pasaron las 496 pruebas del frontend (46 específicas de reporting/descargas), lint, build y la auditoría de dependencias de producción. La sincronización de Android/iOS incorpora Clipboard. El recorrido de Chrome comprobó los siete plazos contra el API real para PDF/Excel, retención del archivo, copia real desde ambos accesos y llamada independiente a compartir mediante una implementación web controlada, además de enlaces sin sesión y teléfono claro/oscuro. No se automatizó la hoja del sistema operativo ni se probó un dispositivo físico.
 
 La verificación local del 12 de octubre de 2026 incluyó una suite completa de 473 pruebas aprobadas; tras los ajustes finales, las 19 pruebas específicas de reporting volvieron a pasar. Chrome contra Docker Compose aprobó el recorrido de consulta, casillas, resumen por galpón, guardado/edición, descarga real de Excel/PDF, enlace firmado sin sesión, biblioteca, archivos, confirmación de eliminación y teléfono en oscuro, sin excepciones JavaScript. Un recorrido adicional en teléfono claro verificó elegir tema/reporte, conservar datos al volver al tema y el atajo “Este mes”. El lint y la compilación de producción se verificaron; continúan los avisos de SCSS/CommonJS, incluyendo el tamaño del estilo de Reportes, por debajo del límite de error configurado.
+
+## Ficha de clientes y ubicación
+
+La ficha agrupa deuda, saldo a favor y fecha de consulta en un resumen de cuenta,
+con navegación por Cuenta corriente, Entregas y Datos y observaciones. Esta última
+sección organiza identificación/contacto, ubicación/visita y observaciones.
+La ubicación se muestra en un mapa Mapbox de solo lectura cuando las coordenadas
+son válidas, centrado en el punto guardado con zoom 16 y gestos cooperativos.
+Sin ubicación válida se informa que el punto no está marcado. Se reutiliza la
+vista compacta del selector de ubicación, sin búsqueda ni edición de coordenadas.
+Los enlaces del historial pueden abrir directamente la ficha (`seccion=profile`)
+o la cuenta corriente (`seccion=account`), respetando los permisos vigentes.

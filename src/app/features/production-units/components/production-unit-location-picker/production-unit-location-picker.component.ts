@@ -57,6 +57,7 @@ export class ProductionUnitLocationPickerComponent {
   readonly context = input<ProductionUnitSearchContext>({});
   readonly initialViewport = input({ center: URUGUAY_CENTER, zoom: 6 });
   readonly readOnly = input(false);
+  readonly compactPreview = input(false);
   readonly disabled = input(false);
   readonly required = input(true);
   readonly label = input('Ubicación de la unidad productiva');
@@ -254,17 +255,20 @@ export class ProductionUnitLocationPickerComponent {
         container: host,
         style: 'mapbox://styles/mapbox/light-v11',
         center,
-        zoom: hasInitialPoint ? 14 : initialViewport.zoom,
+        zoom: hasInitialPoint ? (this.compactPreview() ? 16 : 14) : initialViewport.zoom,
         maxBounds: initialPointOutsideBounds ? undefined : URUGUAY_BOUNDS,
         attributionControl: true,
+        cooperativeGestures: this.compactPreview(),
       });
       this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
     } catch {
-      this.mapError.set('No se pudo cargar el mapa. Podés conservar los datos y volver a intentarlo.');
+      this.mapError.set(this.readOnly() ? 'No se pudo cargar el mapa.' : 'No se pudo cargar el mapa. Podés conservar los datos y volver a intentarlo.');
       return;
     }
 
-    this.mapErrorListener = () => this.mapError.set('Mapbox no pudo cargar el mapa. Revisá tu conexión y conservá el punto seleccionado.');
+    this.mapErrorListener = () => this.mapError.set(this.readOnly()
+      ? 'No se pudo cargar el mapa. Revisá tu conexión.'
+      : 'Mapbox no pudo cargar el mapa. Revisá tu conexión y conservá el punto seleccionado.');
     this.map.on('error', this.mapErrorListener);
     this.mapLoadListener = () => {
       this.mapReady.set(true);
