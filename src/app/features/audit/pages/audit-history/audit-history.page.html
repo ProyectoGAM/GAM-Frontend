@@ -51,7 +51,11 @@
           @for (row of rows(); track row.entry.id) {
             <tr>
               <td class="date-cell"><time [attr.datetime]="row.entry.created_at"><strong>{{ row.entry.created_at ? (row.entry.created_at | date:'dd/MM/yyyy') : 'Sin fecha' }}</strong><span>{{ row.entry.created_at | date:'HH:mm:ss' }}</span></time></td>
-              <td class="action-cell"><span class="module-badge">{{ row.module }}</span><strong>{{ row.description }}</strong><p class="entry-summary">{{ row.summary }}</p><small>@if (row.subject) { {{ row.subject }} · }{{ row.unit }}</small></td>
+              <td class="action-cell"><span class="module-badge">{{ row.module }}</span><strong>{{ row.description }}</strong><p class="entry-summary">{{ row.summary }}</p><small>
+                @if (row.subjectLink; as link) { <a class="person-link" [routerLink]="link.path" [queryParams]="link.query" [attr.aria-label]="row.subject ? row.subject + ' · ' + link.label : link.label">{{ row.subject || link.label }}</a> · }
+                @else if (row.subject) { {{ row.subject }} · }
+                {{ row.unit }}
+              </small></td>
               <td class="actor-cell"><span class="mobile-label">Responsable</span>@if (row.actorLink; as path) { <a class="person-link" [routerLink]="path" [attr.aria-label]="'Gestionar usuario: ' + row.actor">{{ row.actor }}</a> } @else { {{ row.actor }} }</td>
               <td class="source-cell"><span class="mobile-label">Origen</span>{{ row.source }}</td>
               <td class="detail-cell"><button #detailTrigger class="detail-button" type="button" [attr.aria-label]="'Ver detalle: ' + row.description" (click)="openDetail(row.entry, detailTrigger)">Ver detalle<ion-icon name="chevron-forward-outline" aria-hidden="true" /></button></td>
@@ -90,7 +94,7 @@
   @if (detailState() === 'error') { <div class="detail-body" role="alert"><p>{{ detailError() }}</p><button type="button" class="button" (click)="loadDetail()">Reintentar detalle</button></div> }
   @if (detail(); as entry) {
     <div class="detail-body">
-      <span class="module-badge">{{ moduleLabel(selectedEntry()?.log_name ?? null) }}</span><h3>{{ auditTitle(entry.presentation) }}</h3><p class="entry-summary">{{ entry.presentation.summary }}</p>
+      <span class="module-badge">{{ moduleLabel(selectedEntry()?.log_name ?? null, entry.event) }}</span><h3>{{ auditTitle(entry.presentation) }}</h3><p class="entry-summary">{{ entry.presentation.summary }}</p>
       <dl class="entry-metadata">
         <div><dt>Fecha y hora local</dt><dd>{{ entry.created_at ? (entry.created_at | date:'dd/MM/yyyy HH:mm:ss') : 'Sin fecha registrada' }}</dd></div>
         <div><dt>Responsable</dt><dd>@if (selectedActorLink(); as path) { <a class="person-link" [routerLink]="path" (click)="closeDetail()">{{ actorLabel(entry.actor) }}</a> } @else { {{ actorLabel(entry.actor) }} }</dd></div>
@@ -126,29 +130,40 @@
               <div><a class="button section-link" [routerLink]="flock.path" (click)="closeDetail()">Ir al lote<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a><p class="filter-help">Consulta el estado actual y las operaciones disponibles del lote.</p></div>
             }
           }
+          @if (subjectNavigation(); as link) {
+            <div><a class="button section-link" [routerLink]="link.path" [queryParams]="link.query" (click)="closeDetail()">{{ link.label }}<ion-icon name="chevron-forward-outline" aria-hidden="true" /></a></div>
+          }
         </div>
       </section>
     </div>
   }
   @if (actionError()) { <p class="detail-body field-error" role="alert">{{ actionError() }}</p> }
 </dialog>
-<dialog #flockReversalDialog class="detail-dialog flock-reversal-dialog" aria-labelledby="flock-reversal-title" (cancel)="closeFlockReversal($event)">
-  <header class="detail-heading"><h2 id="flock-reversal-title" tabindex="-1">Confirmar reversión</h2></header>
-  @if (flockReversal(); as reversal) {
-    <form class="detail-body flock-reversal-form" [formGroup]="flockReversalForm" (ngSubmit)="confirmFlockReversal()">
+<dialog #auditConfirmationDialog class="detail-dialog audit-confirmation-dialog" aria-labelledby="audit-confirmation-title" (cancel)="closeAuditConfirmation($event)">
+  <header class="detail-heading"><h2 id="audit-confirmation-title" tabindex="-1">{{ confirmationTitle() }}</h2></header>
+  @if (auditConfirmation(); as reversal) {
+    @let isFlock = reversal.kind === 'reverse_flock_status' || reversal.kind === 'reverse_flock_redistribution';
+    <form class="detail-body audit-confirmation-form" [formGroup]="auditConfirmationForm" (ngSubmit)="confirmAuditCorrection()">
       @if (reversal.kind === 'reverse_flock_status') {
         <p>El lote volverá a <strong>{{ reversal.body.status === 'active' ? 'Activo' : 'En cuarentena' }}</strong>.</p>
-      } @else {
+      } @else if (reversal.kind === 'reverse_flock_redistribution') {
         <p>Se compensará el fraccionamiento y se restituirán las aves según el movimiento original.</p>
+      } @else if (reversal.kind === 'reverse_customer_movement') {
+        <p>Se registrará un movimiento compensatorio en la cuenta corriente.</p>
+      } @else if (reversal.kind === 'cancel_vehicle_maintenance') {
+        <p>La intervención quedará anulada.</p>
+      } @else {
+        <label for="audit-corrected-reading">Kilometraje corregido (km)</label>
+        <input id="audit-corrected-reading" type="text" inputmode="decimal" formControlName="reading" required maxlength="11">
       }
       <p class="filter-help">El registro original quedará en el historial.</p>
-      <label for="flock-reversal-reason">Motivo de la reversión</label>
-      <textarea id="flock-reversal-reason" formControlName="reason" required maxlength="500" rows="3"></textarea>
-      @if (reversalError()) { <p class="field-error flock-reversal-error" role="alert">{{ reversalError() }}</p> }
+      <label for="audit-confirmation-reason">{{ isFlock ? 'Motivo de la reversión' : 'Motivo' }}</label>
+      <textarea id="audit-confirmation-reason" formControlName="reason" required maxlength="500" rows="3"></textarea>
+      @if (reversalError()) { <p class="field-error audit-confirmation-error" role="alert">{{ reversalError() }}</p> }
       <div class="toolbar-actions">
-        <button class="button" type="button" [disabled]="reversalSaving()" (click)="closeFlockReversal()">Volver al detalle</button>
-        <button class="button flock-reversal-submit" type="submit" [disabled]="reversalSaving() || reversalBlocked() || (!reversalUncertain() && reversalReason.invalid)">
-          {{ reversalSaving() ? 'Revirtiendo…' : reversalUncertain() ? 'Reintentar reversión' : 'Confirmar reversión' }}
+        <button class="button" type="button" [disabled]="reversalSaving()" (click)="closeAuditConfirmation()">Volver al detalle</button>
+        <button class="button audit-confirmation-submit" type="submit" [disabled]="reversalSaving() || reversalBlocked() || (!reversalUncertain() && reversalReason.invalid)">
+          {{ reversalSaving() ? 'Guardando…' : reversalUncertain() ? 'Reintentar solicitud' : isFlock ? 'Confirmar reversión' : 'Confirmar acción' }}
         </button>
       </div>
     </form>

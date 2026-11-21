@@ -16,6 +16,7 @@ import { InventoryApi } from '../../../inventory/services/inventory.api';
 import { AuditAction, AuditActorOption, AuditDetail, AuditEntry, AuditPage } from '../../interfaces/audit';
 import { actorKey } from '../../services/audit-presentation';
 import { AuditService } from '../../services/audit.service';
+import { AuditBusinessCorrectionsService } from '../../services/audit-business-corrections.service';
 import { AuditHistoryPage } from './audit-history.page';
 
 const actor = { id: 12, type: 'User', kind: 'person', name: 'Ana histórica', current_name: 'Ana actual', exists: true, status: 'active', can_manage: true } as const;
@@ -47,6 +48,7 @@ describe('Audit history API presentation', () => {
   const inventory = { movement: vi.fn(), reverse: vi.fn() };
   const flockStatus = { change: vi.fn() };
   const fractionation = { reverse: vi.fn() };
+  const businessCorrections = { submit: vi.fn() };
   beforeEach(() => {
     restore = stubNativeDialog(); vi.resetAllMocks(); params.next(convertToParamMap({}));
     user.set({ id: 1, name: 'Auditor', permissions: ['audit.view', 'inventory.adjust'], roles: [] }); session.set({ id: 'session-1' });
@@ -61,6 +63,7 @@ describe('Audit history API presentation', () => {
       { provide: FlockDetailService, useValue: { flock: vi.fn() } },
       { provide: FlockStatusService, useValue: flockStatus },
       { provide: FlockFractionationService, useValue: fractionation },
+      { provide: AuditBusinessCorrectionsService, useValue: businessCorrections },
       { provide: FlockMortalitiesService, useValue: { list: vi.fn(), cancel: vi.fn() } },
     ] });
     fixture = TestBed.createComponent(AuditHistoryPage);
@@ -72,7 +75,7 @@ describe('Audit history API presentation', () => {
   async function openDetail() { (fixture.nativeElement.querySelector('.detail-button') as HTMLButtonElement).click(); await settle(); }
 
   function enterReversalReason(reason: string): void {
-    const field = fixture.nativeElement.querySelector('#flock-reversal-reason') as HTMLTextAreaElement;
+    const field = fixture.nativeElement.querySelector('#audit-confirmation-reason') as HTMLTextAreaElement;
     field.value = reason; field.dispatchEvent(new Event('input'));
   }
 
@@ -102,7 +105,7 @@ describe('Audit history API presentation', () => {
     await settle(); await openDetail();
     await fixture.componentInstance.runAction(statusAction, button(statusAction.label)); await settle();
     expect(text()).toContain('No se pudo verificar la entrada original.');
-    expect(fixture.nativeElement.querySelector('.flock-reversal-dialog').open).toBe(false);
+    expect(fixture.nativeElement.querySelector('.audit-confirmation-dialog').open).toBe(false);
     expect(flockStatus.change).not.toHaveBeenCalled();
   });
 
@@ -142,8 +145,47 @@ describe('Audit history API presentation', () => {
     expect(api.detail).not.toHaveBeenCalled(); expect(inventory.movement).not.toHaveBeenCalled();
     expect(text()).toContain('Evento nuevo explicado por API'); expect(text()).toContain('36,001 kg');
     expect(text()).toContain('Ana histórica'); expect(text()).toContain('Granja histórica'); expect(text()).toContain('60');
-    expect(fixture.nativeElement.querySelectorAll('.module-tabs a')).toHaveLength(9);
+    expect(fixture.nativeElement.querySelectorAll('.module-tabs a')).toHaveLength(11);
     expect(text()).not.toContain('Geografía'); expect(text()).not.toContain('new_backend_event');
+  });
+
+  it('lists vehicles and customers as modules and shows historical breeds under management', async () => {
+    const vehicleId = '01K8Y2N7AA2XQY0YQEBMWVFJ9F';
+    api.entries.mockReturnValue(of(response([
+      { ...entry, log_name: 'vehicles', presentation: { ...entry.presentation,
+        subject: { id: vehicleId, resource: 'vehicle', section: 'fuel', label: 'ABC 1234' } } },
+      { ...entry, id: 6, log_name: 'lots', event: 'breed_created', presentation: { ...entry.presentation,
+        subject: { id: 7, resource: 'breed', section: 'catalog', label: 'Leghorn' } } },
+    ])));
+    await settle();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('a[href="/administracion/vehiculos/' + vehicleId + '?seccion=fuel"]')?.textContent).toContain('ABC 1234');
+    expect(host.querySelector('a[href="/administracion/manejo-lotes/razas"]')?.textContent).toContain('Leghorn');
+    expect(host.querySelectorAll('.module-badge')[1].textContent).toBe('Manejo y sanidad');
+    params.next(convertToParamMap({ modulo: 'customers_and_accounts' }));
+    await settle();
+    expect(api.entries).toHaveBeenLastCalledWith({ log_name: 'customers_and_accounts', page: 1, per_page: 25 });
+  });
+
+  it('confirms an odometer correction only after revalidating the audit action', async () => {
+    const reading: AuditAction = {
+      kind: 'correct_vehicle_reading', label: 'Rectificar lectura', available: true, reason: null,
+      target: { resource: 'vehicle_meter_reading', id: '01K8Y2N7AA2XQY0YQEBMWVFJ9F', vehicle_id: '01K8Y2N7AA2XQY0YQEBMWVFJ9G' },
+    };
+    api.detail.mockReturnValue(of({ data: detail([reading]) }));
+    businessCorrections.submit.mockReturnValue(of({}));
+    await settle(); await openDetail();
+    await fixture.componentInstance.runAction(reading, button(reading.label)); await settle();
+    expect(api.detail).toHaveBeenCalledTimes(2);
+    expect(businessCorrections.submit).not.toHaveBeenCalled();
+    const field = fixture.nativeElement.querySelector('#audit-corrected-reading') as HTMLInputElement;
+    field.value = '1420,5'; field.dispatchEvent(new Event('input'));
+    enterReversalReason('  Lectura ingresada por error  '); await settle();
+    button('Confirmar acción').click();
+    await vi.waitFor(() => expect(api.detail).toHaveBeenCalledTimes(3));
+    expect(businessCorrections.submit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      kind: reading.kind, id: reading.target.id, vehicleId: reading.target.vehicle_id,
+    }), 'Lectura ingresada por error', '1420.5', expect.any(String));
   });
   it('searches actors for audit-only readers and sends exact composite identity filters', async () => {
     await settle(); expect(api.responsibles).toHaveBeenCalledWith('', 1);

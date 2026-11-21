@@ -9,10 +9,13 @@ export const AUDIT_MODULES = [
   { id: 'suppliers_and_catalogs', label: 'Proveedores y catálogos', icon: 'documents-outline' },
   { id: 'identity', label: 'Usuarios y accesos', icon: 'people-outline' },
   { id: 'deliveries', label: 'Repartos', icon: 'car-outline' },
+  { id: 'vehicles', label: 'Vehículos', icon: 'speedometer-outline' },
+  { id: 'customers_and_accounts', label: 'Clientes', icon: 'person-outline' },
   { id: 'reporting', label: 'Reportes', icon: 'bar-chart-outline' },
 ] as const;
 
-export function moduleLabel(name: string | null): string {
+export function moduleLabel(name: string | null, event?: string | null): string {
+  if (name === 'lots' && (event === 'breed_created' || event === 'breed_updated')) return 'Manejo y sanidad';
   return AUDIT_MODULES.find((module) => module.id === name)?.label ?? 'Otros registros';
 }
 export function actorLabel(actor: AuditActor): string {

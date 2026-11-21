@@ -1,4 +1,4 @@
-import { AuditAction, AuditActor, AuditRecord } from '../interfaces/audit';
+import { AuditAction, AuditActor, AuditRecord, AuditSummary } from '../interfaces/audit';
 
 const FLOCK_SECTIONS: Readonly<Record<string, { segment: string; label: string; description: string }>> = {
   eggs_collected: { segment: 'recoleccion', label: 'Ir a postura', description: 'Abre una postura vigente para editarla o borrarla, según tus permisos.' },
@@ -17,6 +17,44 @@ const FLOCK_SECTIONS: Readonly<Record<string, { segment: string; label: string; 
 };
 const FEEDING_EVENTS = new Set(['feed_consumption_recorded', 'feed_consumption_corrected', 'flock_feeding_initialized', 'flock_feeding_manual_changed', 'flock_feeding_automatic_restored', 'flock_feeding_plan_revised']);
 const HEALTH_EVENTS = new Set(['vaccination_application_recorded', 'medicine_application_recorded']);
+
+const VEHICLE_SECTIONS: Readonly<Record<string, string>> = {
+  overview: 'Ver ficha del vehículo',
+  readings: 'Ir a lecturas del odómetro',
+  usages: 'Ir a uso del vehículo',
+  fuel: 'Ir a combustible',
+  maintenance_plans: 'Ir a planes preventivos',
+  maintenance: 'Ir a intervenciones',
+  documents: 'Ir a documentos',
+};
+
+export function auditSubjectLink({ resource, id, section }: AuditSummary['subject']) {
+  if (resource === 'vehicle' && publicId(id) && section && Object.hasOwn(VEHICLE_SECTIONS, section)) {
+    return { path: `/administracion/vehiculos/${id}`, query: { seccion: section }, label: VEHICLE_SECTIONS[section] };
+  }
+  if (resource === 'customer' && publicId(id) && (section === 'profile' || section === 'account')) {
+    return { path: `/administracion/clientes/clientes/${id}`, query: { seccion: section },
+      label: section === 'account' ? 'Ir a cuenta corriente' : 'Ver ficha del cliente' };
+  }
+  if (resource === 'breed' && section === 'catalog' && typeof id === 'number' && Number.isSafeInteger(id) && id > 0) {
+    return { path: '/administracion/manejo-lotes/razas', query: null, label: 'Ir al catálogo de razas' };
+  }
+  return null;
+}
+
+export function businessCorrection({ kind, target }: AuditAction) {
+  const { resource, id, vehicle_id: vehicleId, customer_id: customerId, version } = target;
+  if (!publicId(id)) return null;
+  if (kind === 'reverse_customer_movement' && resource === 'customer_account_movement' && publicId(customerId)) {
+    return { kind, id, customerId } as const;
+  }
+  if (!publicId(vehicleId)) return null;
+  if (kind === 'correct_vehicle_reading' && resource === 'vehicle_meter_reading') return { kind, id, vehicleId } as const;
+  if (kind === 'cancel_vehicle_maintenance' && resource === 'vehicle_maintenance' && validVersion(version)) {
+    return { kind, id, vehicleId, version } as const;
+  }
+  return null;
+}
 
 /** A historical reference enables navigation, never authorizes a correction. */
 export function auditFlockNavigation(entry: AuditRecord): {
@@ -39,6 +77,7 @@ export function auditUserLink(actor: AuditActor): string | null {
     ? `/administracion/usuarios/${encodeURIComponent(String(actor.id))}` : null;
 }
 export function supportedAction(action: AuditAction): boolean {
+  if (businessCorrection(action)) return true;
   if (action.kind === 'reverse_flock_status' || action.kind === 'reverse_flock_redistribution') {
     const resource = action.kind === 'reverse_flock_status' ? 'flock' : 'flock_redistribution';
     return action.target.resource === resource && publicId(action.target.id)
@@ -75,5 +114,6 @@ function validVersion(version: unknown): version is number {
 }
 export function sameAction(left: AuditAction, right: AuditAction): boolean {
   return left.kind === right.kind && left.target.resource === right.target.resource
-    && left.target.id === right.target.id && left.target.flock_id === right.target.flock_id;
+    && left.target.id === right.target.id && left.target.flock_id === right.target.flock_id
+    && left.target.customer_id === right.target.customer_id && left.target.vehicle_id === right.target.vehicle_id;
 }
