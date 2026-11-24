@@ -46,13 +46,30 @@
         <div class="state-panel"><ion-icon name="build-outline" aria-hidden="true" /><h3>Sin mantenimientos para mostrar</h3><p>No hay trabajos registrados con estos filtros.</p></div>
       } @else {
         <div class="record-list">
-          @for (row of rows(); track row.record.id) {
-            <article class="record-card">
-              <div class="record-heading"><time [attr.datetime]="row.record.maintenance_date">{{ row.dateLabel }}</time><span class="badge" [class.cancelled]="row.record.status === 'cancelled'">{{ row.record.status === 'completed' ? 'Realizado' : 'Anulado' }}</span></div>
-              <h3>{{ row.record.description }}</h3><p class="responsible"><ion-icon name="person-outline" aria-hidden="true" />{{ row.record.responsible.name }}</p><strong class="cost">{{ row.costLabel }}</strong>
-              <button #detailTrigger class="detail-link" type="button" [attr.aria-label]="'Ver detalle del mantenimiento del ' + row.dateLabel" (click)="dialog()?.openRecord(row.record, detailTrigger)">Ver detalle <span aria-hidden="true">›</span></button>
-            </article>
-          }
+          <table aria-labelledby="history-title" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">Fecha</th>
+                <th scope="col" role="columnheader">Descripción</th>
+                <th scope="col" role="columnheader">Responsable</th>
+                <th scope="col" role="columnheader" class="record-cost">Costo</th>
+                <th scope="col" role="columnheader">Estado</th>
+                <th scope="col" role="columnheader" aria-label="Detalle"></th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              @for (row of rows(); track row.record.id) {
+                <tr role="row">
+                  <td role="cell" class="record-date"><time [attr.datetime]="row.record.maintenance_date">{{ row.dateLabel }}</time></td>
+                  <td role="cell" class="record-description"><span>{{ row.record.description }}</span></td>
+                  <td role="cell" class="record-responsible"><span class="mobile-label" aria-hidden="true">Responsable</span>{{ row.record.responsible.name }}</td>
+                  <td role="cell" class="record-cost"><span class="mobile-label" aria-hidden="true">Costo</span>{{ row.costLabel }}</td>
+                  <td role="cell" class="record-status"><span class="badge" [class.cancelled]="row.record.status === 'cancelled'">{{ row.record.status === 'completed' ? 'Realizado' : 'Anulado' }}</span></td>
+                  <td role="cell" class="record-detail"><button #detailTrigger class="detail-link" type="button" [attr.aria-label]="'Ver detalle: ' + row.record.description + ' (' + row.dateLabel + ')'" (click)="dialog()?.openRecord(row.record, detailTrigger)">Ver detalle <span aria-hidden="true">›</span></button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
         </div>
         <nav class="pagination" aria-label="Páginas del historial"><button type="button" [disabled]="page() <= 1" (click)="goToPage(-1)">Anterior</button><span aria-live="polite">Página {{ page() }} de {{ lastPage() }} · {{ total() }} registros</span><button type="button" [disabled]="page() >= lastPage()" (click)="goToPage(1)">Siguiente</button></nav>
       }

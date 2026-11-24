@@ -12,7 +12,7 @@ import mapboxgl from 'mapbox-gl/esm';
 import type { LngLatBounds, Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import { EMPTY, Subject, catchError, distinctUntilChanged, finalize, forkJoin, interval, map, merge, of, switchMap, tap } from 'rxjs';
 
-import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
+import { MAPBOX_ACCESS_TOKEN, mapboxWorkerUrl } from '../../core/config/mapbox.config';
 import { AuthStore } from '../../core/auth/auth.store';
 import { hasAnyPermission } from '../../core/auth/permission-keys';
 import { AdminUnitContextService } from '../admin/services/admin-unit-context.service';
@@ -382,6 +382,7 @@ export class AdminDeliveriesPage {
     }
     try {
       mapboxgl.accessToken = this.accessToken;
+      mapboxgl.workerUrl = mapboxWorkerUrl();
       this.map = new mapboxgl.Map({
         container: host,
         style: 'mapbox://styles/mapbox/light-v11',

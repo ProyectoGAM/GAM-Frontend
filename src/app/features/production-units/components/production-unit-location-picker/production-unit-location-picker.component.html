@@ -1,5 +1,5 @@
-<section class="location-picker" [class.read-only]="readOnly()" [attr.aria-label]="label()">
-  @if (readOnly()) {
+<section class="location-picker" [class.read-only]="readOnly()" [class.compact-preview]="compactPreview()" [attr.aria-label]="label()">
+  @if (readOnly() && !compactPreview()) {
     <p class="address-display" aria-live="polite">
       @if (addressText()) {
         {{ addressText() }}
@@ -105,7 +105,9 @@
   @if (!required() && !readOnly() && (location() || addressText())) {
     <button class="confirm-address" type="button" [disabled]="disabled()" (click)="clearOptionalLocation()">Quitar ubicación</button>
   }
-  <span class="screen-reader-only" id="production-unit-location-guidance">Escribí una dirección, elegí una sugerencia o marcá el punto en el mapa.</span>
+  @if (!readOnly()) {
+    <span class="screen-reader-only" id="production-unit-location-guidance">Escribí una dirección, elegí una sugerencia o marcá el punto en el mapa.</span>
+  }
   @if (validationError()) {
     <p class="location-error" role="alert">{{ validationError() }}</p>
   }

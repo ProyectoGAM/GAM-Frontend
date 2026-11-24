@@ -4,13 +4,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonIcon, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, createOutline, addOutline, walletOutline, powerOutline } from 'ionicons/icons';
+import { addOutline, arrowBackOutline, createOutline, documentTextOutline, locationOutline, personOutline, powerOutline, refreshOutline, walletOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { isAdminUser } from '../../../../core/auth/access-policy';
 import { formatUyuMoney } from '../../../../shared/utils/uyu-money';
 import { DeliveryStop } from '../../../deliveries/delivery.models';
+import { ProductionUnitLocationPickerComponent } from '../../../production-units/components/production-unit-location-picker/production-unit-location-picker.component';
+import { isValidProductionUnitPoint } from '../../../production-units/types/production-unit-location.type';
 import { CustomerAccountOperationComponent } from '../../components/customer-account-operation/customer-account-operation.component';
 import { Customer, CustomerAccountSnapshot, CustomerMovement, CustomerStatement, MovementFilters, Pagination } from '../../interfaces/customer';
 import { CustomerMovementType, CustomerStatus, PaymentMethod } from '../../types/customer.types';
@@ -25,7 +27,7 @@ type OperationSelection = { mode: 'payment' | 'adjustment' | 'reversal'; movemen
   selector: 'app-customer-detail',
   templateUrl: './customer-detail.page.html',
   styleUrls: ['../../customers.scss', './customer-detail.page.scss'],
-  imports: [RouterLink, DatePipe, IonIcon, IonModal, CustomerAccountOperationComponent],
+  imports: [RouterLink, DatePipe, IonIcon, IonModal, CustomerAccountOperationComponent, ProductionUnitLocationPickerComponent],
 })
 export class CustomerDetailPage {
   private readonly api = inject(CustomersApi);
@@ -42,6 +44,15 @@ export class CustomerDetailPage {
   private readonly statusTitle = viewChild.required<ElementRef<HTMLElement>>('statusTitle');
   readonly operationForm = viewChild(CustomerAccountOperationComponent);
   readonly customer = signal<Customer | null>(null);
+  protected readonly customerLocation = computed(() => {
+    const customer = this.customer();
+    if (!customer?.has_location || customer.latitude == null || customer.longitude == null
+      || !String(customer.latitude).trim() || !String(customer.longitude).trim()) return null;
+
+    const latitude = Number(customer.latitude);
+    const longitude = Number(customer.longitude);
+    return isValidProductionUnitPoint(latitude, longitude) ? { latitude, longitude } : null;
+  });
   readonly account = signal<CustomerAccountSnapshot | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -77,7 +88,7 @@ export class CustomerDetailPage {
   readonly paymentLabels: Record<PaymentMethod, string> = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro' };
 
   constructor() {
-    addIcons({ arrowBackOutline, createOutline, addOutline, walletOutline, powerOutline });
+    addIcons({ addOutline, arrowBackOutline, createOutline, documentTextOutline, locationOutline, personOutline, powerOutline, refreshOutline, walletOutline });
     const returnUrl: unknown = this.router.getCurrentNavigation()?.extras.state?.['customersReturnUrl'];
     this.returnUrl = typeof returnUrl === 'string' && returnUrl.startsWith('/administracion/clientes/clientes') ? returnUrl : '/administracion/clientes/clientes';
     this.destroyRef.onDestroy(() => { this.requestId++; this.movementRequest++; this.deliveryRequest++; });
@@ -94,7 +105,9 @@ export class CustomerDetailPage {
       const response = await firstValueFrom(this.api.detail(id));
       if (request !== this.requestId) return;
       this.customer.set(response.data); this.account.set(response.data.account ?? null);
-      if (this.canViewAccount()) { this.tab.set('account'); void this.loadMovements(); }
+      if (this.canViewAccount() && this.route.snapshot.queryParamMap?.get('seccion') !== 'profile') {
+        this.tab.set('account'); void this.loadMovements();
+      }
       else this.tab.set('data');
     } catch (error) { if (request === this.requestId) this.error.set(customerErrorMessage(error, 'No se pudo cargar la ficha del cliente.')); }
     finally { if (request === this.requestId) this.loading.set(false); }
@@ -103,6 +116,7 @@ export class CustomerDetailPage {
   selectTab(tab: 'account' | 'deliveries' | 'data'): void {
     this.tab.set(tab);
     if (tab === 'deliveries' && !this.deliveryMeta()) void this.loadDeliveries();
+    if (tab === 'account' && !this.movementMeta() && !this.movementLoading()) void this.loadMovements();
   }
 
   async loadMovements(page = 1): Promise<void> {

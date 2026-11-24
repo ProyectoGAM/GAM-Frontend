@@ -12,7 +12,6 @@
           </p>
           @if (eggEquivalence(); as equivalent) {
             <div class="egg-equivalence">
-              <span class="hint">Equivalencia según catálogo</span>
               @if (presentations().length > 1) {
                 <button class="equivalence-toggle" type="button"
                   [attr.aria-label]="equivalent + '. Cambiar presentación.'"
@@ -21,8 +20,9 @@
                   <ion-icon [icon]="cycleIcon" aria-hidden="true" />
                 </button>
               } @else {
-                <strong class="hint">{{ equivalent }}</strong>
+                <strong class="equivalence-value">{{ equivalent }}</strong>
               }
+              <p class="hint equivalence-note">Equivalencia según catálogo</p>
             </div>
           } @else {
             @switch (eggCatalog.state().status) {
@@ -98,6 +98,9 @@
             } @empty { <strong class="value value-text">Sin gastos</strong> }
           </div>
           @if (expenseCard.data?.fuentes_sin_permiso?.length) { <p class="hint">Total parcial por permisos.</p> }
+          @if (canOpenExpenses()) {
+            <a class="panel-link" routerLink="/administracion/gastos" [queryParams]="expenseQuery()">Ver historial de gastos</a>
+          }
         </app-summary-card>
       }
     </div>

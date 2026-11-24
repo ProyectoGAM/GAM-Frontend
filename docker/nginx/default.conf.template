@@ -1,6 +1,7 @@
 map $uri $gam_cache_control {
   default "no-cache";
   "/index.html" "no-store";
+  ~*^/assets/mapbox/ "no-cache";
   ~*^/assets/ "public, max-age=604800";
   ~*\.(?:css|js|mjs)$ "public, max-age=31536000, immutable";
 }

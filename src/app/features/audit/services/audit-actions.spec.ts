@@ -1,11 +1,27 @@
 import { AuditAction, AuditActor, AuditRecord } from '../interfaces/audit';
-import { auditFlockNavigation, auditUserLink, supportedAction } from './audit-actions';
+import { auditFlockNavigation, auditSubjectLink, auditUserLink, businessCorrection, supportedAction } from './audit-actions';
 
 const actor: AuditActor = { id: 5, type: 'User', kind: 'person', name: 'Ana', current_name: 'Ana', exists: true, status: 'disabled', can_manage: true };
 const flockId = '01K8Y2N7AA2XQY0YQEBMWVFJ9F';
 const record: AuditRecord = { id: 1, event: 'daily_weighing_entry_added', actor, created_at: null,
   presentation: { title: 'Pesaje', summary: 'Ingreso registrado', subject: { resource: 'flock', id: flockId, label: null }, production_unit: null } };
 describe('Audit destinations', () => {
+  it('requires public IDs and recognized sections for business links', () => {
+    expect(auditSubjectLink({ resource: 'customer', id: flockId, section: 'account', label: null })).toMatchObject({
+      path: `/administracion/clientes/clientes/${flockId}`, query: { seccion: 'account' },
+    });
+    expect(auditSubjectLink({ resource: 'vehicle', id: flockId, section: 'constructor', label: null })).toBeNull();
+    expect(auditSubjectLink({ resource: 'vehicle', id: 5, section: 'fuel', label: null })).toBeNull();
+  });
+
+  it('requires the confirmed vehicle version or the public customer ID for business commands', () => {
+    const original: AuditAction = { kind: 'cancel_vehicle_maintenance', label: 'Anular', available: true, reason: null,
+      target: { resource: 'vehicle_maintenance', id: flockId, vehicle_id: flockId, version: 3 } };
+    expect(businessCorrection(original)).toMatchObject({ kind: original.kind, vehicleId: flockId, version: 3 });
+    expect(supportedAction({ ...original, target: { ...original.target, version: undefined } })).toBe(false);
+    expect(supportedAction({ ...original, kind: 'reverse_customer_movement',
+      target: { resource: 'customer_account_movement', id: flockId, customer_id: flockId } })).toBe(true);
+  });
   it('links public flock references even without a historical label', () => {
     expect(auditFlockNavigation(record)).toEqual({ path: `/administracion/lotes/lotes/${flockId}`, label: 'Ver lote', section: {
       path: `/administracion/lotes/lotes/${flockId}/pesajes`, label: 'Ir a pesajes', description: expect.stringContaining('individual o grupal'),

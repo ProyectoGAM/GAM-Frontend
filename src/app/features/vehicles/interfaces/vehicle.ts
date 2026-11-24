@@ -180,3 +180,12 @@ export interface VehicleListResponse {
 }
 
 export interface VehicleEnvelope { data: Vehicle; }
+
+export interface VehicleHistoryPage<T> {
+  data: { data: T[]; current_page: number; last_page: number };
+}
+
+export interface VehicleMaintenanceHistoryEntry extends Pick<VehicleMaintenance,
+  'status' | 'completed_at' | 'description' | 'cost_amount' | 'cost_currency'> {
+  public_id: string;
+}

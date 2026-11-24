@@ -298,7 +298,11 @@ Los temas y los diez tipos de reporte usan iconos de Ionicons coherentes entre l
 
 Se verificó en Chrome el dibujo SVG de los cuatro temas y los diez tipos, la consulta real desde ambos recorridos, el creador y la presentación móvil en claro/oscuro sin desbordamientos. Las 19 pruebas de reporting, lint y build de producción pasaron después de incorporar los iconos.
 
-La entrada `/administracion/reportes/reportes` muestra cuatro necesidades: producción/lotes, alimentación/cuidados, inventario/salida de huevos y repartos. Cada tema tiene su subpágina `temas/:topic`, y cada reporte su consulta en `ver/:sourceKey`. El catálogo autorizado del backend determina qué opciones están disponibles; la página inicial no ejecuta consultas ni carga archivos o configuraciones.
+La entrada `/administracion/reportes/reportes` muestra siete categorías con enlaces directos a sus consultas: producción/lotes, alimentación/cuidados, inventario/salida de huevos, repartos, clientes/cuentas, vehículos y gastos. Distribuye las 23 fuentes del backend y oculta categorías o enlaces no autorizados. Cada tema conserva su subpágina `temas/:topic`, y cada reporte su consulta en `ver/:sourceKey`. La página inicial no ejecuta consultas ni carga archivos o configuraciones.
+
+Las consultas predefinidas muestran fechas y atajos de este mes, mes anterior calendario y todo el historial. Los filtros principales usan selectores con búsqueda; condiciones adicionales, exclusiones y selección múltiple se encuentran en la modal de filtros, con paginación de opciones. Las fuentes de existencias actuales omiten el período. Cambiar entre vistas predefinidas o cada registro conserva el período y los filtros. Excel/PDF exportan el resultado aplicado y se deshabilitan mientras haya cambios pendientes. El total recolectado se obtiene mediante otra agregación del backend con los mismos filtros, sin sumar la página visible ni convertir cantidades a punto flotante. Si falla esa agregación opcional, la tabla sigue disponible y se omite el total.
+
+Este rediseño abarca la portada y la consulta predefinida. El creador personalizado conserva su recorrido y sus diez fuentes anteriores; la apertura de configuraciones guardadas mantiene su interfaz existente.
 
 `guardados` reúne las consultas frecuentes y `archivos` las descargas. Un enlace a un reporte guardado usa `?guardado=:id` y recupera su configuración directamente desde el API, también después de recargar. Se puede editar, guardar cambios, guardar como otro reporte o eliminar con confirmación. Eliminar una configuración no elimina registros de la granja.
 
@@ -325,3 +329,15 @@ La validación de esta corrección incluyó 490 pruebas en la suite completa y 3
 Tras separar las acciones y añadir las duraciones, pasaron las 496 pruebas del frontend (46 específicas de reporting/descargas), lint, build y la auditoría de dependencias de producción. La sincronización de Android/iOS incorpora Clipboard. El recorrido de Chrome comprobó los siete plazos contra el API real para PDF/Excel, retención del archivo, copia real desde ambos accesos y llamada independiente a compartir mediante una implementación web controlada, además de enlaces sin sesión y teléfono claro/oscuro. No se automatizó la hoja del sistema operativo ni se probó un dispositivo físico.
 
 La verificación local del 12 de octubre de 2026 incluyó una suite completa de 473 pruebas aprobadas; tras los ajustes finales, las 19 pruebas específicas de reporting volvieron a pasar. Chrome contra Docker Compose aprobó el recorrido de consulta, casillas, resumen por galpón, guardado/edición, descarga real de Excel/PDF, enlace firmado sin sesión, biblioteca, archivos, confirmación de eliminación y teléfono en oscuro, sin excepciones JavaScript. Un recorrido adicional en teléfono claro verificó elegir tema/reporte, conservar datos al volver al tema y el atajo “Este mes”. El lint y la compilación de producción se verificaron; continúan los avisos de SCSS/CommonJS, incluyendo el tamaño del estilo de Reportes, por debajo del límite de error configurado.
+
+## Ficha de clientes y ubicación
+
+La ficha agrupa deuda, saldo a favor y fecha de consulta en un resumen de cuenta,
+con navegación por Cuenta corriente, Entregas y Datos y observaciones. Esta última
+sección organiza identificación/contacto, ubicación/visita y observaciones.
+La ubicación se muestra en un mapa Mapbox de solo lectura cuando las coordenadas
+son válidas, centrado en el punto guardado con zoom 16 y gestos cooperativos.
+Sin ubicación válida se informa que el punto no está marcado. Se reutiliza la
+vista compacta del selector de ubicación, sin búsqueda ni edición de coordenadas.
+Los enlaces del historial pueden abrir directamente la ficha (`seccion=profile`)
+o la cuenta corriente (`seccion=account`), respetando los permisos vigentes.

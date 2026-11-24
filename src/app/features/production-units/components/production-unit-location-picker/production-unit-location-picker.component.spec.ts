@@ -82,10 +82,14 @@ describe('ProductionUnitLocationPickerComponent', () => {
     });
   });
 
-  async function render(initialLocation: { address?: string | null; latitude: number | string | null; longitude: number | string | null } | null = null, readOnly = false, initialViewport?: { center: [number, number]; zoom: number }) {
+  async function render(initialLocation: { address?: string | null; latitude: number | string | null; longitude: number | string | null } | null = null, readOnly = false, initialViewport?: { center: [number, number]; zoom: number }, compactPreview = false) {
     fixture = TestBed.createComponent(ProductionUnitLocationPickerComponent);
     fixture.componentRef.setInput('initialLocation', initialLocation);
     fixture.componentRef.setInput('readOnly', readOnly);
+    if (compactPreview) {
+      fixture.componentRef.setInput('compactPreview', true);
+      fixture.componentRef.setInput('required', false);
+    }
     if (initialViewport) fixture.componentRef.setInput('initialViewport', initialViewport);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -107,6 +111,20 @@ describe('ProductionUnitLocationPickerComponent', () => {
   function loadMap(): void {
     mapboxState.mapListeners.get('load')?.();
   }
+
+  it('shows a compact read-only preview centered on the saved point without looking up an address', async () => {
+    await render({ latitude: '-34.3395000', longitude: '-56.7109000' }, true, undefined, true);
+    loadMap();
+    fixture.detectChanges();
+
+    expect(mapboxState.mapOptions).toMatchObject({ center: [-56.7109, -34.3395], zoom: 16, cooperativeGestures: true });
+    expect(mapboxState.markerCoordinates).toEqual([-56.7109, -34.3395]);
+    expect(mapboxState.markerOptions).toMatchObject({ draggable: false });
+    expect(mapboxState.mapListeners.has('click')).toBe(false);
+    expect(fixture.nativeElement.querySelector('.compact-preview .map-canvas')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('input, .address-display')).toBeNull();
+    expect(reverse).not.toHaveBeenCalled();
+  });
 
   const place = (id: string, address: string, longitude: number, latitude: number): MapboxPlace => ({
     id,

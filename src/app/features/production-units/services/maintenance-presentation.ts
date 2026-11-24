@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthUser } from '../../../core/auth/auth.types';
 import { isAdminUser } from '../../../core/auth/access-policy';
 import { hasAnyPermission } from '../../../core/auth/permission-keys';
+import { formatUyuMoney } from '../../../shared/utils/uyu-money';
+import { MaintenanceCostTotal } from '../interfaces/installation-maintenance.interface';
 
 export function canManageMaintenance(user: AuthUser | null): boolean {
   return isAdminUser(user) || hasAnyPermission(user?.permissions, 'can_manage_poultry_houses');
@@ -25,9 +27,16 @@ export function maintenanceCost(value: string): string | null {
   return `${BigInt(whole)}.${decimals.padEnd(2, '0')}`;
 }
 
-export function maintenanceDateLabel(value: string): string {
+export function maintenanceDateLabel(value: string, month: 'short' | '2-digit' = 'short'): string {
   const date = new Date(value + 'T12:00:00Z');
-  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date) : value;
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es-UY', { day: '2-digit', month, year: 'numeric', timeZone: 'UTC' }).format(date) : value;
+}
+
+export function formatMaintenanceCost({ amount, currency }: MaintenanceCostTotal): string {
+  const formatted = formatUyuMoney(amount);
+  if (!formatted.startsWith('$')) return formatted;
+  const [whole, fraction = ''] = formatted.split(',');
+  return `${whole},${fraction.padEnd(2, '0')} ${currency}`;
 }
 
 export function maintenanceTimestampLabel(value: string | null): string {

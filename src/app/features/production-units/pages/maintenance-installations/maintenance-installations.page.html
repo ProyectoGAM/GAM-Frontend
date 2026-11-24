@@ -20,17 +20,42 @@
       </button>
     </div>
     @if (selectedUnitName(); as unitName) { <p class="scope">UP: {{ unitName }}</p> }
-    <p class="count" aria-live="polite">{{ visibleInstallations().length }} instalaciones</p>
+    <p class="count" aria-live="polite">{{ visibleInstallations().length }} instalaciones
+      @if (order() !== 'name') { · {{ order() === 'cost-desc' ? 'Mayor costo en UYU primero' : 'Menor costo en UYU primero' }} }
+    </p>
     @if (!visibleInstallations().length) {
       <div class="state-panel"><h2>Sin instalaciones para mostrar</h2><p>No hay instalaciones que coincidan con la unidad productiva y los filtros seleccionados.</p></div>
     } @else {
       <div class="installation-list">
-        @for (house of visibleInstallations(); track house.id) {
-          <a class="installation-card" [routerLink]="['/administracion/ubicaciones/mantenimiento', house.productionUnit.id, 'galpon', house.id]" [attr.aria-label]="'Ver mantenimientos de ' + house.name">
-            <ion-icon class="symbol" name="build-outline" aria-hidden="true" /><div class="copy"><span class="type">{{ house.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</span><h2>{{ house.name }}</h2><p>{{ house.productionUnit.name }}</p><span class="card-action">Ver mantenimientos</span></div><ion-icon name="chevron-forward-outline" aria-hidden="true" />
+        @for (row of visibleInstallations(); track row.house.id) {
+          @let house = row.house;
+          <a class="installation-card" [routerLink]="['/administracion/ubicaciones/mantenimiento', house.productionUnit.id, 'galpon', house.id]"
+            [attr.aria-labelledby]="'maintenance-action-' + house.id + ' maintenance-house-' + house.id"
+            [attr.aria-describedby]="'maintenance-cost-' + house.id">
+            <ion-icon class="symbol" name="build-outline" aria-hidden="true" />
+            <div class="copy">
+              <span class="type">{{ house.type === 'poultry' ? 'Galpón avícola' : 'Planta de ración' }}</span>
+              <h2 [id]="'maintenance-house-' + house.id">{{ house.name }}</h2>
+              <p>{{ house.productionUnit.name }}</p>
+              <div class="installation-cost" [id]="'maintenance-cost-' + house.id">
+                <span>Costo total de mantenimiento</span>
+                @if (row.costLabels; as labels) {
+                  @for (label of labels; track $index) { <strong>{{ label }}</strong> }
+                } @else if (row.costLabels === null) {
+                  <span>No disponible</span>
+                } @else {
+                  <span>Calculando…</span>
+                }
+              </div>
+              <span class="card-action" [id]="'maintenance-action-' + house.id">Ver mantenimientos</span>
+            </div>
+            <ion-icon name="chevron-forward-outline" aria-hidden="true" />
           </a>
         }
       </div>
+      @if (hasUnavailableCosts()) {
+        <ion-button class="retry-costs" fill="outline" (click)="retryCosts()">Reintentar costos no disponibles</ion-button>
+      }
     }
   }
 
@@ -65,6 +90,14 @@
           <option value="all">Galpones y plantas</option>
           <option value="poultry">Galpones avícolas</option>
           <option value="feed">Plantas de ración</option>
+        </select>
+      </div>
+      <div class="filter-section">
+        <label for="maintenance-filter-order">Ordenar por</label>
+        <select id="maintenance-filter-order" [value]="draftOrder()" (change)="changeOrder($event)">
+          <option value="name">Nombre (A–Z)</option>
+          <option value="cost-desc">Mayor costo histórico (UYU)</option>
+          <option value="cost-asc">Menor costo histórico (UYU)</option>
         </select>
       </div>
     </div>

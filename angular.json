@@ -31,6 +31,11 @@
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "assets"
+              },
+              {
+                "glob": "{worker,shared,hd.worker}.js",
+                "input": "node_modules/mapbox-gl/dist/esm",
+                "output": "assets/mapbox"
               }
             ],
             "styles": ["src/global.scss", "src/theme/variables.scss", "node_modules/leaflet/dist/leaflet.css"],

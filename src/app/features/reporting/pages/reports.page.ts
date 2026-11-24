@@ -6,8 +6,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, arrowBackOutline, arrowForwardOutline, barChartOutline, basketOutline, bookmarksOutline, calendarOutline, carOutline, checkmarkOutline, clipboardOutline, closeOutline, copyOutline, createOutline, cubeOutline, documentTextOutline, downloadOutline, eggOutline, enterOutline, heartOutline, layersOutline, listOutline, medicalOutline, nutritionOutline, optionsOutline, refreshOutline, scaleOutline, searchOutline, shareSocialOutline, swapHorizontalOutline, timeOutline, trashOutline } from 'ionicons/icons';
-import { EMPTY, Subject, Subscription, catchError, combineLatest, debounceTime, finalize, firstValueFrom, map, switchMap, takeUntil, timer } from 'rxjs';
+import { addOutline, arrowBackOutline, arrowForwardOutline, barChartOutline, basketOutline, bookmarksOutline, calendarOutline, carOutline, checkmarkOutline, clipboardOutline, closeOutline, constructOutline, copyOutline, createOutline, cubeOutline, documentTextOutline, downloadOutline, eggOutline, enterOutline, heartOutline, layersOutline, listOutline, medicalOutline, nutritionOutline, optionsOutline, peopleOutline, refreshOutline, scaleOutline, searchOutline, shareSocialOutline, swapHorizontalOutline, timeOutline, trashOutline } from 'ionicons/icons';
+import { EMPTY, Subject, Subscription, catchError, combineLatest, debounceTime, finalize, firstValueFrom, map, merge, of, switchMap, takeUntil, timer } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../admin/services/admin-unit-context.service';
 import { ReportTableComponent } from '../components/report-table.component';
@@ -15,7 +15,10 @@ import { ReportExport, ReportOptions, ReportPreset, ReportQuery, ReportResult, R
 import { queryFromForm } from '../services/report-query';
 import { ReportingService } from '../services/reporting.service';
 import { ReportFieldPickerComponent } from '../components/report-field-picker.component';
-import { reportHelp, reportIcons, reportTopics } from '../services/report-presentation';
+import { customReportSources, reportHelp, reportIcons, reportNames, reportTopics } from '../services/report-presentation';
+import { FilterDialogComponent } from '../../../shared/ui/filter-dialog/filter-dialog.component';
+import { SearchableSelectComponent } from '../../../shared/ui/searchable-select/searchable-select.component';
+import { formatReportCell } from '../services/report-query';
 import { InfoHelpComponent } from '../../../shared/components/info-help.component';
 import { ReportShareDialogComponent } from '../components/report-share-dialog.component';
 import { reportFieldHelp, reportHelpText, reportOptionLabel } from '../services/report-help';
@@ -23,7 +26,7 @@ import { reportFieldHelp, reportHelpText, reportOptionLabel } from '../services/
 type FilterForm = FormGroup<{ field: FormControl<string>; operator: FormControl<string>; value: FormControl<string> }>;
 
 @Component({
-  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, InfoHelpComponent, ReportShareDialogComponent],
+  selector: 'app-reports', imports: [ReactiveFormsModule, IonIcon, IonSpinner, ReportTableComponent, RouterLink, DatePipe, NgTemplateOutlet, ReportFieldPickerComponent, InfoHelpComponent, ReportShareDialogComponent, FilterDialogComponent, SearchableSelectComponent],
   templateUrl: './reports.page.html', styleUrl: './reports.page.scss',
 })
 export class ReportsPage {
@@ -43,10 +46,19 @@ export class ReportsPage {
   readonly screen = this.route.snapshot.data['screen'] as 'home' | 'topic' | 'saved' | 'files' | 'create' | 'view' ?? 'home';
   readonly topicKey = signal(this.route.snapshot.paramMap.get('topic'));
   readonly topics = computed(() => reportTopics.filter(topic => this.sources().some(source => topic.sources.includes(source.key))));
+  readonly categoryCards = computed(() => this.topics().map(topic => ({ ...topic, reports: topic.sources.flatMap(key => {
+    const source = this.sources().find(source => source.key === key);
+    return source ? [{ key, label: reportNames[key] ?? source.label }] : [];
+  }) })));
+  readonly sourceTopic = computed(() => reportTopics.find(topic => topic.sources.includes(this.source()?.key ?? '')));
+  readonly standardChoices = computed(() => (this.source()?.standard_queries ?? []).map((query, index) => ({ index, label: this.source()?.key === 'lots.egg-production' ? ['Por día y lote', 'Por mes y galpón', 'Por galpón'][index] ?? query.label : query.label })));
+  private readonly savedReportRoute = signal(Boolean(this.route.snapshot.queryParamMap.get('guardado')));
+  readonly standardView = computed(() => this.screen === 'view' && !this.savedReportRoute());
   readonly topic = computed(() => this.topics().find(topic => topic.key === this.topicKey()));
   readonly topicSources = computed(() => this.sources().filter(source => this.topic()?.sources.includes(source.key)));
   readonly creationTopic = signal<string | null>(null);
-  readonly creationSources = computed(() => this.sources().filter(source => reportTopics.find(topic => topic.key === this.creationTopic())?.sources.includes(source.key)));
+  readonly creationTopics = computed(() => this.topics().filter(topic => topic.sources.some(key => customReportSources.includes(key))));
+  readonly creationSources = computed(() => this.sources().filter(source => customReportSources.includes(source.key) && reportTopics.find(topic => topic.key === this.creationTopic())?.sources.includes(source.key)));
   readonly help = reportHelp;
   readonly reportIcons = reportIcons;
   readonly helpText = reportHelpText;
@@ -56,7 +68,14 @@ export class ReportsPage {
   readonly deleteCandidate = signal<ReportPreset | null>(null);
   readonly selectedStandard = signal<number | null>(null);
   readonly activeExport = computed(() => this.exports().find(item => item.source_key === this.source()?.key) ?? null);
-  readonly pageTitle = computed(() => ({ home: 'Reportes', topic: this.topic()?.label ?? 'Reportes', saved: 'Mis reportes guardados', files: 'Reportes exportados', create: 'Crear un reporte', view: this.source()?.label ?? 'Consultar reporte' })[this.screen]);
+  readonly pageTitle = computed(() => ({ home: 'Reportes', topic: this.topic()?.label ?? 'Reportes', saved: 'Mis reportes guardados', files: 'Reportes exportados', create: 'Crear un reporte', view: this.standardView() ? reportNames[this.source()?.key ?? ''] ?? this.source()?.label ?? 'Consultar reporte' : this.source()?.label ?? 'Consultar reporte' })[this.screen]);
+  readonly eggTotal = signal<string | null>(null);
+  readonly activePeriod = signal<'all' | 'month' | 'previous' | 'custom'>('all');
+  readonly appliedPeriodLabel = computed(() => {
+    const query = this.appliedQuery();
+    const date = (value: string) => value.split('-').reverse().join('/');
+    return query?.from && query.to ? `${date(query.from)} — ${date(query.to)}` : query?.from ? `Desde ${date(query.from)}` : query?.to ? `Hasta ${date(query.to)}` : this.source()?.supports_date_range ? 'Todo el historial' : 'Existencias actuales';
+  });
   private readonly requests = new Subject<{ source: ReportSource; query: ReportQuery; advance?: boolean }>();
   private readonly cancelRequests = new Subject<void>();
   private polling = new Map<number, Subscription>();
@@ -113,6 +132,14 @@ export class ReportsPage {
   readonly hasBasicFilters = signal(false);
   readonly basicFilters = computed(() => this.filterDefinitions().map((definition, index) => ({ ...definition, index })).filter(definition => ['production_unit_id', 'poultry_house_id', 'flock_id'].includes(definition.key)));
   readonly extraFilters = computed(() => this.filterDefinitions().map((definition, index) => ({ ...definition, index })).filter(definition => !['production_unit_id', 'poultry_house_id', 'flock_id'].includes(definition.key)));
+  readonly primaryFilters = computed(() => {
+    const definitions = this.filterDefinitions().map((definition, index) => ({ ...definition, index }));
+    const priority = ['poultry_house_id', 'flock_id', 'customer_id', 'vehicle_id', 'product_id', 'recipe_id', 'delivery_id'];
+    const preferred = priority.flatMap(key => definitions.filter(definition => definition.key === key));
+    return [...preferred, ...definitions.filter(definition => definition.key !== 'production_unit_id' && definition.options_source && !priority.includes(definition.key))].slice(0, 2);
+  });
+  readonly simpleOptions = computed(() => Object.fromEntries(Object.entries(this.options()).map(([key, options]) => [key, options?.data.map(option => ({ value: String(option.value), label: option.label })) ?? []])));
+  readonly activeFilterCount = signal(0);
 
   constructor() {
     addIcons({
@@ -127,17 +154,22 @@ export class ReportsPage {
       'refresh-outline': refreshOutline, 'scale-outline': scaleOutline, 'search-outline': searchOutline,
       'share-social-outline': shareSocialOutline, 'swap-horizontal-outline': swapHorizontalOutline,
       'time-outline': timeOutline, 'trash-outline': trashOutline,
+      'people-outline': peopleOutline, 'construct-outline': constructOutline,
     });
     this.requests.pipe(switchMap(({ source, query, advance = true }) => {
       const unitId = source.filters['production_unit_id'] ? this.unitContext?.selectedId() : undefined;
       this.busy.set(true); this.error.set(null);
-      return this.api.preview(source.key, query).pipe(takeUntil(this.cancelRequests),
-        map((response) => ({ result: response.data, query, unitId, advance })),
+      const total = this.standardView() && source.key === 'lots.egg-production'
+        ? this.api.preview(source.key, { ...query, groupings: [], metrics: ['egg_count'], sorts: [], page: 1 }).pipe(map(response => response.data.rows[0]?.['egg_count'] ?? '0'), catchError(() => of(null)))
+        : of(null);
+      return combineLatest({ total, response: this.api.preview(source.key, query) }).pipe(takeUntil(this.cancelRequests),
+        map(({ response, total }) => ({ result: response.data, total, query, unitId, advance })),
         catchError((error: unknown) => { this.error.set(this.message(error)); return EMPTY; }),
         finalize(() => this.busy.set(false)));
     }), takeUntilDestroyed()).subscribe((response) => {
       if (response.unitId !== undefined && (!this.dashboardReady() || response.unitId !== this.unitContext?.selectedId())) return;
       this.result.set(response.result); this.appliedQuery.set(response.query);
+      this.eggTotal.set(response.total === null ? null : formatReportCell(response.total, 'quantity'));
       if (this.screen === 'create' && response.advance) this.goToStep(4);
       const source = this.source();
       if (source) {
@@ -146,6 +178,7 @@ export class ReportsPage {
       }
     });
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => { this.pendingChanges.set(true); this.updateSortOptions(); });
+    merge(this.form.controls.from.valueChanges, this.form.controls.to.valueChanges).pipe(takeUntilDestroyed()).subscribe(() => this.activePeriod.set('custom'));
     effect(() => {
       const id = this.auth.user()?.id ?? null;
       if (id === this.identity) return;
@@ -184,6 +217,7 @@ export class ReportsPage {
     document.addEventListener('visibilitychange', this.visibilityChanged);
     this.destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', this.visibilityChanged));
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(debounceTime(0), takeUntilDestroyed()).subscribe(() => {
+      this.savedReportRoute.set(Boolean(this.route.snapshot.queryParamMap.get('guardado')));
       this.topicKey.set(this.route.snapshot.paramMap.get('topic'));
       if (this.state() === 'ready' && ['view', 'create'].includes(this.screen)) void this.openRouteReport();
     });
@@ -213,7 +247,7 @@ export class ReportsPage {
     this.cancelRequests.next(); this.clearLink(); this.selectedPreset.set(null); this.presetName.setValue('');
     const source = this.sources().find((item) => item.key === key) ?? null;
     this.creationTopic.set(reportTopics.find(topic => topic.sources.includes(key))?.key ?? null);
-    this.source.set(source); this.result.set(null); this.appliedQuery.set(null); this.options.set({}); this.error.set(null);
+    this.source.set(source); this.result.set(null); this.eggTotal.set(null); this.activePeriod.set('all'); this.appliedQuery.set(null); this.options.set({}); this.error.set(null);
     this.filters.clear({ emitEvent: false });
     if (!source) return;
     this.form.reset({ columns: source.default_columns, groupings: [], metrics: [], from: '', to: '', sort: source.default_sort.split(':')[0], direction: source.default_sort.endsWith(':asc') ? 'asc' : 'desc' }, { emitEvent: false });
@@ -258,7 +292,7 @@ export class ReportsPage {
       return;
     }
     if (this.screen === 'view') {
-      if (this.source()?.standard_queries.length) this.standard(0);
+      if (this.source()?.standard_queries.length) this.standard(key === 'lots.egg-production' && this.source()!.standard_queries.length > 2 ? 2 : 0);
       else this.query();
     } else if (this.screen === 'create') {
       if (this.navigationDraft?.actorId === this.actorId() && this.navigationDraft?.sourceKey === key && this.navigationDraft?.configuration) this.restore(this.navigationDraft.configuration);
@@ -291,12 +325,45 @@ export class ReportsPage {
     }
   }
 
-  setPeriod(period: 'all' | 'month' | 'custom'): void {
+  setPeriod(period: 'all' | 'month' | 'previous' | 'custom'): void {
     if (period === 'all') this.form.patchValue({ from: '', to: '' });
     if (period === 'month') {
       const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       this.form.patchValue({ from: today.slice(0, 7) + '-01', to: today });
     }
+    if (period === 'previous') {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const [year, month] = today.split('-').map(Number);
+      const start = new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 10);
+      const end = new Date(Date.UTC(year, month - 1, 0)).toISOString().slice(0, 10);
+      this.form.patchValue({ from: start, to: end });
+    }
+    this.activePeriod.set(period);
+  }
+
+  clearAdditionalFilters(): void {
+    for (const group of this.filters.controls) {
+      if (this.unitContext && group.controls.field.value === 'production_unit_id') continue;
+      group.patchValue({ operator: this.source()?.filters[group.controls.field.value].operators[0] ?? 'eq', value: '' });
+    }
+  }
+
+  updateStandardFilter(index: number, event: Event): void {
+    this.filters.at(index).controls.value.setValue((event.target as HTMLInputElement | HTMLSelectElement).value);
+  }
+
+  detailView(): void {
+    this.selectedStandard.set(null);
+    this.form.patchValue({ columns: this.source()?.default_columns ?? [], groupings: [], metrics: [] });
+    this.query();
+  }
+
+  openStandardSave(): void {
+    this.showSave.set(true);
+    requestAnimationFrame(() => {
+      const input = document.getElementById('preset-name');
+      input?.scrollIntoView({ block: 'center' }); input?.focus({ preventScroll: true });
+    });
   }
 
   reportLabel(key: string): string { return this.sources().find(source => source.key === key)?.label ?? 'Reporte'; }
@@ -331,7 +398,14 @@ export class ReportsPage {
   standard(index: number): void {
     const source = this.source(); const configuration = source?.standard_queries[index]?.configuration;
     if (!source || !configuration) return;
-    this.selectedStandard.set(index); this.restore(configuration); this.query();
+    const period = this.activePeriod();
+    const from = this.form.controls.from.value; const to = this.form.controls.to.value;
+    const filters = this.filters.getRawValue();
+    this.selectedStandard.set(index); this.restore(configuration);
+    if (this.standardView()) {
+      this.form.patchValue({ from, to }); this.filters.patchValue(filters); this.activePeriod.set(period);
+    }
+    this.query();
   }
 
   private restore(query: ReportQuery): void {
@@ -386,6 +460,7 @@ export class ReportsPage {
     const fields = selected.length ? selected : this.form.controls.columns.value;
     this.selectedLabels.set(fields.map(key => source.columns[key]?.label ?? source.groupings[key]?.label ?? source.metrics[key]?.label ?? key));
     this.hasBasicFilters.set(this.basicFilters().some(definition => Boolean(this.filters.at(definition.index)?.controls.value.value.trim())));
+    this.activeFilterCount.set(this.filters.controls.filter(group => group.controls.field.value !== 'production_unit_id' && group.controls.value.value.trim()).length);
   }
 
   async loadPresets(page = 1): Promise<void> {
@@ -513,6 +588,7 @@ export class ReportsPage {
   sourceChanged(event: Event): void { this.selectSource((event.target as HTMLSelectElement).value); }
   optionSearch(event: Event, field: string): void { void this.loadOptions(field, (event.target as HTMLInputElement).value); }
   readonly operatorLabels: Record<string, string> = { eq: 'Incluir esta opción', neq: 'Excluir esta opción', in: 'Incluir varias opciones', not_in: 'Excluir varias opciones' };
+  readonly standardOperatorLabels: Record<string, string> = { eq: 'Igual a', neq: 'Distinto de', in: 'Incluir varias opciones', not_in: 'Excluir varias opciones', gt: 'Mayor que', gte: 'Mayor o igual que', lt: 'Menor que', lte: 'Menor o igual que', contains: 'Contiene' };
   exportStatus(item: ReportExport): string { return ({ pending: 'En preparación', processing: 'En preparación', completed: 'Listo para descargar', failed: 'No se pudo preparar', expired: 'Ya venció' })[item.status]; }
   private scheduleLinkExpiry(link: ReportTemporaryLink): void {
     const remaining = new Date(link.expires_at).getTime() - Date.now();

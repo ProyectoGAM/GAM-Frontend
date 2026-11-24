@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
-import { VehicleDetail, VehicleDriverOption, VehicleEnvelope, VehicleFuelInput, VehicleInput, VehicleListResponse, VehicleOption } from '../interfaces/vehicle';
+import { VehicleDetail, VehicleDriverOption, VehicleEnvelope, VehicleFuelEntry, VehicleFuelInput, VehicleHistoryPage, VehicleInput, VehicleListResponse, VehicleMaintenanceHistoryEntry, VehicleOption } from '../interfaces/vehicle';
 
 @Injectable({ providedIn: 'root' })
 export class VehiclesApi {
@@ -16,6 +16,12 @@ export class VehiclesApi {
   }
   drivers(): Observable<{ data: VehicleDriverOption[] }> { return this.api.get<{ data: VehicleDriverOption[] }>('vehiculos/conductores'); }
   detail(id: string): Observable<VehicleDetail> { return this.api.get<VehicleDetail>(`vehiculos/${id}`); }
+  fuelHistory(id: string, page: number) {
+    return this.api.get<VehicleHistoryPage<VehicleFuelEntry>>(`vehiculos/${id}/combustible`, { params: { page, per_page: 100 } });
+  }
+  maintenanceHistory(id: string, page: number) {
+    return this.api.get<VehicleHistoryPage<VehicleMaintenanceHistoryEntry>>(`vehiculos/${id}/mantenimientos`, { params: { page, per_page: 100 } });
+  }
   create(body: VehicleInput): Observable<VehicleEnvelope> { return this.api.post<VehicleEnvelope>('vehiculos', body); }
   update(id: string, body: VehicleInput): Observable<VehicleEnvelope> { return this.api.patch<VehicleEnvelope>(`vehiculos/${id}`, body); }
   status(id: string, body: { status: string; reason: string }): Observable<VehicleEnvelope> { return this.api.patch<VehicleEnvelope>(`vehiculos/${id}/estado`, body); }

@@ -22,7 +22,7 @@
       <div class="general-cards">
         <section class="list-card general-card" aria-labelledby="vehicle-data-title">
           <div class="card-heading">
-            <h2 id="vehicle-data-title">Datos del vehículo</h2>
+            <h2 id="vehicle-data-title" tabindex="-1">Datos del vehículo</h2>
             @if (canManage()) {
               <button class="button card-action" type="button" aria-haspopup="dialog" (click)="openEditor()">
                 <ion-icon name="create-outline" aria-hidden="true" />Editar
@@ -108,7 +108,7 @@
         </section>
         <section class="list-card usage-panel" aria-labelledby="vehicle-readings-title">
           <div class="card-heading">
-            <h2 id="vehicle-readings-title">Lecturas del odómetro</h2>
+            <h2 id="vehicle-readings-title" tabindex="-1">Lecturas del odómetro</h2>
             @if (canManageReadings()) {
               <button class="button card-action" type="button" aria-haspopup="dialog" (click)="openUsageDialog('reading')">
                 <ion-icon name="add-outline" aria-hidden="true" />Registrar lectura
@@ -216,7 +216,7 @@
     @if (tab() === 'fuel') {
       <section class="list-card fuel-history" aria-labelledby="fuel-history-title">
         <div class="card-heading">
-          <h2 id="fuel-history-title">Historial de combustible</h2>
+          <h2 id="fuel-history-title" tabindex="-1">Historial de combustible</h2>
           @if (canManageFuel()) {
             <button class="button primary fuel-action" type="button" aria-haspopup="dialog" (click)="openFuelDialog()">
               <ion-icon name="add-outline" aria-hidden="true" />Registrar carga
@@ -314,7 +314,7 @@
         </div>
 
         <section class="list-card maintenance-panel" aria-labelledby="maintenance-plans-title">
-          <div class="card-heading"><h2 id="maintenance-plans-title">Planes y vencimientos</h2></div>
+          <div class="card-heading"><h2 id="maintenance-plans-title" tabindex="-1">Planes y vencimientos</h2></div>
           <ul class="maintenance-list">
             @for (plan of record.maintenance_plans; track plan.id) {
               <li class="maintenance-row plan-row">
@@ -345,7 +345,7 @@
         </section>
 
         <section class="list-card maintenance-panel" aria-labelledby="maintenance-interventions-title">
-          <div class="card-heading"><h2 id="maintenance-interventions-title">Intervenciones</h2></div>
+          <div class="card-heading"><h2 id="maintenance-interventions-title" tabindex="-1">Intervenciones</h2></div>
           <ul class="maintenance-list">
             @for (intervention of record.maintenances; track intervention.id) {
               <li class="maintenance-row intervention-row">
@@ -509,7 +509,7 @@
       <section class="list-card vehicle-documents" aria-labelledby="vehicle-documents-title">
         <div class="card-heading">
           <div>
-            <h2 id="vehicle-documents-title">Documentos del vehículo</h2>
+            <h2 id="vehicle-documents-title" tabindex="-1">Documentos del vehículo</h2>
             <p class="documents-privacy muted">
               <ion-icon name="lock-closed-outline" aria-hidden="true" />Solo personas autorizadas pueden descargar los archivos.
             </p>
