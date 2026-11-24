@@ -17,6 +17,8 @@ Mapbox GL 3.24.0 ya publica `mapbox-gl/esm`, con los mismos tipos y API. Se usa 
 
 No se agregan excepciones en `allowedCommonJsDependencies`, no se suben versiones y no se reemplazan las librerías. Los imports exclusivamente de tipos desde `mapbox-gl` no incorporan CommonJS al runtime.
 
+El build publica `worker.js`, `shared.js` y `hd.worker.js` de la misma versión de Mapbox bajo `assets/mapbox/`. El SDK carga el worker desde esa ruta con una URL basada en la de la aplicación. Nginx revalida esos archivos porque sus nombres no tienen hash. Al validar una actualización de Mapbox, revisá los módulos del worker y abrí un mapa con el build optimizado.
+
 ### CSS
 
 Se retira el aviso genérico de 2 KB; **se mantiene el límite obligatorio existente de 12 KB por componente**. Superarlo sigue fallando la compilación. El CSS global obtiene un presupuesto independiente: aviso a 125 KB y error a 140 KB. El presupuesto inicial de JavaScript/CSS conserva aviso a 2 MB y error a 5 MB.
