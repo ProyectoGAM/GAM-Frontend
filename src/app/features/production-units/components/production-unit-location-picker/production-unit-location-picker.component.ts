@@ -4,7 +4,7 @@ import { EMPTY, Observable, Subject, catchError, map, of, switchMap, timer } fro
 import mapboxgl from 'mapbox-gl/esm';
 import type { Map as MapboxMap, MapMouseEvent, Marker as MapboxMarker } from 'mapbox-gl';
 
-import { MAPBOX_ACCESS_TOKEN } from '../../../../core/config/mapbox.config';
+import { MAPBOX_ACCESS_TOKEN, mapboxWorkerUrl } from '../../../../core/config/mapbox.config';
 import { ProductionUnitLocationValue } from '../../interfaces/production-unit.interface';
 import { MapboxPlace, ProductionUnitGeocodingService, ProductionUnitSearchContext } from '../../services/production-unit-geocoding.service';
 import { ProductionUnitsService } from '../../services/production-units.service';
@@ -251,6 +251,7 @@ export class ProductionUnitLocationPickerComponent {
 
     try {
       mapboxgl.accessToken = this.accessToken;
+      mapboxgl.workerUrl = mapboxWorkerUrl();
       this.map = new mapboxgl.Map({
         container: host,
         style: 'mapbox://styles/mapbox/light-v11',
