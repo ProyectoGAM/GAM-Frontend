@@ -41,7 +41,7 @@
     </div>
   }
   <main class="delivery-page" [class.has-nav]="activeDelivery" [class.map-mode]="mapView" [class.map-chrome-hidden]="focusedMap">
-    @if (error() && !startConfirmation() && !closeConfirmation() && !selectedClient() && !loadOpen()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+    @if (error() && !startConfirmation() && !closeConfirmation() && !selectedClient() && !loadOpen() && !editingStop()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
 
     @if (!delivery() || delivery()?.status !== 'active') {
@@ -145,39 +145,67 @@
 
       @if (panel() === 'summary') {
         <section class="route-panel" id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
-          <div class="section-heading"><div><p class="eyebrow">REPARTO DE HOY</p><h2>Resumen</h2></div></div>
-          <article class="summary-card"><small>Huevos en vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong><span>de {{ delivery()?.loaded_quantity }} cargados en este reparto</span></article>
-          <article class="balance-card"><h3>Balance de carga</h3><dl><div><dt>Cargados en {{ delivery()?.loads?.length ?? 0 }} carga(s)</dt><dd>{{ delivery()?.loaded_quantity }} huevos</dd></div>@for (row of delivery()?.unit_balances?.rows ?? []; track balanceKey(row)) { <div><dt>{{ row.label }}</dt><dd>{{ displayUnitAmount(row.loaded_amount) }}</dd></div> }<div><dt>Entregados</dt><dd>{{ delivery()?.delivered_quantity }} huevos</dd></div><div><dt>En vehículo</dt><dd>{{ delivery()?.remaining_quantity }} huevos</dd></div><div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div><div><dt>Valor entregado</dt><dd>{{ money(delivery()?.delivered_amount) }}</dd></div></dl></article>
-          <article class="balance-card" aria-label="Cargas del reparto"><h3>Cargas del reparto</h3>
-            @if (delivery()?.loads?.length) {
-              <dl>@for (load of delivery()?.loads; track load.id) {
-                <div><dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.production_unit?.name ?? delivery()?.production_unit?.name }} · {{ load.created_at | date:'dd/MM/yyyy HH:mm':'-0300' }}<small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · }</small></dt><dd>{{ load.quantity }} huevos</dd></div>
-              }</dl>
-            } @else { <p class="empty-state">No hay cargas registradas en este reparto.</p> }
-          </article>
-          <app-delivery-financial-summary [summary]="delivery()?.financial_summary" />
-          @if (delivery()?.vehicle; as vehicle) {
-            <article class="balance-card">
-              <h3>Vehículo</h3>
-              <p>{{ vehicle.plate }} · {{ vehicle.make }} {{ vehicle.model }}</p>
-              @if (delivery()?.vehicle_usage; as usage) {
-                <p>Inicio: {{ usage.started_at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }}@if (usage.start_odometer_km) { · {{ usage.start_odometer_km }} km }</p>
-                <section class="fuel-entry-list" aria-label="Cargas de combustible del reparto">
-                  <h4>Cargas de combustible</h4>
-                  @if (usage.fuel_entries?.length) {
-                    @for (fuel of usage.fuel_entries; track fuel.id) {
-                      <div class="fuel-entry">
-                        <strong>{{ money(fuel.amount) }} · {{ fuelLiters(fuel.liters) }} l</strong>
-                        <time>{{ fuel.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</time>
-                        <span>{{ fuel.fuel_type }}@if (fuel.supplier) { · {{ fuel.supplier }} }</span>
-                        @if (fuel.odometer_km) { <small>Tablero: {{ fuel.odometer_km }} km</small> }
-                      </div>
+          @if (delivery(); as active) {
+            <app-delivery-summary [delivery]="active" [canEdit]="canEditRegisteredStops()" (editRequested)="editRegisteredStop($event)">
+              <div summary-load>
+                <article class="balance-card" aria-label="Detalle del balance de carga">
+                  <dl>
+                    <div><dt>Cargados en {{ active.loads?.length ?? 0 }} carga(s)</dt><dd>{{ active.loaded_quantity }} huevos</dd></div>
+                    @for (row of active.unit_balances?.rows ?? []; track balanceKey(row)) {
+                      <div><dt>{{ row.label }}</dt><dd>{{ displayUnitAmount(row.loaded_amount) }}</dd></div>
                     }
-                  } @else { <p class="empty-state">No hay cargas de combustible en este reparto.</p> }
-                </section>
-              }
-              @if (canManageFuel() && delivery()?.status === 'active') { <app-delivery-vehicle-fuel-form [form]="fuelForm" [saving]="fuelSaving()" [online]="online()" [receipt]="fuelReceipt()" (receiptChanged)="setFuelReceipt($event)" (saveRequested)="recordVehicleFuel()" /> }
-            </article>
+                    <div><dt>Entregados</dt><dd>{{ active.delivered_quantity }} huevos</dd></div>
+                    <div><dt>En vehículo</dt><dd>{{ active.remaining_quantity }} huevos</dd></div>
+                    <div><dt>Clientes visitados</dt><dd>{{ completedStops() }}</dd></div>
+                    <div><dt>Valor entregado</dt><dd>{{ money(active.delivered_amount) }}</dd></div>
+                  </dl>
+                </article>
+                <article class="balance-card" aria-label="Cargas del reparto">
+                  <h3>Cargas del reparto</h3>
+                  @if (active.loads?.length) {
+                    <dl>
+                      @for (load of active.loads; track load.id) {
+                        <div>
+                          <dt>{{ load.type === 'initial' ? 'Carga inicial' : 'Carga adicional' }} · {{ load.production_unit?.name ?? active.production_unit?.name }} · {{ load.created_at | date:'dd/MM/yyyy HH:mm':'-0300' }}
+                            <small class="load-breakdown">@for (item of load.items ?? []; track $index) { {{ item.amount }} {{ item.label || unitLabel(item.unit) }} · }</small>
+                          </dt>
+                          <dd>{{ load.quantity }} huevos</dd>
+                        </div>
+                      }
+                    </dl>
+                  } @else { <p class="empty-state">No hay cargas registradas en este reparto.</p> }
+                </article>
+              </div>
+              <div summary-finances>
+                <app-delivery-financial-summary [summary]="active.financial_summary" [showCustomerBreakdown]="false" />
+                @if (active.vehicle; as vehicle) {
+                  <article class="balance-card">
+                    <h3>Vehículo</h3>
+                    <p>{{ vehicle.plate }} · {{ vehicle.make }} {{ vehicle.model }}</p>
+                    @if (active.vehicle_usage; as usage) {
+                      <p>Inicio: {{ usage.started_at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }}@if (usage.start_odometer_km) { · {{ usage.start_odometer_km }} km }</p>
+                      <section class="fuel-entry-list" aria-label="Cargas de combustible del reparto">
+                        <h4>Cargas de combustible</h4>
+                        @if (usage.fuel_entries?.length) {
+                          @for (fuel of usage.fuel_entries; track fuel.id) {
+                            <div class="fuel-entry">
+                              <strong>{{ money(fuel.amount) }} · {{ fuelLiters(fuel.liters) }} l</strong>
+                              <time>{{ fuel.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</time>
+                              <span>{{ fuel.fuel_type }}@if (fuel.supplier) { · {{ fuel.supplier }} }</span>
+                              @if (fuel.odometer_km) { <small>Tablero: {{ fuel.odometer_km }} km</small> }
+                            </div>
+                          }
+                        } @else { <p class="empty-state">No hay cargas de combustible en este reparto.</p> }
+                      </section>
+                    }
+                    @if (canManageFuel() && active.status === 'active') {
+                      <app-delivery-vehicle-fuel-form [form]="fuelForm" [saving]="fuelSaving()" [online]="online()" [receipt]="fuelReceipt()"
+                        (receiptChanged)="setFuelReceipt($event)" (saveRequested)="recordVehicleFuel()" />
+                    }
+                  </article>
+                }
+              </div>
+            </app-delivery-summary>
           }
           <app-delivery-pending-operations [entries]="pendingEntries()" [clients]="cachedClients()" [busy]="busy() || syncing()" [online]="online()" (review)="reviewEntry($event.entry, $event.customerId)" (retry)="retryEntry($event)" />
           @if (pendingCount() > 0) {
@@ -218,6 +246,25 @@
       <div class="pin-actions"><button type="button" class="secondary-action" (click)="cancelStartConfirmation()" [disabled]="busy()">Volver</button><button type="submit" class="primary-action" [disabled]="busy() || !online()">@if (busy()) { <ion-spinner name="crescent" aria-label="Iniciando reparto" /> } @else { Confirmar inicio }</button></div>
     </form>
   </section>
+}
+
+@if (editingStop(); as stop) {
+  @if (delivery(); as active) {
+    <div class="sheet-backdrop" (click)="closeStopEditor()" aria-hidden="true"></div>
+    <section class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="edit-stop-title" tabindex="-1" (keydown.escape)="closeStopEditor()">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <header class="sheet-heading">
+        <h2 id="edit-stop-title">Rectificar entrega</h2>
+        <button class="sheet-close" type="button" aria-label="Cerrar rectificación" [disabled]="editor.locked()" (click)="closeStopEditor()">×</button>
+      </header>
+      <p><strong>{{ stop.client_name }}</strong>
+        @if (stop.visited_at; as visitedAt) { · <time [attr.datetime]="visitedAt">{{ visitedAt | date:'HH:mm':'-0300' }}</time> }
+      </p>
+      @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+      <app-delivery-stop-editor #editor [delivery]="active" [stop]="stop" [online]="online()" [busy]="busy()" [pendingPayment]="reviewingLinkedPayment()"
+        (cancelled)="closeStopEditor()" (refreshed)="refreshRectifiedStop($event)" (paymentRequested)="recordLinkedPayment($event)" />
+    </section>
+  }
 }
 
 @if (closeConfirmation()) {
@@ -282,7 +329,7 @@
       }
       @if (stopMode() === 'payment' || stopMode() === 'delivered' && paymentChoice() === 'payment') {
         <label for="payment-amount">Importe cobrado (UYU)</label><input id="payment-amount" formControlName="amount" type="text" inputmode="decimal" maxlength="24" placeholder="0,000" required>
-        <label for="payment-method">Medio de cobro</label><select id="payment-method" formControlName="payment_method"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="other">Otro</option></select>
+        <label for="payment-method">Medio de cobro</label><select id="payment-method" formControlName="payment_method"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="check">Cheque</option><option value="other">Otro</option></select>
         <label for="payment-reference">Referencia opcional</label><input id="payment-reference" formControlName="payment_reference" maxlength="240">
       }
       @if (preview(); as value) { <div class="account-preview"><p>Mercadería: {{ money(value.charge) }} · Cobro: {{ money(value.paid) }}</p><strong>Saldo previsto: {{ money(value.after) }}</strong><small>Estimación sobre el saldo confirmado. Otros movimientos y los pendientes pueden modificarlo.</small></div> }

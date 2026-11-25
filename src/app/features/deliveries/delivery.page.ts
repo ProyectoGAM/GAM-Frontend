@@ -4,12 +4,13 @@ import { AfterViewInit, Component, ElementRef, Injector, OnDestroy, ViewChild, a
 import { DialogFocusDirective } from '../../shared/ui/dialog-focus.directive';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { parseUyuAmount, uyuDecimal } from '../../shared/utils/uyu-money';
-import { PaymentMethod } from '../customers/types/customer.types';
 import { DeliveryClientRowComponent } from './components/delivery-client-row.component';
 import { DeliveryPendingOperationsComponent } from './components/delivery-pending-operations.component';
 import { DeliveryFinancialSummaryComponent } from './components/delivery-financial-summary.component';
 import { DeliveryStartOptionsComponent } from './components/delivery-start-options.component';
 import { DeliveryVehicleFuelFormComponent } from './components/delivery-vehicle-fuel-form.component';
+import { DeliveryStopEditorComponent } from './components/delivery-stop-editor.component';
+import { DeliverySummaryComponent } from './components/delivery-summary.component';
 import { Capacitor } from '@capacitor/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -43,7 +44,7 @@ import { formatFuelLiters } from '../vehicles/vehicle-format';
 import { DeliveryUnitRowComponent } from './components/delivery-unit-row.component';
 import { createDeliveryId } from './delivery-id';
 import { formatDeliveryMoney } from './delivery-money';
-import { AddDeliveryLoadInput, Delivery, DeliveryClient, DeliveryLoadItemInput, DeliveryStop, DeliveryUnit, DeliveryUnitBalanceRow, DeliveryProductionUnit, DeliveryStopItemInput, CloseDeliveryInput, DeliveryPaymentInput, LocationInput, StartDeliveryInput, StopInput } from './delivery.models';
+import { AddDeliveryLoadInput, Delivery, DeliveryClient, DeliveryLoadItemInput, DeliveryStop, DeliveryUnit, DeliveryUnitBalanceRow, DeliveryProductionUnit, DeliveryStopItemInput, CloseDeliveryInput, DeliveryPaymentInput, DeliveryPaymentMethod, LocationInput, StartDeliveryInput, StopInput } from './delivery.models';
 import type { DeliveryStartMode, LoadForm, LoadLineForm } from './types/delivery-load-form.type';
 
 type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
@@ -53,12 +54,13 @@ type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
   templateUrl: './delivery.page.html',
   styleUrls: ['./delivery.page.scss', './delivery-map.scss'],
   imports: [
-    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, NotificationBellComponent, ReactiveFormsModule, RouterLink,
+    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryStopEditorComponent, DeliverySummaryComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, NotificationBellComponent, ReactiveFormsModule, RouterLink,
   ],
 })
 export class DeliveryPage implements AfterViewInit, OnDestroy {
   @ViewChild(IonContent) private content?: IonContent;
   @ViewChild('mapModeToggle') private mapModeToggle?: ElementRef<HTMLButtonElement>;
+  @ViewChild(DeliveryStopEditorComponent) private stopEditor?: DeliveryStopEditorComponent;
 
   @ViewChild('clientSheet') set clientSheet(element: ElementRef<HTMLElement> | undefined) {
     if (element) setTimeout(() => element.nativeElement.focus());
@@ -114,7 +116,15 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly canManageFuel = computed(() => this.auth.user()?.roles.includes('admin') === true || this.auth.user()?.permissions?.some((permission) => ['vehicles.fuel.manage', 'delivery.fuel.record'].includes(permission)) === true);
   readonly profileOpen = signal(false);
   readonly panel = signal<'clients' | 'map' | 'summary'>('clients');
-  readonly dialogOpen = computed(() => !!this.selectedClient() || this.loadOpen() || this.startConfirmation() || this.closeConfirmation() || !!this.selectedMetric());
+  readonly dialogOpen = computed(() => !!this.selectedClient() || this.loadOpen() || this.startConfirmation() || this.closeConfirmation() || !!this.selectedMetric() || !!this.editingStop());
+  readonly editingStopId = signal<number | null>(null);
+  readonly editingStop = computed(() => this.delivery()?.stops?.find((stop) => stop.id === this.editingStopId()) ?? null);
+  readonly canEditRegisteredStops = computed(() => {
+    const delivery = this.delivery();
+    const actor = this.auth.user();
+    return this.canOperate && this.online() && !this.busy() && !this.syncing() && !this.closePending()
+      && delivery?.status === 'active' && !!actor && delivery.driver?.id === actor.id;
+  });
   readonly selectedMetric = signal<DeliveryMetric | null>(null);
   readonly metricTitle = computed(() => ({ loaded: 'Huevos totales', delivered: 'Entregados', remaining: 'En vehículo' })[this.selectedMetric() ?? 'loaded']);
   readonly metricEggs = computed(() => {
@@ -148,6 +158,12 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   });
   readonly pendingEntries = signal<DeliveryOutboxEntry[]>([]);
   readonly reviewing = signal<DeliveryOutboxEntry | null>(null);
+  readonly reviewingLinkedPayment = computed(() => {
+    const entry = this.reviewing();
+    if (entry?.kind !== 'payment') return null;
+    const payment = entry.payload as DeliveryPaymentInput;
+    return payment.delivery_stop_id === this.editingStopId() ? payment : null;
+  });
   readonly reviewEntries = computed(() => this.pendingEntries().filter((entry) => entry.state === 'needs_review'));
   readonly paymentChoice = signal<'' | 'fiado' | 'payment'>('');
   readonly previewRevision = signal(0);
@@ -199,7 +215,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     reason: new FormControl('', { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true }),
     amount: new FormControl('', { nonNullable: true }),
-    payment_method: new FormControl<PaymentMethod>('cash', { nonNullable: true }),
+    payment_method: new FormControl<DeliveryPaymentMethod>('cash', { nonNullable: true }),
     payment_reference: new FormControl('', { nonNullable: true }),
   });
   private readonly stopValues = toSignal(this.stopForm.valueChanges, { initialValue: this.stopForm.getRawValue() });
@@ -261,6 +277,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
         owner = next;
         this.delivery.set(null); this.clients.set([]); this.cachedClients.set([]); this.mapClients.set([]);
         this.pendingEntries.set([]); this.pendingCount.set(0); this.selectedClient.set(null);
+        this.editingStopId.set(null); this.reviewing.set(null);
         this.loadOpen.set(false); this.closeConfirmation.set(false); this.startConfirmation.set(false);
         this.busy.set(false); this.syncing.set(false); this.clearFeedback();
         this.resetStart();
@@ -312,6 +329,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.backButtonSubscription?.unsubscribe();
     this.backButtonSubscription = this.platform.backButton.subscribeWithPriority(1000, (processNextHandler) => {
       if (this.profileOpen()) { this.profileOpen.set(false); return; }
+      if (this.editingStop()) { this.closeStopEditor(); return; }
       if (this.selectedMetric()) { this.selectedMetric.set(null); return; }
       if (this.selectedClient()) { this.selectedClient.set(null); return; }
       if (this.loadOpen()) { this.loadOpen.set(false); return; }
@@ -605,7 +623,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     await this.persistBusiness('stop', payload, idempotencyKey);
   }
 
-  private paymentPayload(): { amount: string; payment_method: PaymentMethod; payment_reference?: string; reason?: string } | null {
+  private paymentPayload(): { amount: string; payment_method: DeliveryPaymentMethod; payment_reference?: string; reason?: string } | null {
     const values = this.stopForm.getRawValue();
     const amount = parseUyuAmount(values.amount);
     if (amount === null || amount <= 0n) { this.error.set('Ingresá un importe cobrado mayor a cero, con hasta tres decimales.'); return null; }
@@ -622,6 +640,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       await this.outbox.enqueue({ kind, deliveryId: delivery.id, payload, idempotencyKey: key }, this.reviewing() ?? undefined);
       if (!this.isCurrentActor(actorId)) return;
       this.reviewing.set(null);
+      if (kind === 'payment' && (payload as DeliveryPaymentInput).delivery_stop_id) this.editingStopId.set(null);
       if (kind === 'load') this.updateLocalLoad(this.loadEggs(payload as AddDeliveryLoadInput), key, (payload as AddDeliveryLoadInput).items, (payload as AddDeliveryLoadInput).production_unit_id, (payload as AddDeliveryLoadInput).occurred_at);
       if (kind === 'stop' && client) this.updateLocalStop(client, payload as StopInput, this.stopEggs(payload as StopInput));
       this.selectedClient.set(null); this.loadOpen.set(false);
@@ -645,6 +664,24 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
       return;
     }
     if (entry.kind !== 'stop' && entry.kind !== 'payment') return;
+    if (entry.kind === 'payment') {
+      const linked = entry.payload as DeliveryPaymentInput;
+      if (linked.delivery_stop_id) {
+        if (!this.canEditRegisteredStops()) {
+          this.error.set('Conectate a tu reparto activo para revisar este cobro.');
+          return;
+        }
+        const stop = this.delivery()?.stops?.find((candidate) => candidate.id === linked.delivery_stop_id);
+        if (stop?.accounting_status !== 'posted' || stop.status !== 'delivered' || stop.client_reference !== linked.client_reference) {
+          this.error.set('El cobro pendiente no corresponde a una entrega disponible de este cliente.');
+          return;
+        }
+        this.clearFeedback();
+        this.reviewing.set(entry);
+        this.editingStopId.set(stop.id);
+        return;
+      }
+    }
     const payload = { ...entry.payload, ...(customerId ? { client_reference: customerId } : {}) } as StopInput | DeliveryPaymentInput;
     let client = this.cachedClients().find((item) => item.id === payload.client_reference) ?? this.clients().find((item) => item.id === payload.client_reference);
     if (!client && this.online()) client = (await firstValueFrom(this.api.clients(payload.client_reference))).data.find((item) => item.id === payload.client_reference);
@@ -667,6 +704,54 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     } else {
       const payment = payload as DeliveryPaymentInput;
       this.stopMode.set('payment'); this.stopForm.patchValue({ amount: payment.amount, payment_method: payment.payment_method, payment_reference: payment.payment_reference ?? '', notes: payment.reason ?? '' });
+    }
+  }
+
+  editRegisteredStop(stopId: number): void {
+    if (!this.canEditRegisteredStops()) return;
+    const stop = this.delivery()?.stops?.find((candidate) => candidate.id === stopId && candidate.status === 'delivered');
+    if (!stop || stop.id <= 0) return;
+    this.clearFeedback();
+    if (this.pendingEntries().some((entry) => entry.kind === 'payment' && (entry.payload as DeliveryPaymentInput).delivery_stop_id === stopId)) {
+      this.error.set('Hay un cobro pendiente para esta entrega. Revisalo en las operaciones pendientes.');
+      return;
+    }
+    this.reviewing.set(null);
+    this.editingStopId.set(stopId);
+  }
+
+  closeStopEditor(): void {
+    if (this.stopEditor?.locked()) return;
+    this.editingStopId.set(null);
+    this.reviewing.set(null);
+    this.clearFeedback();
+  }
+
+  async recordLinkedPayment(fields: Pick<DeliveryPaymentInput, 'amount' | 'payment_method' | 'payment_reference' | 'reason'>): Promise<void> {
+    const stop = this.editingStop();
+    if (!this.canEditRegisteredStops() || stop?.accounting_status !== 'posted' || stop.status !== 'delivered' || stop.id <= 0) {
+      this.error.set('El cobro requiere conexión y una entrega confirmada de tu reparto activo.');
+      return;
+    }
+    const key = createDeliveryId();
+    await this.persistBusiness('payment', {
+      ...fields, client_reference: stop.client_reference, delivery_stop_id: stop.id, client_event_id: key,
+      occurred_at: this.actionOccurredAt('payment'),
+    }, key);
+  }
+
+  async refreshRectifiedStop(message: string): Promise<void> {
+    const actor = this.auth.user()?.id;
+    if (!actor) return;
+    this.editingStopId.set(null);
+    this.reviewing.set(null);
+    this.clearFeedback();
+    this.busy.set(true);
+    try {
+      await this.refreshActiveDelivery();
+      if (this.isCurrentActor(actor) && !this.error()) this.message.set(message);
+    } finally {
+      if (this.isCurrentActor(actor)) this.busy.set(false);
     }
   }
 

@@ -1,12 +1,25 @@
-<form (submit)="submit($event)" aria-label="Rectificar entrega">
-  <h4 tabindex="-1">Rectificar entrega de {{ stop().client_name }}</h4>
-  <p>Ingresá las cantidades finales. Se conservan los precios de las líneas registradas.</p>
+<form (submit)="submit($event)" aria-label="Rectificar entrega" [class.mobile]="mobile()">
+  @if (!mobile()) {
+    <h4 tabindex="-1">Rectificar entrega de {{ stop().client_name }}</h4>
+    <p>Ingresá las cantidades finales. Se conservan los precios de las líneas registradas.</p>
+  }
   <fieldset [disabled]="saving() || uncertain()">
     @if (hasLines()) {
       @for (item of stop().items ?? []; track $index; let index = $index) {
-        <label> {{ item.label }} · Original {{ item.amount }}
-          <input #line type="text" inputmode="decimal" [value]="amounts()[index]" (input)="changeAmount(index, line.value)" />
-        </label>
+        @if (mobile()) {
+          <div class="quantity-row">
+            <div><strong>{{ item.label }}</strong><small>Cantidad registrada: {{ item.amount }}</small></div>
+            <div class="stepper">
+              <button type="button" [disabled]="!canStepAmount(index, item, -1)" [attr.aria-label]="'Reducir ' + item.label" (click)="stepAmount(index, item, -1)">−</button>
+              <input #line type="text" inputmode="decimal" [attr.aria-label]="'Cantidad de ' + item.label" [value]="amounts()[index]" (input)="changeAmount(index, line.value)" />
+              <button type="button" [disabled]="!canStepAmount(index, item, 1)" [attr.aria-label]="'Aumentar ' + item.label" (click)="stepAmount(index, item, 1)">+</button>
+            </div>
+          </div>
+        } @else {
+          <label> {{ item.label }} · Original {{ item.amount }}
+            <input #line type="text" inputmode="decimal" [value]="amounts()[index]" (input)="changeAmount(index, line.value)" />
+          </label>
+        }
         @if (lineError(index); as error) { <small class="error">{{ error }}</small> }
       }
       @if (fieldError('lineas'); as error) { <small class="error">{{ error }}</small> }
@@ -22,7 +35,12 @@
       }
     }
     @if (fieldError('cantidad_entregada'); as error) { <small class="error">{{ error }}</small> }
-    <label>Motivo
+    @if (mobile() && finalEggs() !== null) {
+      <p class="quantity-preview"><strong>{{ finalEggs() }} huevos entregados</strong>
+        @if (stop().delivered_quantity > finalEggs()!) { <span>{{ stop().delivered_quantity - finalEggs()! }} huevos vuelven al vehículo</span> }
+      </p>
+    }
+    <label>{{ mobile() ? 'Motivo de la rectificación' : 'Motivo' }}
       <textarea #reasonInput rows="2" maxlength="2000" [value]="reason()" (input)="reason.set(reasonInput.value)"></textarea>
     </label>
     @if (fieldError('motivo'); as error) { <small class="error">{{ error }}</small> }
@@ -40,6 +58,6 @@
   @if (message()) { <p role="alert" class="error">{{ message() }}</p> }
   <div class="actions">
     <button type="button" [disabled]="saving() || uncertain()" (click)="cancelled.emit()">Cancelar</button>
-    <button type="submit" [disabled]="saving()">{{ saving() ? 'Confirmando…' : uncertain() ? 'Reintentar envío' : 'Confirmar rectificación' }}</button>
+    <button type="submit" [disabled]="saving() || !online()">{{ saving() ? 'Confirmando…' : uncertain() ? 'Reintentar envío' : 'Confirmar rectificación' }}</button>
   </div>
 </form>

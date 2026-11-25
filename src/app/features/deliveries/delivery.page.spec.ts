@@ -14,7 +14,8 @@ import { DeliveryOutboxEntry, DeliveryOutboxService } from './delivery-outbox.se
 import { DeliveryPage } from './delivery.page';
 import { DeliveriesApi } from './deliveries.api';
 import { VehiclesApi } from '../vehicles/services/vehicles.api';
-import { Delivery, DeliveryClient } from './delivery.models';
+import type { CustomerMovement } from '../customers/interfaces/customer';
+import { Delivery, DeliveryClient, DeliveryStop } from './delivery.models';
 
 const mapCalls = vi.hoisted(() => ({
   create: vi.fn(),
@@ -84,6 +85,8 @@ describe('DeliveryPage', () => {
     current: ReturnType<typeof vi.fn>;
     detail: ReturnType<typeof vi.fn>;
     payment: ReturnType<typeof vi.fn>;
+    rectifyPayment: ReturnType<typeof vi.fn>;
+    rectifyStop: ReturnType<typeof vi.fn>;
     markers: ReturnType<typeof vi.fn>;
     locations: ReturnType<typeof vi.fn>;
   };
@@ -126,6 +129,8 @@ describe('DeliveryPage', () => {
       current: vi.fn(() => of({ data: [activeDelivery] })),
       detail: vi.fn(() => of({ data: activeDelivery })),
       payment: vi.fn(() => of({ data: [] })),
+      rectifyPayment: vi.fn(() => of({ data: [] })),
+      rectifyStop: vi.fn(() => of({ data: { despues: { saldo_huevos: 75 } } })),
       markers: vi.fn(() => of({ data: [], meta: { has_more: false, limit: 200 } })),
       locations: vi.fn(() => of({ data: { accepted: 0, duplicates: 0, pending: 0 } })),
     };
@@ -173,6 +178,114 @@ describe('DeliveryPage', () => {
   });
 
   afterEach(() => page.ngOnDestroy());
+
+  it('lists confirmed deliveries and records, replaces, and voids a payment linked to the selected delivery', async () => {
+    const stop: DeliveryStop = {
+      id: 58, version: 1, client_reference: demoClient.id, client_name: 'Almacén El Puente',
+      address: '', latitude: 0, longitude: 0, sequence: 2, status: 'delivered', delivered_quantity: 60,
+      total_amount: '720.000', accounting_status: 'posted', visit_reason: null, notes: null,
+      visited_at: '2026-09-29T13:42:00Z',
+      items: [{ unit: 'maple', label: 'Maples (30 huevos)', amount: '2', eggs_per_unit: 30, eggs: 60 }],
+    };
+    const older = { ...stop, id: 57, client_name: 'Autoservicio Central', visited_at: '2026-09-29T13:18:00Z' };
+    const pending = { ...older, id: 56, client_name: 'Cliente pendiente', status: 'pending' as const };
+    const movement: CustomerMovement = {
+      id: 'original-payment', type: 'payment', amount: '-720.000', currency: 'UYU', sequence: 1,
+      balance_before: '720.000', balance_after: '0.000', customer_name: stop.client_name,
+      customer_id: demoClient.id, actor: { name: 'Repartidor' }, payment_method: 'cash', payment_reference: null,
+      occurred_at: '2026-09-29T13:43:00Z', created_at: '2026-09-29T13:43:00Z',
+      operation_id: 'first-operation', delivery_stop_id: stop.id, reason: null,
+    };
+    let detail: Delivery = {
+      ...activeDelivery, stops: [older, pending, stop],
+      financial_summary: {
+        currency: 'UYU', merchandise_amount: '720.000', collected_amount: '0.000', recorded_collected_amount: '0.000',
+        account_delta: '720.000', by_method: { cash: '0.000', transfer: '0.000', other: '0.000' },
+        legacy_unreconciled_count: 0, customers: [{
+          customer_id: demoClient.id, customer_name: stop.client_name, merchandise_amount: '720.000',
+          collected_amount: '0.000', account_delta: '720.000', balance_before: '0.000', balance_after: '720.000',
+        }],
+      },
+    };
+    api.detail.mockImplementation(() => of({ data: detail }));
+    api.payment.mockImplementation(() => {
+      detail = { ...detail, account_movements: [{ ...movement, id: 'standalone', delivery_stop_id: null, amount: '-20.000' }, movement] };
+      return of({ data: [movement] });
+    });
+    const replacement = { ...movement, id: 'corrected-payment', amount: '-700.125' };
+    api.rectifyPayment.mockImplementationOnce(() => throwError(() => new HttpErrorResponse({ status: 0 }))).mockImplementationOnce(() => {
+      detail = { ...detail, account_movements: [{ ...movement, reversal_id: 'reversal' }, replacement] };
+      return of({ data: [replacement] });
+    }).mockImplementationOnce(() => {
+      detail = { ...detail, account_movements: [{ ...movement, reversal_id: 'reversal' }, { ...replacement, reversal_id: 'second-reversal' }] };
+      return of({ data: [] });
+    });
+
+    const fixture = TestBed.createComponent(DeliveryPage);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.componentInstance.selectPanel('summary');
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const click = (selector: string) => {
+      root.querySelector<HTMLButtonElement>(selector)!.click();
+      fixture.detectChanges();
+    };
+    const change = (selector: string, value: string, event = 'input') => {
+      const field = root.querySelector<HTMLInputElement>(selector)!;
+      field.value = value;
+      field.dispatchEvent(new Event(event, { bubbles: true }));
+      fixture.detectChanges();
+    };
+    const openPayment = () => {
+      click('.edit-delivery');
+      click('.editor-tabs button:last-child');
+    };
+    const refresh = async () => {
+      await vi.waitFor(() => expect(fixture.componentInstance.busy()).toBe(false));
+      fixture.detectChanges();
+    };
+    expect(Array.from(root.querySelectorAll('.completed-deliveries .customer strong'), (name) => name.textContent))
+      .toEqual(['Almacén El Puente', 'Autoservicio Central']);
+    const totals = root.querySelector('[summary-finances] app-delivery-financial-summary');
+    expect(totals?.textContent).toContain('Dinero cobrado');
+    expect(totals?.querySelector('.customer-breakdown')).toBeNull();
+    change('.delivery-search', 'almacen');
+    expect(root.querySelectorAll('.completed-deliveries li')).toHaveLength(1);
+
+    openPayment();
+    change('app-delivery-stop-editor input[inputmode="decimal"]', '720');
+    click('app-delivery-stop-editor button[type="submit"]');
+    await refresh();
+    const linked = api.payment.mock.calls[0];
+    expect(linked[1]).toEqual(expect.objectContaining({
+      client_reference: demoClient.id, delivery_stop_id: 58, amount: '720.000', client_event_id: linked[2],
+    }));
+    expect(outbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'payment', idempotencyKey: linked[2] }), undefined);
+    expect(root.querySelector('.amounts')?.textContent).toContain('Cobrado $720');
+
+    openPayment();
+    change('app-delivery-stop-editor input[inputmode="decimal"]', '700,125');
+    change('app-delivery-stop-editor textarea', 'Importe verificado');
+    click('app-delivery-stop-editor button[type="submit"]');
+    expect(root.querySelector<HTMLButtonElement>('[aria-label="Cerrar rectificación"]')?.disabled).toBe(true);
+    click('app-delivery-stop-editor button[type="submit"]');
+    await refresh();
+    expect(api.rectifyPayment).toHaveBeenNthCalledWith(1, activeDelivery.id, movement.id,
+      { amount: '700.125', reason: 'Importe verificado' }, expect.any(String));
+    expect(api.rectifyPayment.mock.calls[1]).toEqual(api.rectifyPayment.mock.calls[0]);
+    expect(root.querySelector('.amounts')?.textContent).toContain('Cobrado $700,125');
+
+    openPayment();
+    change('app-delivery-stop-editor select:has(option[value="no"])', 'no', 'change');
+    change('app-delivery-stop-editor textarea', 'No se recibió el pago');
+    click('app-delivery-stop-editor button[type="submit"]');
+    await refresh();
+    expect(api.rectifyPayment).toHaveBeenNthCalledWith(3, activeDelivery.id, replacement.id,
+      { amount: '0.000', reason: 'No se recibió el pago' }, expect.any(String));
+    expect(root.querySelector('.amounts')?.textContent).toContain('Sin cobro');
+    expect(api.stop).not.toHaveBeenCalled();
+  });
 
   it('keeps the server page and searches all cached clients offline', () => {
     page.clients.set(Array.from({ length: 80 }, (_, index) => ({
