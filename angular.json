@@ -38,7 +38,7 @@
                 "output": "assets/mapbox"
               }
             ],
-            "styles": ["src/global.scss", "src/theme/variables.scss", "node_modules/leaflet/dist/leaflet.css"],
+            "styles": ["src/global.scss", "src/theme/variables.scss"],
             "scripts": [],
             "browser": "src/main.ts"
           },

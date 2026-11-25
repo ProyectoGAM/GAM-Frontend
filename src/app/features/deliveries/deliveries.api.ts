@@ -2,11 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../../core/api/api-client';
+import type { CustomerMovementResult } from '../customers/interfaces/customer';
 import {
   AddDeliveryLoadInput,
   CloseDeliveryInput,
   DeliveryClient,
   DeliveryClientPage,
+  DeliveryPaymentCorrectionInput,
   DeliveryPaymentInput,
   DeliveryEnvelope,
   DeliveryListResponse,
@@ -35,8 +37,14 @@ export class DeliveriesApi {
     return this.api.get<{ data: DeliveryClient[]; meta: { has_more: boolean; limit: number } }>('clientes/mapa', { params });
   }
 
-  payment(id: string, body: DeliveryPaymentInput, key: string): Observable<{ data: unknown[] }> {
-    return this.api.post<{ data: unknown[] }, DeliveryPaymentInput>(`repartos/${id}/cobros`, body, this.commandOptions(key));
+  payment(id: string, body: DeliveryPaymentInput, key: string): Observable<CustomerMovementResult> {
+    return this.api.post<CustomerMovementResult, DeliveryPaymentInput>(`repartos/${id}/cobros`, body, this.commandOptions(key));
+  }
+
+  rectifyPayment(id: string, movementId: string, body: DeliveryPaymentCorrectionInput, key: string): Observable<CustomerMovementResult> {
+    return this.api.post<CustomerMovementResult, DeliveryPaymentCorrectionInput>(
+      `repartos/${id}/cobros/${movementId}/rectificaciones`, body, this.commandOptions(key),
+    );
   }
 
   units(): Observable<{ data: DeliveryUnit[] }> {

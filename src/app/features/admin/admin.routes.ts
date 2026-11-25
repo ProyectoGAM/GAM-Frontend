@@ -208,7 +208,7 @@ const moduleRoutes: Routes = ADMIN_NAVIGATION.map((group) => ({
                   if (group.id === 'repartos' && item.slug === 'repartos') {
                     return {
                       path: item.slug,
-                      loadComponent: () => import('../deliveries/admin-deliveries.page').then((module) => module.AdminDeliveriesPage),
+                      loadChildren: () => import('../deliveries/admin-deliveries.routes').then((module) => module.adminDeliveriesRoutes),
                     };
                   }
 

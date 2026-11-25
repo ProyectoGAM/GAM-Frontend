@@ -3,7 +3,8 @@ import { Component, DestroyRef, OnInit, computed, inject, input, output, signal 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
 import { DeliveriesApi } from '../deliveries.api';
-import { Delivery, DeliveryProductionUnit, DeliveryStop, DeliveryStopCorrectionInput } from '../delivery.models';
+import { createDeliveryId } from '../delivery-id';
+import { Delivery, DeliveryProductionUnit, DeliveryStop, DeliveryStopCorrectionInput, DeliveryStopItem } from '../delivery.models';
 import { formatDeliveryMoney } from '../delivery-money';
 
 const decimalQuantity = /^\d{1,10}(?:\.\d{1,3})?$/;
@@ -17,6 +18,8 @@ const decimalAmount = /^\d{1,19}(?:\.\d{1,3})?$/;
 export class DeliveryStopCorrectionComponent implements OnInit {
   readonly delivery = input.required<Delivery>();
   readonly stop = input.required<DeliveryStop>();
+  readonly mobile = input(false);
+  readonly online = input(true);
   readonly cancelled = output<void>();
   readonly refreshed = output<string>();
 
@@ -33,17 +36,22 @@ export class DeliveryStopCorrectionComponent implements OnInit {
   protected readonly origins = signal<readonly DeliveryProductionUnit[]>([]);
   protected readonly saving = signal(false);
   protected readonly uncertain = signal(false);
+  readonly locked = computed(() => this.saving() || this.uncertain());
   protected readonly errors = signal<Record<string, string[]>>({});
   protected readonly message = signal('');
   protected readonly money = formatDeliveryMoney;
   protected readonly hasLines = computed(() => !!this.stop().items?.length);
-  protected readonly remaining = computed(() => {
+  protected readonly finalEggs = computed(() => {
     const stop = this.stop();
-    const eggs = this.hasLines()
-      ? stop.items!.reduce((total, item, index) => total + Math.round(Number(normalize(this.amounts()[index] ?? '')) * 1000) * item.eggs_per_unit / 1000, 0)
-      : Number(this.quantity());
-    return this.delivery().remaining_quantity + stop.delivered_quantity - eggs;
+    if (!this.hasLines()) return /^\d+$/.test(this.quantity()) ? Number(this.quantity()) : null;
+    const eggs = (stop.items ?? []).map((item, index) => {
+      const quantity = normalize(this.amounts()[index] ?? '');
+      return decimalQuantity.test(quantity) && Number(quantity) <= Number(item.amount)
+        ? Math.round(Number(quantity) * 1000) * item.eggs_per_unit / 1000 : NaN;
+    });
+    return eggs.every(Number.isInteger) ? eggs.reduce((total, amount) => total + amount, 0) : null;
   });
+  protected readonly remaining = computed(() => this.delivery().remaining_quantity + this.stop().delivered_quantity - (this.finalEggs() ?? this.stop().delivered_quantity));
   protected readonly needsReturn = computed(() => this.delivery().status === 'completed' && this.remaining() > 0);
 
   ngOnInit(): void {
@@ -67,6 +75,19 @@ export class DeliveryStopCorrectionComponent implements OnInit {
     this.amounts.update((amounts) => amounts.map((old, position) => position === index ? value : old));
   }
 
+  protected stepAmount(index: number, item: DeliveryStopItem, direction: -1 | 1): void {
+    const original = Math.round(Number(item.amount) * 1000);
+    const current = Math.round(Number(normalize(this.amounts()[index] ?? '')) * 1000);
+    const step = item.eggs_per_unit % 2 === 0 ? 500 : 1000;
+    const adjusted = (Number.isFinite(current) ? current : original) + direction * step;
+    this.changeAmount(index, String(Math.min(original, Math.max(0, adjusted)) / 1000).replace('.', ','));
+  }
+
+  protected canStepAmount(index: number, item: DeliveryStopItem, direction: -1 | 1): boolean {
+    const current = Number(normalize(this.amounts()[index] ?? ''));
+    return direction < 0 ? !Number.isFinite(current) || current > 0 : current < Number(item.amount);
+  }
+
   protected lineError(index: number): string | undefined {
     const submitted = this.pending?.body.lineas?.findIndex((line) => line.indice === index);
     return this.errors()['linea.' + index]?.[0]
@@ -80,13 +101,13 @@ export class DeliveryStopCorrectionComponent implements OnInit {
 
   protected submit(event: Event): void {
     event.preventDefault();
-    if (this.saving()) return;
+    if (this.saving() || !this.online()) return;
     this.message.set('');
     this.errors.set({});
     if (!this.uncertain()) {
       const body = this.buildBody();
       if (!body) return;
-      this.pending = { key: crypto.randomUUID(), body };
+      this.pending = { key: createDeliveryId(), body };
     }
     const operation = this.pending;
     if (!operation) return;
@@ -98,7 +119,7 @@ export class DeliveryStopCorrectionComponent implements OnInit {
         this.pending = null;
         this.uncertain.set(false);
         const balance = data.despues.saldo_huevos;
-        this.refreshed.emit(balance < 0 ? 'Entrega rectificada. Quedan ' + Math.abs(balance) + ' huevos por regularizar.'
+        this.refreshed.emit(this.mobile() ? 'Entrega rectificada.' : balance < 0 ? 'Entrega rectificada. Quedan ' + Math.abs(balance) + ' huevos por regularizar.'
           : balance > 0 ? 'Entrega rectificada. Quedan ' + balance + ' huevos para devolver en el cierre.'
           : 'Entrega rectificada. El saldo del reparto quedó en cero.');
       },

@@ -1,117 +1,89 @@
-<div class="heading">
+<header class="page-heading">
   <div>
-    <p>Panel administrativo / Repartos</p>
-    <h1>Seguimiento de repartos</h1>
-    @if (unitContext.selectedId() !== null) { <small>Unidad: {{ unitContext.selectedUnit()?.name ?? 'seleccionada' }}</small> }
+    <h1>Repartos</h1>
+    @if (unitContext.selectedUnit(); as unit) { <p>{{ unit.name }}</p> }
   </div>
-  <ion-button fill="outline" (click)="load()" [disabled]="loading()"><ion-icon slot="start" name="refresh-outline" aria-hidden="true" />Actualizar</ion-button>
-</div>
+  <button class="button" type="button" (click)="refresh()" [disabled]="loading() || (view() === 'history' && invalidRange())">
+    <ion-icon name="refresh-outline" aria-hidden="true" /> Actualizar
+  </button>
+</header>
 
-@if (error()) { <ion-text color="danger"><p class="page-error" role="alert">{{ error() }}</p></ion-text> }
+<nav class="view-switch" aria-label="Vista de repartos">
+  @if (canMonitor()) {
+    <button type="button" [attr.aria-pressed]="view() === 'active'" (click)="setView('active')">En curso</button>
+  }
+  <button type="button" [attr.aria-pressed]="view() === 'history'" (click)="setView('history')">Historial</button>
+</nav>
 
-<div class="delivery-grid">
-  <section class="delivery-lists" aria-label="Listado de repartos">
-    @if (canMonitor()) {
-    <ion-card>
-      <ion-card-header><ion-card-title>Repartos actuales</ion-card-title></ion-card-header>
-      <ion-card-content>
-        @if (loading() && active().length === 0) { <div class="loading-state" role="status"><ion-spinner name="crescent" /> Cargando repartos…</div> }
-        @for (delivery of active(); track delivery.id) {
-          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
-            <span class="status-dot active"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos{{ delivery.started_without_load ? ' · inició sin carga' : '' }} · {{ delivery.stops_summary.total }} visitas</small></span>
-          </button>
-        } @empty { @if (!loading()) { <p class="muted">No hay repartos activos para esta selección.</p> } }
-      </ion-card-content>
-    </ion-card>
-    }
-    <ion-card>
-      <ion-card-header><ion-card-title>Historial</ion-card-title></ion-card-header>
-      <ion-card-content>
-        @if (!canMonitor() && loading()) { <div class="loading-state" role="status"><ion-spinner name="crescent" /> Cargando repartos…</div> }
-        @for (delivery of history(); track delivery.id) {
-          <button class="delivery-row" [class.selected]="selected()?.id === delivery.id" (click)="select(delivery)" [attr.aria-pressed]="selected()?.id === delivery.id">
-            <span class="status-dot"></span><span><strong>{{ delivery.driver?.name ?? 'Sin repartidor' }}</strong><small>{{ delivery.loaded_quantity }} huevos{{ delivery.started_without_load ? ' · inició sin carga' : '' }} · {{ delivery.status === 'completed' ? 'Completado' : 'Cancelado' }} · {{ delivery.started_at | date:'short' }}</small></span>
-          </button>
-        } @empty { @if (!loading()) { <p class="muted">Todavía no hay repartos cerrados.</p> } }
-      </ion-card-content>
-    </ion-card>
-  </section>
-
-  <section class="map-and-detail" aria-label="Detalle del reparto seleccionado">
-    <div class="map-shell">
-      <div #adminMap class="admin-map" role="application" aria-label="Mapa de acciones registradas del reparto"></div>
-      @if (mapReady() && hasMapPoints()) { <p class="map-legend">Acciones numeradas · seleccioná un punto para ver sus detalles</p> }
-      @if (mapError()) { <p class="map-message" role="alert">{{ mapError() }}</p> }
-      @if (!mapReady() && !mapError()) { <p class="map-message" role="status"><ion-spinner name="crescent" /> Cargando mapa…</p> }
+<section class="filters" aria-label="Filtros de repartos">
+  <label class="field">
+    <span>Repartidor o matrícula</span>
+    <span class="search-field">
+      <ion-icon name="search-outline" aria-hidden="true" />
+      <input type="search" placeholder="Buscar por repartidor o matrícula" [value]="search()" (input)="setSearch($event)">
+    </span>
+  </label>
+  @if (view() === 'history') {
+    <div class="date-range" role="group" aria-label="Período de inicio">
+      <label class="field"><span>Desde</span><input type="date" [value]="dateFrom()" (change)="setFilter('desde', $event)"></label>
+      <label class="field"><span>Hasta</span><input type="date" [value]="dateTo()" (change)="setFilter('hasta', $event)"></label>
     </div>
+    <label class="field">
+      <span>Estado</span>
+      <select [value]="status()" (change)="setFilter('estado', $event)">
+        <option value="">Todos los estados</option>
+        <option value="completed">Finalizado</option>
+        <option value="cancelled">Cancelado</option>
+      </select>
+    </label>
+  }
+</section>
 
-    @if (selected(); as delivery) {
-      <ion-card class="detail-card">
-        <ion-card-header><ion-card-title>Detalle del reparto</ion-card-title></ion-card-header>
-        <ion-card-content>
-          @if (detailLoading()) { <p class="muted" role="status">Actualizando detalle…</p> }
-          @if (correctionMessage()) { <p role="status">{{ correctionMessage() }}</p> }
-          @if (detailError()) { <p class="page-error" role="alert">{{ detailError() }}</p> }
-          <p><strong>Repartidor:</strong> {{ delivery.driver?.name ?? '—' }}</p>
-          <p><strong>Carga al inicio:</strong> {{ delivery.started_without_load ? 'No cargó huevos al inicio' : 'Con carga inicial' }}</p>
-          <p><strong>UP inicial:</strong> {{ delivery.started_without_load ? 'No aplica' : delivery.production_unit?.name ?? '—' }}</p>
-          <p><strong>Vehículo:</strong> {{ delivery.vehicle ? delivery.vehicle.plate + ' · ' + delivery.vehicle.make + ' ' + delivery.vehicle.model : delivery.vehicle_reference ?? '—' }}</p>
-          @if (delivery.vehicle_usage; as usage) { <p><strong>Tablero:</strong> Salida {{ usage.start_odometer_km ? usage.start_odometer_km + ' km' : 'sin lectura' }} · Cierre {{ usage.end_odometer_km ? usage.end_odometer_km + ' km' : 'sin lectura' }}@if (usage.distance_km) { · Distancia registrada {{ usage.distance_km }} km }</p> }
-          <p><strong>Inicio:</strong> {{ delivery.started_at | date:'dd/MM/yyyy HH:mm:ss':'-0300' }} · <strong>Fin:</strong> {{ delivery.closed_at ? (delivery.closed_at | date:'dd/MM/yyyy HH:mm:ss':'-0300') : 'En curso' }}</p>
-          <p><strong>Carga:</strong> {{ delivery.loaded_quantity }} · <strong>Entregado:</strong> {{ delivery.delivered_quantity }} · <strong>Devuelto:</strong> {{ delivery.returned_quantity }} · <strong>Saldo:</strong> {{ delivery.remaining_quantity }} huevos</p>
-          @if (!hasMapPoints()) { <p class="muted" role="status">Ubicación no disponible: el reparto no tiene puntos persistidos para mostrar.</p> }
-          <section class="timeline-section" aria-label="Línea de tiempo del reparto">
-            <h3>De inicio a cierre</h3>
-            @if (timeline().length === 0) { <p class="muted">Todavía no hay eventos registrados.</p> }
-            <ol class="delivery-timeline">
-              @for (event of timeline(); track event.id) {
-                <li class="timeline-event" [attr.data-kind]="event.kind">
-                  <span class="timeline-marker" aria-hidden="true"></span>
-                  <div class="timeline-content">
-                    <div class="timeline-heading"><strong>{{ event.title }}</strong><time [attr.datetime]="event.occurredAt ?? event.recordedAt">{{ event.occurredAt ? (event.occurredAt | date:'dd/MM/yyyy HH:mm:ss':'-0300') : event.recordedAt ? (event.recordedAt | date:'dd/MM/yyyy HH:mm:ss':'-0300') : 'Hora no registrada' }}</time></div>
-                    @for (detail of event.details; track $index) { <p>{{ detail }}</p> }
-                    @if (hasRecordedDelay(event)) { <small>Recibido por el sistema: {{ event.recordedAt | date:'dd/MM/yyyy HH:mm:ss':'-0300' }}</small> }
-                  </div>
-                </li>
-              }
-            </ol>
-          </section>
-          <app-delivery-financial-summary [summary]="delivery.financial_summary" [customerLinks]="true" title="Dinero y cuentas vigentes del reparto" />
-          @if (delivery.closed_financial_summary) { <app-delivery-financial-summary [summary]="delivery.closed_financial_summary" [customerLinks]="true" title="Resumen conservado al cierre" /> }
-          <p><strong>Valor entregado:</strong> {{ money(delivery.delivered_amount) }}</p>
-          <p><strong>Última ubicación:</strong> {{ delivery.latest_location ? (delivery.latest_location.captured_at | date:'medium') : 'Sin datos aún' }}</p>
-          @if (delivery.stops?.length) {
-            <div class="stops-detail"><strong>Visitas</strong>
-              @for (stop of delivery.stops; track stop.id) {
-                <div><span>{{ stop.client_name }} @if (stop.status === 'delivered') { <small>Valor: {{ money(stop.total_amount) }}</small> }
-                  @for (item of stop.items ?? []; track $index) { <small>{{ item.amount }} {{ item.label }} · {{ item.eggs }} huevos @if (item.unit_price !== undefined) { · Precio: {{ money(item.unit_price) }} · Importe: {{ money(item.line_amount) }} }</small> }
-                </span><small>{{ stop.status === 'delivered' ? stop.delivered_quantity + ' huevos' : stop.status === 'not_delivered' ? 'Sin entrega' : 'Sin visita registrada' }}</small></div>
-                @if (editingStop() === stop.id) {
-                  <app-delivery-stop-correction [delivery]="delivery" [stop]="stop"
-                    (cancelled)="editingStop.set(null)" (refreshed)="refreshCorrection(delivery.id, $event)" />
-                } @else if (canRectify() && stop.status === 'delivered' && stop.version && !editingStop()) {
-                  <ion-button fill="outline" size="small" (click)="editingStop.set(stop.id); correctionMessage.set('')">Rectificar entrega</ion-button>
-                }
-              }
-            </div>
+@if (!loading() && !error() && incomplete()) {
+  <p class="feedback" role="status">{{ view() === 'history' ? 'Se muestran los repartos más recientes. Acotá el período para consultar repartos anteriores.' : 'Se muestran los repartos en curso más recientes. Elegí una unidad productiva para acotar la consulta.' }}</p>
+}
+@if (view() === 'history' && invalidRange()) {
+  <p class="feedback error" role="alert">La fecha «Hasta» debe ser igual o posterior a «Desde».</p>
+} @else if (loading()) {
+  <p class="feedback" role="status"><ion-spinner name="crescent" /> Cargando repartos…</p>
+} @else if (error()) {
+  <div class="feedback error" role="alert">No se pudieron cargar los repartos. <button class="button" type="button" (click)="refresh()">Reintentar</button></div>
+} @else if (!rows().length) {
+  <p class="feedback" role="status">{{ search() || (view() === 'history' && (status() || dateFrom() || dateTo())) ? 'No hay repartos para estos filtros.' : view() === 'active' ? 'No hay repartos en curso.' : 'Todavía no hay repartos cerrados.' }}</p>
+} @else {
+  <section class="results" aria-label="Listado de repartos">
+    <div class="table-scroll" role="region" aria-label="Tabla de repartos" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">Repartidor</th><th scope="col">Vehículo</th><th scope="col">Inicio</th><th scope="col">Estado</th><th scope="col">Visitas</th><th scope="col">Cargado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+        <tbody>
+          @for (delivery of rows(); track delivery.id) {
+            <tr [id]="'reparto-' + delivery.id">
+              <th scope="row">{{ delivery.driver?.name ?? 'Sin repartidor' }}</th>
+              <td>{{ delivery.vehicle?.plate ?? delivery.vehicle_reference ?? '—' }}</td>
+              <td><time [attr.datetime]="delivery.started_at">{{ delivery.started_at | date:'d MMM y · HH:mm':'-0300' }}</time></td>
+              <td><span class="status" [attr.data-status]="delivery.status"><ion-icon [name]="statusIcons[delivery.status]" aria-hidden="true" /> {{ statusLabels[delivery.status] }}</span></td>
+              <td>{{ delivery.stops_summary.delivered + delivery.stops_summary.not_delivered }}</td>
+              <td>{{ delivery.loaded_quantity }} huevos</td>
+              <td>
+                <a class="detail-link" [routerLink]="[delivery.id]" queryParamsHandling="preserve"
+                  [attr.aria-label]="'Ver detalle del reparto de ' + (delivery.driver?.name ?? 'repartidor sin identificar') + ' del ' + (delivery.started_at | date:'d MMM y, HH:mm':'-0300')">
+                  Ver detalle <ion-icon name="arrow-forward-outline" aria-hidden="true" />
+                </a>
+              </td>
+            </tr>
           }
-          @if (delivery.rectificaciones_entregas?.length) {
-            <section class="stops-detail" aria-label="Historial de rectificaciones">
-              <h3>Rectificaciones de entregas</h3>
-              @for (correction of delivery.rectificaciones_entregas; track correction.operation_id) {
-                <div>
-                  <span>{{ correction.motivo }}
-                    <small>{{ correction.antes.cantidad_entregada }} → {{ correction.despues.cantidad_entregada }} huevos · Saldo posterior {{ correction.despues.saldo_huevos }}</small>
-                  </span>
-                  <time [attr.datetime]="correction.registrada_en">{{ correction.registrada_en | date:'dd/MM/yyyy HH:mm':'-0300' }}</time>
-                </div>
-              }
-            </section>
-          }
-        </ion-card-content>
-      </ion-card>
-    } @else if (!loading()) {
-      <p class="empty-selection" role="status">Seleccioná un reparto para ver sus ubicaciones guardadas.</p>
-    }
+        </tbody>
+      </table>
+    </div>
+    <footer class="results-footer">
+      <span>{{ matching().length === 1 ? '1 reparto' : matching().length + ' repartos' }}</span>
+      @if (pageCount() > 1) {
+        <nav class="pagination" aria-label="Paginación de repartos">
+          <button class="button" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">Anterior</button>
+          <span>Página {{ page() }} de {{ pageCount() }}</span>
+          <button class="button" type="button" (click)="setPage(page() + 1)" [disabled]="page() === pageCount()">Siguiente</button>
+        </nav>
+      }
+    </footer>
   </section>
-</div>
+}

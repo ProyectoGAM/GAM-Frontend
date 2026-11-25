@@ -305,10 +305,11 @@ export class AuthStore {
 
     const problem = this.problem(error);
     const path = requestUrl.split(/[?#]/)[0];
+    const pinVerification = /(?:^|\/)(?:auth\/pin|shared-device\/(?:web\/)?login-pin)\/?$/.test(path)
+      || /(?:^|\/)repartos(?:\/[^/]+\/cierre)?\/?$/.test(path);
     if ((problem.code === 'INVALID_CREDENTIALS'
       && /(?:^|\/)auth\/(?:(?:web\/)?confirm-password|contrasena)\/?$/.test(path))
-      || (problem.code === 'INVALID_PIN'
-        && /(?:^|\/)(?:auth\/pin|shared-device\/(?:web\/)?login-pin)\/?$/.test(path))) {
+      || (problem.code === 'INVALID_PIN' && pinVerification)) {
       return;
     }
     if (problem.code === 'SHARED_DEVICE_UNAUTHORIZED') {

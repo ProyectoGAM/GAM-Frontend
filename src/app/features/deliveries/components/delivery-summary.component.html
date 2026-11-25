@@ -1,0 +1,58 @@
+<h2>Resumen</h2>
+<dl class="summary-card" aria-label="Balance de huevos">
+  <div><dt>Cargados</dt><dd>{{ delivery().loaded_quantity }}</dd></div>
+  <div><dt>Entregados</dt><dd>{{ delivery().delivered_quantity }}</dd></div>
+  <div><dt>En vehículo</dt><dd>{{ delivery().remaining_quantity }}</dd></div>
+</dl>
+
+<section aria-labelledby="realized-deliveries">
+  <div class="section-heading">
+    <h3 id="realized-deliveries">Entregas realizadas</h3>
+    <span>{{ deliveries().length }} {{ deliveries().length === 1 ? 'entrega' : 'entregas' }}</span>
+  </div>
+  @if (deliveries().length) {
+    <input #customerSearch class="delivery-search" type="search" aria-label="Buscar cliente en entregas realizadas"
+      placeholder="Buscar cliente" [value]="search()" (input)="search.set(customerSearch.value)" />
+  }
+  @if (rows().length) {
+    <ul class="completed-deliveries">
+      @for (row of rows(); track row.stop.id === -1 ? row.stop.client_reference : row.stop.id) {
+        <li>
+          <div class="customer">
+            <strong>{{ row.stop.client_name }}</strong>
+            <span>
+              @if (row.stop.visited_at ?? row.stop.created_at; as visitedAt) {
+                <time [attr.datetime]="visitedAt">{{ visitedAt | date:'HH:mm':'-0300' }}</time>
+              }
+              <span class="delivered">Entregada</span>
+            </span>
+          </div>
+          <div class="amounts">
+            <strong>{{ row.stop.delivered_quantity }} huevos</strong>
+            <small [class.paid]="row.paid">{{ row.payment }}</small>
+          </div>
+          @if (canEdit() && row.editable) {
+            <button class="edit-delivery" type="button" aria-haspopup="dialog" [attr.aria-label]="'Rectificar entrega de ' + row.stop.client_name"
+              (click)="editRequested.emit(row.stop.id)">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>
+                <path d="M16 3a2.12 2.12 0 0 1 3 3l-8 8-4 1 1-4 8-8Z" transform="translate(2 1)"/>
+              </svg>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty">{{ deliveries().length ? 'No hay entregas para esa búsqueda.' : 'Todavía no hay entregas registradas.' }}</p>
+  }
+</section>
+
+<details class="summary-section">
+  <summary>Balance de carga</summary>
+  <ng-content select="[summary-load]" />
+</details>
+<details class="summary-section">
+  <summary>Cobros y vehículo</summary>
+  <ng-content select="[summary-finances]" />
+</details>
