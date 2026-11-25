@@ -1,0 +1,128 @@
+.map-background {
+  position: absolute;
+  inset: 0 0 calc(68px + var(--ion-safe-area-bottom));
+  overflow: hidden;
+}
+
+.map-background.map-focused {
+  inset: 0 0 var(--ion-safe-area-bottom);
+}
+
+:is(ion-header, main, nav).map-chrome-hidden {
+  display: none;
+}
+
+.delivery-map {
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+}
+
+.map-content::part(scroll), .map-mode {
+  pointer-events: none;
+}
+
+.map-mode :is(.route-status, .metrics button, .close-button, .feedback), .map-controls {
+  pointer-events: auto;
+}
+
+.map-mode > .route-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--gam-color-border);
+  border-radius: 10px;
+  background: var(--gam-color-surface);
+}
+
+.map-mode > .route-status strong {
+  color: var(--gam-color-heading);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.map-mode .metrics {
+  margin: 12px 0;
+}
+
+.delivery-page.map-mode > .close-button {
+  position: fixed;
+  z-index: 2;
+  left: max(14px, env(safe-area-inset-left), calc((100vw - 520px) / 2));
+  bottom: calc(84px + var(--ion-safe-area-bottom));
+  width: auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 16px;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--gam-color-heading) 25%, transparent);
+}
+
+.map-controls {
+  padding: 8px;
+  background: var(--gam-color-surface);
+  border: 1px solid var(--gam-color-border);
+  border-radius: 8px;
+}
+
+.map-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-tools #map-visit {
+  min-width: 0;
+  padding-inline: 8px;
+  text-overflow: ellipsis;
+}
+
+.map-locate, .map-focus-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-expand {
+  display: grid;
+  min-width: 44px;
+  place-items: center;
+  font-size: 21px;
+}
+
+.map-controls p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.map-focus-actions {
+  position: absolute;
+  top: 12px;
+  right: max(12px, env(safe-area-inset-right));
+  left: max(12px, env(safe-area-inset-left));
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.map-focus-actions :is(button, p) {
+  pointer-events: auto;
+  background: var(--gam-color-surface);
+  border: 1px solid var(--gam-color-control-border);
+}
+
+.map-focus-actions p {
+  margin: 0;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+@media (max-height: 650px) {
+  .map-mode { padding-top: 8px; }
+  .map-mode > .route-status { padding: 8px 10px; }
+  .map-mode .metrics { margin: 8px 0; }
+}

@@ -1,5 +1,5 @@
 <form (submit)="submit($event)" aria-label="Rectificar entrega">
-  <h4>Rectificar entrega de {{ stop().client_name }}</h4>
+  <h4 tabindex="-1">Rectificar entrega de {{ stop().client_name }}</h4>
   <p>Ingresá las cantidades finales. Se conservan los precios de las líneas registradas.</p>
   <fieldset [disabled]="saving() || uncertain()">
     @if (hasLines()) {

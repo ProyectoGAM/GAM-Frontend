@@ -25,7 +25,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>GAM usa tu ubicación durante el reparto para que el administrador pueda seguir el recorrido.</string>
+	<string>GAM usa tu ubicación para centrar el mapa del reparto.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>GAM usa tu ubicación para centrar el mapa del reparto.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,13 +1,22 @@
-<ion-header [inert]="dialogOpen()" class="delivery-header">
-  <ion-toolbar>
+@let activeDelivery = delivery()?.status === 'active';
+@let mapView = activeDelivery && panel() === 'map';
+@let focusedMap = mapView && mapFocused();
+<ion-header [inert]="dialogOpen()" class="delivery-header" [class.map-chrome-hidden]="focusedMap">
+  <ion-toolbar
+    [style.--background]="activeDelivery ? null : 'var(--gam-color-surface-alt)'"
+    [style.--color]="activeDelivery ? null : 'var(--gam-color-heading)'"
+    [style.--border-color]="activeDelivery ? null : 'var(--gam-color-border)'"
+    [style.--border-width]="activeDelivery ? null : '0 0 1px'">
     <div slot="start" class="brand">
-      <span class="brand-mark" aria-hidden="true">G</span>
-      <span><strong>GAM Repartos</strong><small>{{ delivery()?.status === 'active' ? 'Reparto en curso' : 'Modo repartidor' }}</small></span>
+      <span class="brand-mark" aria-hidden="true" [style.color]="activeDelivery ? null : 'var(--gam-color-on-primary)'"
+        [style.background]="activeDelivery ? null : 'var(--gam-color-primary)'">G</span>
+      <span><strong>GAM Repartos</strong>@if (activeDelivery) { <small>Reparto en curso</small> }</span>
     </div>
     <div slot="end" class="header-actions">
       <span class="server-status" [class.connected]="serverStatus() === 'online'" [class.disconnected]="serverStatus() === 'offline'" role="status" aria-live="polite" [attr.aria-label]="serverStatusLabel()"><ion-icon name="wifi-outline" aria-hidden="true" /></span>
       @if (auth.user()?.permissions?.includes('can_view_notifications')) { <app-notification-bell nav-surface /> }
-      <button type="button" class="theme-toggle" [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()"><ion-icon [name]="theme.toggleIcon()" aria-hidden="true" /></button>
+      <button type="button" class="theme-toggle" [style.color]="activeDelivery ? null : 'var(--gam-color-heading)'"
+        [attr.aria-label]="theme.toggleLabel()" (click)="theme.toggle()"><ion-icon [name]="theme.toggleIcon()" aria-hidden="true" /></button>
       <button type="button" class="driver-avatar" aria-label="Abrir cuenta" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">{{ driverInitials() }}</button>
     </div>
   </ion-toolbar>
@@ -16,20 +25,31 @@
   }
 </ion-header>
 
-<ion-content [inert]="dialogOpen() && !noLoadConfirmation()" [fullscreen]="true" [fixedSlotPlacement]="'before'" [class.map-content]="delivery()?.status === 'active' && panel() === 'map'">
-  @if (delivery()?.status === 'active' && panel() === 'map') {
-    <div slot="fixed" class="map-background"><div #deliveryMap class="delivery-map" aria-label="Mapa interactivo de clientes"></div></div>
+<ion-content [inert]="dialogOpen()" [fullscreen]="true" [fixedSlotPlacement]="'before'" [class.map-content]="mapView" (keydown.escape)="setMapFocused(false)">
+  @if (mapView) {
+    <div slot="fixed" class="map-background" [class.map-focused]="focusedMap">
+      <div #deliveryMap class="delivery-map" aria-label="Mapa interactivo de clientes"></div>
+      @if (focusedMap) {
+        <div class="map-focus-actions">
+          <button #mapModeToggle type="button" class="secondary-action" (click)="setMapFocused(false)">
+            <ion-icon name="contract-outline" aria-hidden="true" />
+            Mostrar controles
+          </button>
+          @if (mapError(); as mapWarning) { <p role="status">{{ mapWarning }}</p> }
+        </div>
+      }
+    </div>
   }
-  <main class="delivery-page" [class.has-nav]="delivery()?.status === 'active'" [class.map-mode]="delivery()?.status === 'active' && panel() === 'map'">
-    @if (error() && !noLoadConfirmation() && !startConfirmation() && !closeConfirmation() && !selectedClient() && !loadOpen()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+  <main class="delivery-page" [class.has-nav]="activeDelivery" [class.map-mode]="mapView" [class.map-chrome-hidden]="focusedMap">
+    @if (error() && !startConfirmation() && !closeConfirmation() && !selectedClient() && !loadOpen()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (message()) { <p class="feedback success" role="status">{{ message() }}</p> }
 
     @if (!delivery() || delivery()?.status !== 'active') {
-      @if (delivery()?.status === 'completed') {
+      @if (delivery()?.status === 'completed' && !startMode()) {
         <section class="idle-card completed-card">
           <span class="idle-icon"><ion-icon name="checkmark-circle-outline" aria-hidden="true" /></span>
           <p class="eyebrow">REPARTO FINALIZADO</p>
-          <h1>¡Buen trabajo!</h1>
+          <h2>¡Buen trabajo!</h2>
           @if (delivery()?.started_without_load) { <p>Este reparto comenzó sin carga inicial y terminó con {{ delivery()?.delivered_quantity }} huevos entregados.</p> }
           @else { <p>Entregaste {{ delivery()?.delivered_quantity }} huevos. El resumen queda disponible para administración.</p> }
           <app-delivery-financial-summary [summary]="delivery()?.closed_financial_summary ?? delivery()?.financial_summary" title="Resumen al cierre" />
@@ -38,51 +58,31 @@
           @for (item of delivery()?.returned_items ?? []; track $index) { <p>{{ item.amount }} {{ item.label }}</p> }
         </section>
       }
-      <section class="idle-card">
-        <span class="idle-icon"><ion-icon name="location-outline" aria-hidden="true" /></span>
-        <p class="eyebrow">OPERACIÓN EN CALLE</p>
-        <h1>Prepará tu reparto</h1>
-        <p>Indicá lo que cargás en la camioneta. Después elegís libremente a qué clientes visitar.</p>
+      @if (checkingDelivery()) {
+        <p class="feedback" role="status">Comprobando reparto en curso…</p>
+      } @else {
         <app-delivery-start-options
+          [class.after-summary]="delivery()?.status === 'completed' && !startMode()"
+          [mode]="startMode()"
+          [startForm]="startForm"
+          [startTotal]="startTotal()"
+          [units]="units()"
+          [productionUnits]="productionUnits()"
           [availableVehicles]="availableVehicles()"
           [selectedVehicleId]="selectedVehicleId()"
           [warnings]="selectedVehicleWarnings()"
           [startOdometer]="startOdometer"
           [online]="online()"
-          [canOperate]="canOperate"
-          [busy]="busy()"
-          [noLoadConfirmation]="noLoadConfirmation()"
           [refreshingVehicles]="vehiclesLoading()"
-          [error]="error()"
+          [canContinue]="canOperate && online() && !busy() && !!selectedVehicleId() && (startWithoutLoad() || !!units().length)"
+          (modeChange)="chooseStartMode($event)"
           (selectedVehicleIdChange)="selectedVehicleId.set($event)"
           (refreshRequested)="refreshVehicles()"
-          (noLoadStartRequested)="openNoLoadConfirmation()"
-          (noLoadStartConfirmed)="confirmNoLoadStart()"
-          (noLoadStartCancelled)="cancelNoLoadStart()"
+          (addPresentation)="addStartLine()"
+          (removePresentation)="removeLine(startForm, $event)"
+          (continueRequested)="openStartConfirmation()"
         />
-        <form [formGroup]="startForm" (ngSubmit)="openStartConfirmation()" class="stock-form">
-      <label for="start-up">Unidad productiva de origen</label>
-      <select id="start-up" formControlName="production_unit_id" required><option [ngValue]="null">Seleccioná una UP</option>@for (unit of productionUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }</select>
-          <div class="load-head" aria-hidden="true"><span>Presentación</span><span>Cantidad</span><span></span></div>
-          <div formArrayName="items" class="load-lines">
-            @for (line of startForm.controls.items.controls; track line; let index = $index) {
-              <div [formGroupName]="index" class="load-line">
-                <span class="presentation-select">
-                  <select formControlName="unit" [attr.aria-label]="'Presentación ' + (index + 1)" required>
-                    @for (unit of units(); track unit.id) { <option [value]="unit.id">{{ unit.label }}</option> }
-                  </select>
-                </span>
-                <input type="text" formControlName="amount" inputmode="decimal" placeholder="0,5" [attr.aria-label]="'Cantidad ' + (index + 1)" required>
-                <button type="button" class="remove-line" (click)="removeLine(startForm, index)" [disabled]="startForm.controls.items.length === 1" [attr.aria-label]="'Quitar presentación ' + (index + 1)"><ion-icon name="trash-outline" aria-hidden="true" /></button>
-              </div>
-            }
-          </div>
-          <button type="button" class="secondary-action" (click)="addLine(startForm)" [disabled]="startForm.controls.items.length >= 20">+ Otra presentación</button>
-          <strong class="load-total">Total: {{ formEggs(startForm) }} huevos</strong>
-          <button type="submit" class="primary-action" [disabled]="busy() || !online() || !canOperate || !units().length || !selectedVehicleId()">Iniciar reparto</button>
-        </form>
-        @if (!online()) { <small class="offline-hint">Necesitás conexión para iniciar.</small> }
-      </section>
+      }
     } @else {
       @if (panel() === 'map') {
         <section class="route-status" aria-label="Estado del reparto">
@@ -114,10 +114,32 @@
       }
 
       @if (panel() === 'map') {
-        <section class="route-panel map-panel" id="map-panel" role="tabpanel" aria-labelledby="map-tab">
-          <div class="map-controls"><label for="map-visit">Visitas</label><select id="map-visit" [value]="mapVisitStatus()" (change)="changeMapVisit($event)"><option value="">Todas</option><option value="pending">Pendientes</option><option value="visited">Visitados</option><option value="delivered">Con entrega</option><option value="paid">Con cobro</option></select>
-          @if (mapHasMore()) { <p role="status">Hay más clientes en esta zona. Acercá el mapa para verlos.</p> }
-          @if (mapError()) { <p role="status">{{ mapError() }}</p> }</div>
+        <section class="route-panel" id="map-panel" role="tabpanel" aria-labelledby="map-tab">
+          <div class="map-controls">
+            <div class="map-tools">
+              <select id="map-visit" aria-label="Filtrar visitas" [value]="mapVisitStatus()" (change)="changeMapVisit($event)">
+                <option value="">Todas las visitas</option>
+                <option value="pending">Pendientes</option>
+                <option value="visited">Visitados</option>
+                <option value="delivered">Con entrega</option>
+                <option value="paid">Con cobro</option>
+              </select>
+              <button class="secondary-action map-locate" type="button" [disabled]="!mapReady() || locationLoading()" (click)="centerOnLocation()">
+                <ion-icon name="locate-outline" aria-hidden="true" />
+                Mi ubicación
+              </button>
+              @if (!focusedMap) {
+                <button #mapModeToggle class="secondary-action map-expand" type="button" aria-label="Solo mapa" title="Solo mapa"
+                  [disabled]="!mapReady()" (click)="setMapFocused(true)">
+                  <ion-icon name="expand-outline" aria-hidden="true" />
+                </button>
+              }
+            </div>
+            @if (locationLoading()) { <p role="status">Buscando tu ubicación…</p> }
+            @if (locationError(); as locationMessage) { <p role="status">{{ locationMessage }}</p> }
+            @if (mapHasMore()) { <p role="status">Hay más clientes en esta zona. Acercá el mapa para verlos.</p> }
+            @if (mapError()) { <p role="status">{{ mapError() }}</p> }
+          </div>
         </section>
       }
 
@@ -173,7 +195,7 @@
 </ion-content>
 
 @if (delivery()?.status === 'active') {
-  <nav [inert]="dialogOpen()" class="bottom-nav" aria-label="Navegación del reparto" role="tablist">
+  <nav [inert]="dialogOpen()" class="bottom-nav" [class.map-chrome-hidden]="focusedMap" aria-label="Navegación del reparto" role="tablist">
     <button id="clients-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'clients'" [class.active]="panel() === 'clients'" (click)="selectPanel('clients')"><ion-icon name="people-outline" aria-hidden="true" />Clientes</button>
     <button id="map-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'map'" [class.active]="panel() === 'map'" (click)="selectPanel('map')"><ion-icon name="map-outline" aria-hidden="true" />Mapa</button>
     <button id="summary-tab" type="button" role="tab" [attr.aria-selected]="panel() === 'summary'" [class.active]="panel() === 'summary'" (click)="selectPanel('summary')"><ion-icon name="stats-chart-outline" aria-hidden="true" />Resumen</button>
@@ -186,14 +208,14 @@
     <div class="sheet-handle" aria-hidden="true"></div>
     <h2 id="start-pin-title">Confirmar inicio</h2>
     @if (startWithoutLoad()) { <p>Vas a iniciar un reparto con 0 huevos. Podrás registrar cobranzas y agregar una carga durante el recorrido para hacer entregas.</p> }
-    @else { <p>Vas a iniciar el reparto con {{ formEggs(startForm) }} huevos.</p> }
+    @else { <p>Vas a iniciar el reparto con {{ startTotal() }} huevos.</p> }
     <form (submit)="startDelivery(); $event.preventDefault()" class="pin-form">
       <label for="start-pin">Tu PIN de repartidor</label>
       <input id="start-pin" type="password" [formControl]="startPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4 dígitos" aria-describedby="start-pin-hint">
       @if (startPin.touched && startPin.invalid) { <small class="field-error">Ingresá un PIN de 4 dígitos.</small> }
       @if (error()) { <small class="field-error" role="alert">{{ error() }}</small> }
       <small id="start-pin-hint" class="offline-hint">El PIN se verifica con conexión.</small>
-      <div class="pin-actions"><button type="button" class="secondary-action" (click)="cancelStartConfirmation()">Volver</button><button type="submit" class="primary-action" [disabled]="busy() || !online()">@if (busy()) { <ion-spinner name="crescent" aria-label="Iniciando reparto" /> } @else { Confirmar inicio }</button></div>
+      <div class="pin-actions"><button type="button" class="secondary-action" (click)="cancelStartConfirmation()" [disabled]="busy()">Volver</button><button type="submit" class="primary-action" [disabled]="busy() || !online()">@if (busy()) { <ion-spinner name="crescent" aria-label="Iniciando reparto" /> } @else { Confirmar inicio }</button></div>
     </form>
   </section>
 }

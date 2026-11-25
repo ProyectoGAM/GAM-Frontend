@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthStore } from '../../core/auth/auth.store';
 import { VehicleFuelInput } from '../vehicles/interfaces/vehicle';
+import { createDeliveryId } from './delivery-id';
 import { AddDeliveryLoadInput, CloseDeliveryInput, Delivery, DeliveryClient, DeliveryPaymentInput, DeliveryUnit, DeliveryProductionUnit, LocationInput, StopInput } from './delivery.models';
 
 export type DeliveryOutboxKind = 'load' | 'stop' | 'payment' | 'fuel' | 'locations' | 'close';
@@ -43,7 +44,7 @@ export class DeliveryOutboxService {
     const transaction = database.transaction(STORE_NAME, 'readwrite');
     const committed = this.committed(transaction);
     const store = transaction.objectStore(STORE_NAME);
-    const value: DeliveryOutboxEntry = { ...entry, id: crypto.randomUUID(), actorId, schemaVersion: 4, state: 'pending', createdAt: new Date().toISOString(), attempts: 0 };
+    const value: DeliveryOutboxEntry = { ...entry, id: createDeliveryId(), actorId, schemaVersion: 4, state: 'pending', createdAt: new Date().toISOString(), attempts: 0 };
     const request = store.getAll();
     request.onsuccess = () => {
       const rows = request.result as DeliveryOutboxEntry[];

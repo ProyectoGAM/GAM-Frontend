@@ -1,41 +1,95 @@
-<div class="vehicle-selection">
-  <label for="start-vehicle">Vehículo</label>
-  <div class="vehicle-picker">
-    <select id="start-vehicle" [value]="selectedVehicleId()" (change)="selectVehicle($event)" required>
-      <option value="">Seleccioná un vehículo disponible</option>
-      @for (vehicle of availableVehicles(); track vehicle.id) {
-        <option [value]="vehicle.id">{{ vehicle.plate }} · {{ vehicle.make }} {{ vehicle.model }}</option>
-      }
-    </select>
-    <button type="button" class="secondary-action" (click)="refreshRequested.emit()" [disabled]="!online() || refreshingVehicles()" [attr.aria-busy]="refreshingVehicles()">
-      @if (refreshingVehicles()) { <ion-spinner name="crescent" aria-hidden="true" /> Actualizando… } @else { Actualizar }
-    </button>
-  </div>
-  @if (!availableVehicles().length) {
-    <p class="vehicle-empty" role="status">No hay vehículos disponibles. Revisá el estado de la flota o volvé a consultar.</p>
-  }
-  @if (warnings().length) {
-    <ul class="vehicle-warnings" role="status">@for (warning of warnings(); track warning) { <li>{{ warning }}</li> }</ul>
-  }
-  <label for="start-odometer">Kilometraje de salida (opcional)</label>
-  <input id="start-odometer" [formControl]="startOdometer()" inputmode="decimal" placeholder="Lectura del tablero">
-</div>
-
-<div class="no-load-start">
-  <p>¿Salís únicamente a cobrar deudas?</p>
-  <button type="button" class="secondary-action" (click)="noLoadStartRequested.emit()" [disabled]="busy() || !online() || !canOperate() || !selectedVehicleId()">Iniciar reparto sin carga</button>
-</div>
-
-@if (noLoadConfirmation()) {
-  <div class="sheet-backdrop" (click)="noLoadStartCancelled.emit()" aria-hidden="true"></div>
-  <section #noLoadSheet class="client-sheet pin-sheet no-load-confirmation" appDialogFocus role="alertdialog" aria-modal="true" aria-labelledby="no-load-title" tabindex="-1" (keydown.escape)="noLoadStartCancelled.emit()">
-    <div class="sheet-handle" aria-hidden="true"></div>
-    <h2 id="no-load-title">¿Iniciar un reparto sin carga?</h2>
-    <p class="warning-callout">El reparto comenzará con 0 huevos y no descontará stock. Podrás registrar cobranzas y agregar una carga más adelante; después de cargar, también podrás registrar entregas.</p>
-    @if (error()) { <small class="field-error" role="alert">{{ error() }}</small> }
-    <div class="pin-actions">
-      <button type="button" class="secondary-action" (click)="noLoadStartCancelled.emit()">Volver</button>
-      <button type="button" class="primary-action" (click)="noLoadStartConfirmed.emit()" [disabled]="busy() || !online()">Sí, iniciar sin carga</button>
+@if (mode()) {
+  <section class="start-card" aria-labelledby="start-heading">
+    <div class="start-heading">
+      <button type="button" class="start-back" (click)="modeChange.emit(null)" aria-label="Volver a las opciones de inicio">
+        <ion-icon name="arrow-back-outline" aria-hidden="true" />
+      </button>
+      <h1 #startHeading id="start-heading" tabindex="-1">{{ mode() === 'empty' ? 'Iniciar sin carga' : 'Prepará tu reparto' }}</h1>
     </div>
+    <form [formGroup]="startForm()" (ngSubmit)="continueRequested.emit()" class="start-form">
+      <div class="vehicle-selection">
+        <label for="start-vehicle">Vehículo</label>
+        <div class="vehicle-picker">
+          <select id="start-vehicle" (change)="selectVehicle($event)" required>
+            <option value="" [selected]="!selectedVehicleId()">{{ refreshingVehicles() ? 'Consultando vehículos…' : 'Seleccioná un vehículo disponible' }}</option>
+            @for (vehicle of availableVehicles(); track vehicle.id) {
+              <option [value]="vehicle.id" [selected]="vehicle.id === selectedVehicleId()">{{ vehicle.plate }} · {{ vehicle.make }} {{ vehicle.model }}</option>
+            }
+          </select>
+          <button class="refresh-vehicles" type="button" (click)="refreshRequested.emit()" [disabled]="!online() || refreshingVehicles()"
+            [attr.aria-busy]="refreshingVehicles()" aria-label="Actualizar vehículos" title="Actualizar vehículos">
+            @if (refreshingVehicles()) { <ion-spinner name="crescent" aria-hidden="true" /> }
+            @else { <ion-icon name="refresh-outline" aria-hidden="true" /> }
+          </button>
+        </div>
+        @if (online() && !refreshingVehicles() && !availableVehicles().length) {
+          <p class="vehicle-empty" role="status">No hay vehículos disponibles. Volvé a consultar o revisá el estado de la flota.</p>
+        }
+        @if (warnings().length) {
+          <ul class="vehicle-warnings" role="status">
+            @for (warning of warnings(); track warning) { <li>{{ warning }}</li> }
+          </ul>
+        }
+        <label class="reading-label" for="start-odometer">Kilometraje de salida <span>Opcional</span></label>
+        <input id="start-odometer" [formControl]="startOdometer()" inputmode="decimal" placeholder="Lectura del tablero">
+      </div>
+      @if (mode() === 'empty') {
+        <div class="start-load-notice">
+          <strong>Carga inicial: 0 huevos</strong>
+          <p>Podés registrar cobros y agregar carga durante el reparto.</p>
+        </div>
+      } @else {
+        <div class="start-origin">
+          <label for="start-up">Unidad productiva de origen</label>
+          <select id="start-up" formControlName="production_unit_id" required>
+            <option [ngValue]="null">Seleccioná una UP</option>
+            @for (unit of productionUnits(); track unit.id) { <option [ngValue]="unit.id">{{ unit.name }}</option> }
+          </select>
+        </div>
+        <section class="start-load" aria-labelledby="start-load-heading">
+          <h2 id="start-load-heading">Carga inicial</h2>
+          <div formArrayName="items" class="load-lines">
+            @for (line of startForm().controls.items.controls; track line; let index = $index) {
+              <div [formGroupName]="index" class="start-load-line" [class.has-remove]="startForm().controls.items.length > 1">
+                <select #presentationField class="start-presentation" formControlName="unit" [attr.aria-label]="'Presentación ' + (index + 1)" required>
+                  @for (unit of units(); track unit.id) { <option [value]="unit.id">{{ unit.label }}</option> }
+                </select>
+                <div class="start-quantity">
+                  <span class="start-quantity-label" aria-hidden="true">Cantidad</span>
+                  <div class="start-stepper">
+                    <button type="button" (click)="stepStartAmount(line.controls.amount, -1)" [disabled]="!canDecreaseStartAmount(line.controls.amount.value)"
+                      [attr.aria-label]="'Reducir cantidad de la presentación ' + (index + 1)">−</button>
+                    <input type="text" formControlName="amount" inputmode="decimal" placeholder="0" [attr.aria-label]="'Cantidad de la presentación ' + (index + 1)" required>
+                    <button type="button" (click)="stepStartAmount(line.controls.amount, 1)"
+                      [attr.aria-label]="'Aumentar cantidad de la presentación ' + (index + 1)">+</button>
+                  </div>
+                </div>
+                @if (startForm().controls.items.length > 1) {
+                  <button type="button" class="remove-line start-remove" (click)="removeLine(index)" [attr.aria-label]="'Quitar presentación ' + (index + 1)">
+                    <ion-icon name="trash-outline" aria-hidden="true" />
+                  </button>
+                }
+              </div>
+            }
+          </div>
+          <button type="button" class="start-add" (click)="addLine()" [disabled]="!units().length || startForm().controls.items.length >= 20">
+            <ion-icon name="add-outline" aria-hidden="true" /> Agregar presentación
+          </button>
+          <output class="start-total"><span>Total de la carga</span><strong>{{ startTotal() }} huevos</strong></output>
+        </section>
+      }
+      <button type="submit" class="primary-action" [disabled]="!canContinue()">Continuar</button>
+      <p class="start-hint">{{ online() ? 'Confirmás con tu PIN de 4 dígitos.' : 'Necesitás conexión para iniciar.' }}</p>
+    </form>
+  </section>
+} @else {
+  <section class="start-card start-choice" aria-labelledby="start-heading">
+    <h1 #startHeading id="start-heading" tabindex="-1">Iniciar reparto</h1>
+    <button type="button" class="primary-action start-loaded" (click)="modeChange.emit('loaded')">
+      <ion-icon name="cube-outline" aria-hidden="true" /> Iniciar reparto
+    </button>
+    <button type="button" class="start-empty" (click)="modeChange.emit('empty')">
+      Iniciar reparto sin carga <ion-icon name="chevron-forward-outline" aria-hidden="true" />
+    </button>
   </section>
 }

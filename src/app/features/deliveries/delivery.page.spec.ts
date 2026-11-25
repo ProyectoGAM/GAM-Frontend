@@ -6,6 +6,7 @@ import { of, tap, throwError } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
 import { ServerHealthService } from '../../core/api/server-health.service';
+import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
 import { LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -14,6 +15,43 @@ import { DeliveryPage } from './delivery.page';
 import { DeliveriesApi } from './deliveries.api';
 import { VehiclesApi } from '../vehicles/services/vehicles.api';
 import { Delivery, DeliveryClient } from './delivery.models';
+
+const mapCalls = vi.hoisted(() => ({
+  create: vi.fn(),
+  jumpTo: vi.fn(),
+  resize: vi.fn(),
+  remove: vi.fn(),
+}));
+
+vi.mock('mapbox-gl/esm', () => {
+  class MockMap {
+    constructor(private readonly options: { container: HTMLElement }) {
+      options.container.classList.add('mapboxgl-map');
+      mapCalls.create(options);
+    }
+    addControl(): void {}
+    on(): void {}
+    resize(): void { mapCalls.resize(); }
+    remove(): void { mapCalls.remove(); }
+    fitBounds(): void {}
+    jumpTo(options: unknown): void { mapCalls.jumpTo(options); }
+    getContainer(): HTMLElement { return this.options.container; }
+    getBounds() { return { getWest: () => -56.3, getEast: () => -56.1, getSouth: () => -34.9, getNorth: () => -34.7 }; }
+  }
+  class MockMarker {
+    constructor(private readonly options: { element: HTMLElement }) {}
+    getElement(): HTMLElement { return this.options.element; }
+    setLngLat(): this { return this; }
+    addTo(map: MockMap): this { map.getContainer().append(this.getElement()); return this; }
+    remove(): void { this.getElement().remove(); }
+  }
+  class MockBounds {
+    private empty = true;
+    extend(): void { this.empty = false; }
+    isEmpty(): boolean { return this.empty; }
+  }
+  return { default: { Map: MockMap, Marker: MockMarker, LngLatBounds: MockBounds, NavigationControl: class {} } };
+});
 
 const demoClient: DeliveryClient = {
   id: 'demo-001', name: 'Almacén El Puente', address: 'Av. Artigas 1200',
@@ -34,6 +72,7 @@ const activeDelivery: Delivery = {
 describe('DeliveryPage', () => {
   let page: DeliveryPage;
   let online: ReturnType<typeof signal<boolean>>;
+  let location: { getCurrentPosition: ReturnType<typeof vi.fn<LocationService['getCurrentPosition']>> };
   let api: {
     start: ReturnType<typeof vi.fn>;
     clients: ReturnType<typeof vi.fn>;
@@ -62,7 +101,9 @@ describe('DeliveryPage', () => {
   let theme: { toggleLabel: ReturnType<typeof signal<string>>; toggleIcon: ReturnType<typeof signal<string>>; toggle: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     online = signal(true);
+    location = { getCurrentPosition: vi.fn<LocationService['getCurrentPosition']>().mockResolvedValue({ latitude: -34.7, longitude: -56.2 }) };
     let queue: DeliveryOutboxEntry[] = [];
     api = {
       start: vi.fn(() => of({ data: activeDelivery })),
@@ -111,13 +152,15 @@ describe('DeliveryPage', () => {
         { provide: NetworkService, useValue: { online } },
         { provide: ServerHealthService, useValue: { state: signal<'checking' | 'online' | 'offline'>('checking'), start: vi.fn(), stop: vi.fn() } },
         { provide: ThemeService, useValue: theme },
-        { provide: LocationService, useValue: { clearWatch: vi.fn(), requestPermission: vi.fn(), watch: vi.fn() } },
+        { provide: LocationService, useValue: location },
+        { provide: MAPBOX_ACCESS_TOKEN, useValue: 'configured-for-unit-test' },
         { provide: DeliveriesApi, useValue: api },
         { provide: VehiclesApi, useValue: { available: vi.fn(() => of({ data: [{ id: 'vehicle-1', plate: 'ABC123', make: 'Fiat', model: 'Fiorino', availability: 'available', warnings: [] }] })) } },
         { provide: DeliveryOutboxService, useValue: outbox },
       ],
     });
     page = TestBed.runInInjectionContext(() => new DeliveryPage());
+    page.startMode.set('loaded');
     page.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }, { id: 'maple', label: 'Maples (30 huevos)', category: 'maples', eggs_per_unit: 30, default_unit_price: 100 }]);
     page.startForm.controls.items.at(0).controls.unit.setValue('huevo');
     page.startForm.controls.production_unit_id.setValue(7);
@@ -141,23 +184,113 @@ describe('DeliveryPage', () => {
     expect(page.visibleClients()).toHaveLength(1);
   });
 
-  it('renders three compact controls per load row and the shared theme toggle', async () => {
+  it('centers the map on demand after a location failure without recording the position', async () => {
+    location.getCurrentPosition.mockRejectedValueOnce(new Error('Permití el acceso a tu ubicación para centrar el mapa.'));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    try {
+      fixture.detectChanges();
+      await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+      expect(location.getCurrentPosition).not.toHaveBeenCalled();
+
+      fixture.componentInstance.selectPanel('map');
+      fixture.detectChanges();
+      await vi.waitFor(() => expect(fixture.componentInstance.locationError()).toContain('Permití el acceso'));
+      fixture.detectChanges();
+
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('#map-panel [role="status"]')?.textContent).toContain('Permití el acceso');
+      expect(mapCalls.create).toHaveBeenCalledWith(expect.objectContaining({ style: 'mapbox://styles/mapbox/streets-v12' }));
+      expect(mapCalls.jumpTo).not.toHaveBeenCalled();
+      root.querySelector<HTMLButtonElement>('.map-locate')!.click();
+
+      await vi.waitFor(() => expect(mapCalls.jumpTo).toHaveBeenCalledWith({ center: [-56.2, -34.7], zoom: 17 }));
+      expect(location.getCurrentPosition).toHaveBeenCalledTimes(2);
+      expect(fixture.componentInstance.locationError()).toBeNull();
+
+      fixture.componentInstance.selectPanel('clients');
+      fixture.detectChanges();
+      location.getCurrentPosition.mockResolvedValueOnce({ latitude: -34.71, longitude: -56.21 });
+      fixture.componentInstance.selectPanel('map');
+      fixture.detectChanges();
+      await vi.waitFor(() => expect(mapCalls.jumpTo).toHaveBeenCalledWith({ center: [-56.21, -34.71], zoom: 17 }));
+
+      expect(api.locations).not.toHaveBeenCalled();
+      expect(outbox.enqueue).not.toHaveBeenCalled();
+    } finally {
+      fixture.destroy();
+    }
+  });
+
+  it('keeps client markers usable in the expanded map and restores delivery controls without recreating it', async () => {
+    api.markers.mockReturnValue(of({ data: [demoClient], meta: { has_more: false, limit: 200 } }));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.componentInstance.selectPanel('map');
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(() => expect(root.querySelector('.delivery-client-pin')).not.toBeNull());
+    fixture.detectChanges();
+    const map = root.querySelector('.delivery-map');
+    const normalToggle = root.querySelector<HTMLButtonElement>('button[aria-label="Solo mapa"]')!;
+    normalToggle.click();
+    fixture.detectChanges();
+
+    expect(root.querySelector('ion-header.map-chrome-hidden')).not.toBeNull();
+    expect(root.querySelector('main.map-chrome-hidden')).not.toBeNull();
+    expect(root.querySelector('.bottom-nav.map-chrome-hidden')).not.toBeNull();
+    expect(root.querySelector('.delivery-map')).toBe(map);
+    root.querySelector<HTMLButtonElement>('.delivery-client-pin')!.click();
+    await vi.waitFor(() => expect(fixture.componentInstance.selectedClient()?.id).toBe(demoClient.id));
+    fixture.componentInstance.selectedClient.set(null);
+    fixture.detectChanges();
+
+    const restore = root.querySelector<HTMLButtonElement>('.map-focus-actions button')!;
+    expect(restore.textContent).toContain('Mostrar controles');
+    restore.click();
+    fixture.detectChanges();
+    expect(root.querySelector('.map-chrome-hidden')).toBeNull();
+    expect(root.querySelector('.delivery-map')).toBe(map);
+    expect(mapCalls.create).toHaveBeenCalledTimes(1);
+    expect(mapCalls.resize).toHaveBeenCalled();
+    expect(location.getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens preparation from the choice and keeps quantities editable with the stepper', async () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
-    await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
     fixture.componentInstance.delivery.set(null);
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    const form = root.querySelector('.idle-card .stock-form') as HTMLElement;
-    expect(form.querySelectorAll('.load-line')).toHaveLength(1);
-    expect(form.querySelector('.load-line')?.querySelectorAll('select,input,button')).toHaveLength(3);
-    form.querySelector<HTMLButtonElement>('.secondary-action')?.click();
+    expect(root.querySelector('.start-form')).toBeNull();
+    root.querySelector<HTMLButtonElement>('.start-loaded')!.click();
     fixture.detectChanges();
-    expect(form.querySelectorAll('.load-line')).toHaveLength(2);
-    form.querySelector<HTMLButtonElement>('.load-line:last-child .remove-line')?.click();
+    const form = root.querySelector('.start-form') as HTMLElement;
+    expect(form.querySelectorAll('.start-load-line')).toHaveLength(1);
+    expect(form.querySelector<HTMLSelectElement>('.start-load-line select')?.value).toBe('maple');
+    const quantity = form.querySelector<HTMLInputElement>('.start-stepper input')!;
+    quantity.value = '0,5';
+    quantity.dispatchEvent(new Event('input'));
     fixture.detectChanges();
-    expect(form.querySelectorAll('.load-line')).toHaveLength(1);
+    expect(form.querySelector('output')?.textContent).toContain('15 huevos');
+    form.querySelector<HTMLButtonElement>('.start-stepper button:last-child')!.click();
+    fixture.detectChanges();
+    expect(quantity.value).toBe('1,5');
+    expect(form.querySelector('output')?.textContent).toContain('45 huevos');
+    form.querySelector<HTMLButtonElement>('.start-stepper button:first-child')!.click();
+    fixture.detectChanges();
+    expect(quantity.value).toBe('0,5');
+    form.querySelector<HTMLButtonElement>('.start-add')!.click();
+    fixture.detectChanges();
+    expect(form.querySelectorAll('.start-load-line')).toHaveLength(2);
+    expect(document.activeElement).toBe(form.querySelector('.start-load-line:last-child select'));
+    form.querySelector<HTMLButtonElement>('.start-load-line:last-child .remove-line')!.click();
+    fixture.detectChanges();
+    expect(form.querySelectorAll('.start-load-line')).toHaveLength(1);
+    expect(document.activeElement).toBe(form.querySelector('.start-load-line select'));
     root.querySelector<HTMLButtonElement>('.theme-toggle')?.click();
     expect(theme.toggle).toHaveBeenCalledOnce();
     expect(root.querySelector('.server-status ion-icon')?.getAttribute('name')).toBe('wifi-outline');
@@ -165,6 +298,52 @@ describe('DeliveryPage', () => {
     fixture.componentInstance.openLoad();
     fixture.detectChanges();
     expect(root.querySelector('.client-sheet .load-line')?.querySelectorAll('select,input,button')).toHaveLength(3);
+    fixture.destroy();
+  });
+
+  it('starts without cargo using only the selected vehicle, optional odometer, and PIN', async () => {
+    api.current.mockReturnValue(of({ data: [] }));
+    api.start.mockReturnValue(of({ data: { ...activeDelivery, started_without_load: true, loaded_quantity: 0 } }));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('.start-empty')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('#start-up')).toBeNull();
+    expect(root.querySelector('#start-load-heading')).toBeNull();
+    expect(root.querySelector('.start-load-notice')?.textContent).toContain('0 huevos');
+    const vehicle = root.querySelector<HTMLSelectElement>('#start-vehicle')!;
+    vehicle.value = 'vehicle-1';
+    vehicle.dispatchEvent(new Event('change'));
+    fixture.componentInstance.startOdometer.setValue('1250,5');
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('#start-pin')).not.toBeNull();
+    root.querySelector<HTMLButtonElement>('.pin-sheet .secondary-action')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('#start-pin')).toBeNull();
+    expect(root.querySelector('#start-heading')?.textContent).toContain('Iniciar sin carga');
+    expect(vehicle.value).toBe('vehicle-1');
+    expect(api.start).not.toHaveBeenCalled();
+
+    root.querySelector<HTMLButtonElement>('.start-back')!.click();
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('.start-empty')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector<HTMLSelectElement>('#start-vehicle')?.value).toBe('vehicle-1');
+    root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!.click();
+    fixture.detectChanges();
+    fixture.componentInstance.startPin.setValue('0007');
+    root.querySelector<HTMLButtonElement>('.pin-sheet button[type="submit"]')!.click();
+    await vi.waitFor(() => expect(fixture.componentInstance.panel()).toBe('map'));
+    fixture.detectChanges();
+    expect(api.start).toHaveBeenCalledWith({ start_without_load: true, vehicle_id: 'vehicle-1', odometer_km: '1250.5', pin: '0007' }, expect.any(String));
+    expect(root.querySelector('#map-tab')?.getAttribute('aria-selected')).toBe('true');
+    expect(root.querySelector('.delivery-map')).not.toBeNull();
     fixture.destroy();
   });
 
@@ -176,6 +355,7 @@ describe('DeliveryPage', () => {
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
     Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
+    fixture.componentInstance.startMode.set('loaded');
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('#start-pin')).toBeNull();
@@ -185,7 +365,7 @@ describe('DeliveryPage', () => {
     fixture.componentInstance.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }]);
     fixture.componentInstance.selectedVehicleId.set('vehicle-1');
     fixture.detectChanges();
-    root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
+    root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!.click();
     fixture.detectChanges();
     expect(root.querySelector('#start-pin')?.closest('[role="dialog"]')).not.toBeNull();
     expect(root.querySelector<HTMLInputElement>('#start-pin')?.type).toBe('password');
@@ -204,13 +384,14 @@ describe('DeliveryPage', () => {
     fixture.destroy();
   });
 
-  it('submits the PIN from each floating confirmation', async () => {
+  it('opens the map after confirming the start PIN and submits the close PIN from the summary', async () => {
     const fixture = TestBed.createComponent(DeliveryPage);
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
     Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
+    fixture.componentInstance.startMode.set('loaded');
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
     fixture.componentInstance.startForm.controls.production_unit_id.setValue(7);
@@ -219,13 +400,26 @@ describe('DeliveryPage', () => {
     fixture.componentInstance.units.set([{ id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 }]);
     fixture.componentInstance.selectedVehicleId.set('vehicle-1');
     fixture.detectChanges();
-    root.querySelector<HTMLButtonElement>('.idle-card .primary-action')?.click();
+    root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!.click();
     fixture.detectChanges();
+    api.start.mockReturnValueOnce(throwError(() => new HttpErrorResponse({
+      status: 401, error: { code: 'INVALID_PIN', message: 'El PIN no es válido.' },
+    })));
+    fixture.componentInstance.startPin.setValue('0008');
+    root.querySelector<HTMLButtonElement>('.pin-sheet .primary-action')?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.querySelector('.pin-sheet [role="alert"]')?.textContent).toContain('El PIN no es válido.');
+    expect(root.querySelector('.delivery-map')).toBeNull();
+
     fixture.componentInstance.startPin.setValue('0007');
     root.querySelector<HTMLButtonElement>('.pin-sheet .primary-action')?.click();
     await fixture.whenStable();
-    expect(api.start).toHaveBeenCalledOnce();
+    fixture.detectChanges();
+    expect(api.start).toHaveBeenCalledTimes(2);
     expect(fixture.componentInstance.startConfirmation()).toBe(false);
+    expect(root.querySelector('#map-tab')?.getAttribute('aria-selected')).toBe('true');
+    expect(root.querySelector('.delivery-map')).not.toBeNull();
 
     fixture.componentInstance.selectPanel('summary');
     fixture.detectChanges();
@@ -485,19 +679,25 @@ describe('DeliveryPage', () => {
     expect(api.units).not.toHaveBeenCalled();
   });
 
-  it('accepts half a maple and combines it with loose eggs', async () => {
+  it('starts with fractional presentations when the LAN browser lacks randomUUID', async () => {
     page.delivery.set(null);
     page.panel.set('clients');
     page.startForm.controls.items.at(0).patchValue({ unit: 'maple', amount: '0,5' });
     page.addLine(page.startForm);
     page.startForm.controls.items.at(1).patchValue({ unit: 'huevo', amount: '5' });
     expect(page.formEggs(page.startForm)).toBe(20);
-    await page.startDelivery();
+    const webCrypto = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: webCrypto.getRandomValues.bind(webCrypto) });
+    try {
+      await page.startDelivery();
+    } finally {
+      vi.unstubAllGlobals();
+    }
     expect(api.start).toHaveBeenCalledWith({ pin: '0007', vehicle_id: 'vehicle-1', production_unit_id: 7, items: [
       { unit: 'maple', amount: '0.5', eggs_per_unit: 30 },
       { unit: 'huevo', amount: '5', eggs_per_unit: 1 },
-    ] }, expect.any(String));
-    expect(page.panel()).toBe('clients');
+    ] }, expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/));
+    expect(page.panel()).toBe('map');
   });
 
   it('rejects a fraction that cannot become whole eggs', async () => {

@@ -1,225 +1,104 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { signal } from '@angular/core';
-import { of, Subject } from 'rxjs';
+import { TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { Subject, of } from 'rxjs';
 import { vi } from 'vitest';
 
-import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
 import { AuthStore } from '../../core/auth/auth.store';
+import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
 import { AdminUnitContextService } from '../admin/services/admin-unit-context.service';
-import { Delivery } from './delivery.models';
-import { DeliveriesApi } from './deliveries.api';
 import { AdminDeliveriesPage } from './admin-deliveries.page';
+import { adminDeliveriesRoutes } from './admin-deliveries.routes';
+import { DeliveriesApi } from './deliveries.api';
+import { Delivery, DeliveryListResponse } from './delivery.models';
 
-const mapState = vi.hoisted(() => ({
-  listeners: new Map<string, (event?: unknown) => void>(),
-  mapOptions: null as unknown,
-  markerCoordinates: [] as Array<[number, number]>,
-  mapRemoved: vi.fn(),
-  markerRemoved: vi.fn(),
-  fitBounds: vi.fn(),
-  easeTo: vi.fn(),
-}));
-
-vi.mock('mapbox-gl/esm', () => {
-  class MockMap {
-    constructor(options: unknown) { mapState.mapOptions = options; }
-    on(event: string, listener: (event?: unknown) => void): this { mapState.listeners.set(event, listener); return this; }
-    off(event: string): this { mapState.listeners.delete(event); return this; }
-    addControl(): this { return this; }
-    resize(): this { return this; }
-    fitBounds(bounds: unknown, options: unknown): this { mapState.fitBounds(bounds, options); return this; }
-    easeTo(options: unknown): this { mapState.easeTo(options); return this; }
-    remove(): void { mapState.mapRemoved(); }
-  }
-  class MockMarker {
-    constructor(_options: unknown) {}
-    setLngLat(coordinates: [number, number]): this { mapState.markerCoordinates.push(coordinates); return this; }
-    setPopup(): this { return this; }
-    addTo(): this { return this; }
-    remove(): void { mapState.markerRemoved(); }
-  }
-  class MockPopup {
-    constructor(_options: unknown) {}
-    setDOMContent(): this { return this; }
-  }
-  class MockBounds {
-    coordinates: Array<[number, number]> = [];
-    extend(coordinates: [number, number]): this { this.coordinates.push(coordinates); return this; }
-  }
-  class MockNavigationControl {}
-  return { default: { Map: MockMap, Marker: MockMarker, Popup: MockPopup, LngLatBounds: MockBounds, NavigationControl: MockNavigationControl, accessToken: '' } };
-});
+const listPath = '/administracion/repartos/repartos';
+const activeDelivery: Delivery = {
+  id: 'delivery-1', status: 'active', driver: { id: 1, name: 'Lucía Méndez' },
+  production_unit: null, vehicle_reference: 'STP 2145', loaded_quantity: 100, delivered_quantity: 20, returned_quantity: 0,
+  remaining_quantity: 80, stops_summary: { total: 3, pending: 1, delivered: 1, not_delivered: 1 },
+  started_at: '2026-11-24T14:00:00Z', closed_at: null, latest_location: null,
+};
+const completedDelivery: Delivery = {
+  ...activeDelivery, id: 'delivery-2', status: 'completed', closed_at: '2026-11-24T16:00:00Z',
+};
 
 describe('AdminDeliveriesPage', () => {
-  let fixture: ComponentFixture<AdminDeliveriesPage>;
   let current: ReturnType<typeof vi.fn>;
   let list: ReturnType<typeof vi.fn>;
   let detail: ReturnType<typeof vi.fn>;
   let selectedId: ReturnType<typeof signal<number | null>>;
 
-  const activeDelivery: Delivery = {
-    id: 'delivery-1', status: 'active', driver: { id: 1, name: 'Ana' },
-    production_unit: { id: 7, name: 'Granja Norte', latitude: -34.9, longitude: -56.2 },
-    vehicle_reference: null, loaded_quantity: 100, delivered_quantity: 20, returned_quantity: 0,
-    remaining_quantity: 80, stops_summary: { total: 1, pending: 0, delivered: 1, not_delivered: 0 },
-    started_at: '2026-09-01T10:00:00Z', closed_at: null, latest_location: null,
-  };
-  const detailedDelivery: Delivery = {
-    ...activeDelivery,
-    stops: [{
-      id: 5, client_reference: 'client-1', client_name: 'Almacén Sur', address: 'Ruta 5', latitude: '-34.8', longitude: '-56.1',
-      sequence: 1, status: 'delivered', delivered_quantity: 20, visit_reason: null, notes: null, visited_at: '2026-09-01T10:10:00Z',
-    }],
-    latest_location: {
-      id: 91, latitude: '-34.7', longitude: '-56.0', accuracy: 10, speed: null,
-      captured_at: '2026-09-01T10:12:00Z', received_at: '2026-09-01T10:12:01Z',
-    },
-  };
-  const completedDelivery: Delivery = { ...activeDelivery, id: 'delivery-history', status: 'completed', closed_at: '2026-09-01T11:00:00Z' };
-
   beforeEach(() => {
-    mapState.listeners.clear();
-    mapState.mapOptions = null;
-    mapState.markerCoordinates = [];
-    mapState.mapRemoved.mockClear();
-    mapState.markerRemoved.mockClear();
-    mapState.fitBounds.mockClear();
-    mapState.easeTo.mockClear();
     selectedId = signal<number | null>(7);
     current = vi.fn().mockReturnValue(of({ data: [activeDelivery] }));
-    list = vi.fn().mockReturnValue(of({ data: [activeDelivery, completedDelivery] }));
-    detail = vi.fn().mockImplementation((id: string) => of({ data: { ...detailedDelivery, id, status: id === 'delivery-history' ? 'completed' : 'active' } }));
+    list = vi.fn().mockImplementation(({ status }) => of({
+      data: status === 'completed' ? [completedDelivery] : [],
+    }));
+    detail = vi.fn().mockReturnValue(of({ data: completedDelivery }));
     TestBed.configureTestingModule({
-      imports: [AdminDeliveriesPage],
       providers: [
-        { provide: AuthStore, useValue: { isAdmin: () => true, user: () => null } },
+        provideRouter([{ path: 'administracion/repartos/repartos', children: adminDeliveriesRoutes }]),
+        { provide: AuthStore, useValue: { isAdmin: () => true, status: () => 'personal_authenticated', user: () => null } },
         { provide: AdminUnitContextService, useValue: { selectedId, selectedUnit: () => ({ id: 7, name: 'Granja Norte' }) } },
         { provide: DeliveriesApi, useValue: { current, list, detail } },
-        { provide: MAPBOX_ACCESS_TOKEN, useValue: 'configured-for-unit-test' },
+        { provide: MAPBOX_ACCESS_TOKEN, useValue: '' },
       ],
     });
   });
 
-  async function render(): Promise<AdminDeliveriesPage> {
-    fixture = TestBed.createComponent(AdminDeliveriesPage);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    return fixture.componentInstance;
-  }
-
-  it('loads history without requesting live locations for a history reader', async () => {
+  it('lets history-only readers use the list without requesting live data', async () => {
     TestBed.overrideProvider(AuthStore, { useValue: {
-      isAdmin: () => false,
-      user: () => ({ permissions: ['can_view_delivery_history'] }),
+      isAdmin: () => false, user: () => ({ permissions: ['can_view_delivery_history'] }),
     } });
-    const page = await render();
-
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl(listPath, AdminDeliveriesPage);
+    harness.detectChanges();
     expect(current).not.toHaveBeenCalled();
-    expect(list).toHaveBeenCalledWith({ per_page: 50, production_unit_id: 7 });
-    expect(page.history()).toEqual([completedDelivery]);
-    expect(fixture.nativeElement.textContent).not.toContain('Repartos actuales');
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ per_page: 100, production_unit_id: 7, status: 'completed' }));
+    expect(page.rows()).toEqual([completedDelivery]);
+    expect(harness.routeNativeElement?.textContent).not.toContain('En curso');
   });
 
-  it('filters both API loads, syncs persisted stops and latest location, and destroys Mapbox on navigation away', async () => {
-    const page = await render();
-    expect(current).toHaveBeenCalledWith({ production_unit_id: 7 });
-    expect(list).toHaveBeenCalledWith({ per_page: 50, production_unit_id: 7 });
-    expect(detail).toHaveBeenCalledWith('delivery-1');
-    expect(page.selected()?.id).toBe('delivery-1');
-    expect(mapState.mapOptions).toMatchObject({ center: [-56.1645, -34.9011], zoom: 5 });
-
-    mapState.listeners.get('load')?.();
-    fixture.detectChanges();
-    expect(page.hasMapPoints()).toBe(true);
-    expect(mapState.markerCoordinates).toEqual([[-56.2, -34.9], [-56.1, -34.8], [-56, -34.7]]);
-    expect(mapState.fitBounds).toHaveBeenCalledTimes(1);
-
-    const historyRow = fixture.nativeElement.querySelectorAll('.delivery-row')[1] as HTMLButtonElement;
-    historyRow.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    expect(detail).toHaveBeenLastCalledWith('delivery-history');
-    expect(page.selected()?.id).toBe('delivery-history');
-
-    page.load();
-    await fixture.whenStable();
-    expect(current).toHaveBeenCalledTimes(2);
-    expect(list).toHaveBeenCalledTimes(2);
-
-    mapState.markerRemoved.mockClear();
-    fixture.destroy();
-    expect(mapState.mapRemoved).toHaveBeenCalledTimes(1);
-    expect(mapState.markerRemoved).toHaveBeenCalledTimes(3);
-    expect(mapState.listeners.has('load')).toBe(false);
-    expect(mapState.listeners.has('error')).toBe(false);
+  it('restores filters through the dedicated detail route and supports accents and separated plates', async () => {
+    const url = listPath + '?vista=historial&buscar=lucia%20stp2145&desde=2026-11-21&estado=completed';
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl(url, AdminDeliveriesPage);
+    harness.detectChanges();
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ date_from: '2026-11-21', status: 'completed' }));
+    expect(page.rows()).toEqual([completedDelivery]);
+    const detailLink = harness.routeNativeElement?.querySelector<HTMLAnchorElement>('.detail-link');
+    expect(detailLink?.getAttribute('href')).toContain(listPath + '/delivery-2?vista=historial&buscar=');
+    await harness.navigateByUrl(detailLink!.getAttribute('href')!);
+    expect(detail).toHaveBeenCalledWith(completedDelivery.id);
+    expect(harness.routeNativeElement?.querySelector('.back-link')?.getAttribute('href')).toBe(url + '#reparto-delivery-2');
   });
 
-  it('cancels stale unit-filter requests when the selected unit changes', async () => {
-    const pendingCurrent = new Map<number, Subject<{ data: Delivery[] }>>();
-    const pendingList = new Map<number, Subject<{ data: Delivery[] }>>();
-    current.mockImplementation((filters: { production_unit_id?: number }) => {
-      const subject = new Subject<{ data: Delivery[] }>();
-      pendingCurrent.set(filters.production_unit_id ?? 0, subject);
-      return subject;
-    });
-    list.mockImplementation((filters: { production_unit_id?: number }) => {
-      const subject = new Subject<{ data: Delivery[] }>();
-      pendingList.set(filters.production_unit_id ?? 0, subject);
-      return subject;
-    });
-
-    const page = await render();
+  it('cancels the previous unit request and keeps the live list scoped to the selected unit', async () => {
+    const unit7 = new Subject<DeliveryListResponse>();
+    const unit12 = new Subject<DeliveryListResponse>();
+    current.mockReturnValueOnce(unit7).mockReturnValueOnce(unit12);
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl(listPath, AdminDeliveriesPage);
     selectedId.set(12);
-    fixture.detectChanges();
-    await fixture.whenStable();
+    harness.detectChanges();
 
-    const unit12 = { ...activeDelivery, id: 'delivery-12', production_unit: { id: 12, name: 'Granja Sur' } };
-    pendingCurrent.get(7)?.next({ data: [activeDelivery] });
-    pendingCurrent.get(7)?.complete();
-    pendingList.get(7)?.next({ data: [activeDelivery] });
-    pendingList.get(7)?.complete();
-    pendingCurrent.get(12)?.next({ data: [unit12] });
-    pendingCurrent.get(12)?.complete();
-    pendingList.get(12)?.next({ data: [unit12] });
-    pendingList.get(12)?.complete();
-    fixture.detectChanges();
-    await fixture.whenStable();
+    unit7.next({ data: [activeDelivery] });
+    expect(page.rows()).toEqual([]);
+    unit12.next({ data: [{ ...activeDelivery, id: 'unit-12' }] });
+    harness.detectChanges();
 
-    expect(current).toHaveBeenCalledWith({ production_unit_id: 12 });
-    expect(list).toHaveBeenCalledWith({ per_page: 50, production_unit_id: 12 });
-    expect(page.active().map((delivery) => delivery.id)).toEqual(['delivery-12']);
-    fixture.destroy();
+    expect(current).toHaveBeenLastCalledWith({ production_unit_id: 12, per_page: 100 });
+    expect(page.rows().map((delivery) => delivery.id)).toEqual(['unit-12']);
   });
 
-  it('shows the missing-location state and clears markers when saved coordinates are invalid', async () => {
-    const invalid = {
-      ...detailedDelivery,
-      production_unit: { id: 7, name: 'Granja Norte', latitude: 'Infinity', longitude: -56.2 },
-      latest_location: null,
-      stops: [],
-    };
-    detail.mockReturnValue(of({ data: invalid }));
-    const page = await render();
-    mapState.listeners.get('load')?.();
-    fixture.detectChanges();
-
-    expect(page.hasMapPoints()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('Ubicación no disponible');
-    expect(mapState.markerCoordinates).toEqual([]);
-    fixture.destroy();
+  it('preserves older links from customers and notifications', async () => {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(listPath + '?reparto=older-origin');
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe(listPath + '/older-origin');
+    expect(detail).toHaveBeenCalledWith('older-origin');
+    expect(list).not.toHaveBeenCalled();
   });
-  it('loads a customer-linked origin even when it is beyond the first history page', async () => {
-    TestBed.configureTestingModule({ providers: [{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ reparto: 'older-origin' }) } } }] });
-    const page = await render();
-    expect(detail).toHaveBeenCalledWith('older-origin'); expect(page.selected()?.id).toBe('older-origin');
-    page.select(activeDelivery);
-    page.load();
-    await fixture.whenStable();
-    expect(detail).toHaveBeenLastCalledWith(activeDelivery.id);
-    expect(page.selected()?.id).toBe(activeDelivery.id);
-    fixture.destroy();
-  });
-
 });

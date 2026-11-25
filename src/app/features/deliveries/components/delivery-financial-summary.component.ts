@@ -24,7 +24,7 @@ import { DeliveryFinancialSummary } from '../delivery.models';
             <summary>Detalle por cliente <span>{{ data.customers.length }} clientes</span></summary>
             @for (customer of data.customers; track customer.customer_id) {
               <section>
-                @if (customerLinks()) { <a [routerLink]="['/administracion/clientes/clientes', customer.customer_id]">{{ customer.customer_name }}</a> }
+                @if (customerLinks()) { <a [routerLink]="['/administracion/clientes/clientes', customer.customer_id]" [queryParams]="{ seccion: 'account' }">{{ customer.customer_name }}</a> }
                 @else { <strong>{{ customer.customer_name }}</strong> }
                 <dl><div><dt>Mercadería</dt><dd class="money">{{ money(customer.merchandise_amount) }}</dd></div>
                   <div><dt>Cobrado</dt><dd class="money">{{ money(customer.collected_amount) }}</dd></div>
