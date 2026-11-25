@@ -211,10 +211,19 @@ export interface DeliveryFinancialSummary {
   customers: { customer_id: string; customer_name: string; merchandise_amount: string; collected_amount: string; account_delta: string; balance_before: string; balance_after: string }[];
 }
 
-export interface DeliveryPaymentInput extends CustomerPaymentInput {
+export type DeliveryPaymentMethod = CustomerPaymentInput['payment_method'] | 'check';
+
+export interface DeliveryPaymentInput extends Omit<CustomerPaymentInput, 'payment_method'> {
   client_reference: string;
   client_event_id: string;
+  payment_method: DeliveryPaymentMethod;
+  delivery_stop_id?: number;
   occurred_at?: string;
+}
+
+export interface DeliveryPaymentCorrectionInput {
+  amount: string;
+  reason: string;
 }
 
 export interface DeliveryClientPage {
@@ -225,7 +234,7 @@ export interface DeliveryClientPage {
 export interface StopInput {
   accounting_version?: 2;
   client_event_id?: string;
-  payment?: { amount: string; payment_method?: CustomerPaymentInput['payment_method']; payment_reference?: string };
+  payment?: { amount: string; payment_method?: DeliveryPaymentMethod; payment_reference?: string };
   client_reference: string;
   status: DeliveryStopStatus;
   items?: DeliveryStopItemInput[];

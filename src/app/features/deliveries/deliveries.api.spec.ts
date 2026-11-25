@@ -93,4 +93,23 @@ describe('DeliveriesApi', () => {
     const map = http.expectOne((request) => request.url === '/api/v1/clientes/mapa');
     expect(map.request.params.get('limit')).toBe('200'); expect(map.request.params.get('west')).toBe('-57'); map.flush({ data: [], meta: { has_more: true, limit: 200 } });
   });
+
+  it('sends a linked payment and rectifies an existing payment with independent idempotency keys', () => {
+    api.payment('delivery-1', {
+      client_reference: 'client-1', delivery_stop_id: 7, client_event_id: 'new-payment', amount: '50.000', payment_method: 'cash',
+    }, 'new-payment').subscribe();
+    api.rectifyPayment('delivery-1', 'movement-1', { amount: '0.000', reason: 'Sin cobro' }, 'payment-correction').subscribe();
+
+    const payment = http.expectOne('/api/v1/repartos/delivery-1/cobros');
+    expect(payment.request.method).toBe('POST');
+    expect(payment.request.headers.get('Idempotency-Key')).toBe('new-payment');
+    expect(payment.request.body.delivery_stop_id).toBe(7);
+    payment.flush({ data: [] });
+
+    const correction = http.expectOne('/api/v1/repartos/delivery-1/cobros/movement-1/rectificaciones');
+    expect(correction.request.method).toBe('POST');
+    expect(correction.request.headers.get('Idempotency-Key')).toBe('payment-correction');
+    expect(correction.request.body).toEqual({ amount: '0.000', reason: 'Sin cobro' });
+    correction.flush({ data: [] });
+  });
 });

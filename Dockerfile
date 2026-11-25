@@ -51,7 +51,10 @@ RUN npm run lint && \
     npm audit --omit=dev
 
 
-FROM nginxinc/nginx-unprivileged:1.28-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runtime
+
+USER root
+RUN apk upgrade --no-cache
 
 ENV API_UPSTREAM=http://gateway:8080 \
     NGINX_ENVSUBST_FILTER=API_UPSTREAM

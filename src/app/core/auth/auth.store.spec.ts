@@ -192,6 +192,27 @@ describe('AuthStore', () => {
     expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
   });
 
+  it('keeps the driver signed in after a rejected start or close PIN and still handles session expiry', async () => {
+    const user = { id: 2, name: 'Repartidor', roles: ['delivery'], permissions: [] };
+    const api = { csrf: async () => undefined, webLogin: () => of({ user, session: null }) };
+    const storage = { isNative: () => false, setMode: async () => undefined, removePersonalToken: vi.fn(async () => undefined) };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthApi, useValue: api }, { provide: CredentialStorage, useValue: storage }] });
+    const store = TestBed.inject(AuthStore);
+    await store.login('delivery@example.test', 'example-only');
+
+    const rejectedPin = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_PIN' } });
+    store.handleHttpError(rejectedPin, '/api/v1/repartos');
+    store.handleHttpError(rejectedPin, '/api/v1/repartos/delivery-1/cierre');
+    expect(store.user()).toEqual(user);
+    expect(store.status()).toBe('personal_authenticated');
+    expect(storage.removePersonalToken).not.toHaveBeenCalled();
+
+    const expired = new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } });
+    store.handleHttpError(expired, '/api/v1/repartos');
+    expect(store.status()).toBe('personal_guest');
+    expect(store.user()).toBeNull();
+  });
+
   it('allows retrying the current PIN and returns to the selector after a successful change', async () => {
     const device = { id: 'tablet', name: 'Tablet', up_id: 7 };
     const pinError = new HttpErrorResponse({ status: 401, error: { code: 'INVALID_PIN' } });

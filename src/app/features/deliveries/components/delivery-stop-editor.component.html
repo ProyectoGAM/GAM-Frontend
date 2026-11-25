@@ -1,0 +1,71 @@
+<div class="editor-tabs" role="group" aria-label="Datos de la entrega a rectificar">
+  <button type="button" [attr.aria-pressed]="pane() === 'quantity'" [disabled]="locked() || !canEditQuantity()" (click)="pane.set('quantity')">Cantidades</button>
+  <button type="button" [attr.aria-pressed]="pane() === 'payment'" [disabled]="locked()" (click)="pane.set('payment')">Cobro</button>
+</div>
+@if (!online()) { <p class="notice" role="status">Conectate para confirmar los cambios.</p> }
+@if (pane() === 'quantity') {
+  <app-delivery-stop-correction [delivery]="delivery()" [stop]="stop()" [mobile]="true" [online]="online()"
+    (cancelled)="cancelled.emit()" (refreshed)="refreshed.emit($event)" />
+} @else {
+  @if (paymentId() && !payment() && !uncertain()) {
+    <p class="notice" role="status">El cobro seleccionado cambió. Cerrá la rectificación para revisar el estado actualizado.</p>
+  } @else if (payments().length || canAddPayment() || uncertain()) {
+    <form aria-label="Rectificar cobro" (submit)="submitPayment($event)">
+      <p class="notice">
+        @if (payments().length) { Cobrado en esta entrega <strong>{{ money(collected()) }}</strong> }
+        @else { Sin cobro registrado para esta entrega. }
+      </p>
+      <fieldset [disabled]="busy() || saving() || uncertain()">
+        @if (payments().length) {
+          <label>Cobro
+            <select #movement [value]="paymentId()" (change)="selectPayment(movement.value)">
+              @for (entry of payments(); track entry.id) {
+                <option [value]="entry.id" [selected]="entry.id === paymentId()">{{ paymentLabel(entry.payment_method) }} · {{ money(entry.amount.slice(1)) }}{{ entry.payment_reference ? ' · ' + entry.payment_reference : '' }}</option>
+              }
+              @if (canAddPayment()) { <option value="" [selected]="!paymentId()">Registrar otro cobro</option> }
+            </select>
+          </label>
+        }
+        @if (payment()) {
+          <label>{{ payments().length > 1 ? '¿Se recibió este cobro?' : '¿Pagó?' }}
+            <select #wasPaid [value]="paid() ? 'yes' : 'no'" (change)="paid.set(wasPaid.value === 'yes')">
+              <option value="yes">Sí</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          @if (!paid() && payments().length > 1) { <p class="notice">Los demás cobros de esta entrega siguen vigentes.</p> }
+        }
+        @if (paid()) {
+          <label>Importe cobrado (UYU)
+            <input #paidAmount type="text" inputmode="decimal" maxlength="23" [value]="amount()" (input)="amount.set(paidAmount.value)" />
+          </label>
+        }
+        @if (!payment()) {
+          <label>Medio de cobro
+            <select #method [value]="paymentMethod()" (change)="selectPaymentMethod(method.value)">
+              <option value="cash" [selected]="paymentMethod() === 'cash'">Efectivo</option>
+              <option value="transfer" [selected]="paymentMethod() === 'transfer'">Transferencia</option>
+              <option value="check" [selected]="paymentMethod() === 'check'">Cheque</option>
+              <option value="other" [selected]="paymentMethod() === 'other'">Otro</option>
+            </select>
+          </label>
+          <label>Referencia (opcional)
+            <input #paymentReference type="text" maxlength="240" [value]="reference()" (input)="reference.set(paymentReference.value)" />
+          </label>
+        }
+        <label>{{ payment() ? 'Motivo de la rectificación' : 'Observaciones (opcional)' }}
+          <textarea #why rows="2" maxlength="2000" [value]="reason()" (input)="reason.set(why.value)"></textarea>
+        </label>
+      </fieldset>
+      @if (message()) { <p class="error" role="alert">{{ message() }}</p> }
+      <div class="payment-actions">
+        <button class="primary" type="submit" [disabled]="busy() || saving() || !online()">
+          {{ busy() || saving() ? 'Confirmando…' : uncertain() ? 'Reintentar envío' : !payment() ? 'Registrar cobro' : paid() ? 'Confirmar importe' : 'Anular cobro' }}
+        </button>
+        <button type="button" [disabled]="locked()" (click)="cancelled.emit()">Cancelar</button>
+      </div>
+    </form>
+  } @else {
+    <p class="notice">El cobro de esta entrega histórica está sin conciliar.</p>
+  }
+}

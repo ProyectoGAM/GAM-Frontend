@@ -19,12 +19,12 @@ import { DeliveryFinancialSummary } from '../delivery.models';
           <div><dt>Variación de cuentas</dt><dd class="money">{{ money(data.account_delta) }}</dd></div>
         </dl>
         @if (data.legacy_unreconciled_count > 0) { <p>{{ data.legacy_unreconciled_count }} entregas anteriores no tienen datos de cobro. Cobros registrados: {{ money(data.recorded_collected_amount) }}.</p> }
-        @if (data.customers.length) {
+        @if (showCustomerBreakdown() && data.customers.length) {
           <details class="customer-breakdown">
             <summary>Detalle por cliente <span>{{ data.customers.length }} clientes</span></summary>
             @for (customer of data.customers; track customer.customer_id) {
               <section>
-                @if (customerLinks()) { <a [routerLink]="['/administracion/clientes/clientes', customer.customer_id]">{{ customer.customer_name }}</a> }
+                @if (customerLinks()) { <a [routerLink]="['/administracion/clientes/clientes', customer.customer_id]" [queryParams]="{ seccion: 'account' }">{{ customer.customer_name }}</a> }
                 @else { <strong>{{ customer.customer_name }}</strong> }
                 <dl><div><dt>Mercadería</dt><dd class="money">{{ money(customer.merchandise_amount) }}</dd></div>
                   <div><dt>Cobrado</dt><dd class="money">{{ money(customer.collected_amount) }}</dd></div>
@@ -57,5 +57,6 @@ export class DeliveryFinancialSummaryComponent {
   readonly summary = input<DeliveryFinancialSummary | null | undefined>();
   readonly title = input('Dinero y cuentas');
   readonly customerLinks = input(false);
+  readonly showCustomerBreakdown = input(true);
   readonly money = formatUyuMoney;
 }

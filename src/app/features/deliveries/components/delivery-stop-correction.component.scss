@@ -20,3 +20,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 button[type='submit'] { background: var(--gam-color-primary); color: var(--gam-color-on-primary); }
 button:disabled { opacity: .65; }
 .error { color: var(--gam-color-danger); }
+.mobile { margin: 0; padding: 0; border: 0; background: var(--gam-color-surface); }
+.mobile fieldset { gap: 12px; }
+.quantity-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.quantity-row small { display: block; color: var(--gam-color-text-muted); }
+.stepper { display: grid; grid-template-columns: 44px minmax(50px, 65px) 44px; gap: 4px; }
+.stepper input { text-align: center; }
+.stepper button { color: var(--gam-color-primary); font-size: 1.15rem; }
+.quantity-preview { display: grid; gap: 3px; padding: 9px; border-radius: 7px; background: var(--gam-color-primary-soft); color: var(--gam-color-heading); }
+.mobile .actions { display: flex; flex-direction: column-reverse; gap: 7px; }
