@@ -37,6 +37,8 @@ const legacyKeys: Readonly<Record<string, string>> = {
   can_view_feed_recipes: 'feed-recipes.view',
   can_manage_feed_recipes: 'feed-recipes.manage',
   can_manage_users: 'identity.users.manage',
+  can_start_deliveries: 'delivery.start',
+  can_update_own_deliveries: 'delivery.update-own',
   can_record_delivery_fuel: 'delivery.fuel.record',
   can_monitor_deliveries: 'delivery.monitor',
   can_view_delivery_history: 'delivery.history',

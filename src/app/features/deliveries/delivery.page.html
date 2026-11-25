@@ -74,7 +74,7 @@
           [startOdometer]="startOdometer"
           [online]="online()"
           [refreshingVehicles]="vehiclesLoading()"
-          [canContinue]="canOperate && online() && !busy() && !!selectedVehicleId() && (startWithoutLoad() || !!units().length)"
+          [canContinue]="canStartDelivery() && online() && !busy() && !!selectedVehicleId() && (startWithoutLoad() || !!units().length)"
           (modeChange)="chooseStartMode($event)"
           (selectedVehicleIdChange)="selectedVehicleId.set($event)"
           (refreshRequested)="refreshVehicles()"
@@ -94,19 +94,19 @@
           <button type="button" aria-haspopup="dialog" (click)="selectedMetric.set('delivered')"><small>Entregados</small><strong>{{ delivery()?.delivered_quantity }}</strong></button>
           <button type="button" aria-haspopup="dialog" (click)="selectedMetric.set('remaining')"><small>En vehículo</small><strong>{{ delivery()?.remaining_quantity }}</strong></button>
         </section>
-        <button type="button" class="secondary-action close-button" (click)="openLoad()" [disabled]="busy() || closePending() || !canOperate">+ Agregar carga</button>
+        <button type="button" class="secondary-action close-button" (click)="openLoad()" [disabled]="busy() || closePending() || !canUpdateDelivery()">+ Agregar carga</button>
       }
 
       @if (panel() === 'clients') {
         <section class="route-panel" id="clients-panel" role="tabpanel" aria-labelledby="clients-tab">
-          <div class="section-heading"><h2>Clientes</h2><button type="button" class="secondary-action" (click)="openLoad()" [disabled]="busy() || !canOperate">+ Agregar carga</button></div>
+          <div class="section-heading"><h2>Clientes</h2><button type="button" class="secondary-action" (click)="openLoad()" [disabled]="busy() || !canUpdateDelivery()">+ Agregar carga</button></div>
           @if (delivery()?.started_without_load && delivery()?.loaded_quantity === 0) { <p class="no-load-banner" role="status">El reparto comenzó sin carga. Podés registrar cobranzas o agregar huevos para habilitar entregas.</p> }
           <p class="connection-line" role="status">{{ online() ? 'Conectado' : 'Sin conexión · sólo clientes guardados en este dispositivo' }} · {{ pendingCount() }} pendientes</p>
           <label for="client-status">Estado</label><select id="client-status" [value]="clientStatus()" (change)="changeClientStatus($event)"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
           <label class="search-box" for="client-search"><ion-icon name="people-outline" aria-hidden="true" /><input id="client-search" type="search" aria-label="Buscar cliente" placeholder="Buscar cliente" [value]="search()" (input)="setSearch($event)"></label>
           <div class="client-list">
             @for (client of visibleClients(); track client.id) {
-              <app-delivery-client-row [client]="client" [status]="statusFor(client)" [paid]="paidCustomerIds().has(client.id)" [disabled]="!canOperate || closePending() || busy()" (selected)="openClient(client)" />
+              <app-delivery-client-row [client]="client" [status]="statusFor(client)" [paid]="paidCustomerIds().has(client.id)" [disabled]="!canUpdateDelivery() || closePending() || busy()" (selected)="openClient(client)" />
             } @empty { <p class="empty-state">No hay clientes para esa búsqueda.</p> }
           </div>
           @if (online()) { <nav class="client-pagination" aria-label="Páginas de clientes"><button type="button" (click)="refreshClients(search(), clientPage() - 1)" [disabled]="clientPage() <= 1 || clientsLoading()">Anterior</button><span>{{ clientPage() }} / {{ clientLastPage() }} · {{ clientTotal() }} clientes</span><button type="button" (click)="refreshClients(search(), clientPage() + 1)" [disabled]="clientPage() >= clientLastPage() || clientsLoading()">Siguiente</button></nav> }
@@ -214,7 +214,7 @@
           @if (closePending()) {
             <div class="sync-card" role="status">El cierre está guardado y se enviará cuando vuelva la conexión.</div>
           } @else {
-            <button type="button" class="secondary-action close-button" (click)="openCloseConfirmation()" [disabled]="busy() || !canOperate">Finalizar reparto</button>
+            <button type="button" class="secondary-action close-button" (click)="openCloseConfirmation()" [disabled]="busy() || !canUpdateDelivery()">Finalizar reparto</button>
           }
         </section>
       }

@@ -73,6 +73,7 @@ const activeDelivery: Delivery = {
 describe('DeliveryPage', () => {
   let page: DeliveryPage;
   let online: ReturnType<typeof signal<boolean>>;
+  let driverPermissions: ReturnType<typeof signal<string[]>>;
   let location: { getCurrentPosition: ReturnType<typeof vi.fn<LocationService['getCurrentPosition']>> };
   let api: {
     start: ReturnType<typeof vi.fn>;
@@ -106,6 +107,7 @@ describe('DeliveryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     online = signal(true);
+    driverPermissions = signal(['can_start_deliveries', 'can_update_own_deliveries']);
     location = { getCurrentPosition: vi.fn<LocationService['getCurrentPosition']>().mockResolvedValue({ latitude: -34.7, longitude: -56.2 }) };
     let queue: DeliveryOutboxEntry[] = [];
     api = {
@@ -152,7 +154,7 @@ describe('DeliveryPage', () => {
     theme = { toggleLabel: signal('Cambiar a tema oscuro'), toggleIcon: signal('moon-outline'), toggle: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthStore, useValue: { user: signal({ id: 2, name: 'Repartidor', roles: ['delivery'] }) } },
+        { provide: AuthStore, useValue: { user: () => ({ id: 2, name: 'Repartidor', roles: ['delivery'], permissions: driverPermissions() }) } },
         { provide: Router, useValue: { navigateByUrl: vi.fn().mockResolvedValue(true) } },
         { provide: NetworkService, useValue: { online } },
         { provide: ServerHealthService, useValue: { state: signal<'checking' | 'online' | 'offline'>('checking'), start: vi.fn(), stop: vi.fn() } },
@@ -418,7 +420,6 @@ describe('DeliveryPage', () => {
     api.current.mockReturnValue(of({ data: [] }));
     api.start.mockReturnValue(of({ data: { ...activeDelivery, started_without_load: true, loaded_quantity: 0 } }));
     const fixture = TestBed.createComponent(DeliveryPage);
-    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
     fixture.detectChanges();
@@ -432,8 +433,14 @@ describe('DeliveryPage', () => {
     vehicle.value = 'vehicle-1';
     vehicle.dispatchEvent(new Event('change'));
     fixture.componentInstance.startOdometer.setValue('1250,5');
+    driverPermissions.set(['can_update_own_deliveries']);
     fixture.detectChanges();
-    root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!.click();
+    const continueButton = root.querySelector<HTMLButtonElement>('.start-form button[type="submit"]')!;
+    expect(continueButton.disabled).toBe(true);
+    driverPermissions.set(['can_start_deliveries']);
+    fixture.detectChanges();
+    expect(continueButton.disabled).toBe(false);
+    continueButton.click();
     fixture.detectChanges();
     expect(root.querySelector('#start-pin')).not.toBeNull();
     root.querySelector<HTMLButtonElement>('.pin-sheet .secondary-action')!.click();
@@ -466,7 +473,6 @@ describe('DeliveryPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
-    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
     fixture.componentInstance.startMode.set('loaded');
     fixture.detectChanges();
@@ -502,7 +508,6 @@ describe('DeliveryPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.waitFor(() => expect(outbox.saveReferences).toHaveBeenCalled());
-    Object.defineProperty(fixture.componentInstance, 'canOperate', { value: true });
     fixture.componentInstance.delivery.set(null);
     fixture.componentInstance.startMode.set('loaded');
     fixture.detectChanges();
@@ -535,8 +540,14 @@ describe('DeliveryPage', () => {
     expect(root.querySelector('.delivery-map')).not.toBeNull();
 
     fixture.componentInstance.selectPanel('summary');
+    driverPermissions.set(['can_start_deliveries']);
     fixture.detectChanges();
-    root.querySelector<HTMLButtonElement>('#summary-panel .close-button')?.click();
+    const closeButton = root.querySelector<HTMLButtonElement>('#summary-panel .close-button')!;
+    expect(closeButton.disabled).toBe(true);
+    driverPermissions.set(['can_update_own_deliveries']);
+    fixture.detectChanges();
+    expect(closeButton.disabled).toBe(false);
+    closeButton.click();
     await fixture.whenStable();
     fixture.detectChanges();
     fixture.componentInstance.closePin.setValue('0007');

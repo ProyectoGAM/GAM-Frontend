@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, ElementRef, Injector, OnDestroy, ViewChild, afterNextRender, computed, effect, inject, isDevMode, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Injector, OnDestroy, ViewChild, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { DialogFocusDirective } from '../../shared/ui/dialog-focus.directive';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { parseUyuAmount, uyuDecimal } from '../../shared/utils/uyu-money';
@@ -11,7 +11,6 @@ import { DeliveryStartOptionsComponent } from './components/delivery-start-optio
 import { DeliveryVehicleFuelFormComponent } from './components/delivery-vehicle-fuel-form.component';
 import { DeliveryStopEditorComponent } from './components/delivery-stop-editor.component';
 import { DeliverySummaryComponent } from './components/delivery-summary.component';
-import { Capacitor } from '@capacitor/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -30,6 +29,7 @@ import { addOutline, checkmarkCircleOutline, contractOutline, expandOutline, loc
 
 import { postLoginPath } from '../../core/auth/access-policy';
 import { AuthStore } from '../../core/auth/auth.store';
+import { hasAnyPermission } from '../../core/auth/permission-keys';
 import { MAPBOX_ACCESS_TOKEN, mapboxWorkerUrl } from '../../core/config/mapbox.config';
 import { LocationService } from '../../core/native/location.service';
 import { NetworkService } from '../../core/native/network.service';
@@ -111,8 +111,8 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly serverStatus = this.serverHealth.state.asReadonly();
   readonly serverStatusLabel = computed(() => this.serverStatus() === 'online' ? 'Conectado al servidor'
     : this.serverStatus() === 'offline' ? 'Sin conexión con el servidor' : 'Comprobando conexión con el servidor');
-  readonly native = Capacitor.isNativePlatform();
-  readonly canOperate = this.native || isDevMode();
+  readonly canStartDelivery = computed(() => hasAnyPermission(this.auth.user()?.permissions, 'can_start_deliveries'));
+  readonly canUpdateDelivery = computed(() => hasAnyPermission(this.auth.user()?.permissions, 'can_update_own_deliveries'));
   readonly canManageFuel = computed(() => this.auth.user()?.roles.includes('admin') === true || this.auth.user()?.permissions?.some((permission) => ['vehicles.fuel.manage', 'delivery.fuel.record'].includes(permission)) === true);
   readonly profileOpen = signal(false);
   readonly panel = signal<'clients' | 'map' | 'summary'>('clients');
@@ -122,7 +122,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly canEditRegisteredStops = computed(() => {
     const delivery = this.delivery();
     const actor = this.auth.user();
-    return this.canOperate && this.online() && !this.busy() && !this.syncing() && !this.closePending()
+    return this.canUpdateDelivery() && this.online() && !this.busy() && !this.syncing() && !this.closePending()
       && delivery?.status === 'active' && !!actor && delivery.driver?.id === actor.id;
   });
   readonly selectedMetric = signal<DeliveryMetric | null>(null);
@@ -363,7 +363,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   openStartConfirmation(): void {
-    if (!this.canOperate || this.busy() || !this.startDetails()) return;
+    if (!this.canStartDelivery() || this.busy() || !this.startDetails()) return;
     this.clearFeedback();
     this.startPin.reset();
     this.startConfirmation.set(true);
@@ -377,7 +377,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   async startDelivery(): Promise<void> {
-    if (!this.canOperate || this.busy()) return;
+    if (!this.canStartDelivery() || this.busy()) return;
     if (this.startPin.invalid) {
       this.startPin.markAsTouched();
       this.error.set('Ingresá tu PIN de 4 dígitos para iniciar el reparto.');
@@ -441,7 +441,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   openClient(client: DeliveryClient): void {
-    if (!this.canOperate || this.busy() || this.closePending()) return;
+    if (!this.canUpdateDelivery() || this.busy() || this.closePending()) return;
     this.clearFeedback();
     this.selectedClient.set(client);
     this.stopMode.set((this.delivery()?.loaded_quantity ?? 0) === 0 || this.statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false ? 'payment' : 'delivered');
@@ -542,7 +542,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   openLoad(): void {
-    if (!this.canOperate || this.closePending()) return;
+    if (!this.canUpdateDelivery() || this.closePending()) return;
     this.clearFeedback();
     this.reviewing.set(null);
     this.loadForm.controls.production_unit_id.reset();
@@ -553,7 +553,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
 
   async addLoad(): Promise<void> {
     const delivery = this.delivery();
-    if (!this.canOperate || !delivery || this.busy() || this.closePending()) return;
+    if (!this.canUpdateDelivery() || !delivery || this.busy() || this.closePending()) return;
     const payload = this.loadPayload(this.loadForm);
     if (!payload) return;
     await this.persistBusiness('load', { ...payload, occurred_at: this.actionOccurredAt('load') }, createDeliveryId());
@@ -572,7 +572,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   async saveStop(): Promise<void> {
     const delivery = this.delivery();
     const client = this.selectedClient();
-    if (!this.canOperate || !delivery || !client || this.busy() || this.closePending()) return;
+    if (!this.canUpdateDelivery() || !delivery || !client || this.busy() || this.closePending()) return;
     if (delivery.loaded_quantity === 0 && this.stopMode() === 'delivered') {
       this.error.set('Agregá una carga de huevos antes de registrar entregas.');
       return;
@@ -763,7 +763,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private isCurrentActor(id: number): boolean { return !this.destroyed && this.auth.user()?.id === id; }
 
   async openCloseConfirmation(): Promise<void> {
-    if (this.busy() || !this.canOperate) return;
+    if (this.busy() || !this.canUpdateDelivery()) return;
     if (!this.online()) {
       this.error.set('Necesitás conexión para sincronizar y confirmar la descarga final.');
       return;
@@ -801,7 +801,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
 
   async closeDelivery(): Promise<void> {
     const delivery = this.delivery();
-    if (!this.canOperate || !delivery || this.busy() || this.closePending()) return;
+    if (!this.canUpdateDelivery() || !delivery || this.busy() || this.closePending()) return;
     if (this.closePin.invalid) {
       this.closePin.markAsTouched();
       this.error.set('Ingresá tu PIN de 4 dígitos para cerrar el reparto.');
@@ -880,7 +880,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   async syncNow(): Promise<void> {
-    if (!this.canOperate || !this.online() || !this.delivery()) return;
+    if (!this.canUpdateDelivery() || !this.online() || !this.delivery()) return;
     await this.flushOutbox();
     await this.refreshActiveDelivery();
   }
@@ -949,7 +949,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
 
   private async flushOutbox(): Promise<void> {
     const delivery = this.delivery(); const actorId = this.auth.user()?.id;
-    if (!this.canOperate || !delivery || !actorId || !this.online() || this.syncing()) return;
+    if (!this.canUpdateDelivery() || !delivery || !actorId || !this.online() || this.syncing()) return;
     this.syncing.set(true);
     let replayedBusiness = false;
     try {
