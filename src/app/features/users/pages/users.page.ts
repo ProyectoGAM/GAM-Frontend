@@ -216,11 +216,16 @@ export class UsersPage {
     afterNextRender(() => this.pageTitle()?.nativeElement.focus(), { injector: this.injector });
   }
   isOwn(user: AuthUser): boolean { return user.id === this.auth.user()?.id; }
-  canManagePin(user: AuthUser): boolean { return !user.deleted_at && !user.roles.includes('admin') && user.modalidad_acceso !== 'email_password'; }
+  canManagePin(user: AuthUser): boolean { return !user.deleted_at && !user.roles.includes('admin'); }
+
+  pinActionLabel(user: AuthUser): string {
+    if (user.modalidad_acceso !== 'email_password') return 'Configurar PIN';
+    return user.pin_operativo_configurado ? 'Cambiar PIN operativo' : 'Configurar PIN operativo';
+  }
 
   openEditor(kind: 'roles' | 'pin' | 'password'): void {
     const user = this.selected();
-    if (!user) return;
+    if (!user || (kind === 'pin' && !this.canManagePin(user))) return;
     this.credentialForm.reset();
     this.editor.set(kind);
     if (kind === 'roles') { this.assignedRole.reset(); void this.loadRoles(); }
@@ -304,13 +309,28 @@ export class UsersPage {
     if (value !== confirmation || (kind === 'pin' ? !/^\d{4}$/.test(value) : value.length < 8)) {
       this.error.set(kind === 'pin' ? 'Ingresá cuatro dígitos y repetí el mismo PIN.' : 'Ingresá al menos 8 caracteres y repetí la misma contraseña.'); return;
     }
-    this.prepare(kind === 'pin' ? { kind, userId: user.id, pin: value, confirmation } : { kind, userId: user.id, password: value, confirmation },
-      { title: kind === 'pin' ? 'Configurar PIN' : 'Cambiar contraseña', target: user.name, description: kind === 'pin' ? 'Se reemplazará el PIN de acceso compartido.' : 'Se reemplazará la contraseña de esta cuenta. Sus sesiones pueden cerrarse.', button: 'Confirmar y guardar' });
+    if (kind === 'pin') {
+      if (!this.canManagePin(user)) return;
+      this.prepare({ kind, userId: user.id, pin: value, confirmation }, {
+        title: this.pinActionLabel(user),
+        target: user.name,
+        description: user.modalidad_acceso === 'email_password'
+          ? 'Se guardará el PIN operativo de esta cuenta y se cerrarán todas sus sesiones.'
+          : 'Se reemplazará el PIN de acceso compartido.',
+        button: 'Confirmar y guardar',
+      });
+      return;
+    }
+    this.prepare({ kind, userId: user.id, password: value, confirmation }, {
+      title: 'Cambiar contraseña', target: user.name,
+      description: 'Se reemplazará la contraseña de esta cuenta. Sus sesiones pueden cerrarse.', button: 'Confirmar y guardar',
+    });
   }
 
   userAction(kind: 'status' | 'deletePin' | 'unlockPin' | 'sessions'): void {
     const user = this.selected();
     if (!user || (kind === 'status' && this.isOwn(user))) return;
+    if ((kind === 'deletePin' || kind === 'unlockPin') && (!this.canManagePin(user) || user.modalidad_acceso === 'email_password')) return;
     const labels = { status: user.deleted_at ? 'Habilitar usuario' : 'Deshabilitar usuario', deletePin: 'Eliminar PIN', unlockPin: 'Desbloquear PIN', sessions: 'Cerrar sesiones' };
     const descriptions = { status: user.deleted_at ? 'La cuenta podrá volver a iniciar sesión.' : 'La cuenta perderá el acceso y se revocarán sus sesiones.', deletePin: 'La cuenta dejará de acceder con PIN en dispositivos compartidos.', unlockPin: 'Se reiniciará el bloqueo por intentos fallidos del PIN.', sessions: 'Se cerrarán las sesiones activas de esta cuenta. Tendrá que volver a ingresar.' };
     this.prepare(kind === 'status' ? { kind, userId: user.id, enabled: !!user.deleted_at } : { kind, userId: user.id },

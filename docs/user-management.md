@@ -68,7 +68,9 @@ No agrega permisos ni cambia las confirmaciones de las operaciones.
   `email`, `password` y `password_confirmation`. Para acceso compartido agrega
   `email: null`, `pin`, `pin_confirmation` y `up_id`.
 - `PATCH users/{id}/status`, `PUT usuarios/{id}/rol` con `rol_id`, `PUT users/{id}/password`, `DELETE users/{id}/sessions`.
-- `PUT users/{id}/pin`, `DELETE users/{id}/pin`, `POST users/{id}/pin/unlock`. El PIN conserva los ceros iniciales. Con la modalidad informada por el contrato nuevo, solo se ofrece para cuentas PIN habilitadas sin rol administrativo.
+- `PUT users/{id}/pin` configura el PIN operativo de una cuenta personal o el PIN de acceso de una cuenta de dispositivo compartido. El formulario conserva los cuatro dígitos, incluidos los ceros iniciales. En **Usuarios**, la ficha de una cuenta personal habilitada muestra el estado informado por `pin_operativo_configurado` y permite al administrador configurarlo o cambiarlo para una cuenta no administrativa. Cada cambio se confirma con la contraseña del operador.
+- `DELETE users/{id}/pin` y `POST users/{id}/pin/unlock` se ofrecen en la ficha de cuentas de dispositivo compartido para gestionar su PIN de acceso.
+- En **Mi perfil → Seguridad**, cada cuenta personal puede configurar o cambiar su PIN operativo con la contraseña actual. El formulario usa `PUT auth/pin-operativo` con `current_password`, `pin` y `pin_confirmation`. Al guardar se cierran las sesiones de la cuenta afectada y la persona debe volver a ingresar. El PIN operativo permite confirmar operaciones como el inicio y el cierre de reparto.
 - `GET shared-devices`, `POST shared-devices/codes` con `name` y `up_id`, `DELETE shared-devices/{id}/pairing`.
 
 Cada cambio de cuenta abre un diálogo con su acción y destinatario. La contraseña solicitada es la del administrador que opera. `AuthStore.confirmPassword()` usa `auth/web/confirm-password` con cookies en web y `auth/confirm-password` en nativo. Una respuesta `401 INVALID_CREDENTIALS` únicamente en esos endpoints mantiene la sesión y el diálogo; los demás errores de sesión siguen limpiando identidad. No se conserva un desbloqueo global de la UI. Se vuelve a verificar por acción y se comprueba que usuario/sesión no hayan cambiado antes de enviar el comando. No se permite modificar los propios roles ni deshabilitar la cuenta propia desde este flujo.
@@ -81,7 +83,7 @@ La UI identifica las siguientes limitaciones, sin inventar datos ni simular guar
 
 - Editar la UP de una cuenta PIN existente. El backend restringe las cuentas PIN a la UP de su dispositivo y sesión. El listado administrativo de dispositivos es global y muestra la UP de cada equipo.
 - Migrar los controles funcionales antiguos de otros módulos a las claves `can_*`. El editor de roles ya consume esas claves directamente desde el catálogo.
-- Actualización de nombre/correo y estados del PIN (configurado/bloqueado). No se deducen de roles o de permisos efectivos del usuario.
+- Actualización de nombre y correo y consulta del estado del PIN de acceso de las cuentas de dispositivo compartido.
 - Exigir contraseña reciente del lado servidor en **todos** los comandos de usuarios. Actualmente el backend solo aplica esa exigencia a generar código y revocar dispositivo. El diálogo frontend no basta para impedir llamadas directas hechas con cookies robadas. Hace falta validación en servidor, con alcance y vigencia acordados; una verificación atada a la acción también evitaría reutilización entre pestañas.
 - Alinear en el backend la bandera `editable` de Sin rol con su Policy. El frontend ya lo bloquea explícitamente y presenta conflictos de versión y la protección del último administrador.
 - Búsqueda y filtros globales, y metadatos completos de paginación para `users`.

@@ -15,6 +15,7 @@ import {
   AuthUser,
   AuthUserResponse,
   DeviceMode,
+  OwnCredential,
   SharedDevice,
   SharedUser,
 } from './auth.types';
@@ -151,7 +152,7 @@ export class AuthStore {
     }
   }
 
-  async changeCredential(kind: 'password' | 'pin', current: string, next: string, confirmation: string): Promise<string | null> {
+  async changeCredential(kind: OwnCredential, current: string, next: string, confirmation: string): Promise<string | null> {
     const userId = this.userState()?.id;
     const sessionId = this.sessionState()?.id;
     const isCurrent = () => userId !== undefined && this.isAuthenticated()
@@ -308,7 +309,7 @@ export class AuthStore {
     const pinVerification = /(?:^|\/)(?:auth\/pin|shared-device\/(?:web\/)?login-pin)\/?$/.test(path)
       || /(?:^|\/)repartos(?:\/[^/]+\/cierre)?\/?$/.test(path);
     if ((problem.code === 'INVALID_CREDENTIALS'
-      && /(?:^|\/)auth\/(?:(?:web\/)?confirm-password|contrasena)\/?$/.test(path))
+      && /(?:^|\/)auth\/(?:(?:web\/)?confirm-password|contrasena|pin-operativo)\/?$/.test(path))
       || (problem.code === 'INVALID_PIN' && pinVerification)) {
       return;
     }
