@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { NavController, ToastController } from '@ionic/angular';
 import { of, throwError } from 'rxjs';
 
@@ -15,7 +16,7 @@ describe('Mi perfil', () => {
     modalidad_acceso: 'email_password', up_id: null,
   };
 
-  function setup(person: AuthUser, shared = false) {
+  function setup(person: AuthUser, shared = false, configurePin = false) {
     const getById = vi.fn().mockReturnValue(of({ data: { name: 'UP San José' } }));
     const changeCredential = vi.fn().mockResolvedValue(null);
     const navigateRoot = vi.fn().mockResolvedValue(true);
@@ -28,6 +29,7 @@ describe('Mi perfil', () => {
           changeCredential, logout, finishSharedSession,
         } },
         { provide: ProductionUnitsService, useValue: { getById } },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(configurePin ? { configurar: 'pin-operativo' } : {}) } } },
         { provide: NavController, useValue: { navigateRoot } },
         { provide: ToastController, useValue: { create: async () => ({ present: async () => undefined }) } },
       ],
@@ -101,6 +103,24 @@ describe('Mi perfil', () => {
     submit();
     await fixture.whenStable();
     expect(changeCredential).toHaveBeenCalledOnce();
+    expect(changeCredential).toHaveBeenCalledWith('operation_pin', 'example-password', '0012', '0012');
+    expect(navigateRoot).toHaveBeenCalledWith('/auth', { replaceUrl: true });
+  });
+
+  it('opens the existing setup form directly from deliveries and offers a way back', async () => {
+    const { fixture, changeCredential, navigateRoot } = setup({
+      ...account, roles: ['delivery'], permissions: ['can_view_admin_dashboard'], pin_operativo_configurado: false,
+    }, false, true);
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('h1')?.textContent).toContain('Configurar PIN operativo');
+    expect(page.querySelector('ion-back-button')).not.toBeNull();
+    expect(fixture.componentInstance.returnPath()).toBe('/repartidor');
+    expect(page.querySelector('form')?.textContent).toContain('Deberás volver a ingresar.');
+
+    fixture.componentInstance.form.setValue({ current: 'example-password', next: '0012', confirmation: '0012' });
+    page.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
     expect(changeCredential).toHaveBeenCalledWith('operation_pin', 'example-password', '0012', '0012');
     expect(navigateRoot).toHaveBeenCalledWith('/auth', { replaceUrl: true });
   });

@@ -63,6 +63,7 @@
       } @else {
         <app-delivery-start-options
           [class.after-summary]="delivery()?.status === 'completed' && !startMode()"
+          [needsOperationalPin]="needsOperationalPin()"
           [mode]="startMode()"
           [startForm]="startForm"
           [startTotal]="startTotal()"
@@ -117,12 +118,12 @@
         <section class="route-panel" id="map-panel" role="tabpanel" aria-labelledby="map-tab">
           <div class="map-controls">
             <div class="map-tools">
-              <select id="map-visit" aria-label="Filtrar visitas" [value]="mapVisitStatus()" (change)="changeMapVisit($event)">
+              <select id="map-visit" aria-label="Filtrar visitas de este reparto" [value]="mapVisitStatus()" (change)="changeMapVisit($event)">
                 <option value="">Todas las visitas</option>
-                <option value="pending">Pendientes</option>
+                <option value="pending">Sin visitar</option>
                 <option value="visited">Visitados</option>
-                <option value="delivered">Con entrega</option>
-                <option value="paid">Con cobro</option>
+                <option value="delivered">Entrega realizada</option>
+                <option value="paid">Cobro realizado</option>
               </select>
               <button class="secondary-action map-locate" type="button" [disabled]="!mapReady() || locationLoading()" (click)="centerOnLocation()">
                 <ion-icon name="locate-outline" aria-hidden="true" />
@@ -305,7 +306,7 @@
     <div class="sheet-heading"><div><p class="eyebrow">REGISTRAR VISITA</p><h2 id="client-sheet-title">{{ client.name }}</h2><p>{{ client.address }}</p></div><button type="button" class="sheet-close" (click)="selectedClient.set(null)" aria-label="Cerrar cliente">×</button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (client.account; as account) { <p>{{ account.balance.startsWith("-") ? "Saldo a favor" : "Deuda confirmada" }}: <strong>{{ money(account.balance.startsWith("-") ? account.credit : account.debt) }}</strong><small> · {{ account.as_of | date:'dd/MM/yyyy HH:mm':'-0300' }}</small></p> }
-    @if (client.last_delivery; as last) { <p>Última entrega: {{ last.visited_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · {{ last.delivered_quantity }} huevos · {{ money(last.total_amount) }}</p> }
+    <app-delivery-client-history [client]="client" [online]="online()" />
     @if (client.delivery_notes) { <p class="customer-note">{{ client.delivery_notes }}</p> }
     @if (client.visit_frequency) { <p>Frecuencia: {{ client.visit_frequency }}</p> }
     @if (reviewing()) { <p role="status">Revisá y confirmá los datos. Se conservará el evento original y se enviará esta corrección con una nueva clave.</p> }
@@ -325,7 +326,10 @@
         <label for="visit-reason">Motivo de no entrega</label><input id="visit-reason" type="text" formControlName="reason" maxlength="240" placeholder="Ej.: negocio cerrado" required>
       }
       @if (stopMode() === 'delivered' && (delivery()?.loaded_quantity ?? 0) > 0) {
-        <div class="mode-choice" role="group" aria-label="Cobro de la entrega"><button type="button" [class.active]="paymentChoice() === 'fiado'" (click)="paymentChoice.set('fiado')">Fiado · sin cobro</button><button type="button" [class.active]="paymentChoice() === 'payment'" (click)="paymentChoice.set('payment')">Registrar cobro</button></div>
+        <div class="mode-choice" role="group" aria-label="Cobro de la entrega">
+          <button type="button" [class.active]="paymentChoice() === 'payment'" [attr.aria-pressed]="paymentChoice() === 'payment'" (click)="paymentChoice.set('payment')">Registrar cobro</button>
+          <button type="button" [class.active]="paymentChoice() === 'fiado'" [attr.aria-pressed]="paymentChoice() === 'fiado'" (click)="paymentChoice.set('fiado')">Fiado · sin cobro</button>
+        </div>
       }
       @if (stopMode() === 'payment' || stopMode() === 'delivered' && paymentChoice() === 'payment') {
         <label for="payment-amount">Importe cobrado (UYU)</label><input id="payment-amount" formControlName="amount" type="text" inputmode="decimal" maxlength="24" placeholder="0,000" required>

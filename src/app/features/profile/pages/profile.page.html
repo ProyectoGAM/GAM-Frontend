@@ -1,12 +1,12 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      @if (editing(); as credential) {
+      @if (editing() && !settingUpDeliveryPin()) {
         <ion-button aria-label="Volver a Mi perfil" [disabled]="saving()" (click)="setEditing(null)">
           <ion-icon slot="icon-only" name="arrow-back-outline" aria-hidden="true" />
         </ion-button>
       } @else {
-        <ion-back-button [defaultHref]="returnPath()" text="" aria-label="Volver" />
+        <ion-back-button [defaultHref]="returnPath()" [disabled]="saving()" text="" aria-label="Volver" />
       }
     </ion-buttons>
     <h1 #heading tabindex="-1">{{ editing() ? credentialTitle() : 'Mi perfil' }}</h1>

@@ -1,8 +1,9 @@
 import { Component, ElementRef, Injector, afterNextRender, afterRenderEffect, inject, input, output, viewChild, viewChildren } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, arrowBackOutline, chevronForwardOutline, cubeOutline, refreshOutline, trashOutline } from 'ionicons/icons';
+import { addOutline, arrowBackOutline, chevronForwardOutline, cubeOutline, lockClosedOutline, refreshOutline, trashOutline } from 'ionicons/icons';
 
 import { parseUyuAmount, uyuDecimal } from '../../../shared/utils/uyu-money';
 import { VehicleOption } from '../../vehicles/interfaces/vehicle';
@@ -13,12 +14,13 @@ import type { DeliveryStartMode, LoadForm } from '../types/delivery-load-form.ty
   selector: 'app-delivery-start-options',
   templateUrl: './delivery-start-options.component.html',
   styleUrl: './delivery-start-options.component.scss',
-  imports: [IonIcon, IonSpinner, ReactiveFormsModule],
+  imports: [IonIcon, IonSpinner, ReactiveFormsModule, RouterLink],
 })
 export class DeliveryStartOptionsComponent {
   private readonly injector = inject(Injector);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('startHeading');
   private readonly presentationFields = viewChildren<ElementRef<HTMLSelectElement>>('presentationField');
+  readonly needsOperationalPin = input(false);
   readonly mode = input<DeliveryStartMode | null>(null);
   readonly startForm = input.required<LoadForm>();
   readonly startTotal = input(0);
@@ -39,7 +41,7 @@ export class DeliveryStartOptionsComponent {
   readonly continueRequested = output<void>();
 
   constructor() {
-    addIcons({ addOutline, arrowBackOutline, chevronForwardOutline, cubeOutline, refreshOutline, trashOutline });
+    addIcons({ addOutline, arrowBackOutline, chevronForwardOutline, cubeOutline, lockClosedOutline, refreshOutline, trashOutline });
     afterRenderEffect(() => this.heading()?.nativeElement.focus({ preventScroll: true }));
   }
 

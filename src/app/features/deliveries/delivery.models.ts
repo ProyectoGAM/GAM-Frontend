@@ -48,6 +48,21 @@ export interface DeliveryStop {
   account_movements?: CustomerMovement[];
 }
 
+export interface DeliveryClientHistory {
+  deliveries: {
+    id: number;
+    visited_at: string;
+    delivered_quantity: number;
+    total_amount: string | null;
+  }[];
+  payments: {
+    id: string;
+    occurred_at: string;
+    amount: string;
+    payment_method: DeliveryPaymentMethod | null;
+  }[];
+}
+
 export interface DeliveryLocation {
   id: number | string;
   client_event_id?: string;
