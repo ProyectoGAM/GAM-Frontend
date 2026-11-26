@@ -10,6 +10,7 @@ import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { postLoginPath } from '../../../core/auth/access-policy';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { OwnCredential } from '../../../core/auth/auth.types';
 import { InitialAvatarComponent } from '../../../shared/components/initial-avatar.component';
 import { ProductionUnitsService } from '../../production-units/services/production-units.service';
 
@@ -55,7 +56,12 @@ export class ProfilePage {
     )),
   ), { initialValue: 'Consultando unidad productiva…' });
 
-  readonly editing = signal(false);
+  readonly editing = signal<OwnCredential | null>(null);
+  readonly pinFields = computed(() => this.editing() === 'pin' || this.editing() === 'operation_pin');
+  readonly operationPinAction = computed(() => this.user()?.pin_operativo_configurado
+    ? 'Cambiar PIN operativo' : 'Configurar PIN operativo');
+  readonly credentialTitle = computed(() => this.editing() === 'operation_pin'
+    ? this.operationPinAction() : this.editing() === 'pin' ? 'Cambiar PIN' : 'Cambiar contraseña');
   readonly saving = signal(false);
   readonly signingOut = signal(false);
   readonly error = signal('');
@@ -84,8 +90,8 @@ export class ProfilePage {
     this.resetForm();
   }
 
-  setEditing(editing: boolean): void {
-    if (this.saving() || this.signingOut()) return;
+  setEditing(editing: OwnCredential | null): void {
+    if (this.saving() || this.signingOut() || (editing !== null && (editing === 'pin') !== this.isPin())) return;
     this.resetForm();
     this.editing.set(editing);
     afterNextRender(() => this.heading()?.nativeElement.focus(), { injector: this.injector });
@@ -110,15 +116,17 @@ export class ProfilePage {
   }
 
   async save(): Promise<void> {
-    if (this.saving()) return;
+    const credential = this.editing();
+    if (!credential || this.saving()) return;
     const { current, next, confirmation } = this.form.getRawValue();
-    const pin = this.isPin();
+    const pin = credential !== 'password';
     if (!current || !next || !confirmation) {
       this.error.set('Completa los tres campos.');
       return;
     }
-    if (pin && ![current, next, confirmation].every((value) => /^[0-9]{4}$/.test(value))) {
-      this.error.set('Ingresa cuatro dígitos en cada campo.');
+    const pinValues = credential === 'pin' ? [current, next, confirmation] : [next, confirmation];
+    if (pin && !pinValues.every((value) => /^[0-9]{4}$/.test(value))) {
+      this.error.set(credential === 'operation_pin' ? 'Ingresa cuatro dígitos para el PIN operativo.' : 'Ingresa cuatro dígitos en cada campo.');
       return;
     }
     if (!pin && [...next].length < 8) {
@@ -133,7 +141,7 @@ export class ProfilePage {
     this.error.set('');
     this.saving.set(true);
     try {
-      const error = await this.auth.changeCredential(pin ? 'pin' : 'password', current, next, confirmation);
+      const error = await this.auth.changeCredential(credential, current, next, confirmation);
       if (error) {
         if (this.active()) this.error.set(error);
         return;
@@ -143,7 +151,8 @@ export class ProfilePage {
       const toast = await this.toasts.create({
         cssClass: 'profile-credential-toast',
         duration: 5000,
-        message: pin ? 'PIN actualizado. Vuelve a ingresar.' : 'Contraseña actualizada. Vuelve a ingresar.',
+        message: credential === 'operation_pin' ? 'PIN operativo guardado. Vuelve a ingresar.'
+          : pin ? 'PIN actualizado. Vuelve a ingresar.' : 'Contraseña actualizada. Vuelve a ingresar.',
       });
       await toast.present();
     } finally {
@@ -154,6 +163,6 @@ export class ProfilePage {
   private resetForm(): void {
     this.form.reset();
     this.error.set('');
-    this.editing.set(false);
+    this.editing.set(null);
   }
 }

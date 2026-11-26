@@ -121,6 +121,34 @@ describe('Users management', () => {
     expect(execute).toHaveBeenCalledWith({ kind: 'pin', userId: 4, pin: '0007', confirmation: '0007' });
   });
 
+  it('assigns an operational PIN from a personal account and refreshes its configuration status', async () => {
+    setup();
+    await fixture.whenStable();
+    const driver: AuthUser = { ...employee, roles: ['delivery'], modalidad_acceso: 'email_password', pin_operativo_configurado: false };
+    page.openUser(driver);
+    fixture.detectChanges();
+    const view: HTMLElement = fixture.nativeElement;
+    const action = [...view.querySelectorAll<HTMLButtonElement>('.account button')]
+      .find((button) => button.textContent?.trim() === 'Configurar PIN operativo');
+    expect(view.querySelector('.account')?.textContent).toContain('Sin configurar');
+    expect(view.querySelector('.account')?.textContent).not.toContain('Desbloquear PIN');
+    expect(action?.disabled).toBe(false);
+    action!.click();
+    fixture.detectChanges();
+    page.credentialForm.setValue({ value: '0012', confirmation: '0012' });
+    page.saveEditor();
+    expect(page.confirmation()?.title).toBe('Configurar PIN operativo');
+    expect(page.confirmation()?.description).toContain('se cerrarán todas sus sesiones');
+    expect(execute).not.toHaveBeenCalled();
+
+    users.mockReturnValueOnce(of({ users: [operator, { ...driver, pin_operativo_configurado: true }], page: 1, lastPage: 1 }));
+    await page.confirm('example-only');
+    fixture.detectChanges();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledWith({ kind: 'pin', userId: driver.id, pin: '0012', confirmation: '0012' });
+    expect(view.querySelector('.account')?.textContent).toContain('Cambiar PIN operativo');
+  });
+
   it('assigns exactly one custom catalog role after confirming its name', async () => {
     setup(); page.openUser(employee); page.openEditor('roles'); await Promise.resolve();
     page.assignedRole.setValue(7); page.saveEditor();

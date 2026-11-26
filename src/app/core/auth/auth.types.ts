@@ -1,4 +1,5 @@
 export type DeviceMode = 'personal' | 'shared';
+export type OwnCredential = 'password' | 'pin' | 'operation_pin';
 
 export type AuthStatus =
   | 'initializing'
@@ -19,6 +20,7 @@ export interface AuthUser {
   rol?: { id: number; clave: string; nombre: string } | null;
   modalidad_acceso?: 'email_password' | 'device_pin';
   up_id?: number | null;
+  pin_operativo_configurado?: boolean;
 }
 
 export interface AuthUserResponse extends Omit<AuthUser, 'roles'> {

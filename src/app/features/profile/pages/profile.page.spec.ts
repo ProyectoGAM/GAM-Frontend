@@ -74,6 +74,37 @@ describe('Mi perfil', () => {
     expect(navigateRoot).toHaveBeenCalledWith('/auth', { replaceUrl: true });
   });
 
+  it.each([false, true])('saves an operational PIN using the current password (configured: %s)', async (configured) => {
+    const driver = { ...account, roles: ['delivery'], pin_operativo_configurado: configured };
+    const { fixture, changeCredential, navigateRoot } = setup(driver);
+    await fixture.whenStable();
+    const page: HTMLElement = fixture.nativeElement;
+    const action = page.querySelector<HTMLElement>('.operation-pin')!;
+    expect(action.textContent).toContain(configured ? 'Cambiar PIN operativo' : 'Configurar PIN operativo');
+    action.click();
+    await fixture.whenStable();
+
+    const current = page.querySelector<HTMLInputElement>('input[formControlName="current"]')!;
+    expect(current.autocomplete).toBe('current-password');
+    expect(current.getAttribute('maxlength')).toBeNull();
+    const next = page.querySelector<HTMLInputElement>('input[formControlName="next"]')!;
+    expect(next.inputMode).toBe('numeric');
+    expect(next.maxLength).toBe(4);
+    fixture.componentInstance.form.setValue({ current: 'example-password', next: '012', confirmation: '012' });
+    const submit = () => page.querySelector('form')!.dispatchEvent(new Event('submit'));
+    submit();
+    await fixture.whenStable();
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain('cuatro dígitos');
+    expect(changeCredential).not.toHaveBeenCalled();
+
+    fixture.componentInstance.form.setValue({ current: 'example-password', next: '0012', confirmation: '0012' });
+    submit();
+    await fixture.whenStable();
+    expect(changeCredential).toHaveBeenCalledOnce();
+    expect(changeCredential).toHaveBeenCalledWith('operation_pin', 'example-password', '0012', '0012');
+    expect(navigateRoot).toHaveBeenCalledWith('/auth', { replaceUrl: true });
+  });
+
   it('shows the assigned unit and submits a confirmed PIN with its leading zeros', async () => {
     const { fixture, changeCredential, navigateRoot } = setup({
       ...account, modalidad_acceso: 'device_pin', email: null, up_id: 7,
@@ -82,6 +113,7 @@ describe('Mi perfil', () => {
     const page: HTMLElement = fixture.nativeElement;
     expect(page.textContent).toContain('UP San José');
     expect(page.textContent).not.toContain('Correo electrónico');
+    expect(page.querySelector('.operation-pin')).toBeNull();
     const open = page.querySelector<HTMLElement>('.security ion-button');
     expect(open?.textContent).toContain('Cambiar PIN');
     open?.click();

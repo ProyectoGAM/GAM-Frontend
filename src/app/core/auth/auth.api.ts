@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiClient } from '../api/api-client';
 import {
   MeResponse,
+  OwnCredential,
   PersonalLoginResponse,
   SharedDeviceStatusResponse,
   SharedPairingResponse,
@@ -65,7 +66,12 @@ export class AuthApi {
     );
   }
 
-  changeCredential(kind: 'password' | 'pin', current: string, next: string, confirmation: string) {
+  changeCredential(kind: OwnCredential, current: string, next: string, confirmation: string) {
+    if (kind === 'operation_pin') {
+      return this.api.put<{ requiere_reingreso: true }>(
+        'auth/pin-operativo', { current_password: current, pin: next, pin_confirmation: confirmation }, { withCredentials: true },
+      );
+    }
     const body = kind === 'pin'
       ? { current_pin: current, pin: next, pin_confirmation: confirmation }
       : { current_password: current, password: next, password_confirmation: confirmation };

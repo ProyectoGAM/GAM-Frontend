@@ -105,6 +105,13 @@ dd {
   text-transform: none;
 }
 
+.security .operation-pin {
+  --background: transparent;
+  --border-color: var(--gam-color-primary);
+  --color: var(--gam-color-primary);
+  margin-top: 12px;
+}
+
 .security .sign-out {
   --background: transparent;
   --border-color: var(--gam-color-danger);

@@ -32,20 +32,30 @@
             <button type="button" [disabled]="!canChange() || busy()" (click)="userAction('sessions')">Cerrar sesiones</button>
             <button type="button" [class.danger]="!user.deleted_at" [disabled]="!canChange() || busy() || isOwn(user)" (click)="userAction('status')">{{ user.deleted_at ? 'Habilitar usuario' : 'Deshabilitar usuario' }}</button>
           </div>
-          <h3>Acceso con PIN</h3>
-          <p class="muted">El estado del PIN está por implementar: la API no lo informa.</p>
+          @let personalPin = user.modalidad_acceso === 'email_password';
+          <h3>{{ personalPin ? 'PIN operativo' : 'Acceso con PIN' }}</h3>
+          @if (personalPin) {
+            @if (user.pin_operativo_configurado !== undefined) {
+              <p>{{ user.pin_operativo_configurado ? 'Configurado' : 'Sin configurar' }}</p>
+            }
+            <p class="muted">Sirve para confirmar operaciones como el inicio y el cierre de un reparto.</p>
+          } @else {
+            <p class="muted">El estado del PIN de acceso no está disponible en esta ficha.</p>
+          }
           @if (canManagePin(user)) {
             <div class="action-grid">
-              <button type="button" [disabled]="!canChange() || busy()" (click)="openEditor('pin')">Configurar PIN</button>
-              <button type="button" [disabled]="!canChange() || busy()" (click)="userAction('unlockPin')">Desbloquear PIN</button>
-              <button type="button" class="danger" [disabled]="!canChange() || busy()" (click)="userAction('deletePin')">Eliminar PIN</button>
+              <button type="button" [disabled]="!canChange() || busy()" (click)="openEditor('pin')">{{ pinActionLabel(user) }}</button>
+              @if (!personalPin) {
+                <button type="button" [disabled]="!canChange() || busy()" (click)="userAction('unlockPin')">Desbloquear PIN</button>
+                <button type="button" class="danger" [disabled]="!canChange() || busy()" (click)="userAction('deletePin')">Eliminar PIN</button>
+              }
             </div>
-          } @else { <p>El PIN está disponible para cuentas habilitadas sin rol de administrador.</p> }
+          }
           <p class="muted">Editar nombre y correo: por implementar.</p>
         </article>
         @if (editor(); as kind) {
           <form class="panel form-panel" (submit)="$event.preventDefault(); saveEditor()">
-            <h2 #editorTitle tabindex="-1">{{ kind === 'roles' ? 'Cambiar rol' : kind === 'pin' ? 'Configurar PIN' : 'Cambiar contraseña' }}</h2>
+            <h2 #editorTitle tabindex="-1">{{ kind === 'roles' ? 'Cambiar rol' : kind === 'pin' ? pinActionLabel(user) : 'Cambiar contraseña' }}</h2>
             @if (kind === 'roles') {
               <div class="fields"><label for="assigned-role">Rol de {{ user.name }}</label><select id="assigned-role" [formControl]="assignedRole"><option [ngValue]="null" disabled>Seleccioná un rol</option>@for (role of roles(); track role.id) { <option [ngValue]="role.id" [disabled]="user.modalidad_acceso === 'device_pin' && role.clave === 'admin'">{{ role.nombre }}</option> }</select><small>Cada persona tiene un solo rol. Sin rol impide el acceso y cierra sus sesiones.</small></div>
               @if (rolesLoading()) { <p role="status">Cargando roles…</p> } @if (rolesError()) { <p class="error" role="alert">{{ rolesError() }}</p><button type="button" (click)="loadRoles()">Reintentar carga de roles</button> }

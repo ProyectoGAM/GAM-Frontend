@@ -61,6 +61,12 @@ describe('AuthApi backend contract', () => {
     const pin = http.expectOne({ method: 'PATCH', url: '/api/v1/auth/pin' });
     expect(pin.request.body).toEqual({ current_pin: '0007', pin: '0031', pin_confirmation: '0031' });
     pin.flush({ requiere_reingreso: true });
+
+    api.changeCredential('operation_pin', 'current-password', '0012', '0012').subscribe();
+    const operationalPin = http.expectOne({ method: 'PUT', url: '/api/v1/auth/pin-operativo' });
+    expect(operationalPin.request.body).toEqual({ current_password: 'current-password', pin: '0012', pin_confirmation: '0012' });
+    expect(operationalPin.request.withCredentials).toBe(true);
+    operationalPin.flush({ requiere_reingreso: true });
   });
 
   it('uses backend pairing and shared-session paths and payload keys', () => {

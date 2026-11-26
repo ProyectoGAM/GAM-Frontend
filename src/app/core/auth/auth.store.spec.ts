@@ -187,6 +187,7 @@ describe('AuthStore', () => {
     store.handleHttpError(invalid, 'https://api.example.test/api/v1/auth/web/confirm-password');
     store.handleHttpError(invalid, '/api/v1/auth/confirm-password?test=1');
     store.handleHttpError(invalid, '/api/v1/auth/contrasena');
+    store.handleHttpError(invalid, '/api/v1/auth/pin-operativo');
     expect(store.user()).toEqual(user); expect(store.isAuthenticated()).toBe(true);
     store.handleHttpError(new HttpErrorResponse({ status: 401, error: { code: 'SESSION_EXPIRED' } }), '/api/v1/auth/web/confirm-password');
     expect(store.user()).toBeNull(); expect(store.isAuthenticated()).toBe(false);
