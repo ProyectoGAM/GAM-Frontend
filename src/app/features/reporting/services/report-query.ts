@@ -11,6 +11,19 @@ export interface ReportFormValue {
   filters: { field: string; operator: string; value: string }[];
 }
 
+export function reportPeriod(period: 'all' | 'month' | 'previous'): { from: string; to: string } {
+  if (period === 'all') return { from: '', to: '' };
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  if (period === 'month') return { from: today.slice(0, 7) + '-01', to: today };
+  const [year, month] = today.split('-').map(Number);
+  return {
+    from: new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 10),
+    to: new Date(Date.UTC(year, month - 1, 0)).toISOString().slice(0, 10),
+  };
+}
+
 export function queryFromForm(source: ReportSource, form: ReportFormValue): ReportQuery {
   if (!form.columns.length) throw new Error('Selecciona al menos una columna.');
   const filters: NonNullable<ReportQuery['filters']> = [];

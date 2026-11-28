@@ -24,7 +24,15 @@
         <div class="category-grid">@for (item of categoryCards(); track item.key) {
           <article class="category-card" [class.expenses-category]="item.key === 'gastos'"><div class="card-title"><ion-icon [name]="item.icon" aria-hidden="true" /><h2>{{ item.label }}</h2></div><p>{{ item.description }}</p><nav [attr.aria-label]="'Reportes de ' + item.label">@for (report of item.reports; track report.key) { <a [routerLink]="[reportPath, 'ver', report.key]"><span>{{ report.label }}</span><ion-icon name="arrow-forward-outline" aria-hidden="true" /></a> }</nav></article>
         } @empty { <p role="status">No tienes reportes disponibles. Solicita acceso al administrador.</p> }</div>
-        @if (sources().length) { <aside class="create-invite"><div><h2>¿Necesitas un reporte diferente?</h2><p>Elige los datos que quieres ver con nuestro creador paso a paso.</p></div><a class="button" [routerLink]="[reportPath, 'crear']"><ion-icon name="create-outline" aria-hidden="true" />Crear un reporte</a></aside> }
+        @if (sources().length) {
+          <aside class="create-invite">
+            <div><h2>¿Necesitas un reporte diferente?</h2><p>Elige los datos que quieres incluir.</p></div>
+            <div class="actions">
+              <a class="button" [routerLink]="[reportPath, 'crear']"><ion-icon name="create-outline" aria-hidden="true" />Crear un reporte</a>
+              @if (topics().length >= 2) { <a class="button primary" [routerLink]="[reportPath, 'crear', 'varios-modulos']"><ion-icon name="layers-outline" aria-hidden="true" />Crear reporte de varios módulos</a> }
+            </div>
+          </aside>
+        }
       }
       @case ('topic') {
         <div class="card-grid">@for (item of topicSources(); track item.key) {
@@ -149,7 +157,14 @@
     @if (item.status === 'pending' || item.status === 'processing') { <p class="loading"><ion-spinner aria-hidden="true" /> Estamos preparando el archivo. Puedes esperar aquí o volver desde Reportes exportados.</p> }
     @if (item.failure_message) { <p class="error">{{ item.failure_message }}</p> }
     @if (item.status === 'completed') { <div class="actions"><button class="primary" type="button" [disabled]="actionBusy()" (click)="download(item)"><ion-icon name="download-outline" aria-hidden="true" />Descargar {{ item.format === 'xlsx' ? 'Excel' : 'PDF' }}</button>@if (canShare(item)) { <button type="button" [disabled]="actionBusy()" (click)="share(item, $event)"><ion-icon name="share-social-outline" aria-hidden="true" />Compartir con un enlace</button> }</div>@if (item.expires_at) { <p class="muted">Disponible hasta el {{ item.expires_at | date:'dd/MM/yyyy HH:mm':'-0300' }}.</p> } }
-    @if (item.status === 'expired' || item.status === 'failed') { <p>Vuelve a abrir el reporte para preparar un archivo nuevo.</p><a class="button" [routerLink]="[reportPath, 'ver', item.source_key]"><ion-icon name="search-outline" aria-hidden="true" />Abrir reporte</a> }
+    @if (item.status === 'expired' || item.status === 'failed') {
+      @if (item.source_key === combinedReportSource) {
+        <a class="button" [routerLink]="[reportPath, 'crear', 'varios-modulos']"><ion-icon name="create-outline" aria-hidden="true" />Crear otro reporte de varios módulos</a>
+      } @else {
+        <p>Vuelve a abrir el reporte para preparar un archivo nuevo.</p>
+        <a class="button" [routerLink]="[reportPath, 'ver', item.source_key]"><ion-icon name="search-outline" aria-hidden="true" />Abrir reporte</a>
+      }
+    }
     <details><summary>Nombre del archivo</summary><p class="file-name">{{ item.file_name }}</p></details>
   </article>
 </ng-template>

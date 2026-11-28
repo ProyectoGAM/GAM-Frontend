@@ -7,6 +7,7 @@ import { AuthStore } from '../../../core/auth/auth.store';
 import { reportingRoutes } from '../reporting.routes';
 import { ReportingService } from '../services/reporting.service';
 import { reportSourceFixture } from '../testing/report-source.fixture';
+import { CombinedReportPage } from './combined-report.page';
 import { ReportsPage } from './reports.page';
 
 describe('Report navigation', () => {
@@ -52,6 +53,18 @@ describe('Report navigation', () => {
     const editor = await harness.navigateByUrl('/administracion/reportes/reportes/crear?source=lots.egg-production&guardado=91', ReportsPage); await harness.fixture.whenStable(); harness.detectChanges();
     expect(editor.step()).toBe(2); expect(editor.reportMode()).toBe('summary'); expect(editor.form.controls.groupings.value).toEqual(['poultry_house']);
     expect(harness.routeNativeElement!.querySelector('table')).toBeNull();
+  });
+
+  it('links to the combined creator when the catalog has multiple modules', async () => {
+    api.sources.mockReturnValue(of({ data: [source, { ...source, key: 'inventory.stock-balances' }] }));
+    await harness.navigateByUrl('/administracion/reportes/reportes', ReportsPage);
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const url = '/administracion/reportes/reportes/crear/varios-modulos';
+    expect(harness.routeNativeElement!.querySelector('a[href="' + url + '"]')).not.toBeNull();
+    await harness.navigateByUrl(url, CombinedReportPage);
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement!.textContent).toContain('Crear reporte de varios módulos');
   });
 
   it('loads the saved library and downloadable files only in their own pages', async () => {
