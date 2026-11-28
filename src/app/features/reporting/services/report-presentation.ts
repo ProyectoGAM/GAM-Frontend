@@ -1,3 +1,11 @@
+import { ReportField } from '../interfaces/report';
+
+export function reportColumns(columns: Record<string, ReportField>): (ReportField & { key: string })[] {
+  return Object.entries(columns)
+    .filter(([key]) => !key.endsWith('_id') || !(key.slice(0, -3) in columns))
+    .map(([key, field]) => ({ key, ...field }));
+}
+
 export const reportTopics = [
   { key: 'produccion', label: 'Producción y lotes', icon: 'egg-outline', description: 'Huevos recolectados, movimientos de aves y seguimiento de cada lote.', sources: ['lots.egg-production', 'lots.admissions', 'lots.summary', 'lots.weighing-measurements', 'lots.mortality'] },
   { key: 'manejo', label: 'Alimentación y cuidados', icon: 'heart-outline', description: 'Alimentación, salud de las aves y tareas de manejo realizadas.', sources: ['management.feed-supply', 'management.feeding', 'management.vaccinations', 'lots.medications', 'management.executions', 'management.overview'] },

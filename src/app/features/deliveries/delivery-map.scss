@@ -121,6 +121,20 @@
   font-size: 13px;
 }
 
+@media (max-width: 390px) {
+  .map-tools {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .map-tools #map-visit {
+    grid-column: 1 / -1;
+  }
+
+  .map-locate {
+    justify-self: start;
+  }
+}
+
 @media (max-height: 650px) {
   .map-mode { padding-top: 8px; }
   .map-mode > .route-status { padding: 8px 10px; }

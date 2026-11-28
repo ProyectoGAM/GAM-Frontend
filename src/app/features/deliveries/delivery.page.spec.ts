@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of, tap, throwError } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
+import type { AuthUser } from '../../core/auth/auth.types';
 import { ServerHealthService } from '../../core/api/server-health.service';
 import { MAPBOX_ACCESS_TOKEN } from '../../core/config/mapbox.config';
 import { LocationService } from '../../core/native/location.service';
@@ -74,10 +75,12 @@ describe('DeliveryPage', () => {
   let page: DeliveryPage;
   let online: ReturnType<typeof signal<boolean>>;
   let driverPermissions: ReturnType<typeof signal<string[]>>;
+  let pinStatus: ReturnType<typeof signal<Pick<AuthUser, 'modalidad_acceso' | 'pin_operativo_configurado'>>>;
   let location: { getCurrentPosition: ReturnType<typeof vi.fn<LocationService['getCurrentPosition']>> };
   let api: {
     start: ReturnType<typeof vi.fn>;
     clients: ReturnType<typeof vi.fn>;
+    clientHistory: ReturnType<typeof vi.fn>;
     units: ReturnType<typeof vi.fn>;
     productionUnits: ReturnType<typeof vi.fn>;
     load: ReturnType<typeof vi.fn>;
@@ -108,11 +111,13 @@ describe('DeliveryPage', () => {
     vi.clearAllMocks();
     online = signal(true);
     driverPermissions = signal(['can_start_deliveries', 'can_update_own_deliveries']);
+    pinStatus = signal({});
     location = { getCurrentPosition: vi.fn<LocationService['getCurrentPosition']>().mockResolvedValue({ latitude: -34.7, longitude: -56.2 }) };
     let queue: DeliveryOutboxEntry[] = [];
     api = {
       start: vi.fn(() => of({ data: activeDelivery })),
       clients: vi.fn(() => of({ data: [demoClient] })),
+      clientHistory: vi.fn(() => of({ data: { deliveries: [], payments: [] } })),
       productionUnits: vi.fn(() => of({ data: [{ id: 7, name: 'UP Norte' }, { id: 8, name: 'UP Sur' }] })),
       units: vi.fn(() => of({ data: [
         { id: 'huevo', label: 'Huevos', category: 'huevos', eggs_per_unit: 1, default_unit_price: 100 },
@@ -154,8 +159,8 @@ describe('DeliveryPage', () => {
     theme = { toggleLabel: signal('Cambiar a tema oscuro'), toggleIcon: signal('moon-outline'), toggle: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthStore, useValue: { user: () => ({ id: 2, name: 'Repartidor', roles: ['delivery'], permissions: driverPermissions() }) } },
-        { provide: Router, useValue: { navigateByUrl: vi.fn().mockResolvedValue(true) } },
+        { provide: AuthStore, useValue: { user: () => ({ id: 2, name: 'Repartidor', roles: ['delivery'], permissions: driverPermissions(), ...pinStatus() }) } },
+        provideRouter([]),
         { provide: NetworkService, useValue: { online } },
         { provide: ServerHealthService, useValue: { state: signal<'checking' | 'online' | 'offline'>('checking'), start: vi.fn(), stop: vi.fn() } },
         { provide: ThemeService, useValue: theme },
@@ -347,6 +352,11 @@ describe('DeliveryPage', () => {
     const root = fixture.nativeElement as HTMLElement;
     await vi.waitFor(() => expect(root.querySelector('.delivery-client-pin')).not.toBeNull());
     fixture.detectChanges();
+    const visitFilter = root.querySelector<HTMLSelectElement>('#map-visit')!;
+    expect(Array.from(visitFilter.options, (option) => [option.value, option.text])).toEqual([
+      ['', 'Todas las visitas'], ['pending', 'Sin visitar'], ['visited', 'Visitados'],
+      ['delivered', 'Entrega realizada'], ['paid', 'Cobro realizado'],
+    ]);
     const map = root.querySelector('.delivery-map');
     const normalToggle = root.querySelector<HTMLButtonElement>('button[aria-label="Solo mapa"]')!;
     normalToggle.click();
@@ -370,6 +380,51 @@ describe('DeliveryPage', () => {
     expect(mapCalls.create).toHaveBeenCalledTimes(1);
     expect(mapCalls.resize).toHaveBeenCalled();
     expect(location.getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the customer history above the visit form and selects collection first for new deliveries', async () => {
+    api.clientHistory.mockReturnValue(of({ data: {
+      deliveries: [{ id: 8, visited_at: '2026-11-25T14:08:00Z', delivered_quantity: 24, total_amount: '350.000' }],
+      payments: [{ id: 'collection', occurred_at: '2026-11-25T14:08:00Z', amount: '250.000', payment_method: 'transfer' }],
+    } }));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.componentInstance.openClient({ ...demoClient, last_delivery: {
+      id: 8, delivery_id: 'previous-delivery', visited_at: '2026-11-25T14:08:00Z', delivered_quantity: 24, total_amount: '350.000',
+    } });
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const form = root.querySelector('.stop-form')!;
+    const history = root.querySelector<HTMLButtonElement>('.history-trigger')!;
+    const collection = form.querySelector<HTMLButtonElement>('[aria-label="Cobro de la entrega"] button')!;
+    expect(history.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(collection.textContent).toContain('Registrar cobro');
+    expect(collection.getAttribute('aria-pressed')).toBe('true');
+    expect(form.querySelector('#payment-amount')).not.toBeNull();
+    expect(api.clientHistory).not.toHaveBeenCalled();
+
+    online.set(false);
+    history.click();
+    fixture.detectChanges();
+    expect(root.querySelector('#delivery-client-history')?.textContent).toContain('Conectate');
+    expect(root.querySelector('#delivery-client-history')?.textContent).toContain('Última entrega guardada');
+    expect(api.clientHistory).not.toHaveBeenCalled();
+
+    online.set(true);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(root.querySelector('[aria-label="Entregas recientes"]')?.textContent).toContain('24 huevos');
+    });
+    expect(root.querySelector('[aria-label="Cobros recientes"]')?.textContent).toContain('Transferencia');
+    expect(root.querySelector('#delivery-client-history')?.textContent).toContain('Hasta 5 entregas y 5 cobros del cliente.');
+    expect(api.clientHistory).toHaveBeenCalledExactlyOnceWith(demoClient.id);
+    expect(api.stop).not.toHaveBeenCalled();
+    form.querySelector<HTMLButtonElement>('[aria-label="Cobro de la entrega"] button:last-child')!.click();
+    fixture.detectChanges();
+    expect(form.querySelector('#payment-amount')).toBeNull();
   });
 
   it('opens preparation from the choice and keeps quantities editable with the stepper', async () => {
@@ -414,6 +469,47 @@ describe('DeliveryPage', () => {
     fixture.detectChanges();
     expect(root.querySelector('.client-sheet .load-line')?.querySelectorAll('select,input,button')).toHaveLength(3);
     fixture.destroy();
+  });
+
+  it('offers PIN setup upfront and blocks both start modes while an email account has no operational PIN', async () => {
+    pinStatus.set({ modalidad_acceso: 'email_password', pin_operativo_configurado: false });
+    api.current.mockReturnValue(of({ data: [] }));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const setup = root.querySelector<HTMLAnchorElement>('.start-pin-link');
+    expect(setup?.textContent).toContain('Configurar PIN operativo');
+    expect(setup?.getAttribute('href')).toBe('/mi-perfil?configurar=pin-operativo');
+    expect(root.querySelector('button.start-loaded, .start-empty, .start-form')).toBeNull();
+
+    page.delivery.set(null);
+    page.checkingDelivery.set(false);
+    page.startForm.controls.items.at(0).controls.amount.setValue('1');
+    for (const mode of ['loaded', 'empty'] as const) {
+      page.startMode.set(null);
+      page.chooseStartMode(mode);
+      expect(page.startMode()).toBeNull();
+      page.startMode.set(mode);
+      page.openStartConfirmation();
+      expect(page.startConfirmation()).toBe(false);
+      await page.startDelivery();
+    }
+    expect(api.start).not.toHaveBeenCalled();
+  });
+
+  it.each(['email_password', 'device_pin'] as const)('shows both start options when the account can confirm by PIN (%s)', async (modality) => {
+    pinStatus.set({ modalidad_acceso: modality, pin_operativo_configurado: modality === 'email_password' });
+    api.current.mockReturnValue(of({ data: [] }));
+    const fixture = TestBed.createComponent(DeliveryPage);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.checkingDelivery()).toBe(false));
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.start-pin-link')).toBeNull();
+    expect(root.querySelector('button.start-loaded')).not.toBeNull();
+    expect(root.querySelector('button.start-empty')).not.toBeNull();
   });
 
   it('starts without cargo using only the selected vehicle, optional odometer, and PIN', async () => {
@@ -1036,10 +1132,10 @@ describe('DeliveryPage', () => {
     expect(page.error()).toContain('todos los huevos sobrantes');
   });
 
-  it('requires an explicit fiado or payment choice before recording goods', async () => {
+  it('requires a positive amount for the default collection and allows an explicit fiado', async () => {
     page.openClient(demoClient); page.stopSelections.set({ 'huevo|1': 1 });
     await page.saveStop();
-    expect(outbox.enqueue).not.toHaveBeenCalled(); expect(page.error()).toContain('fiada');
+    expect(outbox.enqueue).not.toHaveBeenCalled(); expect(page.error()).toContain('importe cobrado mayor a cero');
     page.paymentChoice.set('fiado'); await page.saveStop();
     const payload = api.stop.mock.calls[0][1]; const key = api.stop.mock.calls[0][2];
     expect(payload).toMatchObject({ accounting_version: 2, client_event_id: key, payment: { amount: '0.000' } });

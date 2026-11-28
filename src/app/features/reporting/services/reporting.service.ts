@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, exhaustMap, map, takeWhile, timer } from 'rxjs';
 import { ApiClient } from '../../../core/api/api-client';
 import { FileDownloadService } from '../../../core/native/file-download.service';
-import { ReportEnvelope, ReportExport, ReportOptions, ReportPage, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
+import { CombinedReportSection, ReportEnvelope, ReportExport, ReportOptions, ReportPage, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
 import { reportHelp } from './report-presentation';
 
 @Injectable({ providedIn: 'root' })
@@ -35,6 +35,9 @@ export class ReportingService {
   deletePreset(id: number): Observable<void> { return this.api.delete('configuraciones-reportes/' + id); }
   requestExport(source: string, query: ReportQuery, format: 'xlsx' | 'pdf', key: string): Observable<ReportEnvelope<ReportExport>> {
     return this.api.post('reportes/' + encodeURIComponent(source) + '/exportaciones', { ...query, page: 1, format }, { headers: { 'Idempotency-Key': key } });
+  }
+  requestCombinedExport(sections: CombinedReportSection[], format: ReportExport['format'], key: string): Observable<ReportEnvelope<ReportExport>> {
+    return this.api.post('exportaciones-reportes/combinadas', { sections, format }, { headers: { 'Idempotency-Key': key } });
   }
   exports(page = 1): Observable<ReportPage<ReportExport>> { return this.api.get('exportaciones-reportes', { params: { page, per_page: 20 } }); }
   watchExport(id: number): Observable<ReportEnvelope<ReportExport>> {

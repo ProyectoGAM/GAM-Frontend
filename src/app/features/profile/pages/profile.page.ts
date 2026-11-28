@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonToolbar, NavController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline } from 'ionicons/icons';
@@ -26,6 +27,7 @@ import { ProductionUnitsService } from '../../production-units/services/producti
 export class ProfilePage {
   private readonly auth = inject(AuthStore);
   private readonly units = inject(ProductionUnitsService);
+  private readonly route = inject(ActivatedRoute);
   private readonly nav = inject(NavController);
   private readonly toasts = inject(ToastController);
   private readonly injector = inject(Injector);
@@ -33,7 +35,8 @@ export class ProfilePage {
   private readonly heading = viewChild<ElementRef<HTMLHeadingElement>>('heading');
 
   readonly user = this.auth.user;
-  readonly returnPath = computed(() => postLoginPath(this.user()));
+  readonly settingUpDeliveryPin = signal(false);
+  readonly returnPath = computed(() => this.settingUpDeliveryPin() ? '/repartidor' : postLoginPath(this.user()));
   readonly isPin = computed(() => {
     const modality = this.user()?.modalidad_acceso;
     return modality ? modality === 'device_pin' : this.auth.session()?.auth_method === 'pin' || this.auth.isShared();
@@ -83,6 +86,10 @@ export class ProfilePage {
 
   ionViewWillEnter(): void {
     this.active.set(true);
+    const setupDeliveryPin = this.route.snapshot.queryParamMap.get('configurar') === 'pin-operativo'
+      && !this.isPin() && this.user()?.pin_operativo_configurado === false;
+    this.settingUpDeliveryPin.set(setupDeliveryPin);
+    if (setupDeliveryPin) this.setEditing('operation_pin');
   }
 
   ionViewWillLeave(): void {

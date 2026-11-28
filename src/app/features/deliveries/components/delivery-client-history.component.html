@@ -1,0 +1,47 @@
+<button type="button" class="history-trigger" [attr.aria-expanded]="expanded()" aria-controls="delivery-client-history"
+  (click)="expanded.set(!expanded())">
+  <ion-icon name="time-outline" aria-hidden="true" />
+  <span>Historial de entregas y cobros</span>
+  <ion-icon class="history-chevron" name="chevron-down-outline" aria-hidden="true" />
+</button>
+<div id="delivery-client-history" [hidden]="!expanded()">
+  @if (expanded()) {
+    @let result = history();
+    @if (!online()) {
+      <p role="status">Conectate para consultar el historial.</p>
+      @if (client().last_delivery; as last) {
+        <h3>Última entrega guardada</h3>
+        <p>{{ last.visited_at | date:'dd/MM/yyyy HH:mm':'-0300' }} · {{ last.delivered_quantity }} huevos · {{ money(last.total_amount) }}</p>
+      }
+    } @else if (result?.state === 'error') {
+      <p role="status">No se pudo consultar el historial.</p>
+      <button type="button" class="history-retry" (click)="retry()">Reintentar</button>
+    } @else if (result?.state === 'ready') {
+      <p>Hasta 5 entregas y 5 cobros del cliente.</p>
+      <h3>Entregas recientes</h3>
+      <ul aria-label="Entregas recientes">
+        @for (delivery of result.data.deliveries; track delivery.id) {
+          <li>
+            <span>{{ delivery.visited_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</span>
+            <strong>{{ delivery.delivered_quantity }} huevos · {{ money(delivery.total_amount) }}</strong>
+          </li>
+        } @empty {
+          <li class="history-empty">Sin entregas registradas.</li>
+        }
+      </ul>
+      <h3>Cobros recientes</h3>
+      <ul aria-label="Cobros recientes">
+        @for (payment of result.data.payments; track payment.id) {
+          <li>
+            <span>{{ payment.occurred_at | date:'dd/MM/yyyy HH:mm':'-0300' }}</span>
+            <strong>{{ money(payment.amount) }}@if (payment.payment_method; as method) { · {{ methods[method] }} }</strong>
+          </li>
+        } @empty {
+          <li class="history-empty">Sin cobros vigentes registrados.</li>
+        }
+      </ul>
+    } @else {
+      <p role="status">Cargando historial…</p>
+    }
+  }
+</div>

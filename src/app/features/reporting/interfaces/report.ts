@@ -70,6 +70,13 @@ export interface ReportExport {
   failure_message: string | null;
 }
 
+export interface CombinedReportSection {
+  source_key: string;
+  query: ReportQuery;
+}
+
+export const combinedReportSource = 'combined';
+
 export interface ReportOptions {
   data: { value: string | number | boolean; label: string }[];
   pagination: { current_page: number; last_page: number; total: number };

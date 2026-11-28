@@ -5,6 +5,7 @@ import { DialogFocusDirective } from '../../shared/ui/dialog-focus.directive';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { parseUyuAmount, uyuDecimal } from '../../shared/utils/uyu-money';
 import { DeliveryClientRowComponent } from './components/delivery-client-row.component';
+import { DeliveryClientHistoryComponent } from './components/delivery-client-history.component';
 import { DeliveryPendingOperationsComponent } from './components/delivery-pending-operations.component';
 import { DeliveryFinancialSummaryComponent } from './components/delivery-financial-summary.component';
 import { DeliveryStartOptionsComponent } from './components/delivery-start-options.component';
@@ -25,7 +26,7 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, checkmarkCircleOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline } from 'ionicons/icons';
+import { addOutline, checkmarkCircleOutline, closeOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline } from 'ionicons/icons';
 
 import { postLoginPath } from '../../core/auth/access-policy';
 import { AuthStore } from '../../core/auth/auth.store';
@@ -54,7 +55,7 @@ type DeliveryMetric = 'loaded' | 'delivered' | 'remaining';
   templateUrl: './delivery.page.html',
   styleUrls: ['./delivery.page.scss', './delivery-map.scss'],
   imports: [
-    DialogFocusDirective, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryStopEditorComponent, DeliverySummaryComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, NotificationBellComponent, ReactiveFormsModule, RouterLink,
+    DialogFocusDirective, DeliveryClientHistoryComponent, DeliveryClientRowComponent, DeliveryPendingOperationsComponent, DeliveryFinancialSummaryComponent, DeliveryStartOptionsComponent, DeliveryStopEditorComponent, DeliverySummaryComponent, DeliveryVehicleFuelFormComponent, DeliveryUnitRowComponent, DatePipe, IonContent, IonHeader, IonIcon, IonSpinner, IonToolbar, NotificationBellComponent, ReactiveFormsModule, RouterLink,
   ],
 })
 export class DeliveryPage implements AfterViewInit, OnDestroy {
@@ -111,7 +112,12 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   readonly serverStatus = this.serverHealth.state.asReadonly();
   readonly serverStatusLabel = computed(() => this.serverStatus() === 'online' ? 'Conectado al servidor'
     : this.serverStatus() === 'offline' ? 'Sin conexión con el servidor' : 'Comprobando conexión con el servidor');
-  readonly canStartDelivery = computed(() => hasAnyPermission(this.auth.user()?.permissions, 'can_start_deliveries'));
+  readonly needsOperationalPin = computed(() => {
+    const user = this.auth.user();
+    return user?.modalidad_acceso === 'email_password' && user.pin_operativo_configurado === false;
+  });
+  readonly canStartDelivery = computed(() => !this.needsOperationalPin()
+    && hasAnyPermission(this.auth.user()?.permissions, 'can_start_deliveries'));
   readonly canUpdateDelivery = computed(() => hasAnyPermission(this.auth.user()?.permissions, 'can_update_own_deliveries'));
   readonly canManageFuel = computed(() => this.auth.user()?.roles.includes('admin') === true || this.auth.user()?.permissions?.some((permission) => ['vehicles.fuel.manage', 'delivery.fuel.record'].includes(permission)) === true);
   readonly profileOpen = signal(false);
@@ -165,7 +171,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     return payment.delivery_stop_id === this.editingStopId() ? payment : null;
   });
   readonly reviewEntries = computed(() => this.pendingEntries().filter((entry) => entry.state === 'needs_review'));
-  readonly paymentChoice = signal<'' | 'fiado' | 'payment'>('');
+  readonly paymentChoice = signal<'fiado' | 'payment'>('payment');
   readonly previewRevision = signal(0);
   readonly incrementPreview = (value: number) => value + 1;
   readonly selectedClient = signal<DeliveryClient | null>(null);
@@ -269,7 +275,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private readonly unitAmountFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 3 });
 
   constructor() {
-    addIcons({ addOutline, checkmarkCircleOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline });
+    addIcons({ addOutline, checkmarkCircleOutline, closeOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline });
     let owner = this.auth.user()?.id;
     effect(() => {
       const next = this.auth.user()?.id;
@@ -353,7 +359,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   }
 
   chooseStartMode(mode: DeliveryStartMode | null): void {
-    if (this.checkingDelivery() || this.busy() || this.delivery()?.status === 'active') return;
+    if (this.checkingDelivery() || this.busy() || this.delivery()?.status === 'active' || (mode && this.needsOperationalPin())) return;
     this.startMode.set(mode);
     this.clearFeedback();
     if (mode === 'loaded' && !this.startForm.controls.items.at(0).controls.unit.value) {
@@ -445,7 +451,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     this.clearFeedback();
     this.selectedClient.set(client);
     this.stopMode.set((this.delivery()?.loaded_quantity ?? 0) === 0 || this.statusFor(client) !== 'pending' || client.status === 'inactive' || client.ready_for_delivery === false ? 'payment' : 'delivered');
-    this.paymentChoice.set('');
+    this.paymentChoice.set('payment');
     this.reviewing.set(null);
     this.stopSelections.set({});
     this.quantityControls.clear();
@@ -588,7 +594,6 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
     if (this.statusFor(client) !== 'pending' && !this.reviewing()) { this.error.set('La visita ya está registrada. Podés registrar otro cobro.'); return; }
     if (client.status === 'inactive' || client.ready_for_delivery === false) { this.error.set('El cliente necesita estar activo y tener dirección y ubicación para registrar una visita.'); return; }
     const delivered = this.stopMode() === 'delivered';
-    if (delivered && !this.paymentChoice()) { this.error.set('Confirmá si la entrega es fiada o registrá el importe cobrado.'); return; }
     const payment = delivered && this.paymentChoice() === 'payment' ? this.paymentPayload() : { amount: '0.000' };
     if (!payment) return;
     if (delivered && (this.delivery()?.unit_balances?.rows ?? []).some((row) =>

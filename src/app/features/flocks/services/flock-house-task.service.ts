@@ -4,7 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { switchMap, of } from 'rxjs';
 
 import { AuthStore } from '../../../core/auth/auth.store';
-import { isAdminUser } from '../../../core/auth/access-policy';
 import { RecordCollectionRequest } from '../interfaces/flock-collection.interface';
 import { FeedBalance, FeedingRecipeOption, FeedingSubmission, FlockFeeding } from '../interfaces/flock-feeding.interface';
 import { FlockHouseTaskRequest } from '../interfaces/flock-house-task.interface';
@@ -17,6 +16,13 @@ import { FlockCollectionsService } from './flock-collections.service';
 import { FlockFeedingService } from './flock-feeding.service';
 import { FlockMortalitiesService } from './flock-mortalities.service';
 import { buildMortalityRequest } from './mortality-record-form';
+import { hasFlockPermission } from './flock-permissions';
+
+const taskPermissions = {
+  collection: 'can_manage_egg_collections',
+  mortality: 'can_manage_mortality',
+  feeding: 'can_manage_flock_feeding',
+};
 
 /** Scoped to one quick task; destroying its dialog cancels pending requests. */
 @Injectable()
@@ -68,11 +74,11 @@ export class FlockHouseTaskService {
     this.balancesVersion++;
     this.state.set('loading'); this.loadError.set(null); this.flock.set(null); this.feeding.set(null);
     this.balances.set([]); this.clearErrors(); this.attempt = null;
-    if (!this.auth.user()) { this.fail('No tenés acceso para realizar esta tarea.'); return; }
+    if (!this.canPerformTask(request.kind)) { this.fail('No tenés acceso para realizar esta tarea.'); return; }
     this.detail.flock(request.flockId).pipe(switchMap((flock) => {
       if (version !== this.loadVersion || !this.acceptFlock(flock)) return of(null);
-      if (request.kind === 'collection' && (flock.current_quantity <= 0 || !this.canCollect())) {
-        this.fail(flock.current_quantity <= 0 ? 'Este lote no tiene aves vivas para registrar postura.' : 'No tenés permiso para registrar postura.');
+      if (request.kind === 'collection' && flock.current_quantity <= 0) {
+        this.fail('Este lote no tiene aves vivas para registrar postura.');
         return of(null);
       }
       this.flock.set(flock);
@@ -110,7 +116,7 @@ export class FlockHouseTaskService {
 
   saveCollection(submission: RecordCollectionRequest): void {
     const flock = this.flock();
-    if (this.request?.kind !== 'collection' || !flock || !this.canSave(flock) || flock.current_quantity <= 0 || !this.canCollect()) return;
+    if (this.request?.kind !== 'collection' || !flock || !this.canSave(flock) || flock.current_quantity <= 0) return;
     this.clearErrors();
     const fingerprint = JSON.stringify([flock.id, submission]);
     if (this.attempt?.fingerprint !== fingerprint) {
@@ -125,8 +131,9 @@ export class FlockHouseTaskService {
     });
   }
 
-  private canCollect(): boolean {
-    return isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('egg-collections.manage') === true;
+  private canPerformTask(kind: FlockHouseTaskRequest['kind']): boolean {
+    if (kind === 'health' || kind === 'beak-trimming') return !!this.auth.user();
+    return hasFlockPermission(this.auth.user(), taskPermissions[kind]);
   }
 
   saveMortality(submission: MortalitySubmission): void {
@@ -179,7 +186,8 @@ export class FlockHouseTaskService {
   }
 
   private canSave(flock: Flock): boolean {
-    return !this.saving() && !this.result() && this.state() === 'ready' && this.actorId !== undefined
+    return !!this.request && this.canPerformTask(this.request.kind)
+      && !this.saving() && !this.result() && this.state() === 'ready' && this.actorId !== undefined
       && this.auth.user()?.id === this.actorId && this.acceptFlock(flock);
   }
 

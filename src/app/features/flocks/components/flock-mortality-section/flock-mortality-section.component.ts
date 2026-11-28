@@ -22,6 +22,7 @@ import { MortalityChartComponent } from '../mortality-chart/mortality-chart.comp
 export class FlockMortalitySectionComponent {
   readonly flock = input.required<Flock>();
   readonly registrationOnly = input(false);
+  readonly canManage = input(true);
   readonly cancellationOnly = input(false);
   readonly cancellationBlocked = input(false);
   readonly cancellationClosed = output<void>();
@@ -152,7 +153,7 @@ export class FlockMortalitySectionComponent {
   }
 
   openForm(): void {
-    if (this.busy() || this.flock().status === 'finished') return;
+    if (!this.canManage() || this.busy() || this.flock().status === 'finished') return;
     this.formOpened.emit();
     this.pendingConfirmation.set(null);
     this.form.reset({ date: this.today(), quantity: null, reason: '' });
@@ -166,7 +167,7 @@ export class FlockMortalitySectionComponent {
   }
 
   submitForm(): void {
-    if (this.busy() || this.flock().status === 'finished') return;
+    if (!this.canManage() || this.busy() || this.flock().status === 'finished') return;
     Object.values(this.form.controls).forEach((control) => control.updateValueAndValidity({ emitEvent: false }));
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
@@ -182,7 +183,7 @@ export class FlockMortalitySectionComponent {
 
   confirmExcess(): void {
     const pending = this.pendingConfirmation();
-    if (!pending || this.saving()) return;
+    if (!pending || !this.canManage() || this.saving()) return;
     this.confirmationDialog()?.nativeElement.close();
     this.pendingConfirmation.set(null);
     if (pending.version !== this.flock().version || pending.balance !== this.flock().current_quantity) {
@@ -204,7 +205,7 @@ export class FlockMortalitySectionComponent {
   }
 
   openCancellation(record: FlockMortality): void {
-    if (this.busy() || record.status !== 'recorded') return;
+    if (!this.canManage() || this.busy() || record.status !== 'recorded') return;
     this.cancellationOpened.emit();
     this.cancellationReviewError.set(null);
     this.pendingCancellation.set({ record: { ...record }, flockVersion: this.flock().version });
@@ -237,7 +238,7 @@ export class FlockMortalitySectionComponent {
 
   submitCancellation(): void {
     const pending = this.pendingCancellation();
-    if (!pending || this.busy() || this.cancellationBlocked()) return;
+    if (!pending || !this.canManage() || this.busy() || this.cancellationBlocked()) return;
     this.cancellationForm.markAllAsTouched();
     if (this.cancellationForm.invalid) return;
     const current = this.records().find((record) => record.id === pending.record.id && record.status === 'recorded');

@@ -11,11 +11,11 @@ import { EMPTY, Subject, Subscription, catchError, combineLatest, debounceTime, 
 import { AuthStore } from '../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../admin/services/admin-unit-context.service';
 import { ReportTableComponent } from '../components/report-table.component';
-import { ReportExport, ReportOptions, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink } from '../interfaces/report';
-import { queryFromForm } from '../services/report-query';
+import { ReportExport, ReportOptions, ReportPreset, ReportQuery, ReportResult, ReportSource, ReportTemporaryLink, combinedReportSource } from '../interfaces/report';
+import { queryFromForm, reportPeriod } from '../services/report-query';
 import { ReportingService } from '../services/reporting.service';
 import { ReportFieldPickerComponent } from '../components/report-field-picker.component';
-import { customReportSources, reportHelp, reportIcons, reportNames, reportTopics } from '../services/report-presentation';
+import { customReportSources, reportColumns, reportHelp, reportIcons, reportNames, reportTopics } from '../services/report-presentation';
 import { FilterDialogComponent } from '../../../shared/ui/filter-dialog/filter-dialog.component';
 import { SearchableSelectComponent } from '../../../shared/ui/searchable-select/searchable-select.component';
 import { formatReportCell } from '../services/report-query';
@@ -43,6 +43,7 @@ export class ReportsPage {
   private readonly navigationDraft = inject(Router).currentNavigation()?.extras.state as { actorId?: number; sourceKey?: string; configuration?: ReportQuery } | undefined;
   readonly actorId = computed(() => this.auth.user()?.id ?? null);
   readonly reportPath = '/administracion/reportes/reportes';
+  readonly combinedReportSource = combinedReportSource;
   readonly screen = this.route.snapshot.data['screen'] as 'home' | 'topic' | 'saved' | 'files' | 'create' | 'view' ?? 'home';
   readonly topicKey = signal(this.route.snapshot.paramMap.get('topic'));
   readonly topics = computed(() => reportTopics.filter(topic => this.sources().some(source => topic.sources.includes(source.key))));
@@ -122,7 +123,7 @@ export class ReportsPage {
     metrics: new FormControl<string[]>([], { nonNullable: true }), from: new FormControl('', { nonNullable: true }), to: new FormControl('', { nonNullable: true }),
     sort: new FormControl('', { nonNullable: true }), direction: new FormControl<'asc' | 'desc'>('desc', { nonNullable: true }), filters: this.filters,
   });
-  readonly columns = computed(() => Object.entries(this.source()?.columns ?? {}).filter(([key]) => !key.endsWith('_id') || !(key.slice(0, -3) in (this.source()?.columns ?? {}))).map(([key, value]) => ({ key, ...value })));
+  readonly columns = computed(() => reportColumns(this.source()?.columns ?? {}));
   readonly groupings = computed(() => Object.entries(this.source()?.groupings ?? {}).map(([key, value]) => ({ key, ...value })));
   readonly metrics = computed(() => Object.entries(this.source()?.metrics ?? {}).map(([key, value]) => ({ key, ...value })));
   readonly filterDefinitions = computed(() => Object.entries(this.source()?.filters ?? {}).map(([key, value]) => ({ key, ...value })));
@@ -326,18 +327,7 @@ export class ReportsPage {
   }
 
   setPeriod(period: 'all' | 'month' | 'previous' | 'custom'): void {
-    if (period === 'all') this.form.patchValue({ from: '', to: '' });
-    if (period === 'month') {
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-      this.form.patchValue({ from: today.slice(0, 7) + '-01', to: today });
-    }
-    if (period === 'previous') {
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-      const [year, month] = today.split('-').map(Number);
-      const start = new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 10);
-      const end = new Date(Date.UTC(year, month - 1, 0)).toISOString().slice(0, 10);
-      this.form.patchValue({ from: start, to: end });
-    }
+    if (period !== 'custom') this.form.patchValue(reportPeriod(period));
     this.activePeriod.set(period);
   }
 
@@ -366,7 +356,9 @@ export class ReportsPage {
     });
   }
 
-  reportLabel(key: string): string { return this.sources().find(source => source.key === key)?.label ?? 'Reporte'; }
+  reportLabel(key: string): string {
+    return key === combinedReportSource ? 'Reporte de varios módulos' : this.sources().find(source => source.key === key)?.label ?? 'Reporte';
+  }
 
   filterContains(index: number, value: string | number | boolean): boolean { return this.filters.at(index).controls.value.value.split(',').includes(String(value)); }
   toggleFilterOption(index: number, value: string | number | boolean): void {

@@ -330,6 +330,12 @@ Tras separar las acciones y añadir las duraciones, pasaron las 496 pruebas del 
 
 La verificación local del 12 de octubre de 2026 incluyó una suite completa de 473 pruebas aprobadas; tras los ajustes finales, las 19 pruebas específicas de reporting volvieron a pasar. Chrome contra Docker Compose aprobó el recorrido de consulta, casillas, resumen por galpón, guardado/edición, descarga real de Excel/PDF, enlace firmado sin sesión, biblioteca, archivos, confirmación de eliminación y teléfono en oscuro, sin excepciones JavaScript. Un recorrido adicional en teléfono claro verificó elegir tema/reporte, conservar datos al volver al tema y el atajo “Este mes”. El lint y la compilación de producción se verificaron; continúan los avisos de SCSS/CommonJS, incluyendo el tamaño del estilo de Reportes, por debajo del límite de error configurado.
 
+### Reportes de varios módulos
+
+En `crear/varios-modulos` se eligen consultas de al menos dos módulos, con una sección por fuente. El orden de la selección se conserva en la vista previa y el archivo. Cada sección define sus columnas o indicadores y sus filtros. El período común solo se aplica a fuentes con historial. La unidad productiva se toma del dashboard cuando la fuente ofrece ese filtro.
+
+Las vistas previas reutilizan `POST /api/v1/reportes/{source}/previsualizaciones`. La exportación envía en orden las consultas a `POST /api/v1/exportaciones-reportes/combinadas` con `Idempotency-Key`. Se consulta el estado y se descarga el archivo desde los endpoints de exportaciones existentes. El historial identifica estos archivos como «Reporte de varios módulos». Excel contiene una hoja por sección y PDF reúne todas las secciones en un documento.
+
 ## Ficha de clientes y ubicación
 
 La ficha agrupa deuda, saldo a favor y fecha de consulta en un resumen de cuenta,

@@ -1,4 +1,12 @@
-@if (mode()) {
+@if (needsOperationalPin()) {
+  <section class="start-card" aria-labelledby="start-heading">
+    <h1 #startHeading id="start-heading" tabindex="-1">Iniciar reparto</h1>
+    <p class="start-pin-notice">Creá un PIN de 4 dígitos para confirmar el inicio y el cierre de tus repartos.</p>
+    <a class="primary-action start-loaded start-pin-link" routerLink="/mi-perfil" [queryParams]="{ configurar: 'pin-operativo' }">
+      <ion-icon name="lock-closed-outline" aria-hidden="true" /> Configurar PIN operativo
+    </a>
+  </section>
+} @else if (mode()) {
   <section class="start-card" aria-labelledby="start-heading">
     <div class="start-heading">
       <button type="button" class="start-back" (click)="modeChange.emit(null)" aria-label="Volver a las opciones de inicio">

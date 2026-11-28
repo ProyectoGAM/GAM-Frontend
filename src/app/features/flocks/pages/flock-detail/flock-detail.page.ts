@@ -12,7 +12,7 @@ import {
 import { Observable } from 'rxjs';
 
 import { AuthStore } from '../../../../core/auth/auth.store';
-import { isAdminUser } from '../../../../core/auth/access-policy';
+import { hasManagementPlansPermission } from '../../../../core/auth/access-policy';
 
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
@@ -24,6 +24,7 @@ import { FlockFeedingOverview } from '../../interfaces/flock-feeding.interface';
 import { Flock, UpdateFlockRequest } from '../../interfaces/flock.interface';
 import { FlockCollectionsService } from '../../services/flock-collections.service';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
+import { hasFlockPermission } from '../../services/flock-permissions';
 import { feedingDate } from '../../services/feeding-summary';
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { FlockStatusService } from '../../services/flock-status.service';
@@ -56,10 +57,16 @@ export class FlockDetailPage {
   private dataAttempt: { id: string; body: UpdateFlockRequest; key: string } | null = null;
   private statusAttempt: ({ kind: 'status'; body: FlockStatusRequest } | { kind: 'finalization'; body: FlockFinalizationRequest }) & { id: string; key: string } | null = null;
   private statusGeneration = 0;
-  readonly canManageStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.manage') === true);
-  readonly canFinalizeStatus = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('flocks.finalize') === true);
+  readonly canManageStatus = computed(() => hasFlockPermission(this.auth.user(), 'can_manage_flocks'));
+  readonly canFinalizeStatus = computed(() => hasFlockPermission(this.auth.user(), 'can_finalize_flocks'));
   readonly canEditStatus = computed(() => this.canManageStatus() || this.canFinalizeStatus());
-  readonly canViewHealth = computed(() => isAdminUser(this.auth.user()) || this.auth.user()?.permissions?.includes('management-plans.view') === true);
+  readonly canViewPlan = computed(() => hasManagementPlansPermission(this.auth.user(), 'view'));
+  readonly canViewHealth = computed(() => hasFlockPermission(this.auth.user(), 'can_view_management_plans'));
+  readonly canViewMortality = computed(() => hasFlockPermission(this.auth.user(), 'can_view_mortality'));
+  readonly canViewWeighing = computed(() => hasFlockPermission(this.auth.user(), 'can_view_weighings'));
+  readonly canViewCollections = computed(() => hasFlockPermission(this.auth.user(), 'can_view_egg_collections'));
+  readonly canViewFeeding = computed(() => hasFlockPermission(this.auth.user(), 'can_view_flock_feeding'));
+  readonly canRedistribute = computed(() => hasFlockPermission(this.auth.user(), 'can_redistribute_flocks'));
   readonly canViewBeakTrimmings = computed(() => canViewBeakTrimmings(this.auth.user()));
   readonly statusSaving = signal(false);
   readonly statusUncertain = signal(false);
@@ -385,10 +392,10 @@ export class FlockDetailPage {
 
   private loadMetrics(flock: Flock, version: number): void {
     const today = todayInLotsTimezone();
-    this.loadMetric(this.mortality, this.detail.mortalityTotal(flock.id), version);
-    this.loadMetric(this.weighing, this.detail.latestWeighing(flock.id), version);
-    this.loadMetric(this.eggs, this.collections.summary(flock.id, flock.entry_date, today), version);
-    this.loadMetric(this.feeding, this.feedingService.overview(flock.id, flock.production_unit_id), version);
+    if (this.canViewMortality()) this.loadMetric(this.mortality, this.detail.mortalityTotal(flock.id), version);
+    if (this.canViewWeighing()) this.loadMetric(this.weighing, this.detail.latestWeighing(flock.id), version);
+    if (this.canViewCollections()) this.loadMetric(this.eggs, this.collections.summary(flock.id, flock.entry_date, today), version);
+    if (this.canViewFeeding()) this.loadMetric(this.feeding, this.feedingService.overview(flock.id, flock.production_unit_id), version);
   }
 
   private loadMetric<T>(target: WritableSignal<DetailMetric<T>>, source: Observable<T | null>, version: number): void {

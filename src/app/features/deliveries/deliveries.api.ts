@@ -7,6 +7,7 @@ import {
   AddDeliveryLoadInput,
   CloseDeliveryInput,
   DeliveryClient,
+  DeliveryClientHistory,
   DeliveryClientPage,
   DeliveryPaymentCorrectionInput,
   DeliveryPaymentInput,
@@ -31,6 +32,10 @@ export class DeliveriesApi {
 
   clients(search = '', page = 1, status?: string): Observable<DeliveryClientPage> {
     return this.api.get<DeliveryClientPage>('repartos/clientes', { params: { ...(search ? { search } : {}), per_page: 50, page, ...(status ? { status } : {}) } });
+  }
+
+  clientHistory(clientId: string): Observable<{ data: DeliveryClientHistory }> {
+    return this.api.get<{ data: DeliveryClientHistory }>(`repartos/clientes/${clientId}/historial`);
   }
 
   markers(params: Record<string, string | number>): Observable<{ data: DeliveryClient[]; meta: { has_more: boolean; limit: number } }> {

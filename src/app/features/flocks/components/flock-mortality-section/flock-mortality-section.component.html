@@ -2,7 +2,9 @@
 <section class="mortality-card" aria-labelledby="mortality-section-title" [hidden]="registrationOnly()">
   <header class="heading">
     <div><h2 id="mortality-section-title">Mortandad</h2><p>Cuándo murieron, cuántas y por qué.</p></div>
-    <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortandad</button>
+    @if (canManage()) {
+      <button class="primary" type="button" [disabled]="busy() || flock().status === 'finished'" (click)="openForm()"><ion-icon name="add-outline" aria-hidden="true" /> Registrar mortandad</button>
+    }
   </header>
 
   @if (state() === 'loading') {
@@ -51,13 +53,13 @@
         <h3 id="mortality-history-title">Registros de mortandad</h3>
         <p>Registros del período mostrado. Las filas resaltadas corresponden al punto seleccionado.</p>
         <table>
-          <thead><tr><th scope="col">Fecha de muerte</th><th scope="col">Cantidad</th><th scope="col">Motivo</th><th scope="col">Acción</th></tr></thead>
+          <thead><tr><th scope="col">Fecha de muerte</th><th scope="col">Cantidad</th><th scope="col">Motivo</th>@if (canManage()) { <th scope="col">Acción</th> }</tr></thead>
           <tbody>@for (record of history(); track record.id) {
             <tr [class.selected-row]="selectedIds().has(record.id)">
               <td><span class="mobile-label">Fecha de muerte</span>{{ record.dateText }}</td>
               <td><span class="mobile-label">Cantidad</span>{{ record.quantity }} {{ record.quantity === 1 ? 'gallina' : 'gallinas' }}</td>
               <td class="reason-cell"><span class="mobile-label">Motivo</span>{{ record.reason }}</td>
-              <td class="action-cell"><button type="button" class="undo-button" [disabled]="busy()" [attr.aria-label]="'Deshacer registro del ' + record.dateText + ', ' + record.quantity + ' gallinas, motivo: ' + record.reason" (click)="openCancellation(record)"><ion-icon name="arrow-undo-outline" aria-hidden="true" /> Deshacer</button></td>
+              @if (canManage()) { <td class="action-cell"><button type="button" class="undo-button" [disabled]="busy()" [attr.aria-label]="'Deshacer registro del ' + record.dateText + ', ' + record.quantity + ' gallinas, motivo: ' + record.reason" (click)="openCancellation(record)"><ion-icon name="arrow-undo-outline" aria-hidden="true" /> Deshacer</button></td> }
             </tr>
           }</tbody>
         </table>
