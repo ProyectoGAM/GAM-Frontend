@@ -223,7 +223,7 @@
       } @else {
         <button class="action secondary" type="button" (click)="back()">Atrás</button>
       }
-      <button class="action primary" type="submit" [disabled]="saving()">
+      <button class="action primary" type="submit" [disabled]="saving() || !canCreate()">
         @if (saving()) { <ion-spinner name="crescent" /> }
         {{ step() === 3 ? 'Crear lote' : 'Continuar' }}
       </button>

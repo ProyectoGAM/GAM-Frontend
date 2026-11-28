@@ -256,7 +256,7 @@
       <div class="sheet-handle" aria-hidden="true"></div>
       <header class="sheet-heading">
         <h2 id="edit-stop-title">Rectificar entrega</h2>
-        <button class="sheet-close" type="button" aria-label="Cerrar rectificación" [disabled]="editor.locked()" (click)="closeStopEditor()">×</button>
+        <button class="sheet-close" type="button" aria-label="Cerrar rectificación" [disabled]="editor.locked()" (click)="closeStopEditor()"><ion-icon name="close-outline" aria-hidden="true" /></button>
       </header>
       <p><strong>{{ stop.client_name }}</strong>
         @if (stop.visited_at; as visitedAt) { · <time [attr.datetime]="visitedAt">{{ visitedAt | date:'HH:mm':'-0300' }}</time> }
@@ -303,7 +303,7 @@
   <div class="sheet-backdrop" (click)="selectedClient.set(null)" aria-hidden="true"></div>
   <section #clientSheet class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="client-sheet-title" tabindex="-1" (keydown.escape)="selectedClient.set(null)">
     <div class="sheet-handle" aria-hidden="true"></div>
-    <div class="sheet-heading"><div><p class="eyebrow">REGISTRAR VISITA</p><h2 id="client-sheet-title">{{ client.name }}</h2><p>{{ client.address }}</p></div><button type="button" class="sheet-close" (click)="selectedClient.set(null)" aria-label="Cerrar cliente">×</button></div>
+    <div class="sheet-heading"><div><p class="eyebrow">REGISTRAR VISITA</p><h2 id="client-sheet-title">{{ client.name }}</h2><p>{{ client.address }}</p></div><button type="button" class="sheet-close" (click)="selectedClient.set(null)" aria-label="Cerrar cliente"><ion-icon name="close-outline" aria-hidden="true" /></button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (client.account; as account) { <p>{{ account.balance.startsWith("-") ? "Saldo a favor" : "Deuda confirmada" }}: <strong>{{ money(account.balance.startsWith("-") ? account.credit : account.debt) }}</strong><small> · {{ account.as_of | date:'dd/MM/yyyy HH:mm':'-0300' }}</small></p> }
     <app-delivery-client-history [client]="client" [online]="online()" />
@@ -347,7 +347,7 @@
   <div class="sheet-backdrop" (click)="loadOpen.set(false)" aria-hidden="true"></div>
   <section class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="load-sheet-title" tabindex="-1" (keydown.escape)="loadOpen.set(false)">
     <div class="sheet-handle" aria-hidden="true"></div>
-    <div class="sheet-heading"><div><p class="eyebrow">DURANTE EL REPARTO</p><h2 id="load-sheet-title">Agregar carga</h2><p>Registrá los huevos que subís ahora al vehículo.</p></div><button type="button" class="sheet-close" (click)="loadOpen.set(false)" aria-label="Cerrar carga">×</button></div>
+    <div class="sheet-heading"><div><p class="eyebrow">DURANTE EL REPARTO</p><h2 id="load-sheet-title">Agregar carga</h2><p>Registrá los huevos que subís ahora al vehículo.</p></div><button type="button" class="sheet-close" (click)="loadOpen.set(false)" aria-label="Cerrar carga"><ion-icon name="close-outline" aria-hidden="true" /></button></div>
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     @if (reviewing()) { <p>Confirmá los datos corregidos de la carga pendiente.</p> }
     <form [formGroup]="loadForm" (ngSubmit)="addLoad()" class="stock-form">
@@ -379,7 +379,7 @@
   <div class="sheet-backdrop" (click)="selectedMetric.set(null)" aria-hidden="true"></div>
   <section #metricSheet class="client-sheet" appDialogFocus role="dialog" aria-modal="true" aria-labelledby="metric-sheet-title" tabindex="-1" (keydown.escape)="selectedMetric.set(null)">
     <div class="sheet-handle" aria-hidden="true"></div>
-    <div class="sheet-heading"><div><p class="eyebrow">DETALLE DEL REPARTO</p><h2 id="metric-sheet-title">{{ metricTitle() }}</h2></div><button type="button" class="sheet-close" (click)="selectedMetric.set(null)" aria-label="Cerrar detalle">×</button></div>
+    <div class="sheet-heading"><div><p class="eyebrow">DETALLE DEL REPARTO</p><h2 id="metric-sheet-title">{{ metricTitle() }}</h2></div><button type="button" class="sheet-close" (click)="selectedMetric.set(null)" aria-label="Cerrar detalle"><ion-icon name="close-outline" aria-hidden="true" /></button></div>
     <strong class="metric-total">{{ metricEggs() }} huevos</strong>
     <table class="unit-table">
       <thead><tr><th scope="col">Presentación</th><th scope="col">{{ selectedMetric() === 'loaded' ? 'Total cargado' : selectedMetric() === 'delivered' ? 'Entregado' : 'En vehículo' }}</th></tr></thead>

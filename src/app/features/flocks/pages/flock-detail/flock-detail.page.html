@@ -54,19 +54,21 @@
             <circle cx="16.4" cy="6.2" r=".5" fill="currentColor" stroke="none" />
           </svg>
           <div>
-            <h2 id="mortality-title">Mortandad acumulada</h2>
-            @if (mortality().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
-            @else if (mortality().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
-            @else { <p class="metric-value">{{ mortalityText() }} aves</p> }
+            <h2 id="mortality-title">{{ canViewMortality() ? 'Mortandad acumulada' : 'Aves del lote' }}</h2>
+            @if (canViewMortality()) {
+              @if (mortality().state === 'loading') { <p class="metric-note" role="status">Cargando…</p> }
+              @else if (mortality().state === 'unavailable') { <p class="metric-note">Dato no disponible</p> }
+              @else { <p class="metric-value">{{ mortalityText() }} aves</p> }
+            }
             <p class="metric-note">Aves vivas: <strong>{{ liveBirdsText() }}</strong></p>
             @if (negativeBalanceText(); as balance) { <p class="metric-note">Saldo registrado: {{ balance }} aves.</p> }
           </div>
-          <div class="register-action">
+          @if (canViewMortality()) { <div class="register-action">
             <a [routerLink]="mortalityLink()">Ir a mortandad <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
-          </div>
+          </div> }
         </section>
 
-        <section class="card small-card" aria-labelledby="weighing-title">
+        @if (canViewWeighing()) { <section class="card small-card" aria-labelledby="weighing-title">
           <ion-icon class="card-icon" name="scale-outline" aria-hidden="true" />
           <div>
             <h2 id="weighing-title">Último pesaje</h2>
@@ -80,10 +82,10 @@
           <div class="register-action">
             <a [routerLink]="weighingsLink()">Ir a pesajes <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
           </div>
-        </section>
+        </section> }
       </div>
 
-      <section class="card production-card" aria-labelledby="production-title">
+      @if (canViewCollections()) { <section class="card production-card" aria-labelledby="production-title">
         <div class="section-heading">
           <ion-icon class="card-icon" name="egg-outline" aria-hidden="true" />
           <h2 id="production-title">Producción de huevo</h2>
@@ -92,9 +94,9 @@
           </div>
         </div>
         <app-collection-summary [metric]="eggs()" />
-      </section>
+      </section> }
 
-      <section class="card feeding-card" aria-labelledby="feeding-title">
+      @if (canViewFeeding()) { <section class="card feeding-card" aria-labelledby="feeding-title">
         <div class="feeding-main">
           <svg class="card-icon" viewBox="0 0 32 36" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -125,9 +127,9 @@
         <div class="feeding-action">
           <a [routerLink]="['/administracion/lotes/lotes', item.id, 'alimentacion']">Consultar alimentación <ion-icon name="chevron-forward-outline" aria-hidden="true" /></a>
         </div>
-      </section>
+      </section> }
 
-      <section class="card operations-card" aria-labelledby="operations-title" aria-describedby="operations-availability">
+      @if (canRedistribute()) { <section class="card operations-card" aria-labelledby="operations-title" aria-describedby="operations-availability">
         <header class="operations-heading">
           <h2 id="operations-title">Operaciones del lote</h2>
           <p>Organizá las aves de este lote.</p>
@@ -145,13 +147,13 @@
           }
         </article>
         <p class="operations-note" id="operations-availability"><ion-icon name="information-circle-outline" aria-hidden="true" /> {{ canFractionate() ? 'Los destinos pertenecen a la misma UP del lote original.' : 'Este lote está finalizado o no tiene aves disponibles para trasladar.' }}</p>
-      </section>
+      </section> }
 
-      <a class="card plan-card" [routerLink]="planLink()" [queryParams]="planQueryParams()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
+      @if (canViewPlan()) { <a class="card plan-card" [routerLink]="planLink()" [queryParams]="planQueryParams()" [attr.aria-label]="'Ver plan de manejo del lote ' + item.code">
         <ion-icon class="card-icon" name="document-text-outline" aria-hidden="true" />
         <span class="plan-copy"><strong>Plan de manejo</strong><small>Actividades previstas para este lote</small></span>
         <span class="plan-action">Ver plan <ion-icon name="chevron-forward-outline" aria-hidden="true" /></span>
-      </a>
+      </a> }
 
       @if (canViewHealth()) {
         <a class="card plan-card" [routerLink]="['/administracion/lotes/lotes', item.id, 'sanidad']" [queryParams]="planQueryParams()">

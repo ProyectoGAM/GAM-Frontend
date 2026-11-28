@@ -4,6 +4,7 @@ import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addOutline, arrowForwardOutline, searchOutline, funnelOutline, locationOutline, createOutline, chevronForwardOutline } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { isAdminUser } from '../../../../core/auth/access-policy';
 import { AuthStore } from '../../../../core/auth/auth.store';
@@ -28,6 +29,7 @@ export class CustomerListPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = viewChild.required(FilterDialogComponent);
   private requestId = 0;
+  private searchTimer?: ReturnType<typeof setTimeout>;
 
   readonly customers = signal<Customer[]>([]);
   readonly meta = signal<Pagination | null>(null);
@@ -48,7 +50,10 @@ export class CustomerListPage {
     this.setSituation(this.route.snapshot.queryParamMap.get('account_status') ?? '');
     this.filters.set(this.currentFilters());
     const page = Number(this.route.snapshot.queryParamMap.get('page') ?? 1);
-    this.destroyRef.onDestroy(() => { this.requestId++; });
+    this.destroyRef.onDestroy(() => {
+      clearTimeout(this.searchTimer);
+      this.requestId++;
+    });
     void this.load(Number.isInteger(page) && page > 0 ? page : 1);
   }
 
@@ -57,7 +62,7 @@ export class CustomerListPage {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const response = await firstValueFrom(this.api.list(this.filters(), page));
+      const response = await firstValueFrom(this.api.list(this.filters(), page).pipe(takeUntilDestroyed(this.destroyRef)));
       if (request !== this.requestId) return;
       this.customers.set(response.data);
       this.meta.set(response.meta);
@@ -76,13 +81,25 @@ export class CustomerListPage {
   }
 
   applyFilters(): void {
+    clearTimeout(this.searchTimer);
     this.filters.set(this.currentFilters());
     this.dialog().close();
     void this.load();
   }
 
   clearFilters(): void { this.status.set(''); this.situation.set(''); }
-  searchCustomers(): void { this.filters.set({ ...this.filters(), search: this.search().trim() || undefined }); void this.load(); }
+  setSearch(value: string): void {
+    this.search.set(value);
+    clearTimeout(this.searchTimer);
+    this.requestId++;
+    this.searchTimer = setTimeout(() => this.searchCustomers(), 300);
+  }
+
+  searchCustomers(): void {
+    clearTimeout(this.searchTimer);
+    this.filters.update(filters => ({ ...filters, search: this.search().trim() || undefined }));
+    void this.load();
+  }
   setStatus(value: string): void { this.status.set(value === 'active' || value === 'inactive' ? value : ''); }
   setSituation(value: string): void { this.situation.set(value === 'debt' || value === 'settled' || value === 'credit' ? value : ''); }
 

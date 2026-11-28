@@ -4,6 +4,7 @@ import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { FlocksApi } from '../../services/flocks.api';
@@ -25,6 +26,7 @@ describe('FlockCreatePage', () => {
       imports: [FlockCreatePage],
       providers: [
         provideRouter([]),
+        { provide: AuthStore, useValue: { user: signal({ roles: ['admin'] }) } },
         { provide: FlocksApi, useValue: {
           activeBreeds: vi.fn(() => of([{ id: 4, name: 'Hy-Line Brown', status: 'active' }])),
           activeSuppliers: vi.fn(() => of([{ id: 9, name: 'Avícola San José', status: 'active' }])),

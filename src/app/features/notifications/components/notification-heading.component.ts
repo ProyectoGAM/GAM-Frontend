@@ -71,11 +71,18 @@ function formatRecentDate(date: string): string | null {
     small { color: var(--gam-color-text-muted); font-size: 0.8125rem; }
     .resolution span { color: var(--gam-color-success); font-weight: 700; }
     .resolution ion-icon { vertical-align: text-bottom; font-size: 1rem; }
-    .urgency { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8125rem; font-weight: 700; }
+    .urgency {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      inline-size: 4.25rem;
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
     .bajo { color: var(--gam-color-primary); }
     .medio { color: var(--gam-color-warning); }
     .alto { color: var(--gam-color-danger); }
-    .level { display: inline-grid; place-items: center; inline-size: 1.4rem; block-size: 1.4rem; border: 2px solid currentColor; border-radius: 50%; }
+    .level { display: inline-grid; flex: none; place-items: center; inline-size: 1.4rem; block-size: 1.4rem; border: 2px solid currentColor; border-radius: 50%; }
   `,
 })
 export class NotificationHeadingComponent {

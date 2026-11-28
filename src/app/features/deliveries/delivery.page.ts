@@ -26,7 +26,7 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, checkmarkCircleOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline } from 'ionicons/icons';
+import { addOutline, checkmarkCircleOutline, closeOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline } from 'ionicons/icons';
 
 import { postLoginPath } from '../../core/auth/access-policy';
 import { AuthStore } from '../../core/auth/auth.store';
@@ -275,7 +275,7 @@ export class DeliveryPage implements AfterViewInit, OnDestroy {
   private readonly unitAmountFormatter = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 3 });
 
   constructor() {
-    addIcons({ addOutline, checkmarkCircleOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline });
+    addIcons({ addOutline, checkmarkCircleOutline, closeOutline, contractOutline, expandOutline, locateOutline, locationOutline, mapOutline, moonOutline, peopleOutline, removeOutline, sunnyOutline, syncOutline, statsChartOutline, trashOutline, wifiOutline });
     let owner = this.auth.user()?.id;
     effect(() => {
       const next = this.auth.user()?.id;

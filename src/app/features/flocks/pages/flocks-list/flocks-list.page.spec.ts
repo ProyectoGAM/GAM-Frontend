@@ -16,6 +16,7 @@ import { FlocksListPage } from './flocks-list.page';
 
 describe('FlocksListPage', () => {
   let fixture: ComponentFixture<FlocksListPage>;
+  const actor = signal({ roles: ['admin'], permissions: [] as string[] });
   let listFlocks: ReturnType<typeof vi.fn>;
   let listAllPoultryHouses: ReturnType<typeof vi.fn>;
   let selectedUnitId: WritableSignal<number | null>;
@@ -64,6 +65,7 @@ describe('FlocksListPage', () => {
   };
 
   beforeEach(() => {
+    actor.set({ roles: ['admin'], permissions: [] });
     listFlocks = vi.fn(() => of([flock]));
     listAllPoultryHouses = vi.fn(() => of([house]));
     selectedUnitId = signal<number | null>(7);
@@ -76,7 +78,7 @@ describe('FlocksListPage', () => {
         { provide: FlocksApi, useValue: { list: listFlocks } },
         { provide: FlockDetailService, useValue: { mortalityTotals: () => of(new Map()) } },
         { provide: ProductionUnitsService, useValue: { listAllPoultryHouses } },
-        { provide: AuthStore, useValue: { isAdmin: signal(true) } },
+        { provide: AuthStore, useValue: { user: actor, isAdmin: computed(() => actor().roles.includes('admin')) } },
         {
           provide: AdminUnitContextService,
           useValue: {
@@ -98,6 +100,13 @@ describe('FlocksListPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   }
+
+  it('shows the flock detail to a read-only user without offering to create a lot', async () => {
+    actor.set({ roles: ['employee'], permissions: ['flocks.view'] });
+    await render();
+    expect(fixture.nativeElement.querySelector('.create-button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.flock-card-button')).not.toBeNull();
+  });
 
   it('opens the lot list scoped to the UP from the summary link', async () => {
     selectedUnitId.set(null);

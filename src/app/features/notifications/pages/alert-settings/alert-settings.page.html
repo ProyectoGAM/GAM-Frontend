@@ -55,10 +55,10 @@
                   } @else {
                     <button type="button" class="edit-button" [id]="'edit-' + rule.id" [disabled]="saving()"
                       aria-haspopup="dialog" [attr.aria-label]="'Editar ' + rule.title" (click)="edit(rule, module.title)">Editar</button>
-                    <div class="levels">
+                    <div class="levels urgency-levels">
                       @for (level of rule.levels; track level.level) {
                         <span class="level" [class]="level.active ? level.level : ''">
-                          <strong>{{ level.label }}</strong> {{ level.description }}
+                          <strong>{{ level.label }}</strong><span>{{ level.description }}</span>
                         </span>
                       }
                     </div>

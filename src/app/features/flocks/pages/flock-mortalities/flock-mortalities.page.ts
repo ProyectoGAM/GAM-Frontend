@@ -7,6 +7,7 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline } from 'ionicons/icons';
 import { forkJoin } from 'rxjs';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
 import { FlockMortalitySectionComponent } from '../../components/flock-mortality-section/flock-mortality-section.component';
@@ -14,6 +15,7 @@ import { Flock } from '../../interfaces/flock.interface';
 import { CancelMortalityRequest, FlockMortality, MortalityCancellationSubmission, MortalityFieldErrors, MortalitySubmission, RecordMortalityRequest } from '../../interfaces/flock-mortality.interface';
 import { FlockDetailService, todayInLotsTimezone } from '../../services/flock-detail.service';
 import { FlockMortalitiesService } from '../../services/flock-mortalities.service';
+import { hasFlockPermission } from '../../services/flock-permissions';
 import { buildMortalityRequest } from '../../services/mortality-record-form';
 import { MortalityLoadState } from '../../types/mortality-state.type';
 import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
@@ -29,6 +31,7 @@ export class FlockMortalitiesPage {
   readonly houseTask = inject(FlockHouseTaskContext);
   readonly houseMismatch = computed(() => !this.houseTask.matches(this.flock()));
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthStore);
   private readonly injector = inject(Injector);
   private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
   private readonly mortalitySection = viewChild(FlockMortalitySectionComponent);
@@ -53,6 +56,7 @@ export class FlockMortalitiesPage {
   readonly houseName = signal<string | null>(null);
   readonly today = signal(todayInLotsTimezone());
   readonly saving = signal(false);
+  readonly canManage = computed(() => hasFlockPermission(this.auth.user(), 'can_manage_mortality'));
   readonly saveError = signal<string | null>(null);
   readonly fieldErrors = signal<MortalityFieldErrors>({});
   readonly savedSequence = signal(0);
@@ -79,7 +83,7 @@ export class FlockMortalitiesPage {
       const section = this.mortalitySection();
       const key = JSON.stringify([this.flockId(), recordId]);
       if (!recordId || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i.test(recordId) || this.openedUndo === key
-        || !section || this.state() !== 'ready' || this.historyState() !== 'ready' || this.houseTask.isTask()) return;
+        || !section || !this.canManage() || this.state() !== 'ready' || this.historyState() !== 'ready' || this.houseTask.isTask()) return;
       const record = this.records().find((item) => item.id === recordId && item.status === 'recorded');
       untracked(() => {
         this.openedUndo = key;
@@ -147,7 +151,7 @@ export class FlockMortalitiesPage {
 
   saveMortality(submission: MortalitySubmission): void {
     const flock = this.flock();
-    if (!flock || this.saving() || this.cancelling() || this.houseMismatch() || flock.status === 'finished') return;
+    if (!flock || !this.canManage() || this.saving() || this.cancelling() || this.houseMismatch() || flock.status === 'finished') return;
     this.clearSaveErrors();
     const { draft, excessConfirmation } = submission;
     if (draft.quantity > Math.max(0, flock.current_quantity)
@@ -235,7 +239,7 @@ export class FlockMortalitiesPage {
 
   cancelMortality(submission: MortalityCancellationSubmission): void {
     const flock = this.flock();
-    if (!flock || this.saving() || this.cancelling()) return;
+    if (!flock || !this.canManage() || this.saving() || this.cancelling()) return;
     this.clearCancellationErrors();
     const { recordId, request } = submission;
     const record = this.records().find((item) => item.id === recordId && item.status === 'recorded');

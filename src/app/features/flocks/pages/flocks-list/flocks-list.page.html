@@ -5,9 +5,11 @@
     <p class="intro">Consultá los lotes por unidad productiva.</p>
   </header>
 
-  <a class="create-button" routerLink="nuevo">
-    <ion-icon name="add-outline" aria-hidden="true" /> Crear lote
-  </a>
+  @if (canCreate()) {
+    <a class="create-button" routerLink="nuevo">
+      <ion-icon name="add-outline" aria-hidden="true" /> Crear lote
+    </a>
+  }
 
   <div class="list-controls">
     <label class="search-field">

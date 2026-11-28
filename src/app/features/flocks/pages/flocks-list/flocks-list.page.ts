@@ -20,6 +20,7 @@ import {
 } from 'rxjs';
 
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
+import { canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { PoultryHouseListItem } from '../../../production-units/interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
@@ -47,6 +48,7 @@ export class FlocksListPage {
   private readonly detail = inject(FlockDetailService);
   readonly unitContext = inject(AdminUnitContextService);
   readonly auth = inject(AuthStore);
+  readonly canCreate = computed(() => canCreateFlockFromQuickAccess(this.auth.user()));
   private readonly destroyRef = inject(DestroyRef);
   private readonly reloadCount = signal(0);
   private readonly route = inject(ActivatedRoute);

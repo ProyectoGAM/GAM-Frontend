@@ -7,6 +7,8 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, calendarOutline, chevronDownOutline, informationCircleOutline, locationOutline } from 'ionicons/icons';
 import { distinctUntilChanged, filter, forkJoin, take } from 'rxjs';
 
+import { canCreateFlockFromQuickAccess } from '../../../../core/auth/access-policy';
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { AdminUnitContextService } from '../../../admin/services/admin-unit-context.service';
 import { PoultryHouse } from '../../../production-units/interfaces/production-unit.interface';
 import { ProductionUnitsService } from '../../../production-units/services/production-units.service';
@@ -48,6 +50,7 @@ export class FlockCreatePage {
   @ViewChild('pageTop') private readonly pageTop?: ElementRef<HTMLElement>;
 
   private readonly api = inject(FlocksApi);
+  private readonly auth = inject(AuthStore);
   private readonly unitsApi = inject(ProductionUnitsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -57,6 +60,7 @@ export class FlockCreatePage {
   readonly fromQuickAccess = this.route.snapshot.data['fromQuickAccess'] === true;
   readonly returnPath = this.fromQuickAccess ? '/administracion/acceso-rapido' : LIST_PATH;
   readonly todayIso = localTodayIso();
+  readonly canCreate = computed(() => canCreateFlockFromQuickAccess(this.auth.user()));
   readonly step = signal<FlockCreateStep>(1);
   readonly catalogState = signal<LoadState>('loading');
   readonly houseState = signal<HouseState>('idle');
@@ -214,6 +218,10 @@ export class FlockCreatePage {
   }
 
   private submit(): void {
+    if (!this.canCreate()) {
+      this.message.set('No tenés permiso para crear lotes.');
+      return;
+    }
     for (const step of [1, 2, 3] as const) {
       if (!this.validate(step)) {
         this.step.set(step);

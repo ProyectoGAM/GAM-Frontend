@@ -54,7 +54,8 @@ describe('tasks opened from a house', () => {
         getDailyByDate: () => throwError(() => new HttpErrorResponse({ status: 404 })) } },
       { provide: FlockFeedingService, useValue: { current: () => of({ id: 1, modo: 'automatico', receta_id: 1, cantidad_diaria_g: '1000', finalizado: false }),
         balances: () => of([]), consumptions } },
-      { provide: AuthStore, useValue: { user: signal({ id: 1, name: 'Operador' }) } },
+      { provide: AuthStore, useValue: { user: signal({ id: 1, name: 'Operador', roles: [],
+        permissions: ['can_manage_weighings', 'can_manage_mortality', 'can_manage_flock_feeding'] }) } },
       { provide: ProductionUnitsService, useValue: { getPoultryHouseById: () => of({ data: { name: 'Galpón 22' } }) } },
       { provide: AdminUnitContextService, useValue: { units: signal([{ id: 7, name: 'UP 7' }]) } },
     ] });

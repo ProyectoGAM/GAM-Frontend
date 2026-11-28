@@ -27,9 +27,9 @@
       } @else if (feeding(); as current) {
         <div class="current-body">
           <dl class="current-metrics"><div><dt>Ración actual</dt><dd>{{ currentRecipe() }}</dd></div><div><dt>Cantidad diaria</dt><dd>{{ formatKg(current.cantidad_diaria_g) }} <span>kg/día</span></dd></div></dl>
-          <div class="change-action"><button type="button" class="primary" [disabled]="!canChange() || saving()" (click)="openManual()">Cambiar ración y cantidad</button><p class="note">Recetas activas con stock en esta UP</p></div>
+          @if (canManageFeeding()) { <div class="change-action"><button type="button" class="primary" [disabled]="!canChange() || saving()" (click)="openManual()">Cambiar ración y cantidad</button><p class="note">Recetas activas con stock en esta UP</p></div> }
         </div>
-        @if (current.finalizado || flock()?.status === 'finished') { <p class="note">El lote está finalizado. Se puede consultar y editar su historial de consumo.</p> }
+        @if (current.finalizado || flock()?.status === 'finished') { <p class="note">El lote está finalizado. Podés consultar su historial de consumo.</p> }
       }
     </section>
     @if (!houseTask.isTask()) {
@@ -75,12 +75,12 @@
       @else {
         <table class="history-table">
           <caption class="visually-hidden">Historial de consumo del lote {{ flock()?.code }}</caption>
-          <thead><tr><th scope="col">Fecha</th><th scope="col">Ración</th><th scope="col">Cantidad</th><th scope="col">Acción</th></tr></thead>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Ración</th><th scope="col">Cantidad</th>@if (canCorrect()) { <th scope="col">Acción</th> }</tr></thead>
           <tbody>@for (record of historyRows(); track record.id) {
-            <tr><td class="record-date">{{ record.dateText }}@if (record.corrected) { <small>Editado</small> }</td><td class="record-recipe">{{ record.name }} <small>#{{ record.receta_id }}</small></td><td class="record-quantity">{{ record.quantityText }} kg</td><td class="record-action"><button class="edit-button" type="button" [disabled]="saving()" [attr.aria-label]="'Editar consumo del ' + record.dateText + ', ' + record.name" (click)="openEdit(record)"><ion-icon name="create-outline" aria-hidden="true" /> Editar</button></td></tr>
+            <tr><td class="record-date">{{ record.dateText }}@if (record.corrected) { <small>Editado</small> }</td><td class="record-recipe">{{ record.name }} <small>#{{ record.receta_id }}</small></td><td class="record-quantity">{{ record.quantityText }} kg</td>@if (canCorrect()) { <td class="record-action"><button class="edit-button" type="button" [disabled]="saving()" [attr.aria-label]="'Editar consumo del ' + record.dateText + ', ' + record.name" (click)="openEdit(record)"><ion-icon name="create-outline" aria-hidden="true" /> Editar</button></td> }</tr>
           }</tbody>
         </table>
-        <footer class="history-footer"><p class="note">Las ediciones conservan el historial y requieren un motivo.</p><nav class="pagination" aria-label="Páginas del historial de consumo"><button type="button" [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button><span aria-live="polite">{{ page() }} de {{ lastPage() }}</span><button type="button" [disabled]="page() >= lastPage()" (click)="changePage(page() + 1)">Siguiente</button></nav></footer>
+        <footer class="history-footer">@if (canCorrect()) { <p class="note">Las ediciones conservan el historial y requieren un motivo.</p> }<nav class="pagination" aria-label="Páginas del historial de consumo"><button type="button" [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button><span aria-live="polite">{{ page() }} de {{ lastPage() }}</span><button type="button" [disabled]="page() >= lastPage()" (click)="changePage(page() + 1)">Siguiente</button></nav></footer>
       }
     </section>
     }

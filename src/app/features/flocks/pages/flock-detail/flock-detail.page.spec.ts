@@ -76,6 +76,19 @@ describe('FlockDetailPage feeding overview', () => {
     field.dispatchEvent(new Event('input'));
   }
 
+  it('shows only authorized lot actions and skips requests for inaccessible metrics', async () => {
+    user.set({ id: 1, roles: ['employee'], permissions: ['flocks.view', 'can_view_mortality'] });
+    const { fixture } = await setup();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('Aves vivas');
+    expect(host.textContent).toContain('Ir a mortandad');
+    expect(host.textContent).not.toContain('Ir a pesajes');
+    expect(host.textContent).not.toContain('Ir a postura');
+    expect(host.textContent).not.toContain('Fraccionar lote');
+    expect(host.textContent).not.toContain('Ver plan');
+    expect(loadOverview).not.toHaveBeenCalled();
+  });
+
   it('edits code and notes in a modal and applies the saved version without losing grouping', async () => {
     const { fixture, page } = await setup();
     page.flock.set({ ...flock, notes: 'Observación inicial' });

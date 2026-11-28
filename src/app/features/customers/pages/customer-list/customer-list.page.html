@@ -6,7 +6,7 @@
   <form class="filter-toolbar" (submit)="$event.preventDefault(); searchCustomers()">
     <div class="filter-search">
       <ion-icon name="search-outline" aria-hidden="true" />
-      <input #searchInput type="search" aria-label="Buscar cliente" placeholder="Nombre, documento, contacto o dirección" [value]="search()" (input)="search.set(searchInput.value)" maxlength="100">
+      <input #searchInput type="search" aria-label="Buscar cliente" placeholder="Nombre, documento, contacto o dirección" [value]="search()" (input)="setSearch(searchInput.value)" maxlength="100">
       <button class="search-submit" type="submit" aria-label="Buscar" [disabled]="loading()"><ion-icon name="arrow-forward-outline" aria-hidden="true" /></button>
     </div>
     <button #filterButton class="filter-trigger" type="button" aria-haspopup="dialog"
