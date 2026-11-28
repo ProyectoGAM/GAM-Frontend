@@ -24,12 +24,16 @@
     <div class="tabs" role="tablist" aria-label="Secciones de pesajes">
       <button type="button" role="tab" id="summary-tab" [attr.aria-selected]="tab() === 'summary'"
         [class.active]="tab() === 'summary'" aria-controls="summary-panel" (click)="setTab('summary')">Gráficas</button>
-      <button type="button" role="tab" id="entry-tab" [attr.aria-selected]="tab() === 'entry'"
-        [class.active]="tab() === 'entry'" aria-controls="entry-panel" (click)="setTab('entry')">Pesaje</button>
+      @if (canManageWeighings()) {
+        <button type="button" role="tab" id="entry-tab" [attr.aria-selected]="tab() === 'entry'"
+          [class.active]="tab() === 'entry'" aria-controls="entry-panel" (click)="setTab('entry')">Pesaje</button>
+      }
     </div>
     }
 
-    @if (tab() === 'summary') {
+    @if (houseTask.isTask() && !canManageWeighings()) {
+      <p role="status">No tenés permiso para registrar pesajes.</p>
+    } @else if (tab() === 'summary' || !canManageWeighings()) {
       <div id="summary-panel" role="tabpanel" aria-labelledby="summary-tab">
         @if (historyState() === 'loading') {
           <div class="page-state" role="status"><ion-spinner name="crescent" aria-hidden="true" /> Cargando historial…</div>
@@ -117,7 +121,7 @@
                   <strong>{{ formatGrams(range.min_weight_g) }}–{{ formatGrams(range.max_weight_g) }} g</strong>
                 } @else { <strong>Dato no disponible</strong> }
               </div>
-                @if (rangeBreedId()) {
+                @if (rangeBreedId() && canManageRanges()) {
                   <button type="button" class="edit-button" (click)="openSettings()" aria-label="Editar rangos de la raza">
                     <ion-icon name="create-outline" aria-hidden="true" /> Editar
                   </button>
@@ -167,7 +171,7 @@
           <section class="card entry-card" aria-labelledby="entry-title">
             <div class="card-heading">
               <div><h2 id="entry-title">Registrar pesaje</h2><p>Cada ingreso se suma a la muestra de hoy, {{ todayDate() }}.</p></div>
-              @if (entryRangeBreedId()) {
+              @if (entryRangeBreedId() && canManageRanges()) {
                 <button type="button" class="edit-button" (click)="openSettings('entry')" aria-label="Editar rangos de la raza">
                   <ion-icon name="create-outline" aria-hidden="true" /> Editar rango
                 </button>

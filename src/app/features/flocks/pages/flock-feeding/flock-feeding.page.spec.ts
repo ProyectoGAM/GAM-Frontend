@@ -31,7 +31,8 @@ const balance = (id: number, stock: string, status: 'active' | 'inactive' = 'act
 
 describe('FlockFeedingPage', () => {
   const params = new BehaviorSubject(convertToParamMap({ id: 'lot-1' }));
-  const user = signal<{ id: number; name: string } | null>({ id: 4, name: 'Ana Pérez' });
+  const actor = { id: 4, name: 'Ana Pérez', roles: [], permissions: ['can_manage_flock_feeding', 'can_correct_feed_consumption'] };
+  const user = signal<typeof actor | null>(actor);
   const current = vi.fn<FlockFeedingService['current']>();
   const consumptions = vi.fn<FlockFeedingService['consumptions']>();
   const balances = vi.fn<FlockFeedingService['balances']>();
@@ -47,7 +48,7 @@ describe('FlockFeedingPage', () => {
     change.mockReset().mockReturnValue(of({})); correct.mockReset().mockReturnValue(of({}));
     automatic.mockReset().mockReturnValue(of({}));
     latestChanges.mockReset().mockReturnValue(of([{ id: 10, modo: 'manual', created_by: 4, etapas_copiadas: [] }]));
-    params.next(convertToParamMap({ id: 'lot-1' })); user.set({ id: 4, name: 'Ana Pérez' });
+    params.next(convertToParamMap({ id: 'lot-1' })); user.set(actor);
     TestBed.configureTestingModule({ imports: [FlockFeedingPage], providers: [provideRouter([]),
       { provide: ActivatedRoute, useValue: { paramMap: params, queryParamMap: of(convertToParamMap({})) } },
       { provide: AuthStore, useValue: { user } },
@@ -63,6 +64,17 @@ describe('FlockFeedingPage', () => {
     fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     return { fixture, page: fixture.componentInstance };
   };
+
+  it('separates consumption corrections from changes to the current ration', async () => {
+    user.set({ ...actor, permissions: ['can_view_flock_feeding', 'can_correct_feed_consumption'] });
+    const { fixture, page } = await setup();
+    expect(fixture.nativeElement.querySelector('.change-action')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.edit-button')).toHaveLength(2);
+    page.openManual();
+    expect(page.editor()).toBeNull();
+    page.openEdit(records[0]);
+    expect(page.editor()).toBe('correction');
+  });
 
   it('renders the lot, all recipe totals, and edit actions without removing consumption', async () => {
     const { fixture, page } = await setup();

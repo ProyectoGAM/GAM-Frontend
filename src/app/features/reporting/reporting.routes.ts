@@ -7,6 +7,7 @@ export const reportingRoutes: Routes = [
   { path: 'temas/:topic', data: { screen: 'topic' }, loadComponent: loadReports },
   { path: 'guardados', data: { screen: 'saved' }, loadComponent: loadReports },
   { path: 'archivos', data: { screen: 'files' }, loadComponent: loadReports },
+  { path: 'crear/varios-modulos', loadComponent: () => import('./pages/combined-report.page').then(module => module.CombinedReportPage) },
   { path: 'crear', data: { screen: 'create' }, loadComponent: loadReports },
   { path: 'ver/:sourceKey', data: { screen: 'view' }, loadComponent: loadReports },
 ];

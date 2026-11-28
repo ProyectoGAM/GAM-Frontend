@@ -1,8 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { NEVER, of, Subject, throwError } from 'rxjs';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { BreedWeighingSettings, DailyWeighingDetail, DailyWeighingEntry } from '../../interfaces/flock-weighing.interface';
 import { FlockDetailService } from '../../services/flock-detail.service';
 import { FlockWeighingsService } from '../../services/flock-weighings.service';
@@ -33,21 +35,43 @@ const breed: BreedWeighingSettings = {
 };
 
 describe('flock weighing summary', () => {
+  const actor = signal({ roles: ['admin'], permissions: [] as string[] });
   const addEntry = vi.fn(() => NEVER);
   const dailyEvolution = vi.fn<FlockWeighingsService['dailyEvolution']>(() => of([day]));
   const breedSettings = vi.fn(() => of(breed));
   const saveBreedSettings = vi.fn<FlockWeighingsService['saveBreedSettings']>(() => NEVER);
-  beforeEach(() => TestBed.configureTestingModule({
-    imports: [FlockWeighingsPage],
-    providers: [
-      provideRouter([]),
-      { provide: ActivatedRoute, useValue: { paramMap: NEVER, queryParamMap: of(convertToParamMap({})) } },
-      { provide: FlockDetailService, useValue: {} },
-      { provide: FlockWeighingsService, useValue: { addDailyEntry: addEntry, breedSettings, saveBreedSettings, dailyEvolution } },
-    ],
-  }));
+  beforeEach(() => {
+    actor.set({ roles: ['admin'], permissions: [] });
+    TestBed.configureTestingModule({
+      imports: [FlockWeighingsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: { user: actor } },
+        { provide: ActivatedRoute, useValue: { paramMap: NEVER, queryParamMap: of(convertToParamMap({})) } },
+        { provide: FlockDetailService, useValue: {} },
+        { provide: FlockWeighingsService, useValue: { addDailyEntry: addEntry, breedSettings, saveBreedSettings, dailyEvolution } },
+      ],
+    });
+  });
   afterEach(() => { addEntry.mockReset(); breedSettings.mockReset(); breedSettings.mockReturnValue(of(breed)); saveBreedSettings.mockReset();
     dailyEvolution.mockReset(); dailyEvolution.mockReturnValue(of([day])); });
+
+  it('keeps weighing history accessible while blocking entry and breed changes for a read-only user', () => {
+    actor.set({ roles: ['employee'], permissions: ['can_view_weighings'] });
+    const fixture = TestBed.createComponent(FlockWeighingsPage);
+    const page = fixture.componentInstance;
+    page.flockState.set('ready');
+    page.historyState.set('ready');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#summary-tab')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('#entry-tab')).toBeNull();
+    page.setTab('entry');
+    page.submitEntry();
+    page.openSettings();
+    expect(page.tab()).toBe('summary');
+    expect(addEntry).not.toHaveBeenCalled();
+    expect(breedSettings).not.toHaveBeenCalled();
+  });
 
   it('switches between growth and the existing distribution without losing the selected date', () => {
     const fixture = TestBed.createComponent(FlockWeighingsPage);

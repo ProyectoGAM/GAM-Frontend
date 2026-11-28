@@ -7,6 +7,7 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, createOutline, scaleOutline, warningOutline } from 'ionicons/icons';
 
+import { AuthStore } from '../../../../core/auth/auth.store';
 import { WeighingDistributionChartComponent } from '../../components/weighing-distribution-chart/weighing-distribution-chart.component';
 import { WeighingGrowthChartComponent } from '../../components/weighing-growth-chart/weighing-growth-chart.component';
 import { dailyWeighingDistribution } from '../../components/weighing-distribution-chart/daily-weighing-distribution';
@@ -18,6 +19,7 @@ import {
 import { dateBefore, FlockDetailService } from '../../services/flock-detail.service';
 import { FlockWeighingsService } from '../../services/flock-weighings.service';
 import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
+import { hasFlockPermission } from '../../services/flock-permissions';
 
 type LoadState = 'loading' | 'ready' | 'forbidden' | 'offline' | 'error';
 type Tab = 'summary' | 'entry';
@@ -71,6 +73,7 @@ export class FlockWeighingsPage {
   readonly formatTime = formatTime;
   readonly formatGrams = formatGrams;
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthStore);
   private readonly flocks = inject(FlockDetailService);
   private readonly weighings = inject(FlockWeighingsService);
   private readonly destroyRef = inject(DestroyRef);
@@ -85,6 +88,8 @@ export class FlockWeighingsPage {
   private lastDeleteReason: string | null = null;
 
   readonly flockId = signal('');
+  readonly canManageWeighings = computed(() => hasFlockPermission(this.auth.user(), 'can_manage_weighings'));
+  readonly canManageRanges = computed(() => hasFlockPermission(this.auth.user(), 'can_manage_weighing_settings'));
   readonly flock = signal<Flock | null>(null);
   readonly flockState = signal<LoadState>('loading');
   readonly historyState = signal<LoadState>('loading');
@@ -184,12 +189,13 @@ export class FlockWeighingsPage {
     addIcons({ arrowBackOutline, createOutline, scaleOutline, warningOutline });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.flockId.set(params.get('id') ?? '');
-      this.tab.set(this.houseTask.isTask() ? 'entry' : 'summary');
+      this.tab.set(this.houseTask.isTask() && this.canManageWeighings() ? 'entry' : 'summary');
       this.load();
     });
   }
 
   setTab(tab: Tab): void {
+    if (tab === 'entry' && !this.canManageWeighings()) return;
     this.tab.set(tab);
     if (tab === 'entry') this.loadToday();
   }
@@ -343,7 +349,7 @@ export class FlockWeighingsPage {
   }
 
   submitEntry(): void {
-    if (this.savingEntry() || this.todayState() !== 'ready' || this.houseMismatch() || this.flock()?.status === 'finished') return;
+    if (!this.canManageWeighings() || this.savingEntry() || this.todayState() !== 'ready' || this.houseMismatch() || this.flock()?.status === 'finished') return;
     this.entryError.set(null);
     this.entrySuccess.set(null);
     const payload = this.entryMode() === 'individual' ? this.individualPayload() : this.groupPayload();
@@ -417,7 +423,7 @@ export class FlockWeighingsPage {
 
   confirmAnomaly(): void {
     const attempt = this.entryAttempt();
-    if (!attempt || this.savingEntry()) return;
+    if (!attempt || !this.canManageWeighings() || this.savingEntry()) return;
     this.anomalyDialog()?.nativeElement.close();
     this.saveEntry({ ...attempt.payload, confirm_out_of_range: true }, attempt.key);
   }
@@ -447,6 +453,7 @@ export class FlockWeighingsPage {
   }
 
   openDelete(entry: DailyWeighingEntry): void {
+    if (!this.canManageWeighings()) return;
     this.deleteTarget.set(entry);
     this.deleteReason.reset();
     this.deleteError.set(null);
@@ -467,7 +474,7 @@ export class FlockWeighingsPage {
     const day = this.today();
     const entry = this.deleteTarget();
     const reason = this.deleteReason.value.trim();
-    if (!day || !entry || !this.deleteKey() || this.deletingEntry()) return;
+    if (!day || !entry || !this.canManageWeighings() || !this.deleteKey() || this.deletingEntry()) return;
     if (reason.length < 3 || reason.length > 1000) {
       this.deleteError.set('Indicá un motivo de entre 3 y 1000 caracteres.');
       return;
@@ -547,7 +554,7 @@ export class FlockWeighingsPage {
 
   openSettings(context: Tab = 'summary'): void {
     const id = context === 'entry' ? this.entryRangeBreedId() : this.rangeBreedId();
-    if (!id || this.savingSettings()) return;
+    if (!id || !this.canManageRanges() || this.savingSettings()) return;
     this.settingsDialog()?.nativeElement.showModal();
     this.loadSettings(id);
   }
@@ -560,7 +567,7 @@ export class FlockWeighingsPage {
 
   saveSettings(): void {
     const breed = this.settings();
-    if (this.savingSettings() || this.settingsState() !== 'ready' || !breed) return;
+    if (!this.canManageRanges() || this.savingSettings() || this.settingsState() !== 'ready' || !breed) return;
     const form = this.settingsForm.getRawValue();
     const validStage = (stage: 'chick' | 'adult') => gramsPattern.test(form[`${stage}_min_weight`])
       && gramsPattern.test(form[`${stage}_max_weight`])

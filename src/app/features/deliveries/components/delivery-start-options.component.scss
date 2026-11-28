@@ -22,7 +22,7 @@ input::placeholder { color: var(--gam-color-text-muted); }
 .refresh-vehicles { display: grid; place-items: center; padding: 0; color: var(--gam-color-primary); cursor: pointer; font-size: 20px; }
 .refresh-vehicles:disabled { opacity: .55; cursor: default; }
 .refresh-vehicles ion-spinner { width: 18px; height: 18px; }
-:where(select, input, button):focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
+:where(select, input, button, a):focus-visible { outline: 3px solid var(--gam-color-focus); outline-offset: 2px; }
 .vehicle-warnings { margin: 0; padding-left: 18px; color: var(--gam-color-warning); }
 .vehicle-empty { margin: 0; padding: 10px; border-radius: 8px; color: var(--gam-color-warning); background: var(--gam-color-warning-soft); line-height: 1.4; }
 
@@ -61,6 +61,8 @@ button:disabled { opacity: .55; cursor: default; }
 .start-loaded, .start-empty, .start-add { display: flex; align-items: center; gap: 8px; }
 .start-loaded { min-height: 53px; padding-inline: 14px; font-size: 16px; }
 .start-loaded ion-icon, .start-add ion-icon { font-size: 20px; }
+.start-pin-notice { margin: 0; padding: 10px 12px; border-radius: 8px; color: var(--gam-color-warning); background: var(--gam-color-warning-soft); line-height: 1.4; }
+.start-pin-link { text-decoration: none; }
 .start-empty {
   justify-content: space-between;
   padding: 0 3px;

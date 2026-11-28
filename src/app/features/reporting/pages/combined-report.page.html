@@ -1,0 +1,262 @@
+<section class="builder" aria-labelledby="builder-title">
+  <nav class="breadcrumbs" aria-label="Ruta del reporte"><a class="back-link" [routerLink]="reportPath">Reportes</a><span aria-hidden="true">/</span><span aria-current="page">Crear reporte</span></nav>
+  <header class="heading">
+    <h1 id="builder-title">Crear reporte de varios módulos</h1>
+    <p>Reúne datos de distintos módulos en un solo archivo.</p>
+  </header>
+  <nav class="steps" aria-label="Pasos del reporte">
+    @for (label of steps; track label; let index = $index) {
+      <button type="button" [attr.aria-current]="step() === index + 1 ? 'step' : null"
+        [disabled]="index + 1 >= step()" (click)="goTo(index + 1)">
+        <span>{{ index + 1 }}</span>{{ label }}
+      </button>
+    }
+  </nav>
+
+  @if (catalogBusy()) {
+    <p class="status" role="status"><ion-spinner aria-hidden="true" /> Cargando reportes…</p>
+  } @else if (catalogError()) {
+    <p class="error" role="alert">{{ catalogError() }}</p>
+    <button type="button" (click)="loadCatalog()">Volver a intentar</button>
+  } @else if (topics().length < 2) {
+    <p class="panel" role="status">Para combinar reportes necesitas acceso a datos de al menos dos módulos.</p>
+  } @else {
+    <div class="layout">
+      <section class="panel workspace" aria-labelledby="report-step-title">
+        <header class="section-heading">
+          <h2 #stepHeading id="report-step-title" tabindex="-1">{{ titles[step() - 1] }}</h2>
+          @switch (step()) {
+            @case (1) { <p>Elige qué incluir de al menos dos módulos.</p> }
+            @case (2) { <p>Elige el detalle y las columnas de cada sección.</p> }
+            @case (3) { <p>Aplica un período común y ajusta los filtros por sección.</p> }
+            @case (4) { <p>{{ sections().length }} secciones · Revisa los datos antes de exportar.</p> }
+          }
+        </header>
+
+        @switch (step()) {
+          @case (1) {
+            <div class="module-grid" role="group" aria-label="Módulos disponibles">
+              @for (topic of mainTopics(); track topic.key) {
+                <button type="button" [attr.aria-pressed]="activeTopic()?.key === topic.key" (click)="topicKey.set(topic.key)">
+                  <ion-icon [name]="topic.icon" aria-hidden="true" />{{ topic.label }}
+                </button>
+              }
+              @if (extraTopics().length) {
+                <button type="button" [attr.aria-expanded]="moreModules()" aria-controls="more-report-modules" (click)="toggleMoreModules()">
+                  <ion-icon name="apps-outline" aria-hidden="true" />Más módulos
+                </button>
+              }
+            </div>
+            <div id="more-report-modules" [hidden]="!moreModules()" class="module-grid" role="group" aria-label="Otros módulos">
+              @for (topic of extraTopics(); track topic.key) {
+                <button type="button" [attr.aria-pressed]="activeTopic()?.key === topic.key" (click)="topicKey.set(topic.key)">
+                  <ion-icon [name]="topic.icon" aria-hidden="true" />{{ topic.label }}
+                </button>
+              }
+            </div>
+            @if (activeTopic(); as topic) {
+              <fieldset class="module">
+                <legend>{{ topic.label }}</legend>
+                @for (source of topic.available; track source.key) {
+                  <label class="source-choice">
+                    <input type="checkbox" [checked]="selectedKeys().has(source.key)" (change)="toggle(source, topic)" />
+                    <span><strong>{{ title(source) }}</strong><small>{{ help[source.key] ?? source.description }}</small></span>
+                  </label>
+                }
+              </fieldset>
+            }
+          }
+          @case (2) {
+            @if (section(); as current) {
+              <label class="field-label" for="report-section">Sección a configurar</label>
+              <select id="report-section" [value]="selected()" (change)="selectFrom($event)">
+                @for (item of sections(); track item.source.key; let index = $index) {
+                  <option [value]="item.source.key">{{ index + 1 }}. {{ item.title }}</option>
+                }
+              </select>
+
+              @if (sectionFields().metrics.length) {
+                <fieldset class="mode">
+                  <legend>Nivel de detalle</legend>
+                  <label><input type="radio" name="report-mode" [checked]="!current.summary" (change)="configure(current.source.key, { summary: false })" /> Cada registro</label>
+                  <label><input type="radio" name="report-mode" [checked]="current.summary" (change)="configure(current.source.key, { summary: true })" /> Totales y promedios</label>
+                </fieldset>
+              }
+              @if (current.summary) {
+                <app-report-field-picker title="Indicadores" hint="Elige los valores que quieres calcular."
+                  [sourceKey]="current.source.key" [fields]="sectionFields().metrics" [selected]="current.metrics"
+                  (selection)="configure(current.source.key, { metrics: $event })" />
+                @if (sectionFields().groupings.length) {
+                  <app-report-field-picker title="Agrupar por" hint="Deja la selección vacía para obtener un total general."
+                    [sourceKey]="current.source.key" [fields]="sectionFields().groupings" [selected]="current.groupings"
+                    (selection)="configure(current.source.key, { groupings: $event })" />
+                }
+              } @else {
+                <app-report-field-picker title="Columnas de la sección" hint="Selecciona los datos que quieres incluir."
+                  [sourceKey]="current.source.key" [fields]="sectionFields().columns" [selected]="current.columns"
+                  (selection)="configure(current.source.key, { columns: $event })" />
+                @if (current.columns.length) {
+                  <p class="note columns"><strong>Columnas elegidas</strong>
+                    @for (key of current.columns; track key) { <span>{{ current.source.columns[key].label }}</span> }
+                  </p>
+                }
+              }
+              @let nextSection = sections()[selectedIndex() + 1];
+              @if (nextSection) {
+                <button type="button" (click)="select(nextSection.source.key)">Configurar siguiente sección <ion-icon name="arrow-forward-outline" aria-hidden="true" /></button>
+              }
+            }
+          }
+          @case (3) {
+            @if (dateSections().length) {
+              <fieldset class="period">
+                <legend><ion-icon name="calendar-outline" aria-hidden="true" />Período común</legend>
+                <div class="presets">
+                  @for (preset of presets; track preset.key) {
+                    <button type="button" [attr.aria-pressed]="period() === preset.key" (click)="setPeriod(preset.key)">{{ preset.label }}</button>
+                  }
+                </div>
+                <div class="date-fields">
+                  <label for="combined-date-from">Desde
+                    <input id="combined-date-from" type="date" [value]="dates().from" (change)="changeDate('from', $event)" />
+                  </label>
+                  <label for="combined-date-to">Hasta
+                    <input id="combined-date-to" type="date" [value]="dates().to" (change)="changeDate('to', $event)" />
+                  </label>
+                </div>
+              </fieldset>
+            }
+            <div class="filter-sections">
+              <h3>Filtros por sección</h3>
+              @for (item of sections(); track item.source.key) {
+                <details [open]="$first">
+                  <summary><ion-icon [name]="item.icon" aria-hidden="true" />{{ item.title }}</summary>
+                  <div class="filter-body">
+                    @if (!item.source.supports_date_range) { <p class="note">Esta sección muestra una vista actual, sin aplicar el período.</p> }
+                    @if (!item.source.filters['production_unit_id']) {
+                      <p class="note">Alcance general</p>
+                    }
+                    <div class="filter-grid">
+                      @if (usesDashboard(item.source)) {
+                        <label class="field-label filter-unit" [for]="'unit-' + item.source.key">Unidad productiva del dashboard
+                          <input [id]="'unit-' + item.source.key" [value]="scopeLabel(item.source)" readonly />
+                        </label>
+                      }
+                      @for (filter of item.filters; track filter.key) {
+                        <app-combined-report-filter [sourceKey]="item.source.key" [filter]="filter" (changed)="invalidate()" />
+                      }
+                    </div>
+                  </div>
+                </details>
+              }
+            </div>
+          }
+          @case (4) {
+            <div class="section-tabs" role="group" aria-label="Secciones de la vista previa">
+              @for (item of sections(); track item.source.key) {
+                <button type="button" [attr.aria-pressed]="selected() === item.source.key" (click)="select(item.source.key)">{{ item.title }}</button>
+              }
+            </div>
+            <p class="preview-scope">{{ previewScope() }}</p>
+            @if (previewBusy()) { <p class="status" role="status"><ion-spinner aria-hidden="true" /> Cargando vista previa…</p> }
+            @if (section(); as current) {
+              @if (result(); as data) {
+                <app-report-table [source]="current.source" [result]="data" [busy]="previewBusy()" [compact]="true"
+                  [sortField]="sort()?.field ?? ''" [sortDirection]="sort()?.direction ?? 'asc'"
+                  (page)="preview($event)" (sort)="changeSort($event)" />
+              } @else if (!previewBusy() && readyToQuery()) {
+                <button type="button" (click)="preview()">Cargar vista previa</button>
+              }
+            }
+          }
+        }
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        @if (step() >= 3 && !readyToQuery()) {
+          @if (unitContext?.state() === 'error') {
+            <p class="error" role="alert">No se pudo cargar la unidad productiva del dashboard.</p>
+            <button type="button" (click)="unitContext.load()">Volver a intentar</button>
+          } @else {
+            <p class="status" role="status">Cargando la unidad productiva del dashboard…</p>
+          }
+        }
+        <footer class="step-actions">
+          @if (step() > 1) {
+            <button type="button" (click)="goTo(step() - 1)"><ion-icon name="arrow-back-outline" aria-hidden="true" />{{ ['Volver a módulos', 'Volver a los datos', 'Volver a filtros'][step() - 2] }}</button>
+          }
+          @if (step() < 4) {
+            <button class="primary next" type="button" [disabled]="step() === 1 && moduleCount() < 2 || step() === 3 && !readyToQuery()" (click)="goTo(step() + 1)">
+              {{ ['Continuar a datos', 'Continuar al período', 'Ver mi reporte'][step() - 1] }}<ion-icon name="arrow-forward-outline" aria-hidden="true" />
+            </button>
+          }
+        </footer>
+      </section>
+
+      <aside class="panel report-summary" [attr.aria-label]="step() === 4 ? 'Exportación' : 'Resumen del reporte'">
+        @if (step() < 4) {
+          <h2><ion-icon name="document-text-outline" aria-hidden="true" />Secciones del reporte</h2>
+          <p class="selection-count" aria-live="polite">{{ sections().length }} {{ sections().length === 1 ? 'sección' : 'secciones' }} · {{ moduleCount() }} {{ moduleCount() === 1 ? 'módulo' : 'módulos' }}</p>
+          <ol class="selected-sections">
+            @for (item of sections(); track item.source.key; let index = $index) {
+              <li [class.current]="step() === 2 && selected() === item.source.key">
+                <span class="position">{{ index + 1 }}</span>
+                <div class="section-name">
+                  @if (step() === 2) {
+                    <button type="button" class="text-button" [attr.aria-pressed]="selected() === item.source.key" (click)="select(item.source.key)">{{ item.title }}</button>
+                  } @else { <strong>{{ item.title }}</strong> }
+                  <small>{{ step() === 3 ? (item.source.supports_date_range ? 'Período común' : 'Saldo actual') + ' · ' + scopeLabel(item.source) : item.topic }}</small>
+                </div>
+                @if (step() === 1) {
+                  <div class="order-actions">
+                    <button type="button" [disabled]="$first" [attr.aria-label]="'Subir ' + item.title" (click)="move(index, -1)"><ion-icon name="arrow-up-outline" aria-hidden="true" /></button>
+                    <button type="button" [disabled]="$last" [attr.aria-label]="'Bajar ' + item.title" (click)="move(index, 1)"><ion-icon name="arrow-down-outline" aria-hidden="true" /></button>
+                    <button type="button" [attr.aria-label]="'Quitar ' + item.title" (click)="remove(item.source.key)"><ion-icon name="trash-outline" aria-hidden="true" /></button>
+                  </div>
+                }
+              </li>
+            } @empty {
+              <li class="empty">Las secciones elegidas aparecerán aquí.</li>
+            }
+          </ol>
+          @if (step() === 1 && formats().length) {
+            <div class="note formats">
+              @if (formats().includes('xlsx')) { <p><ion-icon name="grid-outline" aria-hidden="true" />Excel · Una hoja por sección</p> }
+              @if (formats().includes('pdf')) { <p><ion-icon name="document-text-outline" aria-hidden="true" />PDF · Un solo documento</p> }
+            </div>
+          }
+          @if (step() === 3 && dateSections().length !== sections().length) { <p class="note">Las secciones de existencias muestran el saldo actual.</p> }
+        } @else {
+          <h2><ion-icon name="document-text-outline" aria-hidden="true" />Exportar reporte</h2>
+          <p>{{ sections().length }} secciones en un solo archivo</p>
+          @if (formats().includes('xlsx')) {
+            <button type="button" class="export-option primary" [disabled]="exportBusy() || !readyToQuery()" (click)="export('xlsx')">
+              <ion-icon name="grid-outline" aria-hidden="true" /><span><strong>Exportar Excel</strong><small>Una hoja por sección</small></span>
+            </button>
+          }
+          @if (formats().includes('pdf')) {
+            <button type="button" class="export-option" [disabled]="exportBusy() || !readyToQuery()" (click)="export('pdf')">
+              <ion-icon name="document-text-outline" aria-hidden="true" /><span><strong>Exportar PDF</strong><small>Todas las secciones en un documento</small></span>
+            </button>
+          }
+          @if (!formats().length) { <p class="note">Las secciones elegidas deben admitir un formato de exportación en común.</p> }
+          @if (exportError()) { <p class="error" role="alert">{{ exportError() }}</p> }
+          @if (exportBusy()) { <p class="status" role="status"><ion-spinner aria-hidden="true" /> Preparando el archivo…</p> }
+          @if (exportFile(); as file) {
+            @if (file.status === 'completed') {
+              <button class="primary" type="button" [disabled]="downloadBusy()" (click)="download(file)">
+                <ion-icon name="download-outline" aria-hidden="true" />Descargar {{ file.format === 'xlsx' ? 'Excel' : 'PDF' }}
+              </button>
+            } @else if (file.status === 'failed' || file.status === 'expired') {
+              <p class="error" role="alert">{{ file.failure_message ?? 'El archivo ya no está disponible.' }}</p>
+            }
+          }
+          <ol class="selected-sections">
+            @for (item of sections(); track item.source.key; let index = $index) {
+              <li><span class="position">{{ index + 1 }}</span><strong class="section-name">{{ item.title }}</strong></li>
+            }
+          </ol>
+          <a class="back-link" [routerLink]="[reportPath, 'archivos']">Ver reportes exportados</a>
+        }
+      </aside>
+    </div>
+  }
+</section>

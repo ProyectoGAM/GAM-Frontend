@@ -73,6 +73,12 @@ describe('DeliveriesApi', () => {
     load.flush({ data: { id: 'delivery-1' } });
   });
 
+  it('loads the recent delivery and collection history for the selected customer', () => {
+    api.clientHistory('client-1').subscribe();
+    http.expectOne({ method: 'GET', url: '/api/v1/repartos/clientes/client-1/historial' })
+      .flush({ data: { deliveries: [], payments: [] } });
+  });
+
   it('filters both current and historical delivery requests by the selected production unit', () => {
     api.current({ production_unit_id: 17 }).subscribe();
     api.list({ per_page: 50, production_unit_id: 17 }).subscribe();

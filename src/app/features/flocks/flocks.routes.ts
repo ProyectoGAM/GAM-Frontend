@@ -1,4 +1,7 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
+import { canCreateFlockFromQuickAccess } from '../../core/auth/access-policy';
+import { AuthStore } from '../../core/auth/auth.store';
 import type { FlockFractionationPage } from './pages/flock-fractionation/flock-fractionation.page';
 import type { FlockHealthPage } from './pages/flock-health/flock-health.page';
 import type { FlockBeakTrimmingsPage } from './pages/flock-beak-trimmings/flock-beak-trimmings.page';
@@ -6,6 +9,8 @@ import type { FlockBeakTrimmingsPage } from './pages/flock-beak-trimmings/flock-
 export const flocksRoutes: Routes = [
   {
     path: 'nuevo',
+    canActivate: [() => canCreateFlockFromQuickAccess(inject(AuthStore).user())
+      || inject(Router).parseUrl('/acceso-denegado')],
     loadComponent: () => import('./pages/flock-create/flock-create.page')
       .then((module) => module.FlockCreatePage),
   },

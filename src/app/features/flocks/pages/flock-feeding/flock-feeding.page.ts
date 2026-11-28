@@ -19,6 +19,7 @@ import { FlockDetailService, dateBefore, todayInLotsTimezone } from '../../servi
 import { FlockFeedingService } from '../../services/flock-feeding.service';
 import { FeedingLoadState, FeedingPeriod } from '../../types/feeding-state.type';
 import { FlockHouseTaskContext } from '../../services/flock-house-task-context';
+import { hasFlockPermission } from '../../services/flock-permissions';
 
 @Component({
   selector: 'app-flock-feeding-page',
@@ -101,7 +102,9 @@ export class FlockFeedingPage {
     .map((record) => ({ ...record, dateText: feedingDate(record.fecha), quantityText: formatFeedKg(record.cantidad_g),
       name: this.recipeNames().get(record.receta_id) ?? `Receta #${record.receta_id}`,
       corrected: record.cantidad_g !== record.original.cantidad_g || record.receta_id !== record.original.receta_id })));
-  readonly canChange = computed(() => !!this.auth.user() && this.currentState() === 'ready' && !!this.feeding()
+  readonly canManageFeeding = computed(() => hasFlockPermission(this.auth.user(), 'can_manage_flock_feeding'));
+  readonly canCorrect = computed(() => hasFlockPermission(this.auth.user(), 'can_correct_feed_consumption'));
+  readonly canChange = computed(() => this.canManageFeeding() && this.currentState() === 'ready' && !!this.feeding()
     && !this.feeding()?.finalizado && this.flock()?.status !== 'finished' && !this.houseMismatch());
   readonly editor = signal<'manual' | 'correction' | null>(null);
   readonly editorOpen = signal(false);
@@ -230,7 +233,7 @@ export class FlockFeedingPage {
   }
 
   openEdit(record: FeedConsumption): void {
-    if (this.saving() || !this.auth.user() || this.editor()) return;
+    if (this.saving() || !this.canCorrect() || this.editor()) return;
     this.editing.set(record); this.editor.set('correction'); this.saveError.set(null); this.success.set(null);
     this.editorOpen.set(true);
     this.loadEditorBalances();
@@ -263,7 +266,8 @@ export class FlockFeedingPage {
 
   save(submission: FeedingSubmission): void {
     const mode = this.editor(); const record = this.editing();
-    if (!mode || !this.editorOpen() || this.saving() || !this.auth.user() || (mode === 'manual' && !this.canChange())) return;
+    if (!mode || !this.editorOpen() || this.saving()) return;
+    if (mode === 'manual' ? !this.canChange() : !this.canCorrect()) return;
     const automatic = mode === 'manual' && submission.mode === 'automatico';
     if (automatic && this.feeding()?.modo === 'automatico') return;
     if (mode === 'correction' && (!record || !submission.reason.trim())) return;
